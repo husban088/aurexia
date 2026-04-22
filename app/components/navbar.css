@@ -26,7 +26,7 @@
   top: 0;
   left: 0;
   right: 0;
-  z-index: 999;
+  z-index: 997;
   height: var(--nav-height);
   background: var(--nav-bg);
   border-bottom: 1px solid var(--nav-border);
@@ -171,6 +171,7 @@
   transform: scaleX(1);
 }
 
+/* Active nav link */
 .navbar-links li a.active {
   color: var(--nav-gold-light);
 }
@@ -199,6 +200,7 @@
   background: transparent;
   color: var(--nav-muted);
   cursor: pointer;
+  text-decoration: none;
   transition: color var(--nav-transition), background var(--nav-transition),
     transform var(--nav-transition);
 }
@@ -215,6 +217,12 @@
   stroke-width: 1.5;
 }
 
+/* Active icon state — when on that page */
+.navbar-icon-btn.icon-active {
+  color: var(--nav-gold-light);
+  background: var(--nav-gold-pale);
+}
+
 /* Cart badge */
 .navbar-icon-btn .badge {
   position: absolute;
@@ -225,6 +233,7 @@
   background: var(--nav-gold);
   border-radius: 50%;
   border: 1.5px solid var(--nav-bg);
+  font-size: 0; /* hide any text, pure dot */
 }
 
 /* Divider between links and icons */

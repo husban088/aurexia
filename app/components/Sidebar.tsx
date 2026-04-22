@@ -56,19 +56,13 @@ const navLinks = [
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  /* ── Lock / unlock body scroll when sidebar opens/closes ── */
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = isOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
   }, [isOpen]);
 
-  /* ── Close on Escape key ── */
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) onClose();
@@ -77,21 +71,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     return () => document.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]);
 
-  /* ── Click INSIDE sidebar should NOT close it ── */
   const handleSidebarClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
   };
 
   return (
     <>
-      {/* ── Overlay — click outside to close ── */}
       <div
         className={`sidebar-overlay${isOpen ? " open" : ""}`}
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* ── Sidebar Panel ── */}
       <div
         ref={sidebarRef}
         className={`sidebar${isOpen ? " open" : ""}`}
@@ -102,11 +93,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       >
         {/* Header */}
         <div className="sidebar-header">
-          {/* Logo */}
           <Link href="/" className="sidebar-logo" onClick={onClose}>
             <Image
-              src="/next.svg"
-              alt="LuxeTime Logo"
+              src="/logo.png"
+              alt="Aurexia Logo"
               width={34}
               height={34}
               className="sidebar-logo-image dark:invert"
@@ -118,12 +108,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 lineHeight: 1,
               }}
             >
-              <span className="sidebar-logo-title">LuxeTime</span>
+              <span className="sidebar-logo-title">Aurexia</span>
               <span className="sidebar-logo-sub">Est. 2024</span>
             </span>
           </Link>
 
-          {/* Cross / Close button */}
           <button
             className="sidebar-close-btn"
             onClick={onClose}
@@ -140,7 +129,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <p className="sidebar-section-label">Navigation</p>
 
           <ul className="sidebar-nav-list">
-            {navLinks.map((link, i) => (
+            {navLinks.map((link) => (
               <li key={link.href} className="sidebar-nav-item">
                 <Link
                   href={link.href}
@@ -163,9 +152,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </p>
 
           <ul className="sidebar-nav-list">
+            {/* My Account → /signin */}
             <li className="sidebar-nav-item">
               <Link
-                href="/account"
+                href="/signin"
                 className="sidebar-nav-link"
                 onClick={onClose}
               >
@@ -173,7 +163,22 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
                   <circle cx="12" cy="7" r="4" />
                 </svg>
-                My Account
+                Sign In
+              </Link>
+            </li>
+            <li className="sidebar-nav-item">
+              <Link
+                href="/signup"
+                className="sidebar-nav-link"
+                onClick={onClose}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="19" y1="8" x2="19" y2="14" />
+                  <line x1="22" y1="11" x2="16" y2="11" />
+                </svg>
+                Create Account
               </Link>
             </li>
             <li className="sidebar-nav-item">
@@ -192,7 +197,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Footer */}
         <div className="sidebar-footer">
           <p className="sidebar-footer-text">
-            © 2024 LuxeTime — All Rights Reserved
+            © 2024 Aurexia — All Rights Reserved
           </p>
         </div>
       </div>

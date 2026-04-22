@@ -1,0 +1,606 @@
+/* ============================================================
+   SIGN IN PAGE  ·  signin.css
+   Luxury dark aesthetic matching Aurexia brand
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=Josefin+Sans:wght@200;300;400&display=swap");
+
+:root {
+  --si-gold: #b8963e;
+  --si-gold-light: #d4b87a;
+  --si-gold-dim: #7a6030;
+  --si-black: #080808;
+  --si-dark: #0e0e0e;
+  --si-dark-2: #141414;
+  --si-border: rgba(184, 150, 62, 0.2);
+  --si-white: #f5f0e8;
+  --si-grey: rgba(245, 240, 232, 0.45);
+  --si-serif: "Cormorant Garamond", Georgia, serif;
+  --si-sans: "Josefin Sans", sans-serif;
+  --si-ease: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Root fills viewport ── */
+.si-root {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--si-black);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.25rem;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* ── Grain ── */
+.si-grain {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Bg lines ── */
+.si-bg-lines {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 0;
+}
+.si-bg-lines span {
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(184, 150, 62, 0.08) 30%,
+    rgba(184, 150, 62, 0.08) 70%,
+    transparent 100%
+  );
+}
+
+/* ── Corner brackets ── */
+.si-corner {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  z-index: 1;
+  pointer-events: none;
+}
+.si-corner--tl {
+  top: 1.5rem;
+  left: 1.5rem;
+  border-top: 1px solid var(--si-gold);
+  border-left: 1px solid var(--si-gold);
+  opacity: 0.4;
+}
+.si-corner--tr {
+  top: 1.5rem;
+  right: 1.5rem;
+  border-top: 1px solid var(--si-gold);
+  border-right: 1px solid var(--si-gold);
+  opacity: 0.4;
+}
+.si-corner--bl {
+  bottom: 1.5rem;
+  left: 1.5rem;
+  border-bottom: 1px solid var(--si-gold);
+  border-left: 1px solid var(--si-gold);
+  opacity: 0.4;
+}
+.si-corner--br {
+  bottom: 1.5rem;
+  right: 1.5rem;
+  border-bottom: 1px solid var(--si-gold);
+  border-right: 1px solid var(--si-gold);
+  opacity: 0.4;
+}
+
+/* ── Card (two-panel layout) ── */
+.si-card {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  max-width: 900px;
+  min-height: 580px;
+  border: 1px solid var(--si-border);
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7);
+}
+
+/* ── LEFT BRAND PANEL ── */
+.si-brand {
+  position: relative;
+  background: linear-gradient(160deg, #0f0c05 0%, #161008 50%, #0a0804 100%);
+  border-right: 1px solid var(--si-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 3rem 2.5rem;
+}
+
+/* Radial gold glow behind brand */
+.si-brand::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(
+    circle,
+    rgba(184, 150, 62, 0.12) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.si-brand-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.1rem;
+}
+
+.si-brand-logo {
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--si-border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(184, 150, 62, 0.05);
+  margin-bottom: 0.25rem;
+}
+
+.si-logo-img {
+  border-radius: 50%;
+}
+
+.si-brand-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-family: var(--si-sans);
+  font-size: 0.58rem;
+  font-weight: 300;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--si-gold);
+}
+
+.si-ey-line {
+  display: block;
+  width: 24px;
+  height: 1px;
+  background: var(--si-gold);
+  opacity: 0.5;
+}
+
+.si-brand-title {
+  font-family: var(--si-serif);
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  font-weight: 300;
+  color: var(--si-white);
+  letter-spacing: 0.12em;
+  line-height: 1;
+  margin: 0;
+}
+
+.si-brand-tagline {
+  font-family: var(--si-serif);
+  font-size: 1.1rem;
+  font-weight: 300;
+  color: var(--si-grey);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.si-brand-tagline em {
+  font-style: italic;
+  color: var(--si-gold);
+}
+
+.si-brand-divider {
+  width: 36px;
+  height: 1px;
+  background: var(--si-gold);
+  opacity: 0.5;
+  margin: 0.25rem auto;
+}
+
+.si-brand-quote {
+  font-family: var(--si-serif);
+  font-style: italic;
+  font-size: 0.82rem;
+  font-weight: 300;
+  color: rgba(245, 240, 232, 0.35);
+  line-height: 1.7;
+  max-width: 220px;
+  margin: 0;
+}
+
+/* Decorative animated watch ring */
+.si-watch-ring {
+  position: absolute;
+  bottom: -60px;
+  right: -60px;
+  width: 200px;
+  height: 200px;
+  border: 1px solid rgba(184, 150, 62, 0.12);
+  border-radius: 50%;
+  animation: si-rotate 30s linear infinite;
+  pointer-events: none;
+}
+
+.si-watch-inner {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  border: 1px solid rgba(184, 150, 62, 0.07);
+  border-radius: 50%;
+}
+
+@keyframes si-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── RIGHT FORM PANEL ── */
+.si-form-panel {
+  background: var(--si-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2.5rem;
+}
+
+.si-form-wrap {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Form header */
+.si-form-header {
+  margin-bottom: 2.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.si-form-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-family: var(--si-sans);
+  font-size: 0.58rem;
+  font-weight: 300;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--si-gold);
+  margin: 0;
+}
+
+.si-form-title {
+  font-family: var(--si-serif);
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  font-weight: 300;
+  color: var(--si-white);
+  line-height: 1.05;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.si-form-title em {
+  font-style: italic;
+  color: var(--si-gold);
+}
+
+.si-form-sub {
+  font-family: var(--si-sans);
+  font-size: 0.68rem;
+  font-weight: 200;
+  letter-spacing: 0.08em;
+  color: var(--si-grey);
+  margin: 0;
+}
+
+/* ── Form fields ── */
+.si-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.si-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.si-label {
+  font-family: var(--si-sans);
+  font-size: 0.6rem;
+  font-weight: 300;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(245, 240, 232, 0.4);
+  transition: color var(--si-ease);
+  cursor: pointer;
+}
+
+.si-field--focused .si-label,
+.si-field--filled .si-label {
+  color: var(--si-gold);
+}
+
+.si-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.si-input-icon {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: rgba(245, 240, 232, 0.25);
+  transition: color var(--si-ease);
+  pointer-events: none;
+}
+
+.si-input-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.si-field--focused .si-input-icon,
+.si-field--filled .si-input-icon {
+  color: var(--si-gold);
+}
+
+.si-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0.55rem 2rem 0.55rem 1.6rem;
+  font-family: var(--si-sans);
+  font-size: 0.82rem;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  color: var(--si-white);
+  caret-color: var(--si-gold);
+}
+
+.si-input::placeholder {
+  color: rgba(245, 240, 232, 0.2);
+}
+
+/* Animated bottom line */
+.si-field-line {
+  height: 1px;
+  background: rgba(184, 150, 62, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.si-field-line::after {
+  content: "";
+  position: absolute;
+  left: -100%;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--si-gold);
+  transition: left var(--si-ease);
+}
+
+.si-field--focused .si-field-line::after {
+  left: 0;
+}
+
+/* Eye toggle */
+.si-eye-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(245, 240, 232, 0.25);
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--si-ease);
+}
+
+.si-eye-btn:hover {
+  color: var(--si-gold);
+}
+.si-eye-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Forgot */
+.si-forgot-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -0.6rem;
+}
+
+.si-forgot-link {
+  font-family: var(--si-sans);
+  font-size: 0.62rem;
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  color: rgba(184, 150, 62, 0.55);
+  text-decoration: none;
+  transition: color var(--si-ease);
+}
+
+.si-forgot-link:hover {
+  color: var(--si-gold);
+}
+
+/* Submit button */
+.si-submit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.9rem 1.5rem;
+  background: var(--si-gold);
+  border: 1px solid var(--si-gold);
+  color: var(--si-black);
+  font-family: var(--si-sans);
+  font-size: 0.68rem;
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 1px;
+  transition: background var(--si-ease), color var(--si-ease),
+    box-shadow var(--si-ease), gap var(--si-ease);
+  margin-top: 0.4rem;
+}
+
+.si-submit-btn svg {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--si-ease);
+}
+
+.si-submit-btn:hover {
+  background: transparent;
+  color: var(--si-gold);
+  box-shadow: 0 0 30px rgba(184, 150, 62, 0.15);
+  gap: 1rem;
+}
+
+.si-submit-btn:hover svg {
+  transform: translateX(3px);
+}
+
+/* OR divider */
+.si-or {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.5rem 0 1.2rem;
+}
+
+.si-or-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(184, 150, 62, 0.15);
+}
+
+.si-or-text {
+  font-family: var(--si-sans);
+  font-size: 0.58rem;
+  font-weight: 300;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(245, 240, 232, 0.2);
+}
+
+/* Switch link */
+.si-switch {
+  font-family: var(--si-sans);
+  font-size: 0.7rem;
+  font-weight: 200;
+  letter-spacing: 0.06em;
+  color: rgba(245, 240, 232, 0.35);
+  text-align: center;
+  margin: 0;
+}
+
+.si-switch-link {
+  color: var(--si-gold-light);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: color var(--si-ease), gap var(--si-ease);
+}
+
+.si-switch-link:hover {
+  color: var(--si-gold);
+  gap: 0.5rem;
+}
+
+/* ============================================================
+      RESPONSIVE
+      ============================================================ */
+@media (max-width: 768px) {
+  .si-card {
+    grid-template-columns: 1fr;
+    max-width: 440px;
+    min-height: unset;
+  }
+
+  /* Hide brand panel on small screens — show only form */
+  .si-brand {
+    display: none;
+  }
+
+  .si-form-panel {
+    padding: 2.5rem 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .si-root {
+    padding: 1.5rem 1rem;
+  }
+  .si-form-panel {
+    padding: 2rem 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .si-watch-ring {
+    animation: none;
+  }
+  .si-field-line::after,
+  .si-submit-btn,
+  .si-switch-link {
+    transition: none;
+  }
+}
