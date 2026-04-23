@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import Link from "next/link";
 import "./contact.css";
 
 /* ═══════════════════════════════════════════
@@ -125,7 +126,7 @@ function useToast() {
           () => setToasts((prev) => prev.filter((t) => t.id !== id)),
           400
         );
-      }, 3000); // Reduced from 4000 to 3000 for faster dismissal
+      }, 4000);
     },
     []
   );
@@ -186,7 +187,7 @@ export default function Contact() {
     setTouched((prev) => ({ ...prev, [field]: true }));
   }
 
-  /* ── Submit - OPTIMIZED FOR SPEED ── */
+  /* ── Submit ── */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -213,22 +214,16 @@ export default function Contact() {
     setSending(true);
 
     try {
-      // Use AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
-        signal: controller.signal,
       });
-
-      clearTimeout(timeoutId);
 
       const data = await res.json();
 
       if (!res.ok || !data.success) {
+        /* Server-side field errors */
         if (data.errors) {
           setErrors(data.errors);
         }
@@ -245,20 +240,12 @@ export default function Contact() {
         );
         setSubmitted(true);
       }
-    } catch (error: any) {
-      if (error.name === "AbortError") {
-        showToast(
-          "Timeout",
-          "Request took too long. Please check your connection and try again.",
-          "error"
-        );
-      } else {
-        showToast(
-          "Network Error",
-          "Unable to connect. Please check your internet and try again.",
-          "error"
-        );
-      }
+    } catch {
+      showToast(
+        "Network Error",
+        "Unable to connect. Please check your internet and try again.",
+        "error"
+      );
     } finally {
       setSending(false);
     }
@@ -281,6 +268,9 @@ export default function Contact() {
     return classes.join(" ");
   }
 
+  /* ═══════════════════════════════════════════
+     RENDER
+  ═══════════════════════════════════════════ */
   return (
     <div className="co-root">
       {/* Grain */}
@@ -744,7 +734,7 @@ export default function Contact() {
                       )}
                     </div>
 
-                    {/* Submit Button - OPTIMIZED */}
+                    {/* Submit */}
                     <button
                       type="submit"
                       className="co-submit-btn"
@@ -753,7 +743,7 @@ export default function Contact() {
                       {sending ? (
                         <>
                           <span className="co-spinner" aria-hidden="true" />
-                          Sending...
+                          Sending…
                         </>
                       ) : (
                         <>
@@ -781,7 +771,9 @@ export default function Contact() {
         </div>
       </div>
 
-      {/* TOASTS */}
+      {/* ═══════════════════════════════════════════
+          TOASTS
+      ═══════════════════════════════════════════ */}
       <div className="co-toast-wrap" aria-live="polite" aria-atomic="false">
         {toasts.map((t) => (
           <div

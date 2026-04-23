@@ -20,7 +20,6 @@
   --nav-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ---------- Navbar Wrapper ---------- */
 .navbar {
   position: fixed;
   top: 0;
@@ -41,7 +40,6 @@
   box-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);
 }
 
-/* Gold shimmer top line */
 .navbar::before {
   content: "";
   position: absolute;
@@ -60,7 +58,6 @@
   opacity: 0.7;
 }
 
-/* ---------- Inner Container ---------- */
 .navbar-inner {
   width: 100%;
   max-width: 1400px;
@@ -72,7 +69,6 @@
   gap: 2rem;
 }
 
-/* ---------- Logo ---------- */
 .navbar-logo {
   display: flex;
   align-items: center;
@@ -122,7 +118,6 @@
   margin-top: 2px;
 }
 
-/* ---------- Nav Links ---------- */
 .navbar-links {
   display: flex;
   align-items: center;
@@ -171,7 +166,6 @@
   transform: scaleX(1);
 }
 
-/* Active nav link */
 .navbar-links li a.active {
   color: var(--nav-gold-light);
 }
@@ -180,7 +174,6 @@
   transform: scaleX(1);
 }
 
-/* ---------- Right Icons ---------- */
 .navbar-icons {
   display: flex;
   align-items: center;
@@ -217,13 +210,11 @@
   stroke-width: 1.5;
 }
 
-/* Active icon state — when on that page */
 .navbar-icon-btn.icon-active {
   color: var(--nav-gold-light);
   background: var(--nav-gold-pale);
 }
 
-/* Cart badge */
 .navbar-icon-btn .badge {
   position: absolute;
   top: 6px;
@@ -233,10 +224,32 @@
   background: var(--nav-gold);
   border-radius: 50%;
   border: 1.5px solid var(--nav-bg);
-  font-size: 0; /* hide any text, pure dot */
+  font-size: 0;
 }
 
-/* Divider between links and icons */
+/* Auth indicator dot — shows when user is logged in */
+.navbar-user-dot {
+  position: absolute;
+  bottom: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  background: #5aaa6a;
+  border-radius: 50%;
+  border: 1.5px solid var(--nav-bg);
+  animation: nav-dot-blink 3s ease-in-out infinite;
+}
+
+@keyframes nav-dot-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
 .navbar-divider {
   width: 1px;
   height: 22px;
@@ -244,7 +257,6 @@
   margin: 0 0.5rem;
 }
 
-/* ---------- Menu Toggle (Mobile) ---------- */
 .navbar-menu-btn {
   display: none;
   flex-direction: column;
@@ -283,20 +295,16 @@
   width: 26px;
 }
 
-/* ---------- Responsive ---------- */
 @media (max-width: 900px) {
   .navbar-links {
     display: none;
   }
-
   .navbar-menu-btn {
     display: flex;
   }
-
   .navbar-divider {
     display: none;
   }
-
   .navbar-inner {
     padding: 0 1.25rem;
   }

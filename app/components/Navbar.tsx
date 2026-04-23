@@ -4,13 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { isOwner } from "@/lib/checkOwner";
+import { useCartStore } from "@/lib/cartStore";
 import "./navbar.css";
 
 interface NavbarProps {
   onMenuOpen: () => void;
   onSearchOpen: () => void;
   onCartOpen: () => void;
-  cartCount?: number;
+  cartCount?: number; // kept for compatibility but store se live count milega
 }
 
 const navLinks = [
@@ -108,11 +111,11 @@ const navLinks = [
       </svg>
     ),
   },
-  {
-    href: "/panel",
-    label: "Panel",
-    // New unique panel icon: settings/dashboard style
-    icon: (
+];
+
+const PanelLink = ({ isActive }: { isActive: boolean }) => (
+  <li>
+    <Link href="/panel" className={isActive ? "active" : ""}>
       <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -123,18 +126,23 @@ const navLinks = [
         <path d="M12 20h9" />
         <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
       </svg>
-    ),
-  },
-];
+      Panel
+    </Link>
+  </li>
+);
 
 export default function Navbar({
   onMenuOpen,
   onSearchOpen,
   onCartOpen,
-  cartCount = 0,
 }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const pathname = usePathname();
+
+  // ✅ Cart count directly from store — always real-time
+  const cartCount = useCartStore((state) => state.getCartCount());
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -146,6 +154,26 @@ export default function Navbar({
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      setUserEmail(currentUser?.email ?? null);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        setUserEmail(currentUser?.email ?? null);
+      }
+    );
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const showPanel = isOwner(userEmail);
 
   return (
     <nav className={`navbar${scrolled ? " scrolled" : ""}`}>
@@ -175,6 +203,7 @@ export default function Navbar({
               </Link>
             </li>
           ))}
+          {showPanel && <PanelLink isActive={isActive("/panel")} />}
         </ul>
 
         {/* Right Icons */}
@@ -192,6 +221,7 @@ export default function Navbar({
             </svg>
           </button>
 
+          {/* ✅ Cart button — live count from store */}
           <button
             className={`navbar-icon-btn${
               pathname === "/cart" ? " icon-active" : ""
@@ -212,18 +242,21 @@ export default function Navbar({
           </button>
 
           <Link
-            href="/signin"
+            href={user ? "/profile" : "/signin"}
             className={`navbar-icon-btn${
-              pathname === "/signin" || pathname === "/signup"
+              pathname === "/signin" ||
+              pathname === "/signup" ||
+              pathname === "/profile"
                 ? " icon-active"
                 : ""
             }`}
-            aria-label="Account"
+            aria-label={user ? "My Profile" : "Sign In"}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
+            {user && <span className="navbar-user-dot" aria-hidden="true" />}
           </Link>
 
           <div className="navbar-divider" aria-hidden="true" />

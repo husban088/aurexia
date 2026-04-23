@@ -1,69 +1,34 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { useCartStore } from "@/lib/cartStore";
 import "./cartsidebar.css";
-
-interface CartItem {
-  id: number;
-  name: string;
-  brand: string;
-  price: number;
-  qty: number;
-  image: string;
-  variant?: string;
-}
 
 interface CartSidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-// Demo cart items — replace with real cart state/context
-const initialItems: CartItem[] = [
-  {
-    id: 1,
-    name: "Prestige Chronograph",
-    brand: "Aurexia",
-    price: 429,
-    qty: 1,
-    image: "/watches/watch1.jpg",
-    variant: "Rose Gold · 42mm",
-  },
-  {
-    id: 2,
-    name: "Elite Magsafe Wallet",
-    brand: "Aurexia",
-    price: 89,
-    qty: 2,
-    image: "/accessories/wallet1.jpg",
-    variant: "Midnight Black",
-  },
-];
+const FREE_SHIPPING_THRESHOLD = 3000; // PKR
 
 export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
-  const [items, setItems] = useState<CartItem[]>(initialItems);
+  const {
+    items,
+    loading,
+    fetchCart,
+    updateQuantity,
+    removeFromCart,
+    getSubtotal,
+  } = useCartStore();
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  const updateQty = (id: number, delta: number) => {
-    setItems((prev) =>
-      prev
-        .map((item) =>
-          item.id === id
-            ? { ...item, qty: Math.max(0, item.qty + delta) }
-            : item
-        )
-        .filter((item) => item.qty > 0)
-    );
-  };
-
-  const removeItem = (id: number) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const subtotal = items.reduce((acc, item) => acc + item.price * item.qty, 0);
-  const shipping = subtotal > 300 ? 0 : 25;
-  const total = subtotal + shipping;
+  useEffect(() => {
+    if (isOpen) {
+      fetchCart();
+    }
+  }, [isOpen, fetchCart]);
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : "";
@@ -79,6 +44,14 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]);
+
+  const subtotal = getSubtotal();
+  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 250;
+  const total = subtotal + shipping;
+  const shippingProgress = Math.min(
+    (subtotal / FREE_SHIPPING_THRESHOLD) * 100,
+    100
+  );
 
   const handleSidebarClick = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -117,8 +90,10 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 "Empty"
               ) : (
                 <>
-                  <em>{items.length}</em>{" "}
-                  {items.length === 1 ? "Item" : "Items"}
+                  <em>{items.reduce((a, b) => a + b.quantity, 0)}</em>{" "}
+                  {items.reduce((a, b) => a + b.quantity, 0) === 1
+                    ? "Item"
+                    : "Items"}
                 </>
               )}
             </h2>
@@ -140,45 +115,58 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
         </div>
 
         {/* Free Shipping Bar */}
-        {items.length > 0 && subtotal < 300 && (
-          <div className="cs-shipping-bar">
-            <p className="cs-shipping-text">
-              Add <strong>${300 - subtotal}</strong> more for free shipping
-            </p>
-            <div className="cs-shipping-track">
-              <div
-                className="cs-shipping-fill"
-                style={{ width: `${(subtotal / 300) * 100}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {subtotal >= 300 && items.length > 0 && (
-          <div className="cs-shipping-bar cs-shipping-bar--achieved">
-            <p className="cs-shipping-text">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                width="13"
-                height="13"
-              >
-                <polyline
-                  points="20 6 9 17 4 12"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Free shipping unlocked!
-            </p>
+        {items.length > 0 && (
+          <div
+            className={`cs-shipping-bar${
+              shipping === 0 ? " cs-shipping-bar--achieved" : ""
+            }`}
+          >
+            {shipping === 0 ? (
+              <p className="cs-shipping-text">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  width="13"
+                  height="13"
+                >
+                  <polyline
+                    points="20 6 9 17 4 12"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Free shipping unlocked!
+              </p>
+            ) : (
+              <>
+                <p className="cs-shipping-text">
+                  Add{" "}
+                  <strong>
+                    PKR {(FREE_SHIPPING_THRESHOLD - subtotal).toLocaleString()}
+                  </strong>{" "}
+                  more for free shipping
+                </p>
+                <div className="cs-shipping-track">
+                  <div
+                    className="cs-shipping-fill"
+                    style={{ width: `${shippingProgress}%` }}
+                  />
+                </div>
+              </>
+            )}
           </div>
         )}
 
         {/* Items */}
         <div className="cs-items">
-          {items.length === 0 ? (
+          {loading ? (
+            <div className="cs-empty">
+              <div className="cs-spinner" />
+              <p className="cs-empty-title">Loading cart...</p>
+            </div>
+          ) : items.length === 0 ? (
             <div className="cs-empty">
               <div className="cs-empty-icon" aria-hidden="true">
                 <svg
@@ -214,119 +202,150 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             </div>
           ) : (
             <ul className="cs-item-list">
-              {items.map((item, i) => (
-                <li
-                  key={item.id}
-                  className="cs-item"
-                  style={{
-                    animationDelay: isOpen ? `${0.15 + i * 0.08}s` : "0s",
-                  }}
-                >
-                  {/* Image */}
-                  <div className="cs-item-img-wrap">
-                    <div className="cs-item-img-placeholder" aria-hidden="true">
+              {items.map((item, i) => {
+                const product = item.product;
+                const itemTotal = product.price * item.quantity;
+
+                return (
+                  <li
+                    key={item.id}
+                    className="cs-item"
+                    style={{
+                      animationDelay: isOpen ? `${0.15 + i * 0.08}s` : "0s",
+                    }}
+                  >
+                    {/* Image */}
+                    <div className="cs-item-img-wrap">
+                      {product.images?.[0] ? (
+                        <Image
+                          src={product.images[0]}
+                          alt={product.name}
+                          width={68}
+                          height={68}
+                          style={{
+                            objectFit: "cover",
+                            width: "100%",
+                            height: "100%",
+                          }}
+                        />
+                      ) : (
+                        <div
+                          className="cs-item-img-placeholder"
+                          aria-hidden="true"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="0.8"
+                          >
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="cs-item-info">
+                      {product.brand && (
+                        <p className="cs-item-brand">{product.brand}</p>
+                      )}
+                      <p className="cs-item-name">{product.name}</p>
+                      <p className="cs-item-variant">{product.subcategory}</p>
+
+                      <div className="cs-item-bottom">
+                        {/* Qty */}
+                        <div className="cs-qty">
+                          <button
+                            className="cs-qty-btn"
+                            onClick={() =>
+                              updateQuantity(item.id, item.quantity - 1)
+                            }
+                            aria-label="Decrease quantity"
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M5 12h14" strokeLinecap="round" />
+                            </svg>
+                          </button>
+                          <span className="cs-qty-num">{item.quantity}</span>
+                          <button
+                            className="cs-qty-btn"
+                            onClick={() =>
+                              updateQuantity(item.id, item.quantity + 1)
+                            }
+                            aria-label="Increase quantity"
+                            disabled={item.quantity >= product.stock}
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path
+                                d="M12 5v14M5 12h14"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+
+                        <p className="cs-item-price">
+                          PKR {itemTotal.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Remove */}
+                    <button
+                      className="cs-item-remove"
+                      onClick={() => removeFromCart(item.id)}
+                      aria-label={`Remove ${product.name}`}
+                    >
                       <svg
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth="0.8"
+                        strokeWidth="1.5"
                       >
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <circle cx="8.5" cy="8.5" r="1.5" />
-                        <polyline points="21 15 16 10 5 21" />
+                        <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" />
                       </svg>
-                    </div>
-                  </div>
-
-                  {/* Info */}
-                  <div className="cs-item-info">
-                    <p className="cs-item-brand">{item.brand}</p>
-                    <p className="cs-item-name">{item.name}</p>
-                    {item.variant && (
-                      <p className="cs-item-variant">{item.variant}</p>
-                    )}
-
-                    <div className="cs-item-bottom">
-                      {/* Qty */}
-                      <div className="cs-qty">
-                        <button
-                          className="cs-qty-btn"
-                          onClick={() => updateQty(item.id, -1)}
-                          aria-label="Decrease quantity"
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M5 12h14" strokeLinecap="round" />
-                          </svg>
-                        </button>
-                        <span className="cs-qty-num">{item.qty}</span>
-                        <button
-                          className="cs-qty-btn"
-                          onClick={() => updateQty(item.id, 1)}
-                          aria-label="Increase quantity"
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-                          </svg>
-                        </button>
-                      </div>
-
-                      <p className="cs-item-price">
-                        ${(item.price * item.qty).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Remove */}
-                  <button
-                    className="cs-item-remove"
-                    onClick={() => removeItem(item.id)}
-                    aria-label={`Remove ${item.name}`}
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    >
-                      <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
-                    </svg>
-                  </button>
-                </li>
-              ))}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
 
         {/* Summary & Checkout */}
-        {items.length > 0 && (
+        {items.length > 0 && !loading && (
           <div className="cs-footer">
             <div className="cs-summary">
               <div className="cs-summary-row">
                 <span>Subtotal</span>
-                <span>${subtotal.toLocaleString()}</span>
+                <span>PKR {subtotal.toLocaleString()}</span>
               </div>
               <div className="cs-summary-row">
                 <span>Shipping</span>
-                <span>{shipping === 0 ? "Free" : `$${shipping}`}</span>
+                <span>
+                  {shipping === 0 ? "Free" : `PKR ${shipping.toLocaleString()}`}
+                </span>
               </div>
               <div className="cs-summary-divider" />
               <div className="cs-summary-row cs-summary-total">
                 <span>Total</span>
-                <span>${total.toLocaleString()}</span>
+                <span>PKR {total.toLocaleString()}</span>
               </div>
             </div>
 
-            {/* Checkout button */}
             <Link
               href="/checkout"
               className="cs-checkout-btn"
@@ -347,7 +366,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               </svg>
             </Link>
 
-            {/* View Cart button — NEW */}
             <Link href="/cart" className="cs-view-cart-btn" onClick={onClose}>
               <svg
                 viewBox="0 0 24 24"

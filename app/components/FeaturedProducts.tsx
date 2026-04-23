@@ -8,6 +8,7 @@ import "swiper/css";
 import "swiper/css/pagination";
 import "@/app/styles/featured-products.css";
 import { supabase } from "@/lib/supabase";
+import { useCartStore } from "@/lib/cartStore";
 
 /* ── Supabase Product Type ── */
 interface Product {
@@ -90,6 +91,8 @@ function ProductCard({ product }: { product: Product }) {
         )
       : null;
 
+  const { addToCart } = useCartStore();
+
   return (
     <Link href={`/product/${product.id}`} className="fp-card">
       {/* Image */}
@@ -145,7 +148,7 @@ function ProductCard({ product }: { product: Product }) {
             className="fp-overlay-btn"
             onClick={(e) => {
               e.preventDefault();
-              // Add your add to cart logic here
+              addToCart(product);
             }}
           >
             <svg

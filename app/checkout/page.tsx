@@ -1,7 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useCartStore } from "@/lib/cartStore";
+import { supabase } from "@/lib/supabase";
 import "./checkout.css";
 
 type Step = "shipping" | "payment" | "review";
@@ -27,25 +31,14 @@ const STEPS: { id: Step; label: string; num: string }[] = [
   { id: "review", label: "Review", num: "03" },
 ];
 
-const orderItems = [
-  {
-    name: "Prestige Chronograph",
-    variant: "Rose Gold · 42mm",
-    price: 429,
-    qty: 1,
-  },
-  {
-    name: "Elite Magsafe Wallet",
-    variant: "Midnight Black",
-    price: 89,
-    qty: 2,
-  },
-];
-
 export default function Checkout() {
+  const router = useRouter();
+  const { items, loading, fetchCart, clearCart, getSubtotal } = useCartStore();
   const [step, setStep] = useState<Step>("shipping");
   const [focused, setFocused] = useState<string | null>(null);
   const [placed, setPlaced] = useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<FormData>({
     firstName: "",
     lastName: "",
@@ -54,34 +47,217 @@ export default function Checkout() {
     address: "",
     city: "",
     zip: "",
-    country: "",
+    country: "Pakistan",
     cardNumber: "",
     cardName: "",
     expiry: "",
     cvv: "",
   });
 
-  const set =
-    (key: keyof FormData) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm((f) => ({ ...f, [key]: e.target.value }));
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
 
-  const subtotal = orderItems.reduce((a, b) => a + b.price * b.qty, 0);
-  const shipping = subtotal >= 300 ? 0 : 25;
+  useEffect(() => {
+    // Auto-fill email if user is logged in
+    const getUserEmail = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user?.email && !form.email) {
+        setForm((f) => ({ ...f, email: session.user.email || "" }));
+      }
+    };
+    getUserEmail();
+  }, [form.email]);
+
+  const setFormField =
+    (key: keyof FormData) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      setForm((f) => ({ ...f, [key]: e.target.value }));
+    };
+
+  const subtotal = getSubtotal();
+  const shipping = subtotal >= 3000 ? 0 : 250;
   const total = subtotal + shipping;
 
   const currentStepIndex = STEPS.findIndex((s) => s.id === step);
 
+  const validateShipping = () => {
+    const required = [
+      "firstName",
+      "lastName",
+      "email",
+      "phone",
+      "address",
+      "city",
+      "zip",
+      "country",
+    ];
+    for (const field of required) {
+      if (!form[field as keyof FormData]) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const validatePayment = () => {
+    const required = ["cardNumber", "cardName", "expiry", "cvv"];
+    for (const field of required) {
+      if (!form[field as keyof FormData]) {
+        return false;
+      }
+    }
+    if (form.cardNumber.replace(/\s/g, "").length < 16) return false;
+    if (form.cvv.length < 3) return false;
+    return true;
+  };
+
   const nextStep = () => {
-    if (step === "shipping") setStep("payment");
-    else if (step === "payment") setStep("review");
-    else setPlaced(true);
+    if (step === "shipping") {
+      if (!validateShipping()) {
+        alert("Please fill all shipping details.");
+        return;
+      }
+      setStep("payment");
+    } else if (step === "payment") {
+      if (!validatePayment()) {
+        alert("Please fill all payment details correctly.");
+        return;
+      }
+      setStep("review");
+    }
   };
 
   const prevStep = () => {
     if (step === "payment") setStep("shipping");
     else if (step === "review") setStep("payment");
   };
+
+  const placeOrder = async () => {
+    if (items.length === 0) {
+      alert("Your cart is empty.");
+      return;
+    }
+
+    setSubmitting(true);
+
+    // Generate order number
+    const orderRef = `AX-${Date.now()
+      .toString(36)
+      .toUpperCase()}-${Math.random()
+      .toString(36)
+      .substring(2, 6)
+      .toUpperCase()}`;
+    setOrderNumber(orderRef);
+
+    // Save order to Supabase (optional - create orders table)
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      // Create order record
+      const orderData = {
+        order_number: orderRef,
+        user_id: session?.user?.id || null,
+        customer_name: `${form.firstName} ${form.lastName}`,
+        customer_email: form.email,
+        customer_phone: form.phone,
+        shipping_address: `${form.address}, ${form.city}, ${form.zip}, ${form.country}`,
+        subtotal: subtotal,
+        shipping_cost: shipping,
+        total: total,
+        payment_method: "card",
+        status: "pending",
+        items: items.map((item) => ({
+          product_id: item.product_id,
+          name: item.product.name,
+          price: item.product.price,
+          quantity: item.quantity,
+          image: item.product.images?.[0] || null,
+        })),
+        created_at: new Date().toISOString(),
+      };
+
+      // Optional: Save to database if you have orders table
+      // const { error } = await supabase.from("orders").insert(orderData);
+
+      // Clear cart after successful order
+      await clearCart();
+
+      setPlaced(true);
+    } catch (error) {
+      console.error("Order placement error:", error);
+      alert("There was an error placing your order. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="co-root">
+        <div className="co-grain" aria-hidden="true" />
+        <div className="co-lines" aria-hidden="true">
+          {[...Array(5)].map((_, i) => (
+            <span key={i} />
+          ))}
+        </div>
+        <div className="co-wrap">
+          <div className="co-empty-state">
+            <div className="co-spinner" />
+            <p>Loading checkout...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (items.length === 0 && !placed) {
+    return (
+      <div className="co-root">
+        <div className="co-grain" aria-hidden="true" />
+        <div className="co-lines" aria-hidden="true">
+          {[...Array(5)].map((_, i) => (
+            <span key={i} />
+          ))}
+        </div>
+        <div className="co-wrap">
+          <div className="co-empty-state">
+            <div className="co-empty-icon" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="0.8"
+              >
+                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <path d="M16 10a4 4 0 01-8 0" />
+              </svg>
+            </div>
+            <h2 className="co-empty-title">Your cart is empty</h2>
+            <p className="co-empty-sub">Add items to proceed with checkout</p>
+            <Link href="/watches" className="co-empty-btn">
+              Continue Shopping
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                width="14"
+                height="14"
+              >
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (placed) {
     return (
@@ -118,13 +294,11 @@ export default function Checkout() {
           </h1>
           <p className="co-success-sub">
             Your order has been received and is being prepared with care. A
-            confirmation has been sent to {form.email || "your email"}.
+            confirmation has been sent to {form.email}.
           </p>
           <div className="co-success-ref">
             <span className="co-success-ref-label">Order Reference</span>
-            <span className="co-success-ref-val">
-              AX-{Math.random().toString(36).substring(2, 8).toUpperCase()}
-            </span>
+            <span className="co-success-ref-val">{orderNumber}</span>
           </div>
           <Link href="/" className="co-success-btn">
             <span>Return Home</span>
@@ -136,11 +310,7 @@ export default function Checkout() {
               width="14"
               height="14"
             >
-              <path
-                d="M5 12h14M12 5l7 7-7 7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
           </Link>
         </div>
@@ -161,7 +331,6 @@ export default function Checkout() {
       <div className="co-corner co-corner--tr" aria-hidden="true" />
 
       <div className="co-wrap">
-        {/* Header */}
         <div className="co-header">
           <p className="co-eyebrow">
             <span className="co-ey-line" />
@@ -209,7 +378,7 @@ export default function Checkout() {
         </div>
 
         <div className="co-layout">
-          {/* ── Form Column ── */}
+          {/* Form Column */}
           <div className="co-form-col">
             {/* SHIPPING STEP */}
             {step === "shipping" && (
@@ -218,67 +387,61 @@ export default function Checkout() {
                   <em>01.</em> Shipping Information
                 </h2>
                 <div className="co-fields-grid">
-                  {(
-                    [
-                      {
-                        key: "firstName",
-                        label: "First Name",
-                        placeholder: "John",
-                        half: true,
-                      },
-                      {
-                        key: "lastName",
-                        label: "Last Name",
-                        placeholder: "Doe",
-                        half: true,
-                      },
-                      {
-                        key: "email",
-                        label: "Email Address",
-                        placeholder: "john@email.com",
-                        type: "email",
-                      },
-                      {
-                        key: "phone",
-                        label: "Phone Number",
-                        placeholder: "+1 (555) 000-0000",
-                        type: "tel",
-                      },
-                      {
-                        key: "address",
-                        label: "Street Address",
-                        placeholder: "123 Luxury Ave",
-                      },
-                      {
-                        key: "city",
-                        label: "City",
-                        placeholder: "New York",
-                        half: true,
-                      },
-                      {
-                        key: "zip",
-                        label: "ZIP / Postal Code",
-                        placeholder: "10001",
-                        half: true,
-                      },
-                      {
-                        key: "country",
-                        label: "Country",
-                        placeholder: "United States",
-                      },
-                    ] as {
-                      key: keyof FormData;
-                      label: string;
-                      placeholder: string;
-                      half?: boolean;
-                      type?: string;
-                    }[]
-                  ).map((f) => (
+                  {[
+                    {
+                      key: "firstName",
+                      label: "First Name",
+                      placeholder: "John",
+                      half: true,
+                    },
+                    {
+                      key: "lastName",
+                      label: "Last Name",
+                      placeholder: "Doe",
+                      half: true,
+                    },
+                    {
+                      key: "email",
+                      label: "Email Address",
+                      placeholder: "john@email.com",
+                      type: "email",
+                    },
+                    {
+                      key: "phone",
+                      label: "Phone Number",
+                      placeholder: "+92 300 0000000",
+                      type: "tel",
+                    },
+                    {
+                      key: "address",
+                      label: "Street Address",
+                      placeholder: "123 Luxury Ave",
+                    },
+                    {
+                      key: "city",
+                      label: "City",
+                      placeholder: "Faisalabad",
+                      half: true,
+                    },
+                    {
+                      key: "zip",
+                      label: "ZIP / Postal Code",
+                      placeholder: "38000",
+                      half: true,
+                    },
+                    {
+                      key: "country",
+                      label: "Country",
+                      placeholder: "Pakistan",
+                    },
+                  ].map((f) => (
                     <div
                       key={f.key}
                       className={`co-field${f.half ? " co-field--half" : ""}${
                         focused === f.key ? " co-field--focused" : ""
-                      }${form[f.key] ? " co-field--filled" : ""}`}
+                      }${
+                        form[f.key as keyof FormData] ? " co-field--filled" : ""
+                      }`}
                     >
                       <label className="co-label" htmlFor={`co-${f.key}`}>
                         {f.label}
@@ -289,10 +452,11 @@ export default function Checkout() {
                           type={f.type || "text"}
                           className="co-input"
                           placeholder={f.placeholder}
-                          value={form[f.key]}
-                          onChange={set(f.key)}
+                          value={form[f.key as keyof FormData] as string}
+                          onChange={setFormField(f.key as keyof FormData)}
                           onFocus={() => setFocused(f.key)}
                           onBlur={() => setFocused(null)}
+                          required={f.key !== "company"}
                         />
                       </div>
                       <div className="co-field-line" aria-hidden="true" />
@@ -309,7 +473,6 @@ export default function Checkout() {
                   <em>02.</em> Payment Details
                 </h2>
 
-                {/* Card preview */}
                 <div className="co-card-preview">
                   <div className="co-card-chip" aria-hidden="true" />
                   <p className="co-card-num-display">
@@ -326,47 +489,42 @@ export default function Checkout() {
                     </span>
                   </div>
                   <div className="co-card-brand" aria-hidden="true">
-                    VISA
+                    AUREXIA
                   </div>
                 </div>
 
                 <div className="co-fields-grid">
-                  {(
-                    [
-                      {
-                        key: "cardNumber",
-                        label: "Card Number",
-                        placeholder: "1234 5678 9012 3456",
-                      },
-                      {
-                        key: "cardName",
-                        label: "Cardholder Name",
-                        placeholder: "JOHN DOE",
-                      },
-                      {
-                        key: "expiry",
-                        label: "Expiry",
-                        placeholder: "MM/YY",
-                        half: true,
-                      },
-                      {
-                        key: "cvv",
-                        label: "CVV",
-                        placeholder: "•••",
-                        half: true,
-                      },
-                    ] as {
-                      key: keyof FormData;
-                      label: string;
-                      placeholder: string;
-                      half?: boolean;
-                    }[]
-                  ).map((f) => (
+                  {[
+                    {
+                      key: "cardNumber",
+                      label: "Card Number",
+                      placeholder: "1234 5678 9012 3456",
+                    },
+                    {
+                      key: "cardName",
+                      label: "Cardholder Name",
+                      placeholder: "JOHN DOE",
+                    },
+                    {
+                      key: "expiry",
+                      label: "Expiry",
+                      placeholder: "MM/YY",
+                      half: true,
+                    },
+                    {
+                      key: "cvv",
+                      label: "CVV",
+                      placeholder: "•••",
+                      half: true,
+                    },
+                  ].map((f) => (
                     <div
                       key={f.key}
                       className={`co-field${f.half ? " co-field--half" : ""}${
                         focused === f.key ? " co-field--focused" : ""
-                      }${form[f.key] ? " co-field--filled" : ""}`}
+                      }${
+                        form[f.key as keyof FormData] ? " co-field--filled" : ""
+                      }`}
                     >
                       <label className="co-label" htmlFor={`co-${f.key}`}>
                         {f.label}
@@ -377,8 +535,8 @@ export default function Checkout() {
                           type={f.key === "cvv" ? "password" : "text"}
                           className="co-input"
                           placeholder={f.placeholder}
-                          value={form[f.key]}
-                          onChange={set(f.key)}
+                          value={form[f.key as keyof FormData] as string}
+                          onChange={setFormField(f.key as keyof FormData)}
                           onFocus={() => setFocused(f.key)}
                           onBlur={() => setFocused(null)}
                           maxLength={
@@ -430,6 +588,8 @@ export default function Checkout() {
                       {form.address}, {form.city} {form.zip}
                       <br />
                       {form.country}
+                      <br />
+                      📞 {form.phone}
                     </p>
                   </div>
                   <div className="co-review-block">
@@ -444,16 +604,19 @@ export default function Checkout() {
                 </div>
 
                 <ul className="co-review-items">
-                  {orderItems.map((item) => (
-                    <li key={item.name} className="co-review-item">
+                  {items.map((item) => (
+                    <li key={item.id} className="co-review-item">
                       <div className="co-review-item-info">
-                        <span className="co-review-item-name">{item.name}</span>
+                        <span className="co-review-item-name">
+                          {item.product.name}
+                        </span>
                         <span className="co-review-item-variant">
-                          {item.variant} × {item.qty}
+                          {item.product.subcategory} × {item.quantity}
                         </span>
                       </div>
                       <span className="co-review-item-price">
-                        ${(item.price * item.qty).toLocaleString()}
+                        PKR{" "}
+                        {(item.product.price * item.quantity).toLocaleString()}
                       </span>
                     </li>
                   ))}
@@ -485,11 +648,7 @@ export default function Checkout() {
                     width="14"
                     height="14"
                   >
-                    <path
-                      d="M19 12H5M12 19l-7-7 7-7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
                   </svg>
                   Back
                 </button>
@@ -503,37 +662,55 @@ export default function Checkout() {
                     width="14"
                     height="14"
                   >
-                    <path
-                      d="M19 12H5M12 19l-7-7 7-7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
                   </svg>
                   Cart
                 </Link>
               )}
 
-              <button className="co-next-btn" onClick={nextStep}>
-                <span>{step === "review" ? "Place Order" : "Continue"}</span>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  width="14"
-                  height="14"
+              {step === "review" ? (
+                <button
+                  className="co-next-btn"
+                  onClick={placeOrder}
+                  disabled={submitting}
                 >
-                  <path
-                    d="M5 12h14M12 5l7 7-7 7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+                  {submitting ? (
+                    <span className="co-spinner-btn" />
+                  ) : (
+                    <>
+                      <span>Place Order</span>
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        width="14"
+                        height="14"
+                      >
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <button className="co-next-btn" onClick={nextStep}>
+                  <span>Continue</span>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    width="14"
+                    height="14"
+                  >
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
 
-          {/* ── Order Summary Column ── */}
+          {/* Order Summary Column */}
           <div className="co-summary-col">
             <div className="co-summary-card">
               <p className="co-summary-title">
@@ -543,50 +720,75 @@ export default function Checkout() {
               </p>
 
               <ul className="co-summary-items">
-                {orderItems.map((item) => (
-                  <li key={item.name} className="co-summary-item">
+                {items.slice(0, 3).map((item) => (
+                  <li key={item.id} className="co-summary-item">
                     <div className="co-summary-item-img" aria-hidden="true">
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="0.8"
-                      >
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <circle cx="8.5" cy="8.5" r="1.5" />
-                        <polyline points="21 15 16 10 5 21" />
-                      </svg>
+                      {item.product.images?.[0] ? (
+                        <Image
+                          src={item.product.images[0]}
+                          alt={item.product.name}
+                          width={42}
+                          height={42}
+                          style={{
+                            objectFit: "cover",
+                            width: "100%",
+                            height: "100%",
+                          }}
+                        />
+                      ) : (
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="0.8"
+                        >
+                          <rect x="3" y="3" width="18" height="18" rx="2" />
+                          <circle cx="8.5" cy="8.5" r="1.5" />
+                          <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                      )}
                     </div>
                     <div className="co-summary-item-info">
-                      <span className="co-summary-item-name">{item.name}</span>
+                      <span className="co-summary-item-name">
+                        {item.product.name}
+                      </span>
                       <span className="co-summary-item-variant">
-                        {item.variant}
+                        ×{item.quantity}
                       </span>
                     </div>
                     <span className="co-summary-item-price">
-                      ${(item.price * item.qty).toLocaleString()}
+                      PKR{" "}
+                      {(item.product.price * item.quantity).toLocaleString()}
                     </span>
                   </li>
                 ))}
+                {items.length > 3 && (
+                  <li className="co-summary-more">
+                    +{items.length - 3} more items
+                  </li>
+                )}
               </ul>
 
               <div className="co-summary-breakdown">
                 <div className="co-summary-row">
                   <span>Subtotal</span>
-                  <span>${subtotal.toLocaleString()}</span>
+                  <span>PKR {subtotal.toLocaleString()}</span>
                 </div>
                 <div className="co-summary-row">
                   <span>Shipping</span>
-                  <span>{shipping === 0 ? "Free" : `$${shipping}`}</span>
+                  <span>
+                    {shipping === 0
+                      ? "Free"
+                      : `PKR ${shipping.toLocaleString()}`}
+                  </span>
                 </div>
                 <div className="co-summary-divider" />
                 <div className="co-summary-row co-summary-total">
                   <span>Total</span>
-                  <span>${total.toLocaleString()}</span>
+                  <span>PKR {total.toLocaleString()}</span>
                 </div>
               </div>
 
-              {/* Perks */}
               <div className="co-perks">
                 {[
                   { icon: "✦", text: "Luxury gift packaging included" },

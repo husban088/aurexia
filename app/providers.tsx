@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useCartStore } from "@/lib/cartStore";
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
 import SearchSidebar from "./components/SearchSidebar";
@@ -11,8 +12,18 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
 
-  // Replace with real cart context/state length
-  const cartCount = 2;
+  const { fetchCart, setOnCartOpen } = useCartStore();
+
+  // ✅ Store mein callback register karo
+  // Jab bhi koi addToCart kare — cart sidebar automatically khul jaaye
+  useEffect(() => {
+    setOnCartOpen(() => setCartOpen(true));
+  }, [setOnCartOpen]);
+
+  // ✅ App load hote hi cart fetch karo — navbar count turant dikhega
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
 
   return (
     <>
@@ -20,7 +31,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         onMenuOpen={() => setSidebarOpen(true)}
         onSearchOpen={() => setSearchOpen(true)}
         onCartOpen={() => setCartOpen(true)}
-        cartCount={cartCount}
+        // cartCount prop hataya — Navbar ab store se directly live count padhta hai
       />
 
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />

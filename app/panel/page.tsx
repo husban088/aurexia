@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase, Product } from "@/lib/supabase";
+import { isOwner } from "@/lib/checkOwner"; // ✅ isOwner import fix
 import "./panel.css";
 import PanelNavbar from "../components/PanelNavbar";
 
@@ -191,6 +193,9 @@ const quickActions = [
 ];
 
 export default function Panel() {
+  const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -217,7 +222,37 @@ export default function Panel() {
     setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 350);
   };
 
+  // ✅ AUTH CHECK — getUser() use karo, getSession() nahi
+  // getSession() localStorage se padhta hai — SSR/cookie-based setup mein fail hota hai
+  // getUser() Supabase server se directly verify karta hai — reliable hai
   useEffect(() => {
+    const checkAuth = async () => {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        router.push("/signin");
+        return;
+      }
+
+      if (!isOwner(user.email)) {
+        router.push("/");
+        return;
+      }
+
+      setAuthorized(true);
+      setChecking(false);
+    };
+
+    checkAuth();
+  }, [router]);
+
+  // ✅ Data load — auth check ke baad hi chale
+  useEffect(() => {
+    if (!authorized) return;
+
     async function loadData() {
       try {
         const { data, error } = await supabase
@@ -244,8 +279,9 @@ export default function Panel() {
         setLoading(false);
       }
     }
+
     loadData();
-  }, []);
+  }, [authorized]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this product?")) return;
@@ -257,6 +293,21 @@ export default function Panel() {
       addToast("success", "Deleted", "Product removed from store");
     }
   };
+
+  if (checking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="w-12 h-12 border-2 border-gray-300 border-t-gold-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!authorized) {
+    return null;
+  }
 
   return (
     <div className="p-root">

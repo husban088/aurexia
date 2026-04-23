@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase, Product } from "@/lib/supabase";
+import { useCartStore } from "@/lib/cartStore";
 
 interface ProductGridProps {
   category: string; // e.g. "Accessories"
@@ -91,6 +92,8 @@ export default function ProductGrid({
     p.original_price && p.original_price > p.price
       ? Math.round(((p.original_price - p.price) / p.original_price) * 100)
       : 0;
+
+  const { addToCart } = useCartStore();
 
   return (
     <>
@@ -218,7 +221,13 @@ export default function ProductGrid({
                     className="st-card-quick"
                     onClick={(e) => e.preventDefault()}
                   >
-                    <button className="st-quick-btn">
+                    <button
+                      className="st-quick-btn"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        addToCart(p);
+                      }}
+                    >
                       <svg
                         viewBox="0 0 24 24"
                         fill="none"

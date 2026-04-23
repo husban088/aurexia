@@ -1,39 +1,72 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import "./signup.css";
 
 export default function SignUp() {
-  const [avatar, setAvatar] = useState<string | null>(null);
+  const router = useRouter();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setAvatar(reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: connect to your auth logic
-    console.log("Sign up →", { avatar, username, email, password });
+    setError(null);
+    setLoading(true);
+
+    // Validate username uniqueness
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", username.trim())
+      .maybeSingle();
+
+    if (existing) {
+      setError("This username is already taken. Please choose another.");
+      setLoading(false);
+      return;
+    }
+
+    const { error: signUpError } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: { username: username.trim() },
+      },
+    });
+
+    if (signUpError) {
+      setError(signUpError.message);
+      setLoading(false);
+      return;
+    }
+
+    // Auto sign in after signup
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (signInError) {
+      setError(signInError.message);
+      setLoading(false);
+      return;
+    }
+
+    router.push("/profile");
   };
 
   return (
     <div className="su-root">
-      {/* Grain */}
       <div className="su-grain" aria-hidden="true" />
-
-      {/* Bg lines */}
       <div className="su-bg-lines" aria-hidden="true">
         <span />
         <span />
@@ -41,14 +74,11 @@ export default function SignUp() {
         <span />
         <span />
       </div>
-
-      {/* Corner brackets */}
       <div className="su-corner su-corner--tl" aria-hidden="true" />
       <div className="su-corner su-corner--tr" aria-hidden="true" />
       <div className="su-corner su-corner--bl" aria-hidden="true" />
       <div className="su-corner su-corner--br" aria-hidden="true" />
 
-      {/* Card */}
       <div className="su-card">
         {/* Left — brand */}
         <div className="su-brand">
@@ -63,22 +93,18 @@ export default function SignUp() {
                 priority
               />
             </div>
-
             <p className="su-brand-eyebrow">
               <span className="su-ey-line" />
               Join Aurexia
               <span className="su-ey-line" />
             </p>
-
             <h1 className="su-brand-title">Aurexia</h1>
             <p className="su-brand-tagline">
               Begin your journey
               <br />
               into <em>luxury.</em>
             </p>
-
             <div className="su-brand-divider" aria-hidden="true" />
-
             <ul className="su-brand-perks">
               {[
                 "Exclusive member pricing",
@@ -99,8 +125,6 @@ export default function SignUp() {
                 </li>
               ))}
             </ul>
-
-            {/* Decorative ring */}
             <div className="su-ring" aria-hidden="true">
               <div className="su-ring-inner" />
             </div>
@@ -110,7 +134,6 @@ export default function SignUp() {
         {/* Right — form */}
         <div className="su-form-panel">
           <div className="su-form-wrap">
-            {/* Header */}
             <div className="su-form-header">
               <p className="su-form-eyebrow">
                 <span className="su-ey-line" />
@@ -126,62 +149,24 @@ export default function SignUp() {
             </div>
 
             <form className="su-form" onSubmit={handleSubmit} noValidate>
-              {/* Avatar upload */}
-              <div className="su-avatar-row">
-                <button
-                  type="button"
-                  className="su-avatar-btn"
-                  onClick={() => fileRef.current?.click()}
-                  aria-label="Upload profile picture"
-                >
-                  {avatar ? (
-                    <Image
-                      src={avatar}
-                      alt="Your avatar"
-                      fill
-                      className="su-avatar-img"
-                    />
-                  ) : (
-                    <span className="su-avatar-placeholder" aria-hidden="true">
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.2"
-                      >
-                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                        <circle cx="12" cy="7" r="4" />
-                      </svg>
-                    </span>
-                  )}
-                  <span className="su-avatar-badge" aria-hidden="true">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                  </span>
-                </button>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  className="su-file-input"
-                  onChange={handleAvatarChange}
-                  aria-label="Profile picture"
-                />
-                <div className="su-avatar-hint">
-                  <p className="su-avatar-hint-title">Profile Picture</p>
-                  <p className="su-avatar-hint-sub">
-                    Click to upload · JPG, PNG, WEBP
-                  </p>
+              {/* Error */}
+              {error && (
+                <div className="su-error-box" role="alert">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    width="14"
+                    height="14"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  {error}
                 </div>
-              </div>
+              )}
 
               {/* Username */}
               <div
@@ -289,6 +274,7 @@ export default function SignUp() {
                     onBlur={() => setFocused(null)}
                     autoComplete="new-password"
                     required
+                    minLength={6}
                   />
                   <button
                     type="button"
@@ -323,32 +309,39 @@ export default function SignUp() {
                 <div className="su-field-line" aria-hidden="true" />
               </div>
 
-              {/* Submit */}
-              <button type="submit" className="su-submit-btn">
-                <span>Create Account</span>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path
-                    d="M5 12h14M12 5l7 7-7 7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+              <button
+                type="submit"
+                className="su-submit-btn"
+                disabled={loading}
+              >
+                {loading ? (
+                  <span className="su-spinner" />
+                ) : (
+                  <>
+                    <span>Create Account</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path
+                        d="M5 12h14M12 5l7 7-7 7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </>
+                )}
               </button>
             </form>
 
-            {/* Divider */}
             <div className="su-or" aria-hidden="true">
               <span className="su-or-line" />
               <span className="su-or-text">or</span>
               <span className="su-or-line" />
             </div>
 
-            {/* Sign in link */}
             <p className="su-switch">
               Already have an account?{" "}
               <Link href="/signin" className="su-switch-link">

@@ -1,28 +1,80 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import "./signin.css";
 
 export default function SignIn() {
+  const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: connect to your auth logic
-    console.log("Sign in →", { identifier, password });
+    setError(null);
+    setLoading(true);
+
+    // Determine if identifier is email or username
+    let emailToUse = identifier.trim();
+    const isEmail = identifier.includes("@");
+
+    if (!isEmail) {
+      // Look up email from username
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("username", identifier.trim())
+        .maybeSingle();
+
+      if (profileError || !profile) {
+        setError("No account found with that username.");
+        setLoading(false);
+        return;
+      }
+      emailToUse = profile.email;
+    }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: emailToUse,
+      password,
+    });
+
+    if (signInError) {
+      setError(
+        "Incorrect credentials. Please check your email/username and password."
+      );
+      setLoading(false);
+      return;
+    }
+
+    router.push("/profile");
   };
+
+  // Add this inside the component, after useState declarations
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+
+  // Add this useEffect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("reset") === "success") {
+      setResetSuccess(
+        "Password reset successful! Please sign in with your new password."
+      );
+      // Clear the URL parameter
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
 
   return (
     <div className="si-root">
-      {/* ── Decorative grain ── */}
       <div className="si-grain" aria-hidden="true" />
-
-      {/* ── Animated bg lines ── */}
       <div className="si-bg-lines" aria-hidden="true">
         <span />
         <span />
@@ -30,14 +82,11 @@ export default function SignIn() {
         <span />
         <span />
       </div>
-
-      {/* ── Corner brackets ── */}
       <div className="si-corner si-corner--tl" aria-hidden="true" />
       <div className="si-corner si-corner--tr" aria-hidden="true" />
       <div className="si-corner si-corner--bl" aria-hidden="true" />
       <div className="si-corner si-corner--br" aria-hidden="true" />
 
-      {/* ── Card ── */}
       <div className="si-card">
         {/* Left panel — brand */}
         <div className="si-brand">
@@ -52,37 +101,46 @@ export default function SignIn() {
                 priority
               />
             </div>
-
             <p className="si-brand-eyebrow">
               <span className="si-ey-line" />
               Welcome Back
               <span className="si-ey-line" />
             </p>
-
             <h1 className="si-brand-title">Aurexia</h1>
             <p className="si-brand-tagline">
               Luxury lives in every
               <br />
               <em>detail.</em>
             </p>
-
             <div className="si-brand-divider" aria-hidden="true" />
-
             <p className="si-brand-quote">
               "Time is the most precious luxury — wear it well."
             </p>
-
-            {/* Decorative watch ring */}
             <div className="si-watch-ring" aria-hidden="true">
               <div className="si-watch-inner" />
             </div>
           </div>
         </div>
 
+        {resetSuccess && (
+          <div className="si-success-box" role="alert">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              width="14"
+              height="14"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            {resetSuccess}
+          </div>
+        )}
+
         {/* Right panel — form */}
         <div className="si-form-panel">
           <div className="si-form-wrap">
-            {/* Header */}
             <div className="si-form-header">
               <p className="si-form-eyebrow">
                 <span className="si-ey-line" />
@@ -98,6 +156,25 @@ export default function SignIn() {
             </div>
 
             <form className="si-form" onSubmit={handleSubmit} noValidate>
+              {/* Error */}
+              {error && (
+                <div className="si-error-box" role="alert">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    width="14"
+                    height="14"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  {error}
+                </div>
+              )}
+
               {/* Username / Email */}
               <div
                 className={`si-field${
@@ -208,32 +285,39 @@ export default function SignIn() {
                 </Link>
               </div>
 
-              {/* Submit */}
-              <button type="submit" className="si-submit-btn">
-                <span>Sign In</span>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path
-                    d="M5 12h14M12 5l7 7-7 7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+              <button
+                type="submit"
+                className="si-submit-btn"
+                disabled={loading}
+              >
+                {loading ? (
+                  <span className="si-spinner" />
+                ) : (
+                  <>
+                    <span>Sign In</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path
+                        d="M5 12h14M12 5l7 7-7 7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </>
+                )}
               </button>
             </form>
 
-            {/* Divider */}
             <div className="si-or" aria-hidden="true">
               <span className="si-or-line" />
               <span className="si-or-text">or</span>
               <span className="si-or-line" />
             </div>
 
-            {/* Signup link */}
             <p className="si-switch">
               Don&apos;t have an account?{" "}
               <Link href="/signup" className="si-switch-link">

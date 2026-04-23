@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { supabase, Product } from "@/lib/supabase";
 import "@/app/styles/product-detail.css";
+import { useCartStore } from "@/lib/cartStore";
 
 /* ═══════════════════════════════════════════
    TYPES
@@ -211,8 +212,11 @@ export default function ProductDetail() {
     ? `Only ${product.stock} Left`
     : "In Stock";
 
+  const { addToCart } = useCartStore();
+
   function handleAddToCart() {
     if (!product || product.stock === 0) return;
+    addToCart(product, qty);
     showToast(`${qty} × ${product.name} added to cart`, "success");
   }
 
