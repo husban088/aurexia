@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import "./cartsidebar.css";
 
 interface CartItem {
@@ -327,6 +326,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               </div>
             </div>
 
+            {/* Checkout button */}
             <Link
               href="/checkout"
               className="cs-checkout-btn"
@@ -345,6 +345,23 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   strokeLinejoin="round"
                 />
               </svg>
+            </Link>
+
+            {/* View Cart button — NEW */}
+            <Link href="/cart" className="cs-view-cart-btn" onClick={onClose}>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                width="13"
+                height="13"
+              >
+                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <path d="M16 10a4 4 0 01-8 0" />
+              </svg>
+              View Full Cart
             </Link>
 
             <button className="cs-continue-btn" onClick={onClose}>

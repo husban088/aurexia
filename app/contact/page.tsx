@@ -1,9 +1,36 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useCallback, useRef, useEffect } from "react";
 import "./contact.css";
 
+/* ═══════════════════════════════════════════
+   TYPES
+═══════════════════════════════════════════ */
+interface FormFields {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+}
+
+interface FieldErrors {
+  name?: string;
+  email?: string;
+  subject?: string;
+  message?: string;
+}
+
+interface Toast {
+  id: number;
+  type: "success" | "error" | "info";
+  title: string;
+  msg: string;
+  exiting?: boolean;
+}
+
+/* ═══════════════════════════════════════════
+   CONTACT DETAILS
+═══════════════════════════════════════════ */
 const contactDetails = [
   {
     icon: (
@@ -18,8 +45,8 @@ const contactDetails = [
       </svg>
     ),
     label: "Our Boutique",
-    value: "12 Mayfair Lane, London W1K 3QD",
-    sub: "Mon–Sat: 10:00 – 19:00",
+    value: "Faisalabad, Punjab, Pakistan",
+    sub: "Mon–Sat: 10:00 – 19:00 PKT",
   },
   {
     icon: (
@@ -33,8 +60,8 @@ const contactDetails = [
       </svg>
     ),
     label: "Phone & WhatsApp",
-    value: "+44 20 7946 0958",
-    sub: "Available 9am – 8pm GMT",
+    value: "+92 300 0000000",
+    sub: "Available 9am – 8pm PKT",
   },
   {
     icon: (
@@ -49,25 +76,210 @@ const contactDetails = [
       </svg>
     ),
     label: "Email Us",
-    value: "concierge@aurexia.com",
+    value: "husbanshk@gmail.com",
     sub: "Response within 24 hours",
   },
 ];
 
+/* ═══════════════════════════════════════════
+   VALIDATION
+═══════════════════════════════════════════ */
+function validateField(field: keyof FormFields, value: string): string {
+  switch (field) {
+    case "name":
+      if (!value.trim()) return "Full name is required";
+      if (value.trim().length < 4) return "Name must be at least 4 characters";
+      return "";
+    case "email":
+      if (!value.trim()) return "Email address is required";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()))
+        return "Please enter a valid email address";
+      return "";
+    case "subject":
+      if (!value.trim()) return "Subject is required";
+      return "";
+    case "message":
+      if (!value.trim()) return "Message cannot be empty";
+      return "";
+    default:
+      return "";
+  }
+}
+
+/* ═══════════════════════════════════════════
+   TOAST HOOK
+═══════════════════════════════════════════ */
+function useToast() {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const counter = useRef(0);
+
+  const show = useCallback(
+    (title: string, msg: string, type: Toast["type"] = "success") => {
+      const id = ++counter.current;
+      setToasts((prev) => [...prev, { id, title, msg, type }]);
+      setTimeout(() => {
+        setToasts((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+        );
+        setTimeout(
+          () => setToasts((prev) => prev.filter((t) => t.id !== id)),
+          400
+        );
+      }, 3000); // Reduced from 4000 to 3000 for faster dismissal
+    },
+    []
+  );
+
+  const dismiss = useCallback((id: number) => {
+    setToasts((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+    );
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 400);
+  }, []);
+
+  return { toasts, show, dismiss };
+}
+
+/* ═══════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════ */
 export default function Contact() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [subject, setSubject] = useState("");
-  const [message, setMessage] = useState("");
+  const [form, setForm] = useState<FormFields>({
+    name: "",
+    email: "",
+    subject: "",
+    message: "",
+  });
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [touched, setTouched] = useState<
+    Partial<Record<keyof FormFields, boolean>>
+  >({});
   const [focused, setFocused] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { toasts, show: showToast, dismiss } = useToast();
+
+  /* ── Real-time validation on touched fields ── */
+  useEffect(() => {
+    const newErrors: FieldErrors = {};
+    (Object.keys(touched) as (keyof FormFields)[]).forEach((field) => {
+      if (touched[field]) {
+        const err = validateField(field, form[field]);
+        if (err) newErrors[field] = err;
+      }
+    });
+    setErrors(newErrors);
+  }, [form, touched]);
+
+  /* ── Field change ── */
+  function handleChange(
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  /* ── Field blur — mark as touched ── */
+  function handleBlur(field: keyof FormFields) {
+    setFocused(null);
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  }
+
+  /* ── Submit - OPTIMIZED FOR SPEED ── */
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // TODO: connect to your backend/email service
-    console.log("Contact →", { name, email, subject, message });
-    setSubmitted(true);
-  };
+
+    /* Mark all fields touched */
+    setTouched({ name: true, email: true, subject: true, message: true });
+
+    /* Validate all */
+    const newErrors: FieldErrors = {};
+    (Object.keys(form) as (keyof FormFields)[]).forEach((field) => {
+      const err = validateField(field, form[field]);
+      if (err) newErrors[field] = err;
+    });
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      showToast(
+        "Validation Error",
+        "Please fix the highlighted fields before sending.",
+        "error"
+      );
+      return;
+    }
+
+    setSending(true);
+
+    try {
+      // Use AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        if (data.errors) {
+          setErrors(data.errors);
+        }
+        showToast(
+          "Send Failed",
+          data.message || "Something went wrong. Please try again.",
+          "error"
+        );
+      } else {
+        showToast(
+          "Message Sent!",
+          "We've received your message and will reply within 24 hours.",
+          "success"
+        );
+        setSubmitted(true);
+      }
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        showToast(
+          "Timeout",
+          "Request took too long. Please check your connection and try again.",
+          "error"
+        );
+      } else {
+        showToast(
+          "Network Error",
+          "Unable to connect. Please check your internet and try again.",
+          "error"
+        );
+      }
+    } finally {
+      setSending(false);
+    }
+  }
+
+  /* ── Reset form ── */
+  function resetForm() {
+    setForm({ name: "", email: "", subject: "", message: "" });
+    setErrors({});
+    setTouched({});
+    setSubmitted(false);
+  }
+
+  /* ── Field helper ── */
+  function fieldClass(field: keyof FormFields) {
+    const classes = ["co-field"];
+    if (focused === field) classes.push("focused");
+    if (form[field]) classes.push("filled");
+    if (errors[field] && touched[field]) classes.push("co-field--error");
+    return classes.join(" ");
+  }
 
   return (
     <div className="co-root">
@@ -91,11 +303,11 @@ export default function Contact() {
       <div className="co-corner co-corner--br" aria-hidden="true" />
 
       <div className="co-container">
-        {/* ── Page Header ── */}
+        {/* Page Header */}
         <header className="co-header">
           <p className="co-eyebrow">
             <span className="co-ey-line" />
-            Get In Touch
+            <span className="co-ey-line-head">Get In Touch</span>
             <span className="co-ey-line" />
           </p>
           <h1 className="co-heading">
@@ -104,16 +316,15 @@ export default function Contact() {
             For <em>You</em>
           </h1>
           <p className="co-sub">
-            Whether you're seeking the perfect timepiece or need assistance with
-            your order, our dedicated concierge team is ready to assist you.
+            Whether you need help with an order or have a question, our
+            dedicated team is ready to assist you.
           </p>
         </header>
 
-        {/* ── Main Content ── */}
+        {/* Main Grid */}
         <div className="co-main">
-          {/* Left — Info Panel */}
+          {/* ── LEFT: Info Panel ── */}
           <aside className="co-info">
-            {/* Contact Cards */}
             <div className="co-info-cards">
               {contactDetails.map((item, i) => (
                 <div
@@ -131,7 +342,7 @@ export default function Contact() {
               ))}
             </div>
 
-            {/* Social Links */}
+            {/* Social */}
             <div className="co-social">
               <p className="co-social-label">
                 <span className="co-ey-line" style={{ width: 14 }} />
@@ -139,7 +350,6 @@ export default function Contact() {
                 <span className="co-ey-line" style={{ width: 14 }} />
               </p>
               <div className="co-social-icons">
-                {/* Instagram */}
                 <a
                   href="#"
                   className="co-social-btn"
@@ -164,11 +374,10 @@ export default function Contact() {
                     />
                   </svg>
                 </a>
-                {/* Twitter/X */}
                 <a
                   href="#"
                   className="co-social-btn"
-                  aria-label="Twitter"
+                  aria-label="Twitter/X"
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -176,7 +385,6 @@ export default function Contact() {
                     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                   </svg>
                 </a>
-                {/* Facebook */}
                 <a
                   href="#"
                   className="co-social-btn"
@@ -193,11 +401,10 @@ export default function Contact() {
                     <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
                   </svg>
                 </a>
-                {/* Pinterest */}
                 <a
                   href="#"
                   className="co-social-btn"
-                  aria-label="Pinterest"
+                  aria-label="WhatsApp"
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -207,34 +414,40 @@ export default function Contact() {
                     stroke="currentColor"
                     strokeWidth="1.5"
                   >
-                    <path d="M12 2C6.48 2 2 6.48 2 12c0 4.24 2.65 7.86 6.39 9.29-.09-.78-.17-1.98.04-2.83.18-.77 1.23-5.22 1.23-5.22s-.31-.63-.31-1.57c0-1.47.85-2.57 1.91-2.57.9 0 1.34.68 1.34 1.49 0 .91-.58 2.27-.88 3.53-.25 1.05.52 1.91 1.55 1.91 1.86 0 3.1-2.39 3.1-5.22 0-2.15-1.47-3.76-4.12-3.76-3 0-4.87 2.24-4.87 4.74 0 .86.25 1.47.64 1.94.18.21.2.3.13.54-.05.17-.15.59-.2.75-.06.24-.25.33-.46.24-1.29-.53-1.9-1.96-1.9-3.57 0-2.64 2.23-6.15 6.67-6.15 3.57 0 5.93 2.6 5.93 5.39 0 3.7-2.05 6.48-5.07 6.48-1.01 0-1.96-.55-2.29-1.17l-.65 2.55c-.2.78-.77 1.78-1.18 2.41A10 10 0 0022 12c0-5.52-4.48-10-10-10z" />
+                    <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
                   </svg>
                 </a>
               </div>
             </div>
 
-            {/* Map Placeholder */}
-            <div className="co-map-placeholder" aria-hidden="true">
+            {/* Map placeholder */}
+            <div
+              className="co-map-placeholder"
+              onClick={() =>
+                window.open(
+                  "https://maps.google.com?q=Faisalabad+Punjab+Pakistan",
+                  "_blank"
+                )
+              }
+            >
               <div className="co-map-inner">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="0.8"
+                  strokeWidth="1.2"
                 >
-                  <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
-                  <line x1="9" y1="3" x2="9" y2="18" />
-                  <line x1="15" y1="6" x2="15" y2="21" />
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                  <circle cx="12" cy="10" r="3" />
                 </svg>
-                <p>View on Map</p>
+                <p>View on Maps</p>
               </div>
             </div>
           </aside>
 
-          {/* Right — Form Panel */}
+          {/* ── RIGHT: Form ── */}
           <section className="co-form-section">
             <div className="co-form-card">
-              {/* Deco corner */}
               <div
                 className="co-form-corner co-form-corner--tr"
                 aria-hidden="true"
@@ -245,62 +458,47 @@ export default function Contact() {
               />
 
               {submitted ? (
+                /* ── Success State ── */
                 <div className="co-success">
-                  <div className="co-success-icon" aria-hidden="true">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline
-                        points="20 6 9 17 4 12"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                  <p className="co-success-eyebrow">
-                    <span className="co-ey-line" />
-                    Message Sent
-                    <span className="co-ey-line" />
-                  </p>
-                  <h3 className="co-success-title">
-                    Thank You, <em>{name || "Guest"}</em>
-                  </h3>
-                  <p className="co-success-sub">
-                    Our concierge team will respond within 24 hours.
-                  </p>
-                  <button
-                    className="co-success-btn"
-                    onClick={() => {
-                      setSubmitted(false);
-                      setName("");
-                      setEmail("");
-                      setSubject("");
-                      setMessage("");
-                    }}
-                  >
-                    Send Another
+                  <div className="co-success-icon">
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.5"
-                      width="14"
-                      height="14"
                     >
-                      <path
-                        d="M5 12h14M12 5l7 7-7 7"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
+                      <polyline points="20 6 9 17 4 12" />
                     </svg>
+                  </div>
+                  <p className="co-success-eyebrow">
+                    <span className="co-ey-line" style={{ width: 20 }} />
+                    Message Delivered
+                    <span className="co-ey-line" style={{ width: 20 }} />
+                  </p>
+                  <h2 className="co-success-title">
+                    Thank You, <em>{form.name.split(" ")[0] || "Friend"}</em>
+                  </h2>
+                  <p className="co-success-sub">
+                    We've received your message and will get back to you within
+                    24 hours.
+                  </p>
+                  <button className="co-success-btn" onClick={resetForm}>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      style={{ width: 14, height: 14 }}
+                    >
+                      <polyline points="1 4 1 10 7 10" />
+                      <path d="M3.51 15a9 9 0 102.13-9.36L1 10" />
+                    </svg>
+                    Send Another Message
                   </button>
                 </div>
               ) : (
                 <>
+                  {/* Form Header */}
                   <div className="co-form-header">
                     <p className="co-eyebrow">
                       <span className="co-ey-line" />
@@ -315,14 +513,12 @@ export default function Contact() {
                     </p>
                   </div>
 
+                  {/* ── FORM ── */}
                   <form className="co-form" onSubmit={handleSubmit} noValidate>
                     {/* Row: Name + Email */}
                     <div className="co-form-row">
-                      <div
-                        className={`co-field${
-                          focused === "na" ? " focused" : ""
-                        }${name ? " filled" : ""}`}
-                      >
+                      {/* Name */}
+                      <div className={fieldClass("name")}>
                         <label className="co-label" htmlFor="co-name">
                           Full Name
                         </label>
@@ -340,25 +536,45 @@ export default function Contact() {
                           </span>
                           <input
                             id="co-name"
+                            name="name"
                             type="text"
                             className="co-input"
-                            placeholder="Your name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            onFocus={() => setFocused("na")}
-                            onBlur={() => setFocused(null)}
+                            placeholder="Your name (min. 4 chars)"
+                            value={form.name}
+                            onChange={handleChange}
+                            onFocus={() => setFocused("name")}
+                            onBlur={() => handleBlur("name")}
                             autoComplete="name"
-                            required
+                            aria-invalid={!!errors.name}
+                            aria-describedby={
+                              errors.name ? "err-name" : undefined
+                            }
                           />
                         </div>
                         <div className="co-field-line" aria-hidden="true" />
+                        {errors.name && touched.name && (
+                          <p
+                            className="co-field-error"
+                            id="err-name"
+                            role="alert"
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <circle cx="12" cy="12" r="10" />
+                              <line x1="12" y1="8" x2="12" y2="12" />
+                              <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            {errors.name}
+                          </p>
+                        )}
                       </div>
 
-                      <div
-                        className={`co-field${
-                          focused === "em" ? " focused" : ""
-                        }${email ? " filled" : ""}`}
-                      >
+                      {/* Email */}
+                      <div className={fieldClass("email")}>
                         <label className="co-label" htmlFor="co-email">
                           Email Address
                         </label>
@@ -376,27 +592,46 @@ export default function Contact() {
                           </span>
                           <input
                             id="co-email"
+                            name="email"
                             type="email"
                             className="co-input"
                             placeholder="your@email.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            onFocus={() => setFocused("em")}
-                            onBlur={() => setFocused(null)}
+                            value={form.email}
+                            onChange={handleChange}
+                            onFocus={() => setFocused("email")}
+                            onBlur={() => handleBlur("email")}
                             autoComplete="email"
-                            required
+                            aria-invalid={!!errors.email}
+                            aria-describedby={
+                              errors.email ? "err-email" : undefined
+                            }
                           />
                         </div>
                         <div className="co-field-line" aria-hidden="true" />
+                        {errors.email && touched.email && (
+                          <p
+                            className="co-field-error"
+                            id="err-email"
+                            role="alert"
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <circle cx="12" cy="12" r="10" />
+                              <line x1="12" y1="8" x2="12" y2="12" />
+                              <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            {errors.email}
+                          </p>
+                        )}
                       </div>
                     </div>
 
                     {/* Subject */}
-                    <div
-                      className={`co-field${
-                        focused === "su" ? " focused" : ""
-                      }${subject ? " filled" : ""}`}
-                    >
+                    <div className={fieldClass("subject")}>
                       <label className="co-label" htmlFor="co-subject">
                         Subject
                       </label>
@@ -414,24 +649,45 @@ export default function Contact() {
                         </span>
                         <input
                           id="co-subject"
+                          name="subject"
                           type="text"
                           className="co-input"
                           placeholder="How can we help?"
-                          value={subject}
-                          onChange={(e) => setSubject(e.target.value)}
-                          onFocus={() => setFocused("su")}
-                          onBlur={() => setFocused(null)}
-                          required
+                          value={form.subject}
+                          onChange={handleChange}
+                          onFocus={() => setFocused("subject")}
+                          onBlur={() => handleBlur("subject")}
+                          aria-invalid={!!errors.subject}
+                          aria-describedby={
+                            errors.subject ? "err-subject" : undefined
+                          }
                         />
                       </div>
                       <div className="co-field-line" aria-hidden="true" />
+                      {errors.subject && touched.subject && (
+                        <p
+                          className="co-field-error"
+                          id="err-subject"
+                          role="alert"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                          </svg>
+                          {errors.subject}
+                        </p>
+                      )}
                     </div>
 
                     {/* Message */}
                     <div
-                      className={`co-field co-field--textarea${
-                        focused === "ms" ? " focused" : ""
-                      }${message ? " filled" : ""}`}
+                      className={`${fieldClass("message")} co-field--textarea`}
                     >
                       <label className="co-label" htmlFor="co-message">
                         Message
@@ -452,34 +708,70 @@ export default function Contact() {
                         </span>
                         <textarea
                           id="co-message"
+                          name="message"
                           className="co-textarea"
-                          placeholder="Share your enquiry with us..."
-                          value={message}
-                          onChange={(e) => setMessage(e.target.value)}
-                          onFocus={() => setFocused("ms")}
-                          onBlur={() => setFocused(null)}
+                          placeholder="Share your enquiry with us…"
+                          value={form.message}
+                          onChange={handleChange}
+                          onFocus={() => setFocused("message")}
+                          onBlur={() => handleBlur("message")}
                           rows={5}
-                          required
+                          aria-invalid={!!errors.message}
+                          aria-describedby={
+                            errors.message ? "err-message" : undefined
+                          }
                         />
                       </div>
                       <div className="co-field-line" aria-hidden="true" />
+                      {errors.message && touched.message && (
+                        <p
+                          className="co-field-error"
+                          id="err-message"
+                          role="alert"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                          </svg>
+                          {errors.message}
+                        </p>
+                      )}
                     </div>
 
-                    {/* Submit */}
-                    <button type="submit" className="co-submit-btn">
-                      <span>Send Message</span>
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                      >
-                        <path
-                          d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
+                    {/* Submit Button - OPTIMIZED */}
+                    <button
+                      type="submit"
+                      className="co-submit-btn"
+                      disabled={sending}
+                    >
+                      {sending ? (
+                        <>
+                          <span className="co-spinner" aria-hidden="true" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <span>Send Message</span>
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          >
+                            <path
+                              d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </>
+                      )}
                     </button>
                   </form>
                 </>
@@ -487,6 +779,74 @@ export default function Contact() {
             </div>
           </section>
         </div>
+      </div>
+
+      {/* TOASTS */}
+      <div className="co-toast-wrap" aria-live="polite" aria-atomic="false">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className={`co-toast co-toast--${t.type}${
+              t.exiting ? " co-toast--exit" : ""
+            }`}
+            role="status"
+          >
+            <div className="co-toast-icon">
+              {t.type === "success" && (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+              {t.type === "error" && (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              )}
+              {t.type === "info" && (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              )}
+            </div>
+            <div className="co-toast-body">
+              <p className="co-toast-title">{t.title}</p>
+              <p className="co-toast-msg">{t.msg}</p>
+            </div>
+            <button
+              className="co-toast-close"
+              onClick={() => dismiss(t.id)}
+              aria-label="Dismiss"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );

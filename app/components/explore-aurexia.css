@@ -10,7 +10,7 @@
   --ea-gold: #b8963e;
   --ea-gold-light: #d4b87a;
   --ea-gold-dim: #7a6030;
-  --ea-black: #080808;
+  --ea-black: #1f1f1f;
   --ea-dark: #0e0e0e;
   --ea-dark-2: #161616;
   --ea-border: rgba(184, 150, 62, 0.18);
@@ -309,8 +309,8 @@
   top: 1rem;
   right: 1rem;
   font-family: var(--ea-sans);
-  font-size: 0.55rem;
-  font-weight: 300;
+  font-size: 1rem;
+  font-weight: 500;
   letter-spacing: 0.28em;
   text-transform: uppercase;
   color: var(--ea-gold);
@@ -335,8 +335,8 @@
   left: 0.9rem;
   bottom: 2.5rem;
   font-family: var(--ea-sans);
-  font-size: 0.5rem;
-  font-weight: 300;
+  font-size: 1rem;
+  font-weight: 800;
   letter-spacing: 0.4em;
   text-transform: uppercase;
   color: rgba(184, 150, 62, 0.55);

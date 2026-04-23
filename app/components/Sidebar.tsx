@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import "./sidebar.css";
 
 interface SidebarProps {
@@ -43,6 +44,35 @@ const navLinks = [
     ),
   },
   {
+    href: "/gadgets",
+    label: "Gadgets",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+      </svg>
+    ),
+  },
+  {
+    href: "/home-decor",
+    label: "Home Décor",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" />
+        <path d="M9 21V12h6v9" />
+      </svg>
+    ),
+  },
+  {
+    href: "/about",
+    label: "About",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 16v-4M12 8h.01" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     href: "/contact",
     label: "Contact",
     icon: (
@@ -55,6 +85,12 @@ const navLinks = [
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname.startsWith(href);
+  };
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : "";
@@ -71,10 +107,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     return () => document.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]);
 
-  const handleSidebarClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-  };
-
   return (
     <>
       <div
@@ -89,7 +121,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         role="dialog"
         aria-modal="true"
         aria-label="Navigation menu"
-        onClick={handleSidebarClick}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="sidebar-header">
@@ -134,7 +166,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <Link
                   href={link.href}
                   className={`sidebar-nav-link${
-                    link.href === "/" ? " active" : ""
+                    isActive(link.href) ? " active" : ""
                   }`}
                   onClick={onClose}
                 >
@@ -152,11 +184,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </p>
 
           <ul className="sidebar-nav-list">
-            {/* My Account → /signin */}
             <li className="sidebar-nav-item">
               <Link
                 href="/signin"
-                className="sidebar-nav-link"
+                className={`sidebar-nav-link${
+                  isActive("/signin") ? " active" : ""
+                }`}
                 onClick={onClose}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -169,7 +202,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <li className="sidebar-nav-item">
               <Link
                 href="/signup"
-                className="sidebar-nav-link"
+                className={`sidebar-nav-link${
+                  isActive("/signup") ? " active" : ""
+                }`}
                 onClick={onClose}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -182,13 +217,46 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               </Link>
             </li>
             <li className="sidebar-nav-item">
-              <Link href="/cart" className="sidebar-nav-link" onClick={onClose}>
+              <Link
+                href="/cart"
+                className={`sidebar-nav-link${
+                  isActive("/cart") ? " active" : ""
+                }`}
+                onClick={onClose}
+              >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
                   <line x1="3" y1="6" x2="21" y2="6" />
                   <path d="M16 10a4 4 0 01-8 0" />
                 </svg>
                 Cart
+              </Link>
+            </li>
+          </ul>
+
+          <hr className="sidebar-hr" />
+
+          {/* Panel link — separated */}
+          <p className="sidebar-section-label" style={{ marginTop: "1rem" }}>
+            Admin
+          </p>
+          <ul className="sidebar-nav-list">
+            <li className="sidebar-nav-item">
+              <Link
+                href="/panel"
+                className={`sidebar-nav-link${
+                  isActive("/panel") ? " active" : ""
+                }`}
+                onClick={onClose}
+              >
+                {/* New panel icon — different from all others */}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <path d="M14 17.5h7M17.5 14v7" strokeLinecap="round" />
+                </svg>
+                Admin Panel
               </Link>
             </li>
           </ul>

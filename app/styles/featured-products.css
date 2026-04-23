@@ -1,0 +1,809 @@
+/* ============================================================
+   FEATURED PRODUCTS SECTION  ·  featured-products.css
+   Home page — Aurexia Luxury Store
+   ============================================================ */
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Josefin+Sans:wght@200;300;400&display=swap");
+@import url("https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css");
+
+:root {
+  --fp-gold: #b8963e;
+  --fp-gold-light: #d4b87a;
+  --fp-gold-dim: rgba(184, 150, 62, 0.1);
+  --fp-gold-glow: rgba(184, 150, 62, 0.18);
+  --fp-black: #1f1f1f;
+  --fp-dark: #0c0c0c;
+  --fp-card: #0f0f0f;
+  --fp-border: rgba(184, 150, 62, 0.15);
+  --fp-border-h: rgba(184, 150, 62, 0.4);
+  --fp-white: #f5f0e8;
+  --fp-grey: rgba(245, 240, 232, 0.42);
+  --fp-serif: "Cormorant Garamond", Georgia, serif;
+  --fp-sans: "Josefin Sans", sans-serif;
+  --fp-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Section Wrapper ── */
+.fp-section {
+  position: relative;
+  z-index: 1;
+  padding: 5rem 0 6rem;
+  background: var(--fp-black);
+  overflow: hidden;
+}
+
+/* Ambient top glow */
+.fp-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(184, 150, 62, 0.3),
+    transparent
+  );
+  pointer-events: none;
+}
+
+/* ── Section Header ── */
+.fp-header {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 0 2rem 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0;
+}
+
+.fp-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--fp-sans);
+  font-size: 0.5rem;
+  font-weight: 300;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--fp-gold);
+  margin-bottom: 0.9rem;
+}
+
+.fp-ey-line {
+  display: block;
+  width: 30px;
+  height: 1px;
+  background: var(--fp-gold);
+  opacity: 0.45;
+}
+
+.fp-title {
+  font-family: var(--fp-serif);
+  font-size: clamp(2.2rem, 5vw, 3.8rem);
+  font-weight: 300;
+  color: var(--fp-white);
+  margin: 0 0 1rem;
+  line-height: 1.08;
+  letter-spacing: 0.01em;
+}
+
+.fp-title em {
+  font-style: italic;
+  color: var(--fp-gold);
+}
+
+.fp-subtitle {
+  font-family: var(--fp-sans);
+  font-size: 0.65rem;
+  font-weight: 200;
+  letter-spacing: 0.1em;
+  color: var(--fp-grey);
+  max-width: 400px;
+  line-height: 1.9;
+  margin-bottom: 2.5rem;
+}
+
+/* ── Category Filter Tabs ── */
+.fp-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--fp-border);
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.fp-tab {
+  position: relative;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--fp-border);
+  font-family: var(--fp-sans);
+  font-size: 0.56rem;
+  font-weight: 300;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--fp-grey);
+  cursor: pointer;
+  transition: all var(--fp-ease);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+.fp-tab:last-child {
+  border-right: none;
+}
+
+.fp-tab::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--fp-gold), var(--fp-gold-light));
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fp-tab svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  transition: transform var(--fp-ease);
+}
+
+.fp-tab:hover {
+  color: var(--fp-gold-light);
+  background: rgba(184, 150, 62, 0.04);
+}
+
+.fp-tab:hover svg {
+  transform: translateY(-1px);
+}
+
+.fp-tab.fp-tab--active {
+  color: var(--fp-gold);
+  background: var(--fp-gold-dim);
+}
+
+.fp-tab.fp-tab--active::after {
+  width: 100%;
+}
+
+/* ── Products Container ── */
+.fp-container {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* ── Swiper Overrides ── */
+.fp-swiper {
+  overflow: visible !important;
+  padding-bottom: 3rem !important;
+}
+
+.fp-swiper .swiper-slide {
+  height: auto;
+}
+
+/* Swiper Pagination */
+.fp-swiper .swiper-pagination {
+  bottom: 0;
+}
+
+.fp-swiper .swiper-pagination-bullet {
+  width: 20px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(184, 150, 62, 0.25);
+  opacity: 1;
+  transition: all 0.35s ease;
+}
+
+.fp-swiper .swiper-pagination-bullet-active {
+  width: 40px;
+  background: var(--fp-gold);
+}
+
+/* Swiper Navigation Arrows */
+.fp-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+.fp-nav-btn {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--fp-border);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--fp-grey);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--fp-ease);
+}
+
+.fp-nav-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.fp-nav-btn:hover {
+  border-color: var(--fp-gold);
+  color: var(--fp-gold);
+  background: var(--fp-gold-dim);
+}
+
+.fp-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.fp-nav-btn:disabled:hover {
+  border-color: var(--fp-border);
+  color: var(--fp-grey);
+  background: transparent;
+}
+
+/* ── Product Card ── */
+.fp-card {
+  position: relative;
+  background: var(--fp-card);
+  border: 1px solid var(--fp-border);
+  border-radius: 2px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: background var(--fp-ease), border-color var(--fp-ease),
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  height: 100%;
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Gold corner accent */
+.fp-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 28px 28px 0;
+  border-color: transparent var(--fp-gold) transparent transparent;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  z-index: 3;
+}
+
+/* Hover glow border */
+.fp-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, rgba(184, 150, 62, 0.18), transparent 60%)
+    border-box;
+  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.fp-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(184, 150, 62, 0.07);
+  border-color: rgba(184, 150, 62, 0.3);
+  background: #111;
+}
+
+.fp-card:hover::before {
+  opacity: 1;
+}
+
+.fp-card:hover::after {
+  opacity: 1;
+}
+
+/* ── Card Image ── */
+.fp-card-img {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: #111;
+  overflow: hidden;
+}
+
+.fp-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fp-card:hover .fp-card-img img {
+  transform: scale(1.07);
+}
+
+/* Placeholder */
+.fp-card-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #111 0%, #161616 100%);
+  transition: all var(--fp-ease);
+}
+
+.fp-card-placeholder svg {
+  width: 52px;
+  height: 52px;
+  color: rgba(184, 150, 62, 0.1);
+  transition: color var(--fp-ease);
+}
+
+.fp-card:hover .fp-card-placeholder svg {
+  color: rgba(184, 150, 62, 0.2);
+}
+
+/* Badges */
+.fp-card-badges {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  z-index: 2;
+}
+
+.fp-badge {
+  display: inline-flex;
+  padding: 0.2rem 0.65rem;
+  border-radius: 2px;
+  font-family: var(--fp-sans);
+  font-size: 0.44rem;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.fp-badge--feat {
+  background: var(--fp-gold);
+  color: var(--fp-black);
+}
+
+.fp-badge--new {
+  background: rgba(74, 222, 128, 0.15);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  color: #4ade80;
+}
+
+.fp-badge--sale {
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #f87171;
+}
+
+/* Quick Add Overlay */
+.fp-card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.75rem;
+  background: linear-gradient(to top, rgba(6, 6, 6, 0.97) 0%, transparent 100%);
+  display: flex;
+  gap: 0.4rem;
+  transform: translateY(100%);
+  transition: transform var(--fp-ease);
+  z-index: 2;
+}
+
+.fp-card:hover .fp-card-overlay {
+  transform: translateY(0);
+}
+
+.fp-overlay-btn {
+  flex: 1;
+  padding: 0.6rem 0.5rem;
+  background: var(--fp-gold);
+  border: none;
+  border-radius: 1px;
+  font-family: var(--fp-sans);
+  font-size: 0.5rem;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fp-black);
+  cursor: pointer;
+  transition: all var(--fp-ease);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  text-decoration: none;
+}
+
+.fp-overlay-btn:hover {
+  background: var(--fp-gold-light);
+}
+
+.fp-overlay-btn svg {
+  width: 11px;
+  height: 11px;
+}
+
+.fp-overlay-btn--wish {
+  flex: 0 0 auto;
+  padding: 0.6rem 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--fp-white);
+}
+
+.fp-overlay-btn--wish:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* ── Card Body ── */
+.fp-card-body {
+  padding: 1.1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.fp-card-brand {
+  font-family: var(--fp-sans);
+  font-size: 0.5rem;
+  font-weight: 300;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(245, 240, 232, 0.28);
+  margin: 0;
+}
+
+.fp-card-name {
+  font-family: var(--fp-serif);
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: var(--fp-white);
+  margin: 0;
+  line-height: 1.25;
+  transition: color var(--fp-ease);
+}
+
+.fp-card:hover .fp-card-name {
+  color: var(--fp-gold-light);
+}
+
+.fp-card-desc {
+  font-family: var(--fp-sans);
+  font-size: 0.58rem;
+  font-weight: 200;
+  color: rgba(245, 240, 232, 0.3);
+  line-height: 1.7;
+  margin: 0.15rem 0 0;
+}
+
+.fp-card-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.fp-card-price {
+  font-family: var(--fp-serif);
+  font-size: 1.15rem;
+  font-weight: 400;
+  color: var(--fp-gold);
+}
+
+.fp-card-orig {
+  font-family: var(--fp-sans);
+  font-size: 0.58rem;
+  font-weight: 200;
+  color: rgba(245, 240, 232, 0.22);
+  text-decoration: line-through;
+}
+
+.fp-card-discount {
+  font-family: var(--fp-sans);
+  font-size: 0.48rem;
+  font-weight: 400;
+  color: #f87171;
+  letter-spacing: 0.08em;
+}
+
+/* Card Footer */
+.fp-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1.1rem;
+  border-top: 1px solid rgba(184, 150, 62, 0.07);
+}
+
+.fp-card-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.fp-stars {
+  display: flex;
+  gap: 1px;
+}
+
+.fp-star {
+  width: 9px;
+  height: 9px;
+  color: var(--fp-gold);
+}
+
+.fp-star.empty {
+  color: rgba(184, 150, 62, 0.2);
+}
+
+.fp-rating-count {
+  font-family: var(--fp-sans);
+  font-size: 0.48rem;
+  font-weight: 200;
+  color: rgba(245, 240, 232, 0.3);
+  letter-spacing: 0.08em;
+}
+
+/* Bottom gold slide line */
+.fp-card-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: 0;
+  background: linear-gradient(90deg, var(--fp-gold), var(--fp-gold-light));
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 2;
+}
+
+.fp-card:hover .fp-card-line {
+  width: 100%;
+}
+
+/* ── View All Button ── */
+.fp-view-all-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 3.5rem;
+}
+
+.fp-view-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 2.5rem;
+  border: 1px solid var(--fp-border);
+  border-radius: 2px;
+  font-family: var(--fp-sans);
+  font-size: 0.58rem;
+  font-weight: 300;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--fp-gold);
+  text-decoration: none;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--fp-ease);
+}
+
+.fp-view-all::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--fp-gold);
+  transform: translateX(-100%);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fp-view-all:hover {
+  color: var(--fp-black);
+  border-color: var(--fp-gold);
+}
+
+.fp-view-all:hover::before {
+  transform: translateX(0);
+}
+
+.fp-view-all span,
+.fp-view-all svg {
+  position: relative;
+  z-index: 1;
+}
+
+.fp-view-all svg {
+  width: 13px;
+  height: 13px;
+  transition: transform var(--fp-ease);
+}
+
+.fp-view-all:hover svg {
+  transform: translateX(4px);
+}
+
+/* ── Decorative separator ── */
+.fp-deco-sep {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 200px;
+  margin: 0 auto 0;
+}
+
+.fp-deco-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(184, 150, 62, 0.2);
+}
+
+.fp-deco-diamond {
+  width: 5px;
+  height: 5px;
+  background: var(--fp-gold);
+  transform: rotate(45deg);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+/* ── Category Panel enter/exit ── */
+.fp-panel {
+  animation: fp-panel-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes fp-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Section divider top ── */
+.fp-top-divider {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  margin-bottom: 5rem;
+}
+
+.fp-top-divider-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(184, 150, 62, 0.12),
+    rgba(184, 150, 62, 0.12),
+    transparent
+  );
+}
+
+.fp-top-divider-center {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1.5rem;
+}
+
+.fp-top-divider-dot {
+  width: 4px;
+  height: 4px;
+  background: var(--fp-gold);
+  transform: rotate(45deg);
+  opacity: 0.4;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .fp-section {
+    padding: 4rem 0 5rem;
+  }
+
+  .fp-header {
+    padding-bottom: 2.5rem;
+  }
+
+  .fp-tabs {
+    flex-wrap: wrap;
+  }
+
+  .fp-tab {
+    padding: 0.65rem 1.1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .fp-section {
+    padding: 3rem 0 4rem;
+  }
+
+  .fp-header {
+    padding: 0 1.25rem 2rem;
+  }
+
+  .fp-container {
+    padding: 0 1.25rem;
+  }
+
+  .fp-title {
+    font-size: clamp(1.8rem, 8vw, 2.5rem);
+  }
+
+  .fp-tabs {
+    width: 100%;
+  }
+
+  .fp-tab {
+    flex: 1;
+    justify-content: center;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.5rem;
+    letter-spacing: 0.15em;
+  }
+
+  .fp-tab svg {
+    display: none;
+  }
+}
+
+@media (max-width: 400px) {
+  .fp-tab {
+    padding: 0.6rem 0.5rem;
+    font-size: 0.48rem;
+    letter-spacing: 0.1em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-card {
+    transition: none;
+  }
+  .fp-card-img img {
+    transition: none;
+  }
+  .fp-panel {
+    animation: none;
+  }
+}

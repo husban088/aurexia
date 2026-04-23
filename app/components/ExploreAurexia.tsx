@@ -199,7 +199,7 @@ export default function ExploreAurexia() {
           <span className="ea-eyebrow-line" />
         </p>
         <h2 className="ea-header-title">
-          Explore <em>Aurexia</em>
+          Explore <em>Tech4U</em>
         </h2>
         <p className="ea-header-sub">
           Four worlds of luxury. One destination. Yours to discover.

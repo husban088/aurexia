@@ -31,23 +31,6 @@ const navLinks = [
     ),
   },
   {
-    href: "/watches",
-    label: "Watches",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        width="14"
-        height="14"
-      >
-        <circle cx="12" cy="12" r="7" />
-        <path d="M12 9v3l2 2" />
-        <path d="M9.5 3.5l1 3M14.5 3.5l-1 3M9.5 20.5l1-3M14.5 20.5l-1-3" />
-      </svg>
-    ),
-  },
-  {
     href: "/accessories",
     label: "Mobile Accessories",
     icon: (
@@ -60,6 +43,53 @@ const navLinks = [
       >
         <rect x="7" y="2" width="10" height="20" rx="2" />
         <path d="M12 18h.01" />
+      </svg>
+    ),
+  },
+  {
+    href: "/gadgets",
+    label: "Gadgets",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        width="14"
+        height="14"
+      >
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+      </svg>
+    ),
+  },
+  {
+    href: "/home-decor",
+    label: "Home Décor",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        width="14"
+        height="14"
+      >
+        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" />
+        <path d="M9 21V12h6v9" />
+      </svg>
+    ),
+  },
+  {
+    href: "/about",
+    label: "About",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        width="14"
+        height="14"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 16v-4M12 8h.01" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -78,6 +108,23 @@ const navLinks = [
       </svg>
     ),
   },
+  {
+    href: "/panel",
+    label: "Panel",
+    // New unique panel icon: settings/dashboard style
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        width="14"
+        height="14"
+      >
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Navbar({
@@ -89,7 +136,6 @@ export default function Navbar({
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
 
-  // Active check: exact match for "/", startsWith for all others
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
@@ -104,22 +150,19 @@ export default function Navbar({
   return (
     <nav className={`navbar${scrolled ? " scrolled" : ""}`}>
       <div className="navbar-inner">
-        {/* ── Logo ── */}
+        {/* Logo */}
         <Link href="/" className="navbar-logo">
           <Image
-            src="/logo.png"
+            src="/mainlogo.jfif"
             alt="Aurexia Logo"
-            width={38}
-            height={38}
+            width={80}
+            height={80}
             className="navbar-logo-image dark:invert"
             priority
           />
-          <span className="navbar-logo-text">
-            <span className="navbar-logo-title">Aurexia</span>
-          </span>
         </Link>
 
-        {/* ── Navigation Links ── */}
+        {/* Nav Links */}
         <ul className="navbar-links">
           {navLinks.map((link) => (
             <li key={link.href}>
@@ -134,9 +177,8 @@ export default function Navbar({
           ))}
         </ul>
 
-        {/* ── Right Icons ── */}
+        {/* Right Icons */}
         <div className="navbar-icons">
-          {/* Search — opens SearchSidebar */}
           <button
             className={`navbar-icon-btn${
               pathname === "/search" ? " icon-active" : ""
@@ -150,7 +192,6 @@ export default function Navbar({
             </svg>
           </button>
 
-          {/* Cart — opens CartSidebar */}
           <button
             className={`navbar-icon-btn${
               pathname === "/cart" ? " icon-active" : ""
@@ -170,7 +211,6 @@ export default function Navbar({
             )}
           </button>
 
-          {/* User — navigates to Sign In */}
           <Link
             href="/signin"
             className={`navbar-icon-btn${
@@ -186,10 +226,8 @@ export default function Navbar({
             </svg>
           </Link>
 
-          {/* Divider */}
           <div className="navbar-divider" aria-hidden="true" />
 
-          {/* Hamburger */}
           <button
             className="navbar-menu-btn"
             onClick={onMenuOpen}
