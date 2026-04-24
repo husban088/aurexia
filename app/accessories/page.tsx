@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import ProductGrid from "@/app/components/ProductGrid";
-import "@/app/store.css";
+import "@/app/styles/store.css";
 
 const subCategories = [
   {

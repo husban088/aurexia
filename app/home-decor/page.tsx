@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import ProductGrid from "@/app/components/ProductGrid";
-import "@/app/store.css";
+import "@/app/styles/store.css";
 
 const subCategories = [
   {

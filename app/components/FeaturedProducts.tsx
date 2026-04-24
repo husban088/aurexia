@@ -10,8 +10,8 @@ import "@/app/styles/featured-products.css";
 import { supabase } from "@/lib/supabase";
 import { useCartStore } from "@/lib/cartStore";
 
-/* ── Supabase Product Type ── */
-interface Product {
+/* ── Supabase Product Type (matches actual DB response) ── */
+interface FeaturedProduct {
   id: string;
   name: string;
   brand: string | null;
@@ -24,7 +24,7 @@ interface Product {
   condition: string;
   is_featured: boolean;
   is_active: boolean;
-  description: string | null;
+  description: string | null; // ← Fixed: can be null
   specs: Record<string, string>;
   created_at: string;
 }
@@ -82,7 +82,7 @@ const TABS = [
 ];
 
 /* ── Product Card ── */
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({ product }: { product: FeaturedProduct }) {
   const discount =
     product.original_price && product.original_price > product.price
       ? Math.round(
@@ -92,6 +92,28 @@ function ProductCard({ product }: { product: Product }) {
       : null;
 
   const { addToCart } = useCartStore();
+
+  // Convert FeaturedProduct to Product type for cart
+  const handleAddToCart = () => {
+    const cartProduct = {
+      id: product.id,
+      name: product.name,
+      description: product.description || "",
+      price: product.price,
+      original_price: product.original_price || undefined,
+      category: product.category,
+      subcategory: product.subcategory,
+      images: product.images,
+      stock: product.stock,
+      brand: product.brand || "",
+      condition: product.condition,
+      is_featured: product.is_featured,
+      is_active: product.is_active,
+      specs: product.specs,
+      created_at: product.created_at,
+    };
+    addToCart(cartProduct);
+  };
 
   return (
     <Link href={`/product/${product.id}`} className="fp-card">
@@ -148,7 +170,7 @@ function ProductCard({ product }: { product: Product }) {
             className="fp-overlay-btn"
             onClick={(e) => {
               e.preventDefault();
-              addToCart(product);
+              handleAddToCart();
             }}
           >
             <svg
@@ -251,7 +273,7 @@ function SkeletonCards() {
 /* ── Main Component ── */
 export default function FeaturedProducts() {
   const [activeTab, setActiveTab] = useState("Accessories");
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<FeaturedProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [animKey, setAnimKey] = useState(0);
   const prevRef = useRef<HTMLButtonElement>(null);
