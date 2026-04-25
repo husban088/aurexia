@@ -5,27 +5,25 @@ import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useCartStore } from "@/lib/cartStore";
-import { useCurrency } from "@/context/CurrencyContext";
 import "@/app/styles/product-grid.css";
+import { useCurrency } from "../context/CurrencyContext";
 
 export interface Product {
   id: string;
   name: string;
-  description: string | null;
+  description: string;
   price: number;
-  original_price: number | null;
+  original_price?: number;
   category: string;
   subcategory: string;
   images: string[];
   stock: number;
-  brand: string | null;
+  brand?: string;
   condition: string;
   is_featured: boolean;
   is_active: boolean;
   specs: Record<string, string>;
   created_at: string;
-  rating?: number;
-  reviews_count?: number;
 }
 
 interface ProductGridProps {
@@ -81,7 +79,25 @@ export default function ProductGrid({
           console.error("ProductGrid error:", error);
           setProducts([]);
         } else {
-          setProducts(data || []);
+          // Convert data to match Product interface
+          const formattedData = (data || []).map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            description: item.description || "",
+            price: item.price,
+            original_price: item.original_price || undefined,
+            category: item.category,
+            subcategory: item.subcategory,
+            images: item.images || [],
+            stock: item.stock || 0,
+            brand: item.brand || undefined,
+            condition: item.condition || "new",
+            is_featured: item.is_featured || false,
+            is_active: item.is_active || true,
+            specs: item.specs || {},
+            created_at: item.created_at || new Date().toISOString(),
+          }));
+          setProducts(formattedData);
         }
         setLoading(false);
       }
@@ -142,7 +158,23 @@ export default function ProductGrid({
     e.preventDefault();
     e.stopPropagation();
     if (product.stock > 0) {
-      addToCart(product);
+      addToCart({
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        original_price: product.original_price,
+        category: product.category,
+        subcategory: product.subcategory,
+        images: product.images,
+        stock: product.stock,
+        brand: product.brand,
+        condition: product.condition,
+        is_featured: product.is_featured,
+        is_active: product.is_active,
+        specs: product.specs,
+        created_at: product.created_at,
+      });
     }
   };
 

@@ -19,7 +19,7 @@ const slides = [
   {
     id: 1,
     badge: "New Collection 2025",
-    headingLine1: "Aurexia",
+    headingLine1: "Tech4U",
     headingItalic: " Watches",
     para: "Timepieces engineered for those who command attention. Each watch a statement — each second, a signature of precision.",
     cta: { label: "Explore Watches", href: "/watches" },

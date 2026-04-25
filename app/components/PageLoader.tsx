@@ -13,8 +13,11 @@ export default function PageLoader() {
     const isHomePage = pathname === "/";
 
     // Check if this is a page reload (not navigation)
-    const isReload =
-      performance.getEntriesByType("navigation")[0]?.type === "reload";
+    // Fix: Cast to PerformanceNavigationTiming type
+    const navigationEntry = performance.getEntriesByType("navigation")[0] as
+      | PerformanceNavigationTiming
+      | undefined;
+    const isReload = navigationEntry?.type === "reload";
 
     // Show loader only on home page reloads
     if (isHomePage && isReload) {
@@ -69,7 +72,9 @@ export default function PageLoader() {
 
         {/* Loading Percentage */}
         <div className="loader-percentage">
-          <span className="percent-number">0</span>
+          <span className="percent-number" id="percentNumber">
+            0
+          </span>
           <span className="percent-sign">%</span>
         </div>
 

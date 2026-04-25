@@ -7,10 +7,26 @@ import { useCartStore } from "@/lib/cartStore";
 import "./QuickView.css";
 import { useCurrency } from "../context/CurrencyContext";
 
+interface QuickViewProduct {
+  id: string;
+  name: string;
+  brand?: string;
+  price: number;
+  original_price?: number;
+  category: string;
+  subcategory: string;
+  images: string[];
+  stock: number;
+  description?: string;
+  condition?: string;
+  is_featured?: boolean;
+  is_active?: boolean;
+}
+
 interface QuickViewProps {
   isOpen: boolean;
   onClose: () => void;
-  product: any;
+  product: QuickViewProduct | null;
 }
 
 export default function QuickView({
@@ -59,7 +75,49 @@ export default function QuickView({
         )
       : 0;
 
-  const images = product.images || [];
+  const images: string[] = product.images || [];
+
+  const handleAddToCart = () => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      description: product.description || "",
+      price: product.price,
+      original_price: product.original_price,
+      category: product.category,
+      subcategory: product.subcategory,
+      images: product.images,
+      stock: product.stock,
+      brand: product.brand || "",
+      condition: product.condition || "new",
+      is_featured: product.is_featured || false,
+      is_active: product.is_active || true,
+      specs: {},
+      created_at: new Date().toISOString(),
+    });
+    onClose();
+  };
+
+  const handleBuyNow = () => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      description: product.description || "",
+      price: product.price,
+      original_price: product.original_price,
+      category: product.category,
+      subcategory: product.subcategory,
+      images: product.images,
+      stock: product.stock,
+      brand: product.brand || "",
+      condition: product.condition || "new",
+      is_featured: product.is_featured || false,
+      is_active: product.is_active || true,
+      specs: {},
+      created_at: new Date().toISOString(),
+    });
+    window.location.href = "/checkout";
+  };
 
   return (
     <div className="qv-overlay" onClick={handleOutsideClick}>
@@ -109,7 +167,7 @@ export default function QuickView({
             </div>
             {images.length > 1 && (
               <div className="qv-thumbs">
-                {images.slice(0, 4).map((img, idx) => (
+                {images.slice(0, 4).map((img: string, idx: number) => (
                   <button key={idx} className="qv-thumb">
                     <img src={img} alt={`${product.name} ${idx + 1}`} />
                   </button>
@@ -189,10 +247,7 @@ export default function QuickView({
             <div className="qv-actions">
               <button
                 className="qv-add-cart"
-                onClick={() => {
-                  addToCart(product);
-                  onClose();
-                }}
+                onClick={handleAddToCart}
                 disabled={product.stock === 0}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -204,10 +259,7 @@ export default function QuickView({
               </button>
               <button
                 className="qv-buy-now"
-                onClick={() => {
-                  addToCart(product);
-                  window.location.href = "/checkout";
-                }}
+                onClick={handleBuyNow}
                 disabled={product.stock === 0}
               >
                 Buy Now

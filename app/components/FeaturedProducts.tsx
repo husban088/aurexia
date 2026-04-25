@@ -15,9 +15,9 @@ import QuickView from "./QuickView";
 interface FeaturedProduct {
   id: string;
   name: string;
-  brand: string | null;
+  brand?: string;
   price: number;
-  original_price: number | null;
+  original_price?: number;
   category: string;
   subcategory: string;
   images: string[];
@@ -25,7 +25,7 @@ interface FeaturedProduct {
   condition: string;
   is_featured: boolean;
   is_active: boolean;
-  description: string | null;
+  description?: string;
 }
 
 const TABS = [
@@ -57,13 +57,21 @@ function ProductCard({
     e.preventDefault();
     e.stopPropagation();
     addToCart({
-      ...product,
+      id: product.id,
+      name: product.name,
       description: product.description || "",
+      price: product.price,
+      original_price: product.original_price,
+      category: product.category,
+      subcategory: product.subcategory,
+      images: product.images,
+      stock: product.stock,
       brand: product.brand || "",
+      condition: product.condition,
+      is_featured: product.is_featured,
+      is_active: product.is_active,
       specs: {},
       created_at: new Date().toISOString(),
-      rating: 0,
-      reviews_count: 0,
     });
   };
 
@@ -200,8 +208,27 @@ export default function FeaturedProducts() {
         .limit(12);
 
       if (!cancelled) {
-        if (error) setProducts([]);
-        else setProducts(data || []);
+        if (error) {
+          setProducts([]);
+        } else {
+          // Format data to match FeaturedProduct interface
+          const formattedData = (data || []).map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            brand: item.brand || undefined,
+            price: item.price,
+            original_price: item.original_price || undefined,
+            category: item.category,
+            subcategory: item.subcategory,
+            images: item.images || [],
+            stock: item.stock || 0,
+            condition: item.condition || "new",
+            is_featured: item.is_featured || false,
+            is_active: item.is_active || true,
+            description: item.description || undefined,
+          }));
+          setProducts(formattedData);
+        }
         setLoading(false);
       }
     }

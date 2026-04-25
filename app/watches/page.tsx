@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import ProductGrid from "@/components/ProductGrid";
-import "@/styles/product-grid.css";
+import "@/app/styles/product-grid.css";
+import ProductGrid from "../components/ProductGrid";
 
 const SUBCATEGORIES = [
   {
