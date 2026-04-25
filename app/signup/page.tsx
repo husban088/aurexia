@@ -83,7 +83,7 @@ export default function SignUp() {
         {/* Left — brand */}
         <div className="su-brand">
           <div className="su-brand-inner">
-            <div className="su-brand-logo">
+            {/* <div className="su-brand-logo">
               <Image
                 src="/logo.png"
                 alt="Aurexia"
@@ -92,13 +92,13 @@ export default function SignUp() {
                 className="su-logo-img"
                 priority
               />
-            </div>
+            </div> */}
             <p className="su-brand-eyebrow">
               <span className="su-ey-line" />
-              Join Aurexia
+              Join Tech4U
               <span className="su-ey-line" />
             </p>
-            <h1 className="su-brand-title">Aurexia</h1>
+            <h1 className="su-brand-title">Tech4U</h1>
             <p className="su-brand-tagline">
               Begin your journey
               <br />

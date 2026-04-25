@@ -5,8 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCartStore } from "@/lib/cartStore";
 import "./cart.css";
+import { useCurrency } from "../context/CurrencyContext";
 
-const FREE_SHIPPING_THRESHOLD = 3000; // PKR
+const FREE_SHIPPING_THRESHOLD = 3000; // Base PKR threshold
 
 export default function Cart() {
   const {
@@ -17,6 +18,7 @@ export default function Cart() {
     removeFromCart,
     getSubtotal,
   } = useCartStore();
+  const { formatPrice, currency, convertPrice } = useCurrency();
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
 
@@ -33,9 +35,18 @@ export default function Cart() {
     100
   );
 
+  // Convert values for display
+  const remainingForFreeShipping = convertPrice(
+    FREE_SHIPPING_THRESHOLD - (subtotal - discount)
+  );
+  const remainingForFreeShippingPositive =
+    remainingForFreeShipping > 0 ? remainingForFreeShipping : 0;
+
   const handlePromo = () => {
-    if (promoCode.trim().toLowerCase() === "aurexia10") {
+    if (promoCode.trim().toLowerCase() === "tech4u10") {
       setPromoApplied(true);
+    } else {
+      alert("Invalid promo code. Try: TECH4U10");
     }
   };
 
@@ -123,12 +134,7 @@ export default function Cart() {
                 <p className="cart-ship-text">
                   Add{" "}
                   <strong>
-                    PKR{" "}
-                    {(
-                      FREE_SHIPPING_THRESHOLD -
-                      subtotal +
-                      discount
-                    ).toLocaleString()}
+                    {formatPrice(remainingForFreeShippingPositive)}
                   </strong>{" "}
                   more for free shipping
                 </p>
@@ -277,7 +283,7 @@ export default function Cart() {
                             </button>
                           </div>
                           <p className="cart-item-price">
-                            PKR {itemTotal.toLocaleString()}
+                            {formatPrice(itemTotal)}
                           </p>
                         </div>
                       </div>
@@ -372,11 +378,11 @@ export default function Cart() {
                   </div>
                   {promoApplied && (
                     <p className="cart-promo-success">
-                      Code AUREXIA10 applied — 10% off
+                      Code TECH4U10 applied — 10% off
                     </p>
                   )}
                   {!promoApplied && (
-                    <p className="cart-promo-hint">Try: AUREXIA10</p>
+                    <p className="cart-promo-hint">Try: TECH4U10</p>
                   )}
                 </div>
 
@@ -386,26 +392,24 @@ export default function Cart() {
                       Subtotal ({items.reduce((a, b) => a + b.quantity, 0)}{" "}
                       items)
                     </span>
-                    <span>PKR {subtotal.toLocaleString()}</span>
+                    <span>{formatPrice(subtotal)}</span>
                   </div>
                   {promoApplied && (
                     <div className="cart-breakdown-row cart-breakdown-row--discount">
                       <span>Discount (10%)</span>
-                      <span>−PKR {discount.toLocaleString()}</span>
+                      <span>-{formatPrice(discount)}</span>
                     </div>
                   )}
                   <div className="cart-breakdown-row">
                     <span>Shipping</span>
                     <span>
-                      {shipping === 0
-                        ? "Free"
-                        : `PKR ${shipping.toLocaleString()}`}
+                      {shipping === 0 ? "Free" : formatPrice(shipping)}
                     </span>
                   </div>
                   <div className="cart-breakdown-divider" />
                   <div className="cart-breakdown-row cart-breakdown-row--total">
                     <span>Total</span>
-                    <span>PKR {total.toLocaleString()}</span>
+                    <span>{formatPrice(total)}</span>
                   </div>
                 </div>
 

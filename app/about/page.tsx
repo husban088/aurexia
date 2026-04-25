@@ -82,9 +82,9 @@ export default function About() {
             <span className="ab-ey-line" />
           </p>
           <h1 className="ab-hero-title">
-            Born from a <em>passion</em>
+            Born from a <em>Passion</em>
             <br />
-            for timeless <em>elegance.</em>
+            for timeless <em>Elegance.</em>
           </h1>
           <p className="ab-hero-sub">
             Tech4U was founded on a single belief — that luxury should feel
@@ -121,9 +121,9 @@ export default function About() {
             "We do not simply sell watches. We offer you a relationship with
             time — intimate, deliberate, and yours alone."
           </blockquote>
-          <cite className="ab-statement-cite">
+          {/* <cite className="ab-statement-cite">
             — Waqas Sarwar, Founder of Tech4U
-          </cite>
+          </cite> */}
         </div>
       </section>
 

@@ -5,8 +5,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cartStore";
+import { currencies } from "@/lib/currency";
 import { supabase } from "@/lib/supabase";
 import "./checkout.css";
+import { useCurrency } from "../context/CurrencyContext";
 
 type Step = "shipping" | "payment" | "review";
 
@@ -34,11 +36,15 @@ const STEPS: { id: Step; label: string; num: string }[] = [
 export default function Checkout() {
   const router = useRouter();
   const { items, loading, fetchCart, clearCart, getSubtotal } = useCartStore();
+  const { formatPrice, currency } = useCurrency();
   const [step, setStep] = useState<Step>("shipping");
   const [focused, setFocused] = useState<string | null>(null);
   const [placed, setPlaced] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [selectedCountryCode, setSelectedCountryCode] = useState("+1");
+  const [selectedFlag, setSelectedFlag] = useState("🇺🇸");
+
   const [form, setForm] = useState<FormData>({
     firstName: "",
     lastName: "",
@@ -47,7 +53,7 @@ export default function Checkout() {
     address: "",
     city: "",
     zip: "",
-    country: "Pakistan",
+    country: "US",
     cardNumber: "",
     cardName: "",
     expiry: "",
@@ -59,7 +65,6 @@ export default function Checkout() {
   }, [fetchCart]);
 
   useEffect(() => {
-    // Auto-fill email if user is logged in
     const getUserEmail = async () => {
       const {
         data: { session },
@@ -69,7 +74,21 @@ export default function Checkout() {
       }
     };
     getUserEmail();
-  }, [form.email]);
+
+    // Set phone code based on currency
+    const countryCurrencies: Record<string, { code: string; flag: string }> = {
+      USD: { code: "+1", flag: "🇺🇸" },
+      GBP: { code: "+44", flag: "🇬🇧" },
+      EUR: { code: "+352", flag: "🇪🇺" },
+      AUD: { code: "+61", flag: "🇦🇺" },
+    };
+    const phoneData = countryCurrencies[currency.code] || {
+      code: "+1",
+      flag: "🇺🇸",
+    };
+    setSelectedCountryCode(phoneData.code);
+    setSelectedFlag(phoneData.flag);
+  }, [currency.code, form.email]);
 
   const setFormField =
     (key: keyof FormData) =>
@@ -80,7 +99,6 @@ export default function Checkout() {
   const subtotal = getSubtotal();
   const shipping = subtotal >= 3000 ? 0 : 250;
   const total = subtotal + shipping;
-
   const currentStepIndex = STEPS.findIndex((s) => s.id === step);
 
   const validateShipping = () => {
@@ -92,12 +110,9 @@ export default function Checkout() {
       "address",
       "city",
       "zip",
-      "country",
     ];
     for (const field of required) {
-      if (!form[field as keyof FormData]) {
-        return false;
-      }
+      if (!form[field as keyof FormData]) return false;
     }
     return true;
   };
@@ -105,9 +120,7 @@ export default function Checkout() {
   const validatePayment = () => {
     const required = ["cardNumber", "cardName", "expiry", "cvv"];
     for (const field of required) {
-      if (!form[field as keyof FormData]) {
-        return false;
-      }
+      if (!form[field as keyof FormData]) return false;
     }
     if (form.cardNumber.replace(/\s/g, "").length < 16) return false;
     if (form.cvv.length < 3) return false;
@@ -142,8 +155,6 @@ export default function Checkout() {
     }
 
     setSubmitting(true);
-
-    // Generate order number
     const orderRef = `AX-${Date.now()
       .toString(36)
       .toUpperCase()}-${Math.random()
@@ -152,41 +163,12 @@ export default function Checkout() {
       .toUpperCase()}`;
     setOrderNumber(orderRef);
 
-    // Save order to Supabase (optional - create orders table)
     try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-
-      // Create order record
-      const orderData = {
-        order_number: orderRef,
-        user_id: session?.user?.id || null,
-        customer_name: `${form.firstName} ${form.lastName}`,
-        customer_email: form.email,
-        customer_phone: form.phone,
-        shipping_address: `${form.address}, ${form.city}, ${form.zip}, ${form.country}`,
-        subtotal: subtotal,
-        shipping_cost: shipping,
-        total: total,
-        payment_method: "card",
-        status: "pending",
-        items: items.map((item) => ({
-          product_id: item.product_id,
-          name: item.product.name,
-          price: item.product.price,
-          quantity: item.quantity,
-          image: item.product.images?.[0] || null,
-        })),
-        created_at: new Date().toISOString(),
-      };
-
-      // Optional: Save to database if you have orders table
-      // const { error } = await supabase.from("orders").insert(orderData);
-
-      // Clear cart after successful order
+      // Save order logic here
       await clearCart();
-
       setPlaced(true);
     } catch (error) {
       console.error("Order placement error:", error);
@@ -200,16 +182,8 @@ export default function Checkout() {
     return (
       <div className="co-root">
         <div className="co-grain" aria-hidden="true" />
-        <div className="co-lines" aria-hidden="true">
-          {[...Array(5)].map((_, i) => (
-            <span key={i} />
-          ))}
-        </div>
         <div className="co-wrap">
-          <div className="co-empty-state">
-            <div className="co-spinner" />
-            <p>Loading checkout...</p>
-          </div>
+          <div className="co-spinner" />
         </div>
       </div>
     );
@@ -219,39 +193,16 @@ export default function Checkout() {
     return (
       <div className="co-root">
         <div className="co-grain" aria-hidden="true" />
-        <div className="co-lines" aria-hidden="true">
-          {[...Array(5)].map((_, i) => (
-            <span key={i} />
-          ))}
-        </div>
         <div className="co-wrap">
           <div className="co-empty-state">
-            <div className="co-empty-icon" aria-hidden="true">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="0.8"
-              >
+            <div className="co-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <path d="M16 10a4 4 0 01-8 0" />
               </svg>
             </div>
             <h2 className="co-empty-title">Your cart is empty</h2>
-            <p className="co-empty-sub">Add items to proceed with checkout</p>
             <Link href="/watches" className="co-empty-btn">
               Continue Shopping
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                width="14"
-                height="14"
-              >
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
             </Link>
           </div>
         </div>
@@ -262,56 +213,26 @@ export default function Checkout() {
   if (placed) {
     return (
       <div className="co-root">
-        <div className="co-grain" aria-hidden="true" />
-        <div className="co-lines" aria-hidden="true">
-          {[...Array(5)].map((_, i) => (
-            <span key={i} />
-          ))}
-        </div>
         <div className="co-success">
-          <div className="co-success-icon" aria-hidden="true">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1"
-            >
+          <div className="co-success-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <circle cx="12" cy="12" r="10" />
-              <polyline
-                points="20 6 9 17 4 12"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              <polyline points="20 6 9 17 4 12" />
             </svg>
           </div>
-          <p className="co-eyebrow">
-            <span className="co-ey-line" />
-            Order Confirmed
-            <span className="co-ey-line" />
-          </p>
           <h1 className="co-success-title">
             Thank <em>You</em>
           </h1>
           <p className="co-success-sub">
-            Your order has been received and is being prepared with care. A
-            confirmation has been sent to {form.email}.
+            Your order has been received. A confirmation has been sent to{" "}
+            {form.email}.
           </p>
           <div className="co-success-ref">
-            <span className="co-success-ref-label">Order Reference</span>
-            <span className="co-success-ref-val">{orderNumber}</span>
+            <span>Order Reference</span>
+            <span>{orderNumber}</span>
           </div>
           <Link href="/" className="co-success-btn">
-            <span>Return Home</span>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              width="14"
-              height="14"
-            >
-              <path d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
+            Return Home
           </Link>
         </div>
       </div>
@@ -326,10 +247,6 @@ export default function Checkout() {
           <span key={i} />
         ))}
       </div>
-      <div className="co-ambient" aria-hidden="true" />
-      <div className="co-corner co-corner--tl" aria-hidden="true" />
-      <div className="co-corner co-corner--tr" aria-hidden="true" />
-
       <div className="co-wrap">
         <div className="co-header">
           <p className="co-eyebrow">
@@ -342,7 +259,6 @@ export default function Checkout() {
           </h1>
         </div>
 
-        {/* Step indicator */}
         <div className="co-steps">
           {STEPS.map((s, i) => (
             <div
@@ -357,15 +273,10 @@ export default function Checkout() {
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth="2"
                     width="12"
                     height="12"
                   >
-                    <polyline
-                      points="20 6 9 17 4 12"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                    <polyline points="20 6 9 17 4 12" />
                   </svg>
                 ) : (
                   <span>{s.num}</span>
@@ -378,11 +289,9 @@ export default function Checkout() {
         </div>
 
         <div className="co-layout">
-          {/* Form Column */}
           <div className="co-form-col">
-            {/* SHIPPING STEP */}
             {step === "shipping" && (
-              <div className="co-section" key="shipping">
+              <div className="co-section">
                 <h2 className="co-section-title">
                   <em>01.</em> Shipping Information
                 </h2>
@@ -409,7 +318,7 @@ export default function Checkout() {
                     {
                       key: "phone",
                       label: "Phone Number",
-                      placeholder: "+92 300 0000000",
+                      placeholder: "1234567890",
                       type: "tel",
                     },
                     {
@@ -420,61 +329,57 @@ export default function Checkout() {
                     {
                       key: "city",
                       label: "City",
-                      placeholder: "Faisalabad",
+                      placeholder: "New York",
                       half: true,
                     },
                     {
                       key: "zip",
-                      label: "ZIP / Postal Code",
-                      placeholder: "38000",
+                      label: "ZIP Code",
+                      placeholder: "10001",
                       half: true,
-                    },
-                    {
-                      key: "country",
-                      label: "Country",
-                      placeholder: "Pakistan",
                     },
                   ].map((f) => (
                     <div
                       key={f.key}
                       className={`co-field${f.half ? " co-field--half" : ""}${
                         focused === f.key ? " co-field--focused" : ""
-                      }${
-                        form[f.key as keyof FormData] ? " co-field--filled" : ""
                       }`}
                     >
                       <label className="co-label" htmlFor={`co-${f.key}`}>
                         {f.label}
                       </label>
                       <div className="co-input-wrap">
+                        <div className="co-phone-prefix">
+                          <span className="co-phone-flag">{selectedFlag}</span>
+                          <span className="co-phone-code">
+                            {selectedCountryCode}
+                          </span>
+                        </div>
                         <input
                           id={`co-${f.key}`}
                           type={f.type || "text"}
-                          className="co-input"
+                          className="co-input co-input-with-prefix"
                           placeholder={f.placeholder}
                           value={form[f.key as keyof FormData] as string}
                           onChange={setFormField(f.key as keyof FormData)}
                           onFocus={() => setFocused(f.key)}
                           onBlur={() => setFocused(null)}
-                          required={f.key !== "company"}
                         />
                       </div>
-                      <div className="co-field-line" aria-hidden="true" />
+                      <div className="co-field-line" />
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* PAYMENT STEP */}
             {step === "payment" && (
-              <div className="co-section" key="payment">
+              <div className="co-section">
                 <h2 className="co-section-title">
                   <em>02.</em> Payment Details
                 </h2>
-
                 <div className="co-card-preview">
-                  <div className="co-card-chip" aria-hidden="true" />
+                  <div className="co-card-chip" />
                   <p className="co-card-num-display">
                     {form.cardNumber
                       ? form.cardNumber.replace(/(.{4})/g, "$1 ").trim()
@@ -488,11 +393,8 @@ export default function Checkout() {
                       {form.expiry || "MM/YY"}
                     </span>
                   </div>
-                  <div className="co-card-brand" aria-hidden="true">
-                    AUREXIA
-                  </div>
+                  <div className="co-card-brand">TECH4U</div>
                 </div>
-
                 <div className="co-fields-grid">
                   {[
                     {
@@ -522,8 +424,6 @@ export default function Checkout() {
                       key={f.key}
                       className={`co-field${f.half ? " co-field--half" : ""}${
                         focused === f.key ? " co-field--focused" : ""
-                      }${
-                        form[f.key as keyof FormData] ? " co-field--filled" : ""
                       }`}
                     >
                       <label className="co-label" htmlFor={`co-${f.key}`}>
@@ -548,37 +448,25 @@ export default function Checkout() {
                           }
                         />
                       </div>
-                      <div className="co-field-line" aria-hidden="true" />
+                      <div className="co-field-line" />
                     </div>
                   ))}
                 </div>
-
                 <div className="co-secure-note">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    width="13"
-                    height="13"
-                  >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <rect x="3" y="11" width="18" height="11" rx="2" />
                     <path d="M7 11V7a5 5 0 0110 0v4" />
                   </svg>
-                  <span>
-                    Your payment is secured with 256-bit SSL encryption
-                  </span>
+                  <span>SSL secured checkout</span>
                 </div>
               </div>
             )}
 
-            {/* REVIEW STEP */}
             {step === "review" && (
-              <div className="co-section" key="review">
+              <div className="co-section">
                 <h2 className="co-section-title">
                   <em>03.</em> Review Your Order
                 </h2>
-
                 <div className="co-review-blocks">
                   <div className="co-review-block">
                     <p className="co-review-block-title">Shipping To</p>
@@ -587,9 +475,7 @@ export default function Checkout() {
                       <br />
                       {form.address}, {form.city} {form.zip}
                       <br />
-                      {form.country}
-                      <br />
-                      📞 {form.phone}
+                      📞 {selectedCountryCode} {form.phone}
                     </p>
                   </div>
                   <div className="co-review-block">
@@ -602,72 +488,36 @@ export default function Checkout() {
                     </p>
                   </div>
                 </div>
-
                 <ul className="co-review-items">
                   {items.map((item) => (
                     <li key={item.id} className="co-review-item">
-                      <div className="co-review-item-info">
-                        <span className="co-review-item-name">
+                      <div>
+                        <p className="co-review-item-name">
                           {item.product.name}
-                        </span>
-                        <span className="co-review-item-variant">
+                        </p>
+                        <p className="co-review-item-variant">
                           {item.product.subcategory} × {item.quantity}
-                        </span>
+                        </p>
                       </div>
                       <span className="co-review-item-price">
-                        PKR{" "}
-                        {(item.product.price * item.quantity).toLocaleString()}
+                        {formatPrice(item.product.price * item.quantity)}
                       </span>
                     </li>
                   ))}
                 </ul>
-
-                <p className="co-review-terms">
-                  By placing your order you agree to our{" "}
-                  <Link href="/terms" className="co-review-link">
-                    Terms of Service
-                  </Link>{" "}
-                  and{" "}
-                  <Link href="/privacy" className="co-review-link">
-                    Privacy Policy
-                  </Link>
-                  .
-                </p>
               </div>
             )}
 
-            {/* Nav buttons */}
             <div className="co-nav-btns">
               {currentStepIndex > 0 ? (
                 <button className="co-back-btn" onClick={prevStep}>
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    width="14"
-                    height="14"
-                  >
-                    <path d="M19 12H5M12 19l-7-7 7-7" />
-                  </svg>
-                  Back
+                  ← Back
                 </button>
               ) : (
                 <Link href="/cart" className="co-back-btn">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    width="14"
-                    height="14"
-                  >
-                    <path d="M19 12H5M12 19l-7-7 7-7" />
-                  </svg>
-                  Cart
+                  ← Cart
                 </Link>
               )}
-
               {step === "review" ? (
                 <button
                   className="co-next-btn"
@@ -677,40 +527,17 @@ export default function Checkout() {
                   {submitting ? (
                     <span className="co-spinner-btn" />
                   ) : (
-                    <>
-                      <span>Place Order</span>
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        width="14"
-                        height="14"
-                      >
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                      </svg>
-                    </>
+                    <>Place Order →</>
                   )}
                 </button>
               ) : (
                 <button className="co-next-btn" onClick={nextStep}>
-                  <span>Continue</span>
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    width="14"
-                    height="14"
-                  >
-                    <path d="M5 12h14M12 5l7 7-7 7" />
-                  </svg>
+                  Continue →
                 </button>
               )}
             </div>
           </div>
 
-          {/* Order Summary Column */}
           <div className="co-summary-col">
             <div className="co-summary-card">
               <p className="co-summary-title">
@@ -718,47 +545,37 @@ export default function Checkout() {
                 Order Summary
                 <span className="co-ey-line" />
               </p>
-
               <ul className="co-summary-items">
                 {items.slice(0, 3).map((item) => (
                   <li key={item.id} className="co-summary-item">
-                    <div className="co-summary-item-img" aria-hidden="true">
+                    <div className="co-summary-item-img">
                       {item.product.images?.[0] ? (
                         <Image
                           src={item.product.images[0]}
                           alt={item.product.name}
                           width={42}
                           height={42}
-                          style={{
-                            objectFit: "cover",
-                            width: "100%",
-                            height: "100%",
-                          }}
                         />
                       ) : (
                         <svg
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
-                          strokeWidth="0.8"
                         >
                           <rect x="3" y="3" width="18" height="18" rx="2" />
-                          <circle cx="8.5" cy="8.5" r="1.5" />
-                          <polyline points="21 15 16 10 5 21" />
                         </svg>
                       )}
                     </div>
-                    <div className="co-summary-item-info">
-                      <span className="co-summary-item-name">
+                    <div>
+                      <p className="co-summary-item-name">
                         {item.product.name}
-                      </span>
-                      <span className="co-summary-item-variant">
+                      </p>
+                      <p className="co-summary-item-variant">
                         ×{item.quantity}
-                      </span>
+                      </p>
                     </div>
                     <span className="co-summary-item-price">
-                      PKR{" "}
-                      {(item.product.price * item.quantity).toLocaleString()}
+                      {formatPrice(item.product.price * item.quantity)}
                     </span>
                   </li>
                 ))}
@@ -768,38 +585,20 @@ export default function Checkout() {
                   </li>
                 )}
               </ul>
-
               <div className="co-summary-breakdown">
                 <div className="co-summary-row">
                   <span>Subtotal</span>
-                  <span>PKR {subtotal.toLocaleString()}</span>
+                  <span>{formatPrice(subtotal)}</span>
                 </div>
                 <div className="co-summary-row">
                   <span>Shipping</span>
-                  <span>
-                    {shipping === 0
-                      ? "Free"
-                      : `PKR ${shipping.toLocaleString()}`}
-                  </span>
+                  <span>{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
                 </div>
                 <div className="co-summary-divider" />
                 <div className="co-summary-row co-summary-total">
                   <span>Total</span>
-                  <span>PKR {total.toLocaleString()}</span>
+                  <span>{formatPrice(total)}</span>
                 </div>
-              </div>
-
-              <div className="co-perks">
-                {[
-                  { icon: "✦", text: "Luxury gift packaging included" },
-                  { icon: "↩", text: "30-day free returns" },
-                  { icon: "🔒", text: "SSL secured checkout" },
-                ].map((p) => (
-                  <div key={p.text} className="co-perk">
-                    <span className="co-perk-icon">{p.icon}</span>
-                    <span className="co-perk-text">{p.text}</span>
-                  </div>
-                ))}
               </div>
             </div>
           </div>

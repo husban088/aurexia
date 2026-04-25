@@ -5,13 +5,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCartStore } from "@/lib/cartStore";
 import "./cartsidebar.css";
+import { useCurrency } from "../context/CurrencyContext";
 
 interface CartSidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const FREE_SHIPPING_THRESHOLD = 3000; // PKR
+const FREE_SHIPPING_THRESHOLD = 3000; // Base PKR threshold
 
 export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const {
@@ -21,7 +22,9 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     updateQuantity,
     removeFromCart,
     getSubtotal,
+    getCartCount,
   } = useCartStore();
+  const { formatPrice, currency, convertPrice } = useCurrency();
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,12 +49,21 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   }, [isOpen, onClose]);
 
   const subtotal = getSubtotal();
+  const cartCount = getCartCount();
   const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 250;
   const total = subtotal + shipping;
   const shippingProgress = Math.min(
     (subtotal / FREE_SHIPPING_THRESHOLD) * 100,
     100
   );
+
+  // Convert shipping threshold to current currency for display
+  const thresholdInCurrentCurrency = convertPrice(FREE_SHIPPING_THRESHOLD);
+  const remainingForFreeShipping = convertPrice(
+    FREE_SHIPPING_THRESHOLD - subtotal
+  );
+  const remainingForFreeShippingPositive =
+    remainingForFreeShipping > 0 ? remainingForFreeShipping : 0;
 
   const handleSidebarClick = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -71,7 +83,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
         aria-label="Shopping cart"
         onClick={handleSidebarClick}
       >
-        {/* Deco */}
         <div className="cs-deco" aria-hidden="true">
           <div className="cs-deco-ring" />
           <div className="cs-deco-ring cs-deco-ring--2" />
@@ -86,14 +97,11 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               <span className="cs-ey-line" />
             </p>
             <h2 className="cs-title">
-              {items.length === 0 ? (
+              {cartCount === 0 ? (
                 "Empty"
               ) : (
                 <>
-                  <em>{items.reduce((a, b) => a + b.quantity, 0)}</em>{" "}
-                  {items.reduce((a, b) => a + b.quantity, 0) === 1
-                    ? "Item"
-                    : "Items"}
+                  <em>{cartCount}</em> {cartCount === 1 ? "Item" : "Items"}
                 </>
               )}
             </h2>
@@ -115,7 +123,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
         </div>
 
         {/* Free Shipping Bar */}
-        {items.length > 0 && (
+        {cartCount > 0 && (
           <div
             className={`cs-shipping-bar${
               shipping === 0 ? " cs-shipping-bar--achieved" : ""
@@ -144,7 +152,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 <p className="cs-shipping-text">
                   Add{" "}
                   <strong>
-                    PKR {(FREE_SHIPPING_THRESHOLD - subtotal).toLocaleString()}
+                    {formatPrice(remainingForFreeShippingPositive)}
                   </strong>{" "}
                   more for free shipping
                 </p>
@@ -159,14 +167,14 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           </div>
         )}
 
-        {/* Items */}
+        {/* Items List */}
         <div className="cs-items">
           {loading ? (
             <div className="cs-empty">
               <div className="cs-spinner" />
               <p className="cs-empty-title">Loading cart...</p>
             </div>
-          ) : items.length === 0 ? (
+          ) : cartCount === 0 ? (
             <div className="cs-empty">
               <div className="cs-empty-icon" aria-hidden="true">
                 <svg
@@ -204,15 +212,14 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             <ul className="cs-item-list">
               {items.map((item, i) => {
                 const product = item.product;
-                const itemTotal = product.price * item.quantity;
+                if (!product) return null;
+                const itemTotal = (product.price || 0) * item.quantity;
 
                 return (
                   <li
                     key={item.id}
                     className="cs-item"
-                    style={{
-                      animationDelay: isOpen ? `${0.15 + i * 0.08}s` : "0s",
-                    }}
+                    style={{ animationDelay: `${0.1 + i * 0.05}s` }}
                   >
                     {/* Image */}
                     <div className="cs-item-img-wrap">
@@ -256,7 +263,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                       <p className="cs-item-variant">{product.subcategory}</p>
 
                       <div className="cs-item-bottom">
-                        {/* Qty */}
                         <div className="cs-qty">
                           <button
                             className="cs-qty-btn"
@@ -296,9 +302,8 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                             </svg>
                           </button>
                         </div>
-
                         <p className="cs-item-price">
-                          PKR {itemTotal.toLocaleString()}
+                          {formatPrice(itemTotal)}
                         </p>
                       </div>
                     </div>
@@ -325,24 +330,22 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           )}
         </div>
 
-        {/* Summary & Checkout */}
-        {items.length > 0 && !loading && (
+        {/* Footer Summary */}
+        {cartCount > 0 && !loading && (
           <div className="cs-footer">
             <div className="cs-summary">
               <div className="cs-summary-row">
-                <span>Subtotal</span>
-                <span>PKR {subtotal.toLocaleString()}</span>
+                <span>Subtotal ({cartCount} items)</span>
+                <span>{formatPrice(subtotal)}</span>
               </div>
               <div className="cs-summary-row">
                 <span>Shipping</span>
-                <span>
-                  {shipping === 0 ? "Free" : `PKR ${shipping.toLocaleString()}`}
-                </span>
+                <span>{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
               </div>
               <div className="cs-summary-divider" />
               <div className="cs-summary-row cs-summary-total">
                 <span>Total</span>
-                <span>PKR {total.toLocaleString()}</span>
+                <span>{formatPrice(total)}</span>
               </div>
             </div>
 

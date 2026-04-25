@@ -324,3 +324,47 @@
   text-transform: uppercase;
   color: rgba(180, 145, 80, 0.4);
 }
+
+/* Sidebar Logo - TECH4U Style */
+.sidebar-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-decoration: none;
+  gap: 0.1rem;
+}
+
+.sidebar-logo-text {
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
+}
+
+.sidebar-logo-tech {
+  font-family: "Orbitron", monospace;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #f5f0e8 0%, #d4af70 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.sidebar-logo-four {
+  font-family: "Orbitron", monospace;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #b49150;
+}
+
+.sidebar-logo-luxury {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 0.55rem;
+  font-weight: 300;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(180, 145, 80, 0.6);
+  margin-top: 2px;
+}

@@ -1,158 +1,95 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import "./reset-password.css";
 
 export default function ResetPassword() {
   const router = useRouter();
   const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
   const [done, setDone] = useState(false);
-  const [validSession, setValidSession] = useState(false);
-  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const hash = window.location.hash;
+    // ✅ FIX: Handle the recovery session from the email link
+    // Supabase sends the user to this page with a hash fragment containing the tokens
+    // onAuthStateChange fires PASSWORD_RECOVERY event when the link is valid
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("[ResetPassword] Auth event:", event);
 
-    const setupSession = async () => {
-      if (hash && hash.includes("type=recovery")) {
-        const params = new URLSearchParams(hash.substring(1));
-        const accessToken = params.get("access_token");
-        const refreshToken = params.get("refresh_token");
-
-        if (accessToken && refreshToken) {
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (!error && data.session) {
-            setValidSession(true);
-            window.history.replaceState(null, "", window.location.pathname);
-          } else {
-            setValidSession(false);
-          }
-          setChecking(false);
-          return;
-        }
+      if (event === "PASSWORD_RECOVERY") {
+        // ✅ Session is now active, user can set new password
+        setReady(true);
+      } else if (event === "SIGNED_IN" && session) {
+        // Some Supabase versions fire SIGNED_IN instead
+        setReady(true);
       }
+    });
 
+    // Also check if we already have a session (user refreshed the page)
+    const checkExistingSession = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      setValidSession(!!session);
-      setChecking(false);
-    };
-
-    setupSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === "PASSWORD_RECOVERY" && session) {
-          setValidSession(true);
-          setChecking(false);
-        }
+      if (session) {
+        setReady(true);
       }
-    );
+    };
+    checkExistingSession();
 
-    return () => listener.subscription.unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (password !== confirm) {
-      setError("Passwords do not match.");
-      return;
-    }
     if (password.length < 6) {
       setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match. Please try again.");
       return;
     }
 
     setLoading(true);
 
+    // ✅ FIX: Update the password using the active session
     const { error: updateError } = await supabase.auth.updateUser({
       password,
     });
 
     if (updateError) {
-      setError(updateError.message);
+      setError(
+        updateError.message || "Failed to reset password. Please try again."
+      );
       setLoading(false);
       return;
     }
 
+    // ✅ FIX: Sign out after password reset so user signs in fresh
+    await supabase.auth.signOut({ scope: "local" });
+
     setDone(true);
     setLoading(false);
 
-    // Sign out after 2 seconds and redirect to signin
-    setTimeout(async () => {
-      await supabase.auth.signOut();
+    // Redirect to signin after 2 seconds with success param
+    setTimeout(() => {
       router.push("/signin?reset=success");
     }, 2000);
   };
-
-  if (checking) {
-    return (
-      <div
-        className="rp-root"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "100vh",
-        }}
-      >
-        <span className="rp-spinner" style={{ width: 36, height: 36 }} />
-      </div>
-    );
-  }
-
-  if (!validSession) {
-    return (
-      <div
-        className="rp-root"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "100vh",
-          flexDirection: "column",
-          gap: "1rem",
-          textAlign: "center",
-          padding: "2rem",
-        }}
-      >
-        <h2 style={{ color: "#fff", fontSize: "1.4rem" }}>
-          Link expired or invalid
-        </h2>
-        <p style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.95rem" }}>
-          Please request a new password reset link.
-        </p>
-        <Link
-          href="/forgot-password"
-          style={{
-            marginTop: "0.5rem",
-            color: "#b49150",
-            textDecoration: "underline",
-            fontSize: "0.95rem",
-          }}
-        >
-          Go to Forgot Password
-        </Link>
-      </div>
-    );
-  }
 
   return (
     <div className="rp-root">
@@ -170,6 +107,7 @@ export default function ResetPassword() {
       <div className="rp-corner rp-corner--br" aria-hidden="true" />
 
       <div className="rp-card">
+        {/* Left brand */}
         <div className="rp-brand">
           <div className="rp-brand-inner">
             <div className="rp-brand-logo">
@@ -189,14 +127,14 @@ export default function ResetPassword() {
             </p>
             <h1 className="rp-brand-title">Aurexia</h1>
             <p className="rp-brand-tagline">
-              Restore your
+              Secure your
               <br />
-              <em>secure access.</em>
+              <em>luxury access.</em>
             </p>
             <div className="rp-brand-divider" aria-hidden="true" />
             <p className="rp-brand-note">
-              Choose a strong password. Use at least 6 characters with a mix of
-              letters and numbers.
+              Choose a strong password to keep your Aurexia account safe and
+              secure.
             </p>
             <div className="rp-ring" aria-hidden="true">
               <div className="rp-ring-inner" />
@@ -204,43 +142,105 @@ export default function ResetPassword() {
           </div>
         </div>
 
+        {/* Right form */}
         <div className="rp-form-panel">
           <div className="rp-form-wrap">
-            {!done ? (
+            {done ? (
+              /* Success state */
+              <div className="rp-success">
+                <div className="rp-success-icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.2"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+                <div className="rp-success-ring" aria-hidden="true" />
+                <p className="rp-success-eyebrow">
+                  <span className="rp-ey-line" />
+                  Success
+                  <span className="rp-ey-line" />
+                </p>
+                <h2 className="rp-success-title">
+                  Password <em>Reset!</em>
+                </h2>
+                <p className="rp-success-desc">
+                  Your password has been updated successfully. Redirecting you
+                  to sign in…
+                </p>
+                <Link href="/signin" className="rp-back-btn">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <path
+                      d="M19 12H5M12 5l-7 7 7 7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  Sign In Now
+                </Link>
+              </div>
+            ) : !ready ? (
+              /* Waiting for recovery link */
+              <div className="rp-waiting">
+                <div className="rp-spinner-wrap">
+                  <span className="rp-spinner-large" />
+                </div>
+                <p className="rp-waiting-title">Verifying reset link…</p>
+                <p className="rp-waiting-sub">
+                  Please wait while we verify your password reset link.
+                </p>
+                <p className="rp-waiting-note">
+                  If nothing happens, your link may have expired.{" "}
+                  <Link href="/forgot-password" className="rp-link">
+                    Request a new one.
+                  </Link>
+                </p>
+              </div>
+            ) : (
+              /* Reset form */
               <>
                 <div className="rp-form-header">
                   <p className="rp-form-eyebrow">
                     <span className="rp-ey-line" />
-                    Account Security
+                    Set New Password
                     <span className="rp-ey-line" />
                   </p>
                   <h2 className="rp-form-title">
-                    Set New <em>Password</em>
+                    Reset <em>Password</em>
                   </h2>
                   <p className="rp-form-sub">
                     Enter and confirm your new password below
                   </p>
                 </div>
 
-                {error && (
-                  <div className="rp-error-box" role="alert">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      width="14"
-                      height="14"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="8" x2="12" y2="12" />
-                      <line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                    {error}
-                  </div>
-                )}
-
                 <form className="rp-form" onSubmit={handleSubmit} noValidate>
+                  {error && (
+                    <div className="rp-error-box" role="alert">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        width="14"
+                        height="14"
+                      >
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                      {error}
+                    </div>
+                  )}
+
+                  {/* New Password */}
                   <div
                     className={`rp-field${
                       focused === "pw" ? " rp-field--focused" : ""
@@ -265,19 +265,22 @@ export default function ResetPassword() {
                         id="rp-password"
                         type={showPass ? "text" : "password"}
                         className="rp-input"
-                        placeholder="••••••••"
+                        placeholder="Min. 6 characters"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         onFocus={() => setFocused("pw")}
                         onBlur={() => setFocused(null)}
+                        autoComplete="new-password"
                         required
                         minLength={6}
-                        autoComplete="new-password"
                       />
                       <button
                         type="button"
                         className="rp-eye-btn"
                         onClick={() => setShowPass(!showPass)}
+                        aria-label={
+                          showPass ? "Hide password" : "Show password"
+                        }
                       >
                         {showPass ? (
                           <svg
@@ -306,10 +309,11 @@ export default function ResetPassword() {
                     <div className="rp-field-line" aria-hidden="true" />
                   </div>
 
+                  {/* Confirm Password */}
                   <div
                     className={`rp-field${
-                      focused === "cf" ? " rp-field--focused" : ""
-                    }${confirm ? " rp-field--filled" : ""}`}
+                      focused === "cp" ? " rp-field--focused" : ""
+                    }${confirmPassword ? " rp-field--filled" : ""}`}
                   >
                     <label className="rp-label" htmlFor="rp-confirm">
                       Confirm Password
@@ -322,25 +326,28 @@ export default function ResetPassword() {
                           stroke="currentColor"
                           strokeWidth="1.5"
                         >
-                          <rect x="3" y="11" width="18" height="11" rx="2" />
-                          <path d="M7 11V7a5 5 0 0110 0v4" />
+                          <polyline points="20 6 9 17 4 12" />
                         </svg>
                       </span>
                       <input
                         id="rp-confirm"
                         type={showConfirm ? "text" : "password"}
                         className="rp-input"
-                        placeholder="••••••••"
-                        value={confirm}
-                        onChange={(e) => setConfirm(e.target.value)}
-                        onFocus={() => setFocused("cf")}
+                        placeholder="Repeat your password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        onFocus={() => setFocused("cp")}
                         onBlur={() => setFocused(null)}
+                        autoComplete="new-password"
                         required
                       />
                       <button
                         type="button"
                         className="rp-eye-btn"
                         onClick={() => setShowConfirm(!showConfirm)}
+                        aria-label={
+                          showConfirm ? "Hide password" : "Show password"
+                        }
                       >
                         {showConfirm ? (
                           <svg
@@ -395,33 +402,28 @@ export default function ResetPassword() {
                     )}
                   </button>
                 </form>
+
+                <p className="rp-switch">
+                  Remember your password?{" "}
+                  <Link href="/signin" className="rp-switch-link">
+                    Sign in
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      width="12"
+                      height="12"
+                    >
+                      <path
+                        d="M9 18l6-6-6-6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </Link>
+                </p>
               </>
-            ) : (
-              <div className="rp-success">
-                <div className="rp-success-icon">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.2"
-                  >
-                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-                    <polyline points="22 4 12 14.01 9 11.01" />
-                  </svg>
-                </div>
-                <p className="rp-success-eyebrow">
-                  <span className="rp-ey-line" />
-                  Success
-                  <span className="rp-ey-line" />
-                </p>
-                <h2 className="rp-success-title">
-                  Password <em>Updated!</em>
-                </h2>
-                <p className="rp-success-note">
-                  Your new password has been set successfully. Redirecting you
-                  to sign in...
-                </p>
-              </div>
             )}
           </div>
         </div>

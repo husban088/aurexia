@@ -59,7 +59,7 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
 
       <div
         ref={sidebarRef}
-        className={`ss-sidebar${isOpen ? " open" : ""}`}
+        className={`ss-sidebar ss-sidebar--left${isOpen ? " open" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label="Search"
@@ -152,7 +152,6 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
         <div className="ss-content">
           {!query ? (
             <>
-              {/* Trending */}
               <div className="ss-section">
                 <p className="ss-section-label">
                   <svg
@@ -179,7 +178,6 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
                 </ul>
               </div>
 
-              {/* Recent */}
               <div className="ss-section">
                 <p className="ss-section-label">
                   <svg
@@ -234,7 +232,6 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
                 </ul>
               </div>
 
-              {/* Quick Links */}
               <div className="ss-section">
                 <p className="ss-section-label">
                   <svg
@@ -265,7 +262,6 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
                       >
                         <circle cx="12" cy="12" r="7" />
                         <path d="M12 9v3l2 2" />
-                        <path d="M9.5 3.5l1 3M14.5 3.5l-1 3" />
                       </svg>
                     </span>
                     <span>Watches</span>
@@ -292,7 +288,6 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
                         strokeWidth="1.2"
                       >
                         <rect x="7" y="2" width="10" height="20" rx="2" />
-                        <path d="M12 18h.01" />
                       </svg>
                     </span>
                     <span>Accessories</span>
@@ -310,7 +305,6 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
               </div>
             </>
           ) : (
-            /* Search Results Placeholder */
             <div className="ss-results">
               <p className="ss-results-label">
                 Results for <em>"{query}"</em>
@@ -328,15 +322,12 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
                   </svg>
                 </div>
                 <p>Searching across all collections…</p>
-                <p className="ss-no-results-sub">
-                  Connect your product catalog to see live results
-                </p>
+                <p className="ss-no-results-sub">Type to search products</p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Footer */}
         <div className="ss-footer">
           <p>
             Press <kbd>ESC</kbd> to close · <kbd>↵</kbd> to search

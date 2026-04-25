@@ -1,16 +1,17 @@
-// lib/cartStore.ts
 import { create } from "zustand";
 import { supabase, CartItem, Product } from "./supabase";
 
+interface CartItemWithProduct extends CartItem {
+  product: Product;
+}
+
 interface CartStore {
-  items: (CartItem & { product: Product })[];
+  items: CartItemWithProduct[];
   loading: boolean;
   cartId: string | null;
-
-  // ✅ Callback — layout mein set hoga, addToCart ke baad cart sidebar auto-open karega
+  sessionId: string | null;
   onCartOpen: (() => void) | null;
   setOnCartOpen: (fn: () => void) => void;
-
   fetchCart: () => Promise<void>;
   addToCart: (product: Product, quantity?: number) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
@@ -20,51 +21,113 @@ interface CartStore {
   getSubtotal: () => number;
 }
 
+// Generate unique session ID for guest users
+function generateSessionId(): string {
+  return `guest_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+}
+
+function getSessionId(): string {
+  let sessionId = localStorage.getItem("guest_session_id");
+  if (!sessionId) {
+    sessionId = generateSessionId();
+    localStorage.setItem("guest_session_id", sessionId);
+  }
+  return sessionId;
+}
+
 export const useCartStore = create<CartStore>((set, get) => ({
   items: [],
   loading: false,
   cartId: null,
+  sessionId: null,
   onCartOpen: null,
 
-  // Layout se ek baar set hoga
   setOnCartOpen: (fn: () => void) => set({ onCartOpen: fn }),
 
   fetchCart: async () => {
     set({ loading: true });
 
-    // ✅ getUser() — reliable, getSession() localStorage-only tha
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    const sessionId = !user ? getSessionId() : null;
 
-    if (!user) {
-      set({ items: [], loading: false, cartId: null });
-      return;
+    set({ sessionId });
+
+    let cart = null;
+
+    if (user) {
+      // Logged in user - get cart by user_id
+      const { data: userCart } = await supabase
+        .from("carts")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      cart = userCart;
+
+      // If user has a guest cart with session_id, merge it
+      const guestSessionId = localStorage.getItem("guest_session_id");
+      if (guestSessionId && !cart) {
+        const { data: guestCart } = await supabase
+          .from("carts")
+          .select("*")
+          .eq("session_id", guestSessionId)
+          .maybeSingle();
+
+        if (guestCart) {
+          // Transfer guest cart to user cart
+          const { data: updatedCart } = await supabase
+            .from("carts")
+            .update({ user_id: user.id, session_id: null })
+            .eq("id", guestCart.id)
+            .select()
+            .single();
+          cart = updatedCart;
+
+          // Clear guest session
+          localStorage.removeItem("guest_session_id");
+        }
+      }
+    } else {
+      // Guest user - get or create cart by session_id
+      const currentSessionId = sessionId;
+      const { data: guestCart } = await supabase
+        .from("carts")
+        .select("*")
+        .eq("session_id", currentSessionId)
+        .maybeSingle();
+
+      cart = guestCart;
     }
 
-    // Get or create cart
-    let { data: cart } = await supabase
-      .from("carts")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle(); // ✅ maybeSingle — error nahi aata agar row na ho
-
+    // Create cart if doesn't exist
     if (!cart) {
+      const newCartData: any = {};
+      if (user) {
+        newCartData.user_id = user.id;
+      } else {
+        newCartData.session_id = sessionId;
+      }
+
       const { data: newCart, error: cartErr } = await supabase
         .from("carts")
-        .insert({ user_id: user.id })
+        .insert(newCartData)
         .select()
         .single();
 
       if (cartErr || !newCart) {
+        console.error("Error creating cart:", cartErr);
         set({ items: [], loading: false });
         return;
       }
       cart = newCart;
     }
 
-    // Get cart items with products joined
-    const { data: items } = await supabase
+    set({ cartId: cart.id });
+
+    // Get cart items with products
+    const { data: items, error: itemsError } = await supabase
       .from("cart_items")
       .select(
         `
@@ -74,123 +137,135 @@ export const useCartStore = create<CartStore>((set, get) => ({
       )
       .eq("cart_id", cart.id);
 
-    set({
-      items: (items || []) as (CartItem & { product: Product })[],
-      loading: false,
-      cartId: cart.id,
-    });
-  },
-
-  addToCart: async (product: Product, quantity: number = 1) => {
-    // ✅ getUser() — reliable
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      // User logged in nahi — signin page pe bhejo
-      window.location.href = "/signin";
+    if (itemsError) {
+      console.error("Error fetching cart items:", itemsError);
+      set({ items: [], loading: false });
       return;
     }
 
-    const { cartId, items } = get();
+    set({ items: items as CartItemWithProduct[], loading: false });
+  },
+
+  addToCart: async (product: Product, quantity: number = 1) => {
+    const { items, cartId, onCartOpen } = get();
     let currentCartId = cartId;
 
-    // Cart nahi hai toh create karo
+    // Get or create cart ID
     if (!currentCartId) {
-      // Pehle check karo existing cart
-      const { data: existingCart } = await supabase
-        .from("carts")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const sessionId = !user ? getSessionId() : null;
 
-      if (existingCart) {
-        currentCartId = existingCart.id;
-      } else {
-        const { data: newCart } = await supabase
+      let cart = null;
+
+      if (user) {
+        const { data: userCart } = await supabase
           .from("carts")
-          .insert({ user_id: user.id })
-          .select()
-          .single();
-        currentCartId = newCart?.id ?? null;
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        cart = userCart;
+      } else if (sessionId) {
+        const { data: guestCart } = await supabase
+          .from("carts")
+          .select("id")
+          .eq("session_id", sessionId)
+          .maybeSingle();
+        cart = guestCart;
       }
 
-      if (!currentCartId) return;
-      set({ cartId: currentCartId });
+      if (!cart) {
+        const newCartData: any = {};
+        if (user) {
+          newCartData.user_id = user.id;
+        } else {
+          newCartData.session_id = sessionId;
+        }
+
+        const { data: newCart, error: cartError } = await supabase
+          .from("carts")
+          .insert(newCartData)
+          .select()
+          .single();
+
+        if (cartError || !newCart) {
+          console.error("Error creating cart:", cartError);
+          return;
+        }
+        currentCartId = newCart.id;
+        set({ cartId: currentCartId });
+      } else {
+        currentCartId = cart.id;
+        set({ cartId: currentCartId });
+      }
     }
 
     // Check if product already in cart
     const existingItem = items.find((item) => item.product_id === product.id);
 
     if (existingItem) {
-      // ✅ Optimistic update — UI foran update hoga
+      // Update existing item
       const newQuantity = existingItem.quantity + quantity;
-      set({
-        items: items.map((item) =>
-          item.id === existingItem.id
-            ? { ...item, quantity: newQuantity }
-            : item
-        ),
-      });
 
-      await supabase
+      const { error: updateError } = await supabase
         .from("cart_items")
         .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
         .eq("id", existingItem.id);
+
+      if (updateError) {
+        console.error("Error updating cart item:", updateError);
+      }
     } else {
-      // ✅ Optimistic update — product ko turant items mein add karo
-      const tempItem = {
-        id: `temp-${Date.now()}`,
-        cart_id: currentCartId,
-        product_id: product.id!,
-        quantity,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        product,
-      } as CartItem & { product: Product };
-
-      set({ items: [...items, tempItem] });
-
-      await supabase.from("cart_items").insert({
+      // Add new item
+      const { error: insertError } = await supabase.from("cart_items").insert({
         cart_id: currentCartId,
         product_id: product.id,
-        quantity,
+        quantity: quantity,
       });
+
+      if (insertError) {
+        console.error("Error inserting cart item:", insertError);
+        return;
+      }
     }
 
-    // ✅ Cart sidebar auto-open karo
-    const { onCartOpen } = get();
-    if (onCartOpen) onCartOpen();
-
-    // Background mein real data sync karo
+    // Refresh cart to get latest data
     await get().fetchCart();
-  },
 
-  // Inside cartStore.ts, replace the updateQuantity function:
+    // Auto-open cart sidebar
+    if (onCartOpen) {
+      onCartOpen();
+    }
+  },
 
   updateQuantity: async (itemId: string, quantity: number) => {
     if (quantity <= 0) {
-      // Auto-delete when quantity becomes 0
-      await supabase.from("cart_items").delete().eq("id", itemId);
-
-      await get().fetchCart();
+      await get().removeFromCart(itemId);
       return;
     }
 
-    await supabase
+    const { error } = await supabase
       .from("cart_items")
       .update({ quantity, updated_at: new Date().toISOString() })
       .eq("id", itemId);
+
+    if (error) {
+      console.error("Error updating quantity:", error);
+    }
 
     await get().fetchCart();
   },
 
   removeFromCart: async (itemId: string) => {
-    // Optimistic remove
-    set({ items: get().items.filter((item) => item.id !== itemId) });
+    const { error } = await supabase
+      .from("cart_items")
+      .delete()
+      .eq("id", itemId);
 
-    await supabase.from("cart_items").delete().eq("id", itemId);
+    if (error) {
+      console.error("Error removing item:", error);
+    }
 
     await get().fetchCart();
   },
@@ -199,7 +274,15 @@ export const useCartStore = create<CartStore>((set, get) => ({
     const { cartId } = get();
     if (!cartId) return;
 
-    await supabase.from("cart_items").delete().eq("cart_id", cartId);
+    const { error } = await supabase
+      .from("cart_items")
+      .delete()
+      .eq("cart_id", cartId);
+
+    if (error) {
+      console.error("Error clearing cart:", error);
+    }
+
     set({ items: [] });
   },
 
@@ -209,7 +292,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
   getSubtotal: () => {
     return get().items.reduce(
-      (total, item) => total + item.product.price * item.quantity,
+      (total, item) => total + (item.product?.price || 0) * item.quantity,
       0
     );
   },

@@ -1,68 +1,104 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { supabase, Product } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useCartStore } from "@/lib/cartStore";
+import { useCurrency } from "@/context/CurrencyContext";
+import "@/app/styles/product-grid.css";
 
-interface ProductGridProps {
-  category: string; // e.g. "Accessories"
-  subcategory?: string; // e.g. "Chargers" — if empty, shows all in category
-  title?: string; // override section title
+export interface Product {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  original_price: number | null;
+  category: string;
+  subcategory: string;
+  images: string[];
+  stock: number;
+  brand: string | null;
+  condition: string;
+  is_featured: boolean;
+  is_active: boolean;
+  specs: Record<string, string>;
+  created_at: string;
+  rating?: number;
+  reviews_count?: number;
 }
 
-function SkeletonGrid() {
-  return (
-    <div className="st-skeleton-grid">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="st-skeleton-card">
-          <div className="st-skeleton-img" />
-          <div className="st-skeleton-body">
-            <div className="st-skeleton-line" style={{ width: "40%" }} />
-            <div className="st-skeleton-line" style={{ width: "80%" }} />
-            <div className="st-skeleton-line" style={{ width: "55%" }} />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+interface ProductGridProps {
+  category: string;
+  subcategory?: string;
+  limit?: number;
+  featured?: boolean;
 }
 
 export default function ProductGrid({
   category,
   subcategory,
-  title,
+  limit,
+  featured = false,
 }: ProductGridProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
+  const { formatPrice } = useCurrency();
+  const { addToCart } = useCartStore();
 
   useEffect(() => {
-    async function load() {
+    let cancelled = false;
+
+    async function loadProducts() {
       setLoading(true);
-      let q = supabase
+
+      let query = supabase
         .from("products")
         .select("*")
         .eq("is_active", true)
         .eq("category", category);
 
-      if (subcategory) q = q.eq("subcategory", subcategory);
+      if (subcategory) {
+        query = query.eq("subcategory", subcategory);
+      }
 
-      const { data } = await q;
-      setProducts(data || []);
-      setLoading(false);
+      if (featured) {
+        query = query.eq("is_featured", true);
+      }
+
+      query = query.order("created_at", { ascending: false });
+
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      const { data, error } = await query;
+
+      if (!cancelled) {
+        if (error) {
+          console.error("ProductGrid error:", error);
+          setProducts([]);
+        } else {
+          setProducts(data || []);
+        }
+        setLoading(false);
+      }
     }
-    load();
-  }, [category, subcategory]);
 
-  const filtered = useMemo(() => {
-    let list = [...products];
+    loadProducts();
+    return () => {
+      cancelled = true;
+    };
+  }, [category, subcategory, limit, featured]);
+
+  const filteredAndSorted = useMemo(() => {
+    let filtered = [...products];
 
     if (search) {
       const s = search.toLowerCase();
-      list = list.filter(
+      filtered = filtered.filter(
         (p) =>
           p.name.toLowerCase().includes(s) ||
           (p.brand && p.brand.toLowerCase().includes(s)) ||
@@ -72,227 +108,256 @@ export default function ProductGrid({
 
     switch (sort) {
       case "price-asc":
-        list.sort((a, b) => a.price - b.price);
+        filtered.sort((a, b) => a.price - b.price);
         break;
       case "price-desc":
-        list.sort((a, b) => b.price - a.price);
+        filtered.sort((a, b) => b.price - a.price);
         break;
       case "featured":
-        list.sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0));
+        filtered.sort(
+          (a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0)
+        );
         break;
       default:
-        // newest — already ordered by created_at from supabase
-        break;
+        filtered.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
     }
 
-    return list;
+    return filtered;
   }, [products, search, sort]);
 
-  const discount = (p: Product) =>
-    p.original_price && p.original_price > p.price
-      ? Math.round(((p.original_price - p.price) / p.original_price) * 100)
-      : 0;
+  const calculateDiscount = useCallback((product: Product) => {
+    if (product.original_price && product.original_price > product.price) {
+      return Math.round(
+        ((product.original_price - product.price) / product.original_price) *
+          100
+      );
+    }
+    return 0;
+  }, []);
 
-  const { addToCart } = useCartStore();
+  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (product.stock > 0) {
+      addToCart(product);
+    }
+  };
 
-  return (
-    <>
-      {/* Toolbar */}
-      <div className="st-toolbar">
-        <div className="st-search-wrap">
+  if (loading) {
+    return (
+      <div className="pg-skeleton-grid">
+        {[...Array(limit || 8)].map((_, i) => (
+          <div key={i} className="pg-skeleton-card">
+            <div className="pg-skeleton-img" />
+            <div className="pg-skeleton-body">
+              <div className="pg-skeleton-line" style={{ width: "40%" }} />
+              <div className="pg-skeleton-line" style={{ width: "80%" }} />
+              <div className="pg-skeleton-line" style={{ width: "55%" }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (filteredAndSorted.length === 0) {
+    return (
+      <div className="pg-empty">
+        <div className="pg-empty-icon">
           <svg
-            className="st-search-icon"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="1.5"
+            strokeWidth="1"
           >
-            <circle cx="11" cy="11" r="7" />
+            <circle cx="11" cy="11" r="8" />
             <path d="M21 21l-4.35-4.35" />
           </svg>
-          <input
-            className="st-search"
-            placeholder={`Search ${subcategory || category}…`}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
         </div>
-
-        <select
-          className="st-sort-select"
-          value={sort}
-          onChange={(e) => setSort(e.target.value)}
-        >
-          <option value="newest">Newest First</option>
-          <option value="price-asc">Price: Low → High</option>
-          <option value="price-desc">Price: High → Low</option>
-          <option value="featured">Featured First</option>
-        </select>
-
-        <span className="st-count">
-          <em>{filtered.length}</em> {filtered.length === 1 ? "item" : "items"}{" "}
-          found
-        </span>
+        <p className="pg-empty-title">No products found</p>
+        <p className="pg-empty-sub">
+          {search
+            ? `No results for "${search}"`
+            : "Check back soon for new arrivals"}
+        </p>
       </div>
+    );
+  }
 
-      {/* Section label */}
-      {title && (
-        <div className="st-section-label">
-          <h2
-            className="st-section-title"
-            dangerouslySetInnerHTML={{ __html: title }}
-          />
-          <div className="st-section-line" />
-        </div>
-      )}
-
-      {/* Grid */}
-      {loading ? (
-        <SkeletonGrid />
-      ) : filtered.length === 0 ? (
-        <div className="st-empty">
-          <div className="st-empty-icon">
+  return (
+    <>
+      {!limit && (
+        <div className="pg-toolbar">
+          <div className="pg-search-wrap">
             <svg
+              className="pg-search-icon"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1"
+              strokeWidth="1.5"
             >
-              <circle cx="11" cy="11" r="8" />
+              <circle cx="11" cy="11" r="7" />
               <path d="M21 21l-4.35-4.35" />
             </svg>
+            <input
+              className="pg-search"
+              placeholder={`Search ${subcategory || category}...`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-          <p className="st-empty-title">No products found</p>
-          <p className="st-empty-sub">
-            {search
-              ? `No results for "${search}" — try a different term`
-              : "Check back soon for new arrivals"}
-          </p>
-        </div>
-      ) : (
-        <div className="st-grid">
-          {filtered.map((p) => {
-            const disc = discount(p);
-            return (
-              <Link key={p.id} href={`/product/${p.id}`} className="st-card">
-                {/* Image */}
-                <div className="st-card-img">
-                  {p.images?.[0] ? (
-                    <Image
-                      src={p.images[0]}
-                      alt={p.name}
-                      fill
-                      sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 260px"
-                      style={{ objectFit: "cover" }}
-                    />
-                  ) : (
-                    <div className="st-card-img-placeholder">
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="0.8"
-                      >
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <circle cx="8.5" cy="8.5" r="1.5" />
-                        <polyline points="21 15 16 10 5 21" />
-                      </svg>
-                    </div>
-                  )}
 
-                  {/* Badges */}
-                  <div className="st-card-badges">
-                    <span className="st-badge st-badge--cat">
-                      {p.subcategory}
-                    </span>
-                    {p.is_featured && (
-                      <span className="st-badge st-badge--feat">Featured</span>
-                    )}
-                    {disc > 0 && (
-                      <span className="st-badge st-badge--sale">-{disc}%</span>
-                    )}
-                    {p.condition === "new" && !disc && (
-                      <span className="st-badge st-badge--new">New</span>
-                    )}
-                  </div>
+          <select
+            className="pg-sort-select"
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+          >
+            <option value="newest">Newest First</option>
+            <option value="price-asc">Price: Low → High</option>
+            <option value="price-desc">Price: High → Low</option>
+            <option value="featured">Featured First</option>
+          </select>
 
-                  {/* Quick actions */}
-                  <div
-                    className="st-card-quick"
-                    onClick={(e) => e.preventDefault()}
-                  >
-                    <button
-                      className="st-quick-btn"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        addToCart(p);
-                      }}
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-                        <line x1="3" y1="6" x2="21" y2="6" />
-                        <path d="M16 10a4 4 0 01-8 0" />
-                      </svg>
-                      Add to Cart
-                    </button>
-                    <button className="st-quick-btn st-quick-btn--ghost">
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Body */}
-                <div className="st-card-body">
-                  {p.brand && <p className="st-card-brand">{p.brand}</p>}
-                  <h3 className="st-card-name">{p.name}</h3>
-                  <div className="st-card-price-row">
-                    <span className="st-card-price">
-                      PKR {p.price.toLocaleString()}
-                    </span>
-                    {p.original_price && p.original_price > p.price && (
-                      <span className="st-card-orig">
-                        PKR {p.original_price.toLocaleString()}
-                      </span>
-                    )}
-                    {disc > 0 && (
-                      <span className="st-card-discount">-{disc}% OFF</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="st-card-foot">
-                  <span
-                    className={`st-card-stock${
-                      p.stock === 0 ? " out" : p.stock < 5 ? " low" : ""
-                    }`}
-                  >
-                    {p.stock === 0
-                      ? "Out of stock"
-                      : p.stock < 5
-                      ? `Only ${p.stock} left`
-                      : `${p.stock} in stock`}
-                  </span>
-                </div>
-
-                <div className="st-card-line" />
-              </Link>
-            );
-          })}
+          <span className="pg-count">
+            <em>{filteredAndSorted.length}</em>{" "}
+            {filteredAndSorted.length === 1 ? "item" : "items"}
+          </span>
         </div>
       )}
+
+      <div className="pg-grid">
+        {filteredAndSorted.map((product) => {
+          const discount = calculateDiscount(product);
+          return (
+            <Link
+              key={product.id}
+              href={`/product/${product.id}`}
+              className="pg-card"
+            >
+              <div className="pg-card-img">
+                {product.images?.[0] ? (
+                  <Image
+                    src={product.images[0]}
+                    alt={product.name}
+                    fill
+                    sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 280px"
+                    style={{ objectFit: "cover" }}
+                  />
+                ) : (
+                  <div className="pg-card-placeholder">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="0.8"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                  </div>
+                )}
+
+                <div className="pg-card-badges">
+                  <span className="pg-badge pg-badge--cat">
+                    {product.subcategory}
+                  </span>
+                  {product.is_featured && (
+                    <span className="pg-badge pg-badge--feat">Featured</span>
+                  )}
+                  {discount > 0 && (
+                    <span className="pg-badge pg-badge--sale">
+                      -{discount}%
+                    </span>
+                  )}
+                  {product.condition === "new" && !discount && (
+                    <span className="pg-badge pg-badge--new">New</span>
+                  )}
+                </div>
+
+                {/* Icon Buttons - Always Visible */}
+                <div className="pg-icon-buttons">
+                  <button
+                    className="pg-icon-btn pg-icon-btn--view"
+                    aria-label="Quick View"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10z" />
+                    </svg>
+                  </button>
+                  <button
+                    className="pg-icon-btn pg-icon-btn--cart"
+                    onClick={(e) => handleAddToCart(e, product)}
+                    disabled={product.stock === 0}
+                    aria-label="Add to Cart"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+                      <line x1="3" y1="6" x2="21" y2="6" />
+                      <path d="M16 10a4 4 0 01-8 0" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="pg-card-body">
+                {product.brand && (
+                  <p className="pg-card-brand">{product.brand}</p>
+                )}
+                <h3 className="pg-card-name">{product.name}</h3>
+                <div className="pg-card-price-row">
+                  <span className="pg-card-price">
+                    {formatPrice(product.price)}
+                  </span>
+                  {product.original_price &&
+                    product.original_price > product.price && (
+                      <span className="pg-card-orig">
+                        {formatPrice(product.original_price)}
+                      </span>
+                    )}
+                  {discount > 0 && (
+                    <span className="pg-card-discount">-{discount}% OFF</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="pg-card-foot">
+                <span
+                  className={`pg-card-stock${
+                    product.stock === 0
+                      ? " out"
+                      : product.stock < 5
+                      ? " low"
+                      : ""
+                  }`}
+                >
+                  {product.stock === 0
+                    ? "Out of stock"
+                    : product.stock < 5
+                    ? `Only ${product.stock} left`
+                    : "In stock"}
+                </span>
+              </div>
+
+              <div className="pg-card-line" />
+            </Link>
+          );
+        })}
+      </div>
     </>
   );
 }

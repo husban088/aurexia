@@ -1,30 +1,32 @@
 /* ═══════════════════════════════════════════════
    CONTACT PAGE — contact.css
-   Luxury dark + validation errors + toasts
+   Brighter Luxury Theme - Premium & Elegant
 ═══════════════════════════════════════════════ */
 
-/* Root */
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Josefin+Sans:wght@200;300;400;500;600&display=swap");
+
+/* ── Root - Brighter Background ── */
 .co-root {
   min-height: 100vh;
-  background: #1f1f1f;
+  background: linear-gradient(135deg, #f8f4ed 0%, #fdfaf5 50%, #fffdf9 100%);
   position: relative;
   overflow: hidden;
   padding: 8rem 1.5rem 5rem;
 }
 
-/* Grain */
+/* Grain - subtle texture */
 .co-grain {
   position: fixed;
   inset: -200%;
   width: 400%;
   height: 400%;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
-  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.015'/%3E%3C/svg%3E");
+  opacity: 0.3;
   pointer-events: none;
   z-index: 0;
 }
 
-/* Background Geometry */
+/* Background Geometry - Gold accents */
 .co-bg-geo {
   position: fixed;
   inset: 0;
@@ -36,7 +38,7 @@
 .co-geo-ring {
   position: absolute;
   border-radius: 50%;
-  border: 1px solid rgba(180, 145, 80, 0.07);
+  border: 1px solid rgba(212, 175, 55, 0.08);
 }
 .co-geo-ring--1 {
   width: 600px;
@@ -49,14 +51,14 @@
   height: 900px;
   top: -400px;
   right: -400px;
-  border-color: rgba(180, 145, 80, 0.04);
+  border-color: rgba(212, 175, 55, 0.05);
 }
 .co-geo-ring--3 {
   width: 400px;
   height: 400px;
   bottom: -150px;
   left: -150px;
-  border-color: rgba(180, 145, 80, 0.05);
+  border-color: rgba(212, 175, 55, 0.06);
 }
 
 .co-geo-line {
@@ -64,7 +66,7 @@
   background: linear-gradient(
     to bottom,
     transparent,
-    rgba(180, 145, 80, 0.06),
+    rgba(212, 175, 55, 0.08),
     transparent
   );
   width: 1px;
@@ -82,7 +84,7 @@
   left: 80%;
 }
 
-/* Corner Brackets */
+/* Corner Brackets - Gold */
 .co-corner {
   position: fixed;
   width: 28px;
@@ -93,26 +95,26 @@
 .co-corner--tl {
   top: 18px;
   left: 18px;
-  border-top: 1px solid rgba(180, 145, 80, 0.25);
-  border-left: 1px solid rgba(180, 145, 80, 0.25);
+  border-top: 1px solid rgba(212, 175, 55, 0.3);
+  border-left: 1px solid rgba(212, 175, 55, 0.3);
 }
 .co-corner--tr {
   top: 18px;
   right: 18px;
-  border-top: 1px solid rgba(180, 145, 80, 0.25);
-  border-right: 1px solid rgba(180, 145, 80, 0.25);
+  border-top: 1px solid rgba(212, 175, 55, 0.3);
+  border-right: 1px solid rgba(212, 175, 55, 0.3);
 }
 .co-corner--bl {
   bottom: 18px;
   left: 18px;
-  border-bottom: 1px solid rgba(180, 145, 80, 0.25);
-  border-left: 1px solid rgba(180, 145, 80, 0.25);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+  border-left: 1px solid rgba(212, 175, 55, 0.3);
 }
 .co-corner--br {
   bottom: 18px;
   right: 18px;
-  border-bottom: 1px solid rgba(180, 145, 80, 0.25);
-  border-right: 1px solid rgba(180, 145, 80, 0.25);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+  border-right: 1px solid rgba(212, 175, 55, 0.3);
 }
 
 /* Container */
@@ -123,7 +125,7 @@
   margin: 0 auto;
 }
 
-/* Page Header */
+/* Page Header - Dark Text */
 .co-header {
   text-align: center;
   margin-bottom: 4.5rem;
@@ -134,19 +136,19 @@
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
-  font-family: "Jost", sans-serif;
-  font-size: 0.65rem;
-  font-weight: 500;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(180, 145, 80, 0.8);
+  color: #c9a03d;
   margin: 0 0 1rem;
 }
 .co-ey-line {
   display: block;
   width: 35px;
   height: 2px;
-  background: rgba(180, 145, 80, 0.5);
+  background: rgba(212, 175, 55, 0.5);
 }
 .co-ey-line-head {
   font-size: 1.5rem;
@@ -155,22 +157,22 @@
 .co-heading {
   font-family: "Cormorant Garamond", serif;
   font-size: clamp(3rem, 7vw, 5.5rem);
-  font-weight: 300;
-  color: #f5f0e8;
+  font-weight: 400;
+  color: #0a0a0a;
   line-height: 1.05;
   margin: 0 0 1.25rem;
   letter-spacing: -0.01em;
 }
 .co-heading em {
   font-style: italic;
-  color: rgba(180, 145, 80, 0.9);
+  color: #d4af37;
 }
 
 .co-sub {
-  font-family: "Jost", sans-serif;
+  font-family: "Josefin Sans", sans-serif;
   font-size: 0.9rem;
-  font-weight: 300;
-  color: rgba(245, 240, 232, 0.45);
+  font-weight: 400;
+  color: #444444;
   line-height: 1.7;
   max-width: 520px;
   margin: 0 auto;
@@ -198,18 +200,20 @@
   gap: 1rem;
 }
 
+/* Info Cards - Light Background */
 .co-info-card {
   display: flex;
   align-items: flex-start;
   gap: 1rem;
   padding: 1.25rem;
-  background: #141414;
-  border: 1px solid #141414;
-  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: 12px;
   transition: all 0.35s ease;
   animation: coFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
 }
 .co-info-card::before {
   content: "";
@@ -217,65 +221,68 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: 2px;
-  background: rgba(180, 145, 80, 0.5);
+  width: 3px;
+  background: #d4af37;
   transform: scaleY(0);
   transform-origin: bottom;
   transition: transform 0.35s ease;
 }
 .co-info-card:hover {
-  background: rgba(180, 145, 80, 0.04);
-  border-color: rgba(180, 145, 80, 0.2);
+  background: #fffaf5;
+  border-color: rgba(212, 175, 55, 0.3);
   transform: translateX(4px);
+  box-shadow: 0 8px 25px rgba(212, 175, 55, 0.08);
 }
 .co-info-card:hover::before {
   transform: scaleY(1);
 }
 
 .co-info-icon {
-  color: rgba(180, 145, 80, 0.7);
+  color: #a67c00;
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  background: rgba(180, 145, 80, 0.06);
-  border: 1px solid rgba(180, 145, 80, 0.12);
-  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
 }
+
 .co-info-icon svg {
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
 }
 .co-info-card:hover .co-info-icon {
-  background: rgba(180, 145, 80, 0.1);
-  border-color: rgba(180, 145, 80, 0.25);
-  color: #b49150;
+  background: #d4af37;
+  border-color: #d4af37;
+  color: white;
 }
 
 .co-info-label {
-  font-family: "Jost", sans-serif;
-  font-size: 0.6rem;
-  font-weight: 500;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: rgba(180, 145, 80, 0.7);
+  color: #d4af37;
   margin: 0 0 0.25rem;
 }
 .co-info-value {
-  font-family: "Jost", sans-serif;
-  font-size: 0.85rem;
-  font-weight: 400;
-  color: rgba(245, 240, 232, 0.85);
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1a1a1a;
   margin: 0 0 0.2rem;
   line-height: 1.4;
 }
 .co-info-sub {
-  font-family: "Jost", sans-serif;
+  font-family: "Josefin Sans", sans-serif;
   font-size: 0.7rem;
-  color: rgba(245, 240, 232, 0.3);
+  font-weight: 400;
+  color: #666666;
   margin: 0;
 }
 
@@ -288,12 +295,12 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-family: "Jost", sans-serif;
-  font-size: 0.6rem;
-  font-weight: 500;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(180, 145, 80, 0.6);
+  color: #c9a03d;
   margin: 0 0 1rem;
 }
 .co-social-icons {
@@ -302,35 +309,37 @@
   justify-content: center;
 }
 .co-social-btn {
-  width: 40px;
-  height: 40px;
-  border: 1px solid #141414;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
   border-radius: 50%;
-  background: #141414;
-  color: rgba(245, 240, 232, 0.45);
+  background: #ffffff;
+  color: #666666;
   display: flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
   transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 .co-social-btn svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
 }
 .co-social-btn:hover {
-  border-color: rgba(180, 145, 80, 0.4);
-  color: #b49150;
-  background: rgba(180, 145, 80, 0.07);
-  transform: translateY(-2px);
+  border-color: #d4af37;
+  color: #d4af37;
+  background: rgba(212, 175, 55, 0.05);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(212, 175, 55, 0.12);
 }
 
 /* Map Placeholder */
 .co-map-placeholder {
   height: 130px;
-  border: 1px solid #141414;
-  border-radius: 8px;
-  background: #141414;
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: 12px;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -338,6 +347,7 @@
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
 }
 .co-map-placeholder::before {
   content: "";
@@ -345,14 +355,16 @@
   inset: 0;
   background: linear-gradient(
     135deg,
-    rgba(180, 145, 80, 0.04),
+    rgba(212, 175, 55, 0.05),
     transparent 60%
   );
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 .co-map-placeholder:hover {
-  border-color: rgba(180, 145, 80, 0.2);
+  border-color: rgba(212, 175, 55, 0.35);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(212, 175, 55, 0.1);
 }
 .co-map-placeholder:hover::before {
   opacity: 1;
@@ -362,21 +374,22 @@
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  color: rgba(180, 145, 80, 0.3);
+  color: #c9a03d;
   position: relative;
   z-index: 1;
   transition: color 0.3s ease;
 }
 .co-map-placeholder:hover .co-map-inner {
-  color: rgba(180, 145, 80, 0.6);
+  color: #d4af37;
 }
 .co-map-inner svg {
   width: 28px;
   height: 28px;
 }
 .co-map-inner p {
-  font-family: "Jost", sans-serif;
-  font-size: 0.7rem;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   margin: 0;
@@ -388,12 +401,13 @@
 }
 
 .co-form-card {
-  background: #141414;
-  border: 1px solid rgba(180, 145, 80, 0.1);
-  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: 20px;
   padding: 2.5rem;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
 }
 
 /* Deco corners on form card */
@@ -404,39 +418,39 @@
   pointer-events: none;
 }
 .co-form-corner--tr {
-  top: 12px;
-  right: 12px;
-  border-top: 1px solid rgba(180, 145, 80, 0.25);
-  border-right: 1px solid rgba(180, 145, 80, 0.25);
+  top: 16px;
+  right: 16px;
+  border-top: 2px solid rgba(212, 175, 55, 0.3);
+  border-right: 2px solid rgba(212, 175, 55, 0.3);
 }
 .co-form-corner--bl {
-  bottom: 12px;
-  left: 12px;
-  border-bottom: 1px solid rgba(180, 145, 80, 0.25);
-  border-left: 1px solid rgba(180, 145, 80, 0.25);
+  bottom: 16px;
+  left: 16px;
+  border-bottom: 2px solid rgba(212, 175, 55, 0.3);
+  border-left: 2px solid rgba(212, 175, 55, 0.3);
 }
 
-/* Form Header */
+/* Form Header - Dark Text */
 .co-form-header {
   margin-bottom: 2rem;
 }
 .co-form-title {
   font-family: "Cormorant Garamond", serif;
   font-size: 2.25rem;
-  font-weight: 300;
-  color: #f5f0e8;
+  font-weight: 400;
+  color: #0a0a0a;
   margin: 0.6rem 0 0.5rem;
   line-height: 1.1;
 }
 .co-form-title em {
   font-style: italic;
-  color: rgba(180, 145, 80, 0.9);
+  color: #d4af37;
 }
 .co-form-sub {
-  font-family: "Jost", sans-serif;
-  font-size: 0.78rem;
-  font-weight: 300;
-  color: rgba(245, 240, 232, 0.35);
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: #666666;
   margin: 0;
 }
 
@@ -458,20 +472,20 @@
 }
 .co-label {
   display: block;
-  font-family: "Jost", sans-serif;
-  font-size: 0.62rem;
-  font-weight: 500;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: rgba(245, 240, 232, 0.35);
+  color: #000;
   margin-bottom: 0.6rem;
   transition: color 0.2s ease;
 }
 .co-field.focused .co-label {
-  color: rgba(180, 145, 80, 0.8);
+  color: #d4af37;
 }
 .co-field--error .co-label {
-  color: rgba(248, 113, 113, 0.8) !important;
+  color: #ef4444 !important;
 }
 
 .co-input-wrap {
@@ -488,7 +502,7 @@
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  color: rgba(245, 240, 232, 0.2);
+  color: #cccccc;
   display: flex;
   pointer-events: none;
   transition: color 0.2s ease;
@@ -498,48 +512,48 @@
   transform: none;
 }
 .co-input-icon svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
 }
 .co-field.focused .co-input-icon {
-  color: rgba(180, 145, 80, 0.7);
+  color: #d4af37;
 }
 .co-field--error .co-input-icon {
-  color: rgba(248, 113, 113, 0.6) !important;
+  color: #ef4444 !important;
 }
 
 .co-input {
   width: 100%;
   background: transparent;
   border: none;
-  padding: 0.5rem 0 0.5rem 1.75rem;
-  font-family: "Jost", sans-serif;
-  font-size: 0.88rem;
-  font-weight: 300;
-  color: #f5f0e8;
+  padding: 0.6rem 0 0.6rem 1.8rem;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1a1a1a;
   outline: none;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
 }
 .co-input::placeholder {
-  color: rgba(245, 240, 232, 0.2);
+  color: #bbbbbb;
 }
 
 .co-textarea {
   width: 100%;
   background: transparent;
   border: none;
-  padding: 0.5rem 0 0.5rem 1.75rem;
-  font-family: "Jost", sans-serif;
-  font-size: 0.88rem;
-  font-weight: 300;
-  color: #f5f0e8;
+  padding: 0.6rem 0 0.6rem 1.8rem;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: #1a1a1a;
   outline: none;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   resize: none;
   line-height: 1.6;
 }
 .co-textarea::placeholder {
-  color: rgba(245, 240, 232, 0.2);
+  color: #bbbbbb;
 }
 
 /* Field underline */
@@ -549,19 +563,14 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(0, 0, 0, 0.08);
   overflow: hidden;
 }
 .co-field-line::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(180, 145, 80, 0.8),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, #d4af37, transparent);
   transform: translateX(-100%);
   transition: transform 0.5s ease;
 }
@@ -569,15 +578,10 @@
   transform: translateX(0);
 }
 .co-field--error .co-field-line {
-  background: rgba(248, 113, 113, 0.25);
+  background: rgba(239, 68, 68, 0.25);
 }
 .co-field--error .co-field-line::after {
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(248, 113, 113, 0.7),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, #ef4444, transparent);
   transform: translateX(0);
 }
 
@@ -587,11 +591,11 @@
   align-items: center;
   gap: 0.35rem;
   margin: 0.45rem 0 0;
-  font-family: "Jost", sans-serif;
-  font-size: 0.62rem;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.65rem;
   font-weight: 400;
   letter-spacing: 0.04em;
-  color: rgba(248, 113, 113, 0.9);
+  color: #ef4444;
   animation: coErrShake 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 .co-field-error svg {
@@ -619,7 +623,7 @@
   }
 }
 
-/* Submit button */
+/* Submit button - Gold theme */
 .co-submit-btn {
   display: flex;
   align-items: center;
@@ -628,12 +632,12 @@
   width: 100%;
   padding: 1rem 2rem;
   background: transparent;
-  border: 1px solid rgba(180, 145, 80, 0.4);
-  border-radius: 2px;
-  color: rgba(180, 145, 80, 0.9);
-  font-family: "Jost", sans-serif;
-  font-size: 0.75rem;
-  font-weight: 500;
+  border: 2px solid rgba(212, 175, 55, 0.4);
+  border-radius: 40px;
+  color: #d4af37;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   cursor: pointer;
@@ -641,62 +645,47 @@
   position: relative;
   overflow: hidden;
   margin-top: 0.5rem;
+  background: white;
 }
 .co-submit-btn::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(180, 145, 80, 0.1),
-    rgba(180, 145, 80, 0.04)
-  );
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-.co-submit-btn::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: rgba(180, 145, 80, 0.6);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  background: #d4af37;
+  transform: translateX(-100%);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .co-submit-btn:hover:not(:disabled) {
-  border-color: rgba(180, 145, 80, 0.8);
-  color: #b49150;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(180, 145, 80, 0.12);
+  border-color: #d4af37;
+  color: white;
 }
 .co-submit-btn:hover:not(:disabled)::before {
-  opacity: 1;
-}
-.co-submit-btn:hover:not(:disabled)::after {
-  transform: scaleX(1);
+  transform: translateX(0);
 }
 .co-submit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.co-submit-btn span,
 .co-submit-btn svg {
-  width: 15px;
-  height: 15px;
+  position: relative;
+  z-index: 1;
+}
+.co-submit-btn svg {
+  width: 16px;
+  height: 16px;
   transition: transform 0.3s ease;
 }
 .co-submit-btn:hover:not(:disabled) svg {
-  transform: translateX(3px) translateY(-3px);
+  transform: translateX(4px);
 }
 
 /* Spinner */
 .co-spinner {
-  width: 15px;
-  height: 15px;
-  border: 2px solid rgba(180, 145, 80, 0.2);
-  border-top-color: rgba(180, 145, 80, 0.8);
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(212, 175, 55, 0.2);
+  border-top-color: #d4af37;
   border-radius: 50%;
   animation: coSpin 0.7s linear infinite;
   flex-shrink: 0;
@@ -720,22 +709,22 @@
   animation: coFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .co-success-icon {
-  width: 64px;
-  height: 64px;
-  border: 1px solid rgba(74, 124, 89, 0.4);
+  width: 70px;
+  height: 70px;
+  border: 2px solid rgba(34, 197, 94, 0.3);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(100, 180, 120, 0.8);
+  color: #22c55e;
   margin-bottom: 0.75rem;
   animation: coSuccessRing 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+  background: rgba(34, 197, 94, 0.05);
 }
 .co-success-icon svg {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
 }
-
 @keyframes coSuccessRing {
   from {
     transform: scale(0.6);
@@ -746,60 +735,60 @@
     opacity: 1;
   }
 }
-
 .co-success-eyebrow {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: "Jost", sans-serif;
-  font-size: 0.62rem;
-  font-weight: 500;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(100, 180, 120, 0.8);
+  color: #22c55e;
   margin: 0;
 }
 .co-success-title {
   font-family: "Cormorant Garamond", serif;
   font-size: 2rem;
-  font-weight: 300;
-  color: #f5f0e8;
+  font-weight: 400;
+  color: #0a0a0a;
   margin: 0.25rem 0 0.5rem;
 }
 .co-success-title em {
   font-style: italic;
-  color: rgba(180, 145, 80, 0.9);
+  color: #d4af37;
 }
 .co-success-sub {
-  font-family: "Jost", sans-serif;
-  font-size: 0.82rem;
-  color: rgba(245, 240, 232, 0.4);
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: #555555;
   margin: 0;
 }
-
 .co-success-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   margin-top: 1.25rem;
-  padding: 0.65rem 1.5rem;
+  padding: 0.7rem 1.5rem;
   background: transparent;
-  border: 1px solid rgba(180, 145, 80, 0.35);
-  border-radius: 2px;
-  color: rgba(180, 145, 80, 0.8);
-  font-family: "Jost", sans-serif;
-  font-size: 0.72rem;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 30px;
+  color: #d4af37;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.75rem;
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   cursor: pointer;
   transition: all 0.3s ease;
+  background: white;
 }
 .co-success-btn:hover {
-  border-color: rgba(180, 145, 80, 0.7);
-  color: #b49150;
-  background: rgba(180, 145, 80, 0.06);
-  transform: translateY(-1px);
+  border-color: #d4af37;
+  color: white;
+  background: #d4af37;
+  transform: translateY(-2px);
 }
 
 /* ═══════════════════════════════════════════
@@ -815,27 +804,24 @@
   gap: 0.6rem;
   pointer-events: none;
 }
-
 .co-toast {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.9rem 1rem 0.9rem 1rem;
+  padding: 0.9rem 1rem;
   min-width: 280px;
   max-width: 340px;
-  background: rgba(14, 14, 14, 0.97);
-  border: 1px solid rgba(180, 145, 80, 0.15);
-  border-radius: 8px;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  background: white;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
   pointer-events: all;
   animation: coToastIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-
 .co-toast--exit {
   animation: coToastOut 0.35s ease forwards;
 }
-
 @keyframes coToastIn {
   from {
     opacity: 0;
@@ -856,82 +842,76 @@
     transform: translateX(20px);
   }
 }
-
 .co-toast-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 .co-toast-icon svg {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
 }
-
 .co-toast--success {
-  border-color: rgba(74, 222, 128, 0.18);
+  border-color: rgba(34, 197, 94, 0.3);
 }
 .co-toast--success .co-toast-icon {
-  background: rgba(74, 222, 128, 0.1);
-  border: 1px solid rgba(74, 222, 128, 0.2);
-  color: #4ade80;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  color: #22c55e;
 }
-
 .co-toast--error {
-  border-color: rgba(248, 113, 113, 0.18);
+  border-color: rgba(239, 68, 68, 0.3);
 }
 .co-toast--error .co-toast-icon {
-  background: rgba(248, 113, 113, 0.1);
-  border: 1px solid rgba(248, 113, 113, 0.2);
-  color: #f87171;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #ef4444;
 }
-
 .co-toast--info {
-  border-color: rgba(180, 145, 80, 0.2);
+  border-color: rgba(212, 175, 55, 0.3);
 }
 .co-toast--info .co-toast-icon {
-  background: rgba(180, 145, 80, 0.1);
-  border: 1px solid rgba(180, 145, 80, 0.2);
-  color: #b49150;
+  background: rgba(212, 175, 55, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  color: #d4af37;
 }
-
 .co-toast-body {
   flex: 1;
   min-width: 0;
 }
 .co-toast-title {
-  font-family: "Jost", sans-serif;
-  font-size: 0.65rem;
-  font-weight: 500;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #f5f0e8;
+  color: #0a0a0a;
   margin: 0 0 0.2rem;
 }
 .co-toast-msg {
-  font-family: "Jost", sans-serif;
-  font-size: 0.7rem;
-  font-weight: 300;
-  color: rgba(245, 240, 232, 0.5);
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: #555555;
   margin: 0;
   line-height: 1.5;
 }
-
 .co-toast-close {
   background: none;
   border: none;
   cursor: pointer;
-  color: rgba(245, 240, 232, 0.25);
+  color: #aaaaaa;
   padding: 2px;
   transition: color 0.2s;
   flex-shrink: 0;
   margin-top: 2px;
 }
 .co-toast-close:hover {
-  color: rgba(245, 240, 232, 0.7);
+  color: #0a0a0a;
 }
 .co-toast-close svg {
   width: 12px;
@@ -966,7 +946,6 @@
     padding: 2rem 1.5rem;
   }
 }
-
 @media (max-width: 600px) {
   .co-root {
     padding: 6rem 1rem 4rem;

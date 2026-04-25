@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Orbitron } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
+import { CurrencyProvider } from "./context/CurrencyContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,9 +14,21 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const orbitron = Orbitron({
+  variable: "--font-orbitron",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
 export const metadata: Metadata = {
-  title: "LuxeTime — Watches & Mobile Accessories",
-  description: "Premium watches and mobile accessories store",
+  title: "Tech4U | Luxury in Every Detail",
+  description:
+    "Tech4U — Luxury in Every Detail. Discover premium watches, automotive essentials, home decor, and cutting-edge mobile accessories designed to elevate your lifestyle.",
+  icons: {
+    icon: "/images/mainlogo.png",
+    shortcut: "/images/mainlogo.png",
+    apple: "/images/mainlogo.png",
+  },
 };
 
 export default function RootLayout({
@@ -26,10 +39,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Providers>{children}</Providers>
+        <CurrencyProvider>
+          <Providers>{children}</Providers>
+        </CurrencyProvider>
       </body>
     </html>
   );

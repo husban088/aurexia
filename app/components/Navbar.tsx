@@ -2,134 +2,61 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isOwner } from "@/lib/checkOwner";
 import { useCartStore } from "@/lib/cartStore";
+import { currencies } from "@/lib/currency";
 import "./navbar.css";
+import { useCurrency } from "../context/CurrencyContext";
 
 interface NavbarProps {
   onMenuOpen: () => void;
   onSearchOpen: () => void;
   onCartOpen: () => void;
-  cartCount?: number; // kept for compatibility but store se live count milega
 }
 
 const navLinks = [
-  {
-    href: "/",
-    label: "Home",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        width="14"
-        height="14"
-      >
-        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" />
-        <path d="M9 21V12h6v9" />
-      </svg>
-    ),
-  },
-  {
-    href: "/accessories",
-    label: "Mobile Accessories",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        width="14"
-        height="14"
-      >
-        <rect x="7" y="2" width="10" height="20" rx="2" />
-        <path d="M12 18h.01" />
-      </svg>
-    ),
-  },
-  {
-    href: "/gadgets",
-    label: "Gadgets",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        width="14"
-        height="14"
-      >
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-      </svg>
-    ),
-  },
-  {
-    href: "/home-decor",
-    label: "Home Décor",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        width="14"
-        height="14"
-      >
-        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" />
-        <path d="M9 21V12h6v9" />
-      </svg>
-    ),
-  },
-  {
-    href: "/about",
-    label: "About",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        width="14"
-        height="14"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 16v-4M12 8h.01" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    href: "/contact",
-    label: "Contact",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        width="14"
-        height="14"
-      >
-        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-      </svg>
-    ),
-  },
+  { href: "/", label: "Home" },
+  { href: "/accessories", label: "Accessories" },
+  { href: "/watches", label: "Watches" },
+  { href: "/automotive", label: "Automotive" },
+  { href: "/home-decor", label: "Home Decor" },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
 ];
 
-const PanelLink = ({ isActive }: { isActive: boolean }) => (
-  <li>
-    <Link href="/panel" className={isActive ? "active" : ""}>
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        width="14"
-        height="14"
-      >
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-      </svg>
-      Panel
-    </Link>
-  </li>
-);
+const categorySubcategories: Record<string, { name: string; href: string }[]> =
+  {
+    "/accessories": [
+      { name: "Chargers", href: "/accessories/chargers" },
+      { name: "Cables", href: "/accessories/cables" },
+      { name: "Phone Holders", href: "/accessories/phone-holders" },
+      { name: "Tech Gadgets", href: "/accessories/tech-gadgets" },
+      { name: "Smart Accessories", href: "/accessories/smart-accessories" },
+    ],
+    "/watches": [
+      { name: "Men Watches", href: "/watches/men-watches" },
+      { name: "Women Watches", href: "/watches/women-watches" },
+      { name: "Smart Watches", href: "/watches/smart-watches" },
+      { name: "Luxury Watches", href: "/watches/luxury-watches" },
+    ],
+    "/automotive": [
+      { name: "Car Accessories", href: "/automotive/car-accessories" },
+      { name: "Car Cleaning Tools", href: "/automotive/car-cleaning-tools" },
+      { name: "Phone Holders", href: "/automotive/phone-holders" },
+      {
+        name: "Interior Accessories",
+        href: "/automotive/interior-accessories",
+      },
+    ],
+    "/home-decor": [
+      { name: "Wall Decor", href: "/home-decor/wall-decor" },
+      { name: "Lighting", href: "/home-decor/lighting" },
+      { name: "Kitchen Essentials", href: "/home-decor/kitchen-essentials" },
+      { name: "Storage & Organizers", href: "/home-decor/storage-organizers" },
+    ],
+  };
 
 export default function Navbar({
   onMenuOpen,
@@ -137,12 +64,13 @@ export default function Navbar({
   onCartOpen,
 }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<any>(undefined);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [currencyOpen, setCurrencyOpen] = useState(false);
   const pathname = usePathname();
-
-  // ✅ Cart count directly from store — always real-time
   const cartCount = useCartStore((state) => state.getCartCount());
+  const { currency, setCurrency, loading: currencyLoading } = useCurrency();
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -156,121 +84,222 @@ export default function Navbar({
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      setUserEmail(currentUser?.email ?? null);
+    const initAuth = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUser(session.user);
+        setUserEmail(session.user.email ?? null);
+      } else {
+        setUser(null);
+        setUserEmail(null);
+      }
+    };
+    initAuth();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        setUser(null);
+        setUserEmail(null);
+      } else if (
+        event === "SIGNED_IN" ||
+        event === "TOKEN_REFRESHED" ||
+        event === "USER_UPDATED"
+      ) {
+        setUser(session.user);
+        setUserEmail(session.user.email ?? null);
+      }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-        setUserEmail(currentUser?.email ?? null);
-      }
-    );
-
-    return () => listener.subscription.unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
 
   const showPanel = isOwner(userEmail);
+  const authResolved = user !== undefined;
+  const isSignedIn = authResolved && user !== null;
+
+  // Filter currencies (remove PKR)
+  const availableCurrencies = currencies.filter((c) => c.code !== "PKR");
+
+  if (currencyLoading) return null;
 
   return (
     <nav className={`navbar${scrolled ? " scrolled" : ""}`}>
-      <div className="navbar-inner">
-        {/* Logo */}
-        <Link href="/" className="navbar-logo">
-          <Image
-            src="/mainlogo.jfif"
-            alt="Aurexia Logo"
-            width={80}
-            height={80}
-            className="navbar-logo-image dark:invert"
-            priority
-          />
-        </Link>
-
-        {/* Nav Links */}
-        <ul className="navbar-links">
-          {navLinks.map((link) => (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                className={isActive(link.href) ? "active" : ""}
+      <div className="navbar-container">
+        {/* LEFT SECTION - Currency Dropdown + Search Icon */}
+        <div className="navbar-left">
+          <div className="currency-dropdown">
+            <button
+              className="currency-btn"
+              onClick={() => setCurrencyOpen(!currencyOpen)}
+              onBlur={() => setTimeout(() => setCurrencyOpen(false), 200)}
+            >
+              <span className="currency-flag">{currency.flag}</span>
+              <span className="currency-symbol">{currency.symbol}</span>
+              <span className="currency-code">{currency.code}</span>
+              <svg
+                className="currency-arrow"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
               >
-                {link.icon}
-                {link.label}
-              </Link>
-            </li>
-          ))}
-          {showPanel && <PanelLink isActive={isActive("/panel")} />}
-        </ul>
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            {currencyOpen && (
+              <div className="currency-menu">
+                {availableCurrencies.map((cur) => (
+                  <button
+                    key={cur.code}
+                    className={`currency-option${
+                      currency.code === cur.code ? " active" : ""
+                    }`}
+                    onClick={() => {
+                      setCurrency(cur);
+                      setCurrencyOpen(false);
+                    }}
+                  >
+                    <span className="currency-option-flag">{cur.flag}</span>
+                    <span className="currency-option-symbol">{cur.symbol}</span>
+                    <span className="currency-option-code">{cur.code}</span>
+                    <span className="currency-option-name">{cur.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-        {/* Right Icons */}
-        <div className="navbar-icons">
           <button
-            className={`navbar-icon-btn${
-              pathname === "/search" ? " icon-active" : ""
-            }`}
-            aria-label="Search"
+            className="nav-icon-btn search-btn"
             onClick={onSearchOpen}
+            aria-label="Search"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <circle cx="11" cy="11" r="7" />
-              <path d="M21 21l-4.35-4.35" />
+              <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
             </svg>
           </button>
+        </div>
 
-          {/* ✅ Cart button — live count from store */}
-          <button
-            className={`navbar-icon-btn${
-              pathname === "/cart" ? " icon-active" : ""
-            }`}
-            aria-label="Cart"
-            onClick={onCartOpen}
+        {/* CENTER SECTION - Logo */}
+        <div className="navbar-center">
+          <Link href="/" className="navbar-logo">
+            <span className="logo-tech">TECH</span>
+            <span className="logo-four">4U</span>
+          </Link>
+        </div>
+
+        {/* RIGHT SECTION - User, Cart & Menu Icons */}
+        <div className="navbar-right">
+          <Link
+            href={isSignedIn ? "/profile" : "/signin"}
+            className="nav-icon-btn user-btn"
+            aria-label={isSignedIn ? "My Profile" : "Sign In"}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            {isSignedIn && <span className="user-active-dot" />}
+          </Link>
+
+          <button
+            className="nav-icon-btn cart-btn"
+            onClick={onCartOpen}
+            aria-label="Cart"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
               <line x1="3" y1="6" x2="21" y2="6" />
               <path d="M16 10a4 4 0 01-8 0" />
             </svg>
-            {cartCount > 0 && (
-              <span className="badge" aria-label={`${cartCount} items in cart`}>
-                {cartCount}
-              </span>
-            )}
+            {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
           </button>
 
-          <Link
-            href={user ? "/profile" : "/signin"}
-            className={`navbar-icon-btn${
-              pathname === "/signin" ||
-              pathname === "/signup" ||
-              pathname === "/profile"
-                ? " icon-active"
-                : ""
-            }`}
-            aria-label={user ? "My Profile" : "Sign In"}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            {user && <span className="navbar-user-dot" aria-hidden="true" />}
-          </Link>
-
-          <div className="navbar-divider" aria-hidden="true" />
-
           <button
-            className="navbar-menu-btn"
+            className="nav-icon-btn menu-btn"
             onClick={onMenuOpen}
-            aria-label="Open menu"
+            aria-label="Menu"
           >
             <span />
             <span />
             <span />
           </button>
         </div>
+      </div>
+
+      {/* BOTTOM NAVIGATION LINKS - Desktop Only */}
+      <div className="navbar-bottom">
+        <ul className="nav-links">
+          {navLinks.map((link) => {
+            const hasDropdown = categorySubcategories[link.href];
+            const isLinkActive = isActive(link.href);
+            return (
+              <li
+                key={link.href}
+                className={`nav-item${hasDropdown ? " has-dropdown" : ""}`}
+              >
+                <Link href={link.href} className={isLinkActive ? "active" : ""}>
+                  {link.label}
+                  {hasDropdown && (
+                    <svg
+                      className="dropdown-arrow"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  )}
+                </Link>
+                {hasDropdown && (
+                  <div className="dropdown-menu">
+                    {categorySubcategories[link.href].map((sub) => (
+                      <Link
+                        key={sub.href}
+                        href={sub.href}
+                        className={`dropdown-item${
+                          pathname === sub.href ? " active" : ""
+                        }`}
+                      >
+                        {sub.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+          {showPanel && (
+            <li className="nav-item">
+              <Link
+                href="/panel"
+                className={isActive("/panel") ? "active" : ""}
+              >
+                Panel
+              </Link>
+            </li>
+          )}
+        </ul>
       </div>
     </nav>
   );

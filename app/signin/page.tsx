@@ -16,6 +16,23 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    // Clear stale Supabase storage on signin page load
+    const clearStaleAuth = () => {
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.includes("supabase") && key.includes("auth-token")) {
+            localStorage.removeItem(key);
+          }
+        }
+      } catch (e) {
+        console.error("Error clearing storage:", e);
+      }
+    };
+    clearStaleAuth();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -91,7 +108,7 @@ export default function SignIn() {
         {/* Left panel — brand */}
         <div className="si-brand">
           <div className="si-brand-inner">
-            <div className="si-brand-logo">
+            {/* <div className="si-brand-logo">
               <Image
                 src="/logo.png"
                 alt="Aurexia"
@@ -100,13 +117,13 @@ export default function SignIn() {
                 className="si-logo-img"
                 priority
               />
-            </div>
+            </div> */}
             <p className="si-brand-eyebrow">
               <span className="si-ey-line" />
               Welcome Back
               <span className="si-ey-line" />
             </p>
-            <h1 className="si-brand-title">Aurexia</h1>
+            <h1 className="si-brand-title">Tech4U</h1>
             <p className="si-brand-tagline">
               Luxury lives in every
               <br />
@@ -291,7 +308,9 @@ export default function SignIn() {
                 disabled={loading}
               >
                 {loading ? (
-                  <span className="si-spinner" />
+                  <span className="si-btn-loader">
+                    <span className="si-spinner" />
+                  </span>
                 ) : (
                   <>
                     <span>Sign In</span>

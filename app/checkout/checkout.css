@@ -1003,3 +1003,33 @@
   padding: 0.5rem 0;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
+
+/* Phone Input with Country Code */
+.co-phone-prefix {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.co-phone-flag {
+  font-size: 0.9rem;
+}
+
+.co-phone-code {
+  color: rgba(245, 240, 232, 0.6);
+  font-family: monospace;
+}
+
+.co-input-with-prefix {
+  padding-left: 110px !important;
+}

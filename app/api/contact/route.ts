@@ -23,6 +23,12 @@ let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter() {
   if (!transporter) {
+    // Check if environment variables are set
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.error("❌ SMTP credentials missing! Check your .env.local file");
+      throw new Error("SMTP configuration missing");
+    }
+
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || "smtp.gmail.com",
       port: Number(process.env.SMTP_PORT) || 587,
@@ -36,7 +42,7 @@ function getTransporter() {
   return transporter;
 }
 
-// Send email asynchronously (fire and forget)
+// Send email asynchronously
 async function sendEmailAsync(
   name: string,
   email: string,
@@ -45,11 +51,15 @@ async function sendEmailAsync(
 ) {
   try {
     const transporterInstance = getTransporter();
-    await transporterInstance.sendMail({
+
+    // Verify connection before sending
+    await transporterInstance.verify();
+
+    const info = await transporterInstance.sendMail({
       from: `"Aurexia Contact Form" <${process.env.SMTP_USER}>`,
       to: process.env.OWNER_EMAIL || process.env.SMTP_USER,
       replyTo: email.trim(),
-      subject: `📬 New Contact: ${subject}`,
+      subject: `📬 Aurexia Contact: ${subject.substring(0, 50)}`,
       html: `
         <!DOCTYPE html>
         <html lang="en">
@@ -57,114 +67,110 @@ async function sendEmailAsync(
           <meta charset="UTF-8"/>
           <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
           <title>New Contact Message</title>
+          <style>
+            body { margin: 0; padding: 0; background: #0a0a0a; font-family: 'Helvetica Neue', Arial, sans-serif; }
+            .container { max-width: 600px; margin: 0 auto; background: #111111; border: 1px solid #1e1e1e; border-radius: 8px; overflow: hidden; }
+            .header { background: #0f0f0f; border-bottom: 1px solid #1a1a1a; padding: 28px 32px; }
+            .header h1 { margin: 0; font-size: 22px; font-weight: 300; color: #f5f0e8; }
+            .header h1 em { font-style: italic; color: #b49150; }
+            .header p { margin: 8px 0 0; font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: #b49150; }
+            .body { padding: 32px; }
+            .info-label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: #b49150; margin-bottom: 6px; font-weight: 500; }
+            .info-value { font-size: 15px; color: #f5f0e8; font-weight: 300; margin-bottom: 20px; }
+            .info-value a { color: #d4b87a; text-decoration: none; }
+            .divider { height: 1px; background: linear-gradient(to right, rgba(180,145,80,0.4), transparent); margin: 20px 0; }
+            .message-box { background: #0f0f0f; border: 1px solid #1a1a1a; border-left: 2px solid rgba(180,145,80,0.5); border-radius: 4px; padding: 20px; margin-top: 10px; }
+            .message-box p { margin: 0; font-size: 14px; color: rgba(245,240,232,0.8); line-height: 1.8; white-space: pre-wrap; }
+            .reply-btn { display: inline-block; margin-top: 28px; padding: 12px 28px; border: 1px solid rgba(180,145,80,0.5); border-radius: 4px; color: #b49150; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; text-decoration: none; background: rgba(180,145,80,0.06); }
+            .reply-btn:hover { background: rgba(180,145,80,0.12); border-color: rgba(180,145,80,0.8); }
+            .footer { border-top: 1px solid #1a1a1a; padding: 16px 32px; background: #0f0f0f; }
+            .footer p { margin: 0; font-size: 10px; color: rgba(245,240,232,0.25); }
+          </style>
         </head>
-        <body style="margin:0;padding:0;background:#0a0a0a;font-family:'Helvetica Neue',Arial,sans-serif;">
+        <body>
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;padding:40px 20px;">
             <tr>
               <td align="center">
-                <table width="600" align="center" cellpadding="0" cellspacing="0"
-                  style="max-width:600px;margin:0 auto;background:#111111;border:1px solid #1e1e1e;border-radius:4px;overflow:hidden;">
-
-                  <!-- Header -->
-                  <tr>
-                    <td style="background:#0f0f0f;border-bottom:1px solid #1a1a1a;padding:28px 32px;">
-                      <table width="100%" cellpadding="0" cellspacing="0">
-                        <tr>
-                          <td>
-                            <p style="margin:0 0 4px;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:#b49150;font-weight:500;">Aurexia Store</p>
-                            <h1 style="margin:0;font-size:22px;font-weight:300;color:#f5f0e8;letter-spacing:0.02em;">New Contact <em style="font-style:italic;color:#b49150;">Message</em></h1>
-                          </td>
-                          <td align="right">
-                            <div style="width:42px;height:42px;border:1px solid rgba(180,145,80,0.25);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:rgba(180,145,80,0.07);">
-                              <span style="font-size:18px;">✉</span>
-                            </div>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-
-                  <!-- Body -->
-                  <tr>
-                    <td style="padding:32px;">
-
-                      <!-- Sender info grid -->
-                      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-                        <tr>
-                          <td width="50%" style="padding-right:8px;padding-bottom:16px;vertical-align:top;">
-                            <p style="margin:0 0 6px;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#b49150;font-weight:500;">Full Name</p>
-                            <p style="margin:0;font-size:15px;color:#f5f0e8;font-weight:300;">${name
-                              .replace(/</g, "&lt;")
-                              .replace(/>/g, "&gt;")}</p>
-                          </td>
-                          <td width="50%" style="padding-left:8px;padding-bottom:16px;vertical-align:top;">
-                            <p style="margin:0 0 6px;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#b49150;font-weight:500;">Email Address</p>
-                            <p style="margin:0;font-size:15px;color:#f5f0e8;font-weight:300;">
-                              <a href="mailto:${email}" style="color:#d4b87a;text-decoration:none;">${email}</a>
-                            </p>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td colspan="2" style="padding-bottom:16px;vertical-align:top;">
-                            <p style="margin:0 0 6px;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#b49150;font-weight:500;">Subject</p>
-                            <p style="margin:0;font-size:15px;color:#f5f0e8;font-weight:300;">${subject
-                              .replace(/</g, "&lt;")
-                              .replace(/>/g, "&gt;")}</p>
-                          </td>
-                        </tr>
-                      </table>
-
-                      <!-- Divider -->
-                      <div style="height:1px;background:linear-gradient(to right,rgba(180,145,80,0.4),transparent);margin-bottom:24px;"></div>
-
-                      <!-- Message -->
-                      <p style="margin:0 0 10px;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#b49150;font-weight:500;">Message</p>
-                      <div style="background:#0f0f0f;border:1px solid #1a1a1a;border-left:2px solid rgba(180,145,80,0.5);border-radius:2px;padding:20px 20px 20px 18px;">
-                        <p style="margin:0;font-size:14px;color:rgba(245,240,232,0.8);line-height:1.8;white-space:pre-wrap;">${message
-                          .replace(/</g, "&lt;")
-                          .replace(/>/g, "&gt;")}</p>
-                      </div>
-
-                      <!-- Reply CTA -->
-                      <div style="margin-top:28px;text-align:center;">
-                        <a href="mailto:${email}?subject=Re: ${encodeURIComponent(
+                <div class="container">
+                  <div class="header">
+                    <p>AUREXIA STORE</p>
+                    <h1>New Contact <em>Message</em></h1>
+                  </div>
+                  <div class="body">
+                    <div class="info-label">FULL NAME</div>
+                    <div class="info-value">${escapeHtml(name)}</div>
+                    
+                    <div class="info-label">EMAIL ADDRESS</div>
+                    <div class="info-value"><a href="mailto:${escapeHtml(
+                      email
+                    )}">${escapeHtml(email)}</a></div>
+                    
+                    <div class="info-label">SUBJECT</div>
+                    <div class="info-value">${escapeHtml(subject)}</div>
+                    
+                    <div class="divider"></div>
+                    
+                    <div class="info-label">MESSAGE</div>
+                    <div class="message-box">
+                      <p>${escapeHtml(message).replace(/\n/g, "<br>")}</p>
+                    </div>
+                    
+                    <div style="text-align:center;">
+                      <a href="mailto:${escapeHtml(
+                        email
+                      )}?subject=Re: ${encodeURIComponent(
         subject
-      )}"
-                          style="display:inline-block;padding:12px 28px;border:1px solid rgba(180,145,80,0.5);border-radius:2px;color:#b49150;font-size:11px;letter-spacing:3px;text-transform:uppercase;text-decoration:none;font-weight:500;background:rgba(180,145,80,0.06);">
-                          Reply to ${name}
-                        </a>
-                      </div>
-
-                    </td>
-                  </tr>
-
-                  <!-- Footer -->
-                  <tr>
-                    <td style="border-top:1px solid #1a1a1a;padding:16px 32px;background:#0f0f0f;">
-                      <p style="margin:0;font-size:10px;color:rgba(245,240,232,0.25);letter-spacing:0.05em;">
-                        Aurexia Store · Automated notification · ${new Date().toLocaleString(
-                          "en-PK",
-                          { timeZone: "Asia/Karachi" }
-                        )}
-                      </p>
-                    </td>
-                  </tr>
-
-                </table>
+      )}" class="reply-btn">
+                        Reply to ${escapeHtml(name.split(" ")[0])}
+                      </a>
+                    </div>
+                  </div>
+                  <div class="footer">
+                    <p>Aurexia Store · Automated notification · ${new Date().toLocaleString(
+                      "en-PK",
+                      { timeZone: "Asia/Karachi" }
+                    )}</p>
+                  </div>
+                </div>
               </td>
             </tr>
           </table>
         </body>
         </html>
       `,
+      text: `
+AUREXIA STORE - New Contact Message
+====================================
+
+Name: ${name}
+Email: ${email}
+Subject: ${subject}
+
+Message:
+${message}
+
+---
+This is an automated notification from Aurexia Store.
+Reply to this email to respond to ${name}.
+      `,
     });
-    console.log(
-      "Email sent successfully to:",
-      process.env.OWNER_EMAIL || process.env.SMTP_USER
-    );
+
+    console.log(`✅ Email sent successfully to: ${process.env.OWNER_EMAIL}`);
+    console.log(`📧 Message ID: ${info.messageId}`);
   } catch (error) {
-    console.error("Background email sending error:", error);
+    console.error("❌ Background email sending error:", error);
   }
+}
+
+// Helper function to escape HTML
+function escapeHtml(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 /* ─── POST handler ───────────────────────────────── */
@@ -172,6 +178,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { name, email, subject, message } = body;
+
+    console.log(`📬 Received contact request from: ${email}`);
 
     /* Server-side validation */
     const errors: Record<string, string> = {};
@@ -182,17 +190,21 @@ export async function POST(req: NextRequest) {
     if (!isValidMessage(message)) errors.message = "Message is required";
 
     if (Object.keys(errors).length > 0) {
+      console.log("❌ Validation errors:", errors);
       return NextResponse.json({ success: false, errors }, { status: 400 });
     }
 
-    // Send email in background (fire and forget) - this doesn't block the response
+    // Send email in background (fire and forget)
     sendEmailAsync(name, email, subject, message);
 
     // Return success immediately to the user
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      message: "Your message has been sent successfully!",
+    });
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : "Unknown error";
-    console.error("Contact API error:", errMsg);
+    console.error("❌ Contact API error:", errMsg);
     return NextResponse.json(
       { success: false, message: "Server error. Please try again later." },
       { status: 500 }
