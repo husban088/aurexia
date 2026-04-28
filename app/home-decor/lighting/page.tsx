@@ -7,8 +7,8 @@ export default function Lighting() {
     <Subcategory
       category="Home Decor"
       subcategory="Lighting"
-      title="Decorative <em>Lighting</em>"
-      description="Create the perfect ambiance with our elegant lighting solutions"
+      title="Ambient <em>Lighting</em>"
+      description="Create the perfect atmosphere with our premium lighting collection"
       breadcrumb={{
         parent: "Home Decor",
         parentHref: "/home-decor",

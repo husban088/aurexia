@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Navigation, A11y } from "swiper/modules";
@@ -12,7 +12,7 @@ import { useCartStore } from "@/lib/cartStore";
 import { useCurrency } from "../context/CurrencyContext";
 import QuickView from "./QuickView";
 
-interface FeaturedProduct {
+interface QuickViewProduct {
   id: string;
   name: string;
   brand?: string;
@@ -22,70 +22,464 @@ interface FeaturedProduct {
   subcategory: string;
   images: string[];
   stock: number;
+  description?: string;
+  condition?: string;
+  is_featured?: boolean;
+  is_active?: boolean;
+  stockStatus?: "in_stock" | "out_of_stock" | "low_stock";
+  lowStockThreshold?: number | null;
+}
+
+interface FeaturedProduct {
+  id: string;
+  name: string;
+  brand?: string;
+  description?: string;
+  category: string;
+  subcategory: string;
   condition: string;
   is_featured: boolean;
   is_active: boolean;
-  description?: string;
 }
 
-const TABS = [
-  { key: "Accessories", label: "Accessories", href: "/accessories" },
-  { key: "Watches", label: "Watches", href: "/watches" },
-  { key: "Automotive", label: "Automotive", href: "/automotive" },
-  { key: "Home Decor", label: "Home Decor", href: "/home-decor" },
-];
+interface ProductVariant {
+  id: string;
+  product_id: string;
+  attribute_type: "color" | "size" | "material" | "capacity" | "standard";
+  attribute_value: string;
+  price: number;
+  original_price?: number;
+  description?: string;
+  stock: number;
+  low_stock_threshold?: number;
+  images: string[];
+  stockStatus?: "in_stock" | "out_of_stock" | "low_stock";
+}
 
+interface VariantImagesMap {
+  [variantId: string]: string[];
+}
+
+// ✅ Pre-fetched initial data type
+export interface FeaturedTabData {
+  products: FeaturedProduct[];
+  variantsMap: Record<string, ProductVariant[]>;
+  variantImagesMap: Record<string, string[]>;
+}
+
+const getStockStatus = (
+  stock: number,
+  threshold?: number | null
+): "in_stock" | "out_of_stock" | "low_stock" => {
+  if (stock === 0) return "out_of_stock";
+  if (threshold && threshold > 0 && stock <= threshold) return "low_stock";
+  return "in_stock";
+};
+
+// ✅ Standalone fetch function — server component mein import karke use karo
+export async function fetchFeaturedTabData(
+  tab: string
+): Promise<FeaturedTabData> {
+  const { data: productsData, error: productsError } = await supabase
+    .from("products")
+    .select("*")
+    .eq("is_active", true)
+    .eq("is_featured", true)
+    .eq("category", tab)
+    .order("created_at", { ascending: false })
+    .limit(12);
+
+  if (productsError || !productsData || productsData.length === 0) {
+    return { products: [], variantsMap: {}, variantImagesMap: {} };
+  }
+
+  const formattedProducts: FeaturedProduct[] = productsData.map(
+    (item: any) => ({
+      id: item.id,
+      name: item.name,
+      brand: item.brand || undefined,
+      description: item.description || undefined,
+      category: item.category,
+      subcategory: item.subcategory,
+      condition: item.condition || "new",
+      is_featured: item.is_featured || false,
+      is_active: item.is_active || true,
+    })
+  );
+
+  const productIds = productsData.map((p: any) => p.id);
+
+  // ✅ Variants aur images ek saath parallel fetch karo
+  const { data: variantsData } = await supabase
+    .from("product_variants")
+    .select("*")
+    .in("product_id", productIds)
+    .eq("is_active", true);
+
+  const variantsByProduct: Record<string, ProductVariant[]> = {};
+
+  if (variantsData && variantsData.length > 0) {
+    variantsData.forEach((variant: any) => {
+      if (!variantsByProduct[variant.product_id]) {
+        variantsByProduct[variant.product_id] = [];
+      }
+      variantsByProduct[variant.product_id].push({
+        id: variant.id,
+        product_id: variant.product_id,
+        attribute_type: variant.attribute_type,
+        attribute_value: variant.attribute_value,
+        price: variant.price,
+        original_price: variant.original_price,
+        description: variant.description,
+        stock: variant.stock,
+        low_stock_threshold: variant.low_stock_threshold,
+        images: [],
+        stockStatus: getStockStatus(variant.stock, variant.low_stock_threshold),
+      });
+    });
+
+    const order = { standard: 0, color: 1, size: 2, material: 3, capacity: 4 };
+    for (const productId in variantsByProduct) {
+      variantsByProduct[productId].sort(
+        (a, b) =>
+          (order[a.attribute_type as keyof typeof order] || 5) -
+          (order[b.attribute_type as keyof typeof order] || 5)
+      );
+    }
+
+    const variantIds = variantsData.map((v: any) => v.id);
+    const { data: imagesData } = await supabase
+      .from("variant_images")
+      .select("*")
+      .in("variant_id", variantIds)
+      .order("display_order", { ascending: true });
+
+    if (imagesData) {
+      const imagesByVariant: Record<string, string[]> = {};
+      imagesData.forEach((img: any) => {
+        if (!imagesByVariant[img.variant_id]) {
+          imagesByVariant[img.variant_id] = [];
+        }
+        imagesByVariant[img.variant_id].push(img.image_url);
+      });
+      return {
+        products: formattedProducts,
+        variantsMap: variantsByProduct,
+        variantImagesMap: imagesByVariant,
+      };
+    }
+  }
+
+  return {
+    products: formattedProducts,
+    variantsMap: variantsByProduct,
+    variantImagesMap: {},
+  };
+}
+
+// Skeleton Loader Component
+function ProductCardSkeleton() {
+  return (
+    <div className="fp-card fp-card--skeleton">
+      <div className="fp-card-img fp-skel-img">
+        <div className="fp-skel-img-overlay"></div>
+      </div>
+      <div className="fp-card-body">
+        <div
+          className="fp-skel-line"
+          style={{ width: "40%", height: "0.65rem" }}
+        ></div>
+        <div
+          className="fp-skel-line"
+          style={{ width: "85%", height: "1.25rem", marginTop: "0.25rem" }}
+        ></div>
+        <div
+          className="fp-skel-line"
+          style={{ width: "60%", height: "1.35rem", marginTop: "0.5rem" }}
+        ></div>
+        <div
+          className="fp-skel-line"
+          style={{ width: "90%", height: "0.55rem", marginTop: "0.5rem" }}
+        ></div>
+        <div
+          className="fp-skel-line"
+          style={{ width: "70%", height: "0.55rem", marginTop: "0.3rem" }}
+        ></div>
+        <div
+          className="fp-skel-line"
+          style={{ width: "45%", height: "0.6rem", marginTop: "0.5rem" }}
+        ></div>
+      </div>
+    </div>
+  );
+}
+
+// Variant selector component
+function VariantThumbnails({
+  variants,
+  type,
+  onSelect,
+  currentValue,
+  getVariantImage,
+}: {
+  variants: ProductVariant[];
+  type: string;
+  onSelect: (variant: ProductVariant) => void;
+  currentValue: string;
+  variantImages: VariantImagesMap;
+  getVariantImage: (variantId: string) => string | null;
+}) {
+  if (!variants || variants.length === 0) return null;
+
+  const getIcon = () => {
+    switch (type) {
+      case "color":
+        return "🎨";
+      case "size":
+        return "📏";
+      case "material":
+        return "🔧";
+      case "capacity":
+        return "⚡";
+      default:
+        return "•";
+    }
+  };
+
+  const getTypeLabel = () => {
+    switch (type) {
+      case "color":
+        return "Colors";
+      case "size":
+        return "Sizes";
+      case "material":
+        return "Materials";
+      case "capacity":
+        return "Capacities";
+      default:
+        return type;
+    }
+  };
+
+  const displayVariants = variants.slice(0, 4);
+  const hasMore = variants.length > 4;
+
+  return (
+    <div className="fp-card-variants">
+      <span className="fp-variant-label">
+        {getIcon()} {getTypeLabel()}:
+      </span>
+      <div className="fp-variant-thumbnails">
+        {displayVariants.map((variant) => {
+          const variantImage = getVariantImage(variant.id);
+          const isActive = currentValue === variant.attribute_value;
+          return (
+            <button
+              key={variant.id}
+              className={`fp-variant-thumb ${isActive ? "active" : ""}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSelect(variant);
+              }}
+              title={variant.attribute_value}
+            >
+              {variantImage ? (
+                <img src={variantImage} alt={variant.attribute_value} />
+              ) : (
+                <span className="fp-variant-text">
+                  {variant.attribute_value.charAt(0)}
+                </span>
+              )}
+              <span className="fp-variant-label-text">
+                {variant.attribute_value.length > 12
+                  ? variant.attribute_value.slice(0, 10) + "..."
+                  : variant.attribute_value}
+              </span>
+            </button>
+          );
+        })}
+        {hasMore && (
+          <span className="fp-variant-more">+{variants.length - 4}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Single Product Card Component
 function ProductCard({
   product,
+  variants,
+  variantImagesMap,
   onQuickView,
 }: {
   product: FeaturedProduct;
-  onQuickView: (product: FeaturedProduct) => void;
+  variants: ProductVariant[];
+  variantImagesMap: VariantImagesMap;
+  onQuickView: (
+    product: FeaturedProduct,
+    variants: ProductVariant[],
+    selectedVariant: ProductVariant | null,
+    productImages: string[],
+    productPrice: number,
+    productStock: number,
+    stockStatus: "in_stock" | "out_of_stock" | "low_stock",
+    lowStockThreshold: number | null | undefined
+  ) => void;
 }) {
-  const discount =
-    product.original_price && product.original_price > product.price
-      ? Math.round(
-          ((product.original_price - product.price) / product.original_price) *
-            100
-        )
-      : null;
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    variants.length > 0 ? variants[0] : null // ✅ Seedha set karo — useEffect nahi
+  );
+  const [currentImages, setCurrentImages] = useState<string[]>(() => {
+    // ✅ Initial images bhi seedha set karo
+    const firstVariant = variants[0];
+    if (firstVariant && variantImagesMap[firstVariant.id]) {
+      return variantImagesMap[firstVariant.id];
+    }
+    return [];
+  });
 
   const { addToCart } = useCartStore();
   const { formatPrice } = useCurrency();
 
+  const colorVariants = variants.filter((v) => v.attribute_type === "color");
+  const sizeVariants = variants.filter((v) => v.attribute_type === "size");
+  const materialVariants = variants.filter(
+    (v) => v.attribute_type === "material"
+  );
+  const capacityVariants = variants.filter(
+    (v) => v.attribute_type === "capacity"
+  );
+
+  const getVariantImage = useCallback(
+    (variantId: string): string | null => {
+      const images = variantImagesMap[variantId];
+      return images && images.length > 0 ? images[0] : null;
+    },
+    [variantImagesMap]
+  );
+
+  const getVariantImages = useCallback(
+    (variantId: string): string[] => {
+      return variantImagesMap[variantId] || [];
+    },
+    [variantImagesMap]
+  );
+
+  // ✅ Sirf variant change hone par images update karo
+  const handleVariantSelect = (variant: ProductVariant) => {
+    setSelectedVariant(variant);
+    setCurrentImages(getVariantImages(variant.id));
+    setCurrentImageIndex(0);
+  };
+
+  const handleMouseEnter = () => {
+    if (currentImages.length > 1) {
+      setCurrentImageIndex(1);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setCurrentImageIndex(0);
+  };
+
+  const displayImage =
+    currentImages.length > 0 ? currentImages[currentImageIndex] : null;
+
+  const discount =
+    selectedVariant?.original_price &&
+    selectedVariant.original_price > selectedVariant.price
+      ? Math.round(
+          ((selectedVariant.original_price - selectedVariant.price) /
+            selectedVariant.original_price) *
+            100
+        )
+      : null;
+
+  const stockStatus = getStockStatus(
+    selectedVariant?.stock || 0,
+    selectedVariant?.low_stock_threshold
+  );
+
+  const isLowStock = stockStatus === "low_stock";
+  const isOutOfStock = stockStatus === "out_of_stock";
+  const currentStock = selectedVariant?.stock || 0;
+
+  const getStockLabel = () => {
+    if (isOutOfStock) return "Out of Stock";
+    if (isLowStock) return `Only ${currentStock} left`;
+    return "In Stock";
+  };
+
+  const getStockClass = () => {
+    if (isOutOfStock) return "out";
+    if (isLowStock) return "low";
+    return "in";
+  };
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    addToCart({
+
+    if (!selectedVariant) {
+      alert("Please select a variant first");
+      return;
+    }
+
+    if (stockStatus === "out_of_stock") {
+      alert("This product is out of stock");
+      return;
+    }
+
+    const productToAdd = {
       id: product.id,
       name: product.name,
-      description: product.description || "",
-      price: product.price,
-      original_price: product.original_price,
+      description: selectedVariant?.description || product.description || "",
       category: product.category,
       subcategory: product.subcategory,
-      images: product.images,
-      stock: product.stock,
       brand: product.brand || "",
       condition: product.condition,
       is_featured: product.is_featured,
       is_active: product.is_active,
-      specs: {},
+      images: currentImages,
+      price: selectedVariant.price,
+      original_price: selectedVariant.original_price,
+      stock: selectedVariant.stock,
+      low_stock_threshold: selectedVariant.low_stock_threshold,
+      stockStatus: stockStatus,
       created_at: new Date().toISOString(),
-    });
+      updated_at: new Date().toISOString(),
+    };
+
+    addToCart(productToAdd, selectedVariant, 1, 1);
   };
 
   const handleQuickViewClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    onQuickView(product);
+    onQuickView(
+      product,
+      variants,
+      selectedVariant,
+      currentImages,
+      selectedVariant?.price || 0,
+      selectedVariant?.stock || 0,
+      stockStatus,
+      selectedVariant?.low_stock_threshold
+    );
   };
 
   return (
     <Link href={`/product/${product.id}`} className="fp-card">
-      <div className="fp-card-img">
-        {product.images?.[0] ? (
-          <img src={product.images[0]} alt={product.name} />
+      <div
+        className="fp-card-img"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {displayImage ? (
+          <img src={displayImage} alt={product.name} loading="lazy" />
         ) : (
           <div className="fp-card-placeholder">
             <svg
@@ -111,9 +505,11 @@ function ProductCard({
           {product.condition === "new" && !discount && (
             <span className="fp-badge fp-badge--new">New</span>
           )}
+          {isLowStock && (
+            <span className="fp-badge fp-badge--low">Low Stock</span>
+          )}
         </div>
 
-        {/* Always Visible Icon Buttons */}
         <div className="fp-icon-buttons">
           <button
             className="fp-icon-btn fp-icon-btn--view"
@@ -134,7 +530,7 @@ function ProductCard({
             className="fp-icon-btn fp-icon-btn--cart"
             onClick={handleAddToCart}
             aria-label="Add to Cart"
-            disabled={product.stock === 0}
+            disabled={isOutOfStock}
           >
             <svg
               viewBox="0 0 24 24"
@@ -153,27 +549,70 @@ function ProductCard({
       <div className="fp-card-body">
         {product.brand && <p className="fp-card-brand">{product.brand}</p>}
         <h3 className="fp-card-name">{product.name}</h3>
+
         <div className="fp-card-price-row">
-          <span className="fp-card-price">{formatPrice(product.price)}</span>
-          {product.original_price && product.original_price > product.price && (
-            <span className="fp-card-orig">
-              {formatPrice(product.original_price)}
-            </span>
-          )}
+          <span className="fp-card-price">
+            {selectedVariant
+              ? formatPrice(selectedVariant.price)
+              : formatPrice(0)}
+          </span>
+          {selectedVariant?.original_price &&
+            selectedVariant.original_price > selectedVariant.price && (
+              <span className="fp-card-orig">
+                {formatPrice(selectedVariant.original_price)}
+              </span>
+            )}
           {discount && discount > 0 && (
             <span className="fp-card-discount">-{discount}%</span>
           )}
         </div>
-        <div
-          className={`fp-card-stock ${
-            product.stock === 0 ? "out" : product.stock < 5 ? "low" : ""
-          }`}
-        >
-          {product.stock === 0
-            ? "Out of Stock"
-            : product.stock < 5
-            ? `Only ${product.stock} left`
-            : "In Stock"}
+
+        {colorVariants.length > 0 && (
+          <VariantThumbnails
+            variants={colorVariants}
+            type="color"
+            onSelect={handleVariantSelect}
+            currentValue={selectedVariant?.attribute_value || ""}
+            variantImages={variantImagesMap}
+            getVariantImage={getVariantImage}
+          />
+        )}
+
+        {sizeVariants.length > 0 && (
+          <VariantThumbnails
+            variants={sizeVariants}
+            type="size"
+            onSelect={handleVariantSelect}
+            currentValue={selectedVariant?.attribute_value || ""}
+            variantImages={variantImagesMap}
+            getVariantImage={getVariantImage}
+          />
+        )}
+
+        {materialVariants.length > 0 && (
+          <VariantThumbnails
+            variants={materialVariants}
+            type="material"
+            onSelect={handleVariantSelect}
+            currentValue={selectedVariant?.attribute_value || ""}
+            variantImages={variantImagesMap}
+            getVariantImage={getVariantImage}
+          />
+        )}
+
+        {capacityVariants.length > 0 && (
+          <VariantThumbnails
+            variants={capacityVariants}
+            type="capacity"
+            onSelect={handleVariantSelect}
+            currentValue={selectedVariant?.attribute_value || ""}
+            variantImages={variantImagesMap}
+            getVariantImage={getVariantImage}
+          />
+        )}
+
+        <div className={`fp-card-stock ${getStockClass()}`}>
+          {getStockLabel()}
         </div>
       </div>
 
@@ -182,73 +621,149 @@ function ProductCard({
   );
 }
 
-export default function FeaturedProducts() {
+// ✅ FeaturedProducts now accepts initialData for the default tab
+export default function FeaturedProducts({
+  initialData,
+}: {
+  initialData?: { [tab: string]: FeaturedTabData };
+}) {
   const [activeTab, setActiveTab] = useState("Accessories");
-  const [products, setProducts] = useState<FeaturedProduct[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // ✅ Agar initialData hai toh seedha use karo — blank screen nahi aayega
+  const [products, setProducts] = useState<FeaturedProduct[]>(
+    initialData?.["Accessories"]?.products || []
+  );
+  const [variantsMap, setVariantsMap] = useState<
+    Record<string, ProductVariant[]>
+  >(initialData?.["Accessories"]?.variantsMap || {});
+  const [variantImagesMap, setVariantImagesMap] = useState<
+    Record<string, string[]>
+  >(initialData?.["Accessories"]?.variantImagesMap || {});
+  // ✅ Agar initialData hai toh loading false rakho
+  const [loading, setLoading] = useState(!initialData?.["Accessories"]);
+
   const [quickViewProduct, setQuickViewProduct] =
-    useState<FeaturedProduct | null>(null);
+    useState<QuickViewProduct | null>(null);
+  const [quickViewVariants, setQuickViewVariants] = useState<ProductVariant[]>(
+    []
+  );
+  const [quickViewSelectedVariant, setQuickViewSelectedVariant] =
+    useState<ProductVariant | null>(null);
   const [quickViewOpen, setQuickViewOpen] = useState(false);
   const prevRef = useRef<HTMLButtonElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
   const swiperRef = useRef<SwiperType | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  // ✅ Cache mein initialData daal do taake tab switch instant ho
+  const dataCache = useRef<{
+    [tab: string]: FeaturedTabData;
+  }>(initialData || {});
 
-    async function load() {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("is_active", true)
-        .eq("is_featured", true)
-        .eq("category", activeTab)
-        .order("created_at", { ascending: false })
-        .limit(12);
-
-      if (!cancelled) {
-        if (error) {
-          setProducts([]);
-        } else {
-          // Format data to match FeaturedProduct interface
-          const formattedData = (data || []).map((item: any) => ({
-            id: item.id,
-            name: item.name,
-            brand: item.brand || undefined,
-            price: item.price,
-            original_price: item.original_price || undefined,
-            category: item.category,
-            subcategory: item.subcategory,
-            images: item.images || [],
-            stock: item.stock || 0,
-            condition: item.condition || "new",
-            is_featured: item.is_featured || false,
-            is_active: item.is_active || true,
-            description: item.description || undefined,
-          }));
-          setProducts(formattedData);
-        }
-        setLoading(false);
+  const loadDataForTab = useCallback(
+    async (tab: string, isInitialLoad: boolean = false) => {
+      if (dataCache.current[tab]) {
+        setProducts(dataCache.current[tab].products);
+        setVariantsMap(dataCache.current[tab].variantsMap);
+        setVariantImagesMap(dataCache.current[tab].variantImagesMap);
+        if (isInitialLoad) setLoading(false);
+        return;
       }
+
+      if (isInitialLoad) {
+        setLoading(true);
+      }
+
+      try {
+        const tabData = await fetchFeaturedTabData(tab);
+
+        dataCache.current[tab] = tabData;
+        setProducts(tabData.products);
+        setVariantsMap(tabData.variantsMap);
+        setVariantImagesMap(tabData.variantImagesMap);
+
+        if (isInitialLoad) setLoading(false);
+      } catch (error) {
+        console.error("Error loading products:", error);
+        if (isInitialLoad) setLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    const categories = ["Accessories", "Watches", "Automotive", "Home Decor"];
+
+    // ✅ Agar initialData nahi hai sirf tab load karo, warna skip karo
+    if (!initialData?.["Accessories"]) {
+      loadDataForTab("Accessories", true);
     }
 
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab]);
+    // Background mein baaki tabs preload karo
+    categories.forEach((category) => {
+      if (category !== "Accessories" && !initialData?.[category]) {
+        setTimeout(() => loadDataForTab(category, false), 100);
+      }
+    });
+  }, []);
+
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      setActiveTab(tab);
+      loadDataForTab(tab, false);
+    },
+    [loadDataForTab]
+  );
 
   useEffect(() => {
-    if (swiperRef.current) swiperRef.current.update();
-  }, [products]);
+    if (swiperRef.current && !loading && products.length > 0) {
+      setTimeout(() => {
+        swiperRef.current?.update();
+      }, 50);
+    }
+  }, [products, loading]);
 
-  const handleQuickView = (product: FeaturedProduct) => {
-    setQuickViewProduct(product);
+  const handleQuickView = (
+    product: FeaturedProduct,
+    variants: ProductVariant[],
+    selectedVariant: ProductVariant | null,
+    productImages: string[],
+    productPrice: number,
+    productStock: number,
+    stockStatus: "in_stock" | "out_of_stock" | "low_stock",
+    lowStockThreshold: number | null | undefined
+  ) => {
+    const quickViewProductData: QuickViewProduct = {
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: productPrice,
+      original_price: selectedVariant?.original_price,
+      category: product.category,
+      subcategory: product.subcategory,
+      images: productImages,
+      stock: productStock,
+      description: selectedVariant?.description || product.description,
+      condition: product.condition,
+      is_featured: product.is_featured,
+      is_active: product.is_active,
+      stockStatus: stockStatus,
+      lowStockThreshold: lowStockThreshold,
+    };
+
+    setQuickViewProduct(quickViewProductData);
+    setQuickViewVariants(variants);
+    setQuickViewSelectedVariant(selectedVariant);
     setQuickViewOpen(true);
   };
 
-  const activeTabData = TABS.find((t) => t.key === activeTab);
+  const activeTabData = [
+    { key: "Accessories", label: "Accessories", href: "/accessories" },
+    { key: "Watches", label: "Watches", href: "/watches" },
+    { key: "Automotive", label: "Automotive", href: "/automotive" },
+    { key: "Home Decor", label: "Home Decor", href: "/home-decor" },
+  ].find((t) => t.key === activeTab);
+
+  const skeletonCount = 8;
 
   return (
     <>
@@ -265,19 +780,20 @@ export default function FeaturedProducts() {
           <p className="fp-subtitle">
             Handpicked luxury essentials across our finest categories
           </p>
-
           <div className="fp-tabs" style={{ marginTop: "2rem" }}>
-            {TABS.map((tab) => (
-              <button
-                key={tab.key}
-                className={`fp-tab${
-                  activeTab === tab.key ? " fp-tab--active" : ""
-                }`}
-                onClick={() => setActiveTab(tab.key)}
-              >
-                {tab.label}
-              </button>
-            ))}
+            {["Accessories", "Watches", "Automotive", "Home Decor"].map(
+              (tab) => (
+                <button
+                  key={tab}
+                  className={`fp-tab${
+                    activeTab === tab ? " fp-tab--active" : ""
+                  }`}
+                  onClick={() => handleTabChange(tab)}
+                >
+                  {tab}
+                </button>
+              )
+            )}
           </div>
         </div>
 
@@ -305,22 +821,25 @@ export default function FeaturedProducts() {
             </button>
           </div>
 
-          {loading ? (
-            <div className="fp-swiper" style={{ display: "flex", gap: "1px" }}>
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="fp-card fp-card--skeleton">
-                  <div className="fp-card-img fp-skel-img" />
-                  <div className="fp-card-body">
-                    <div className="fp-skel-line" style={{ width: "40%" }} />
-                    <div
-                      className="fp-skel-line"
-                      style={{ width: "80%", height: "1.1rem" }}
-                    />
-                  </div>
-                </div>
+          {loading && products.length === 0 ? (
+            <Swiper
+              modules={[Pagination, Navigation, A11y]}
+              spaceBetween={1}
+              slidesPerView={1}
+              breakpoints={{
+                480: { slidesPerView: 2, spaceBetween: 1 },
+                768: { slidesPerView: 3, spaceBetween: 1 },
+                1024: { slidesPerView: 4, spaceBetween: 1 },
+              }}
+              className="fp-swiper"
+            >
+              {Array.from({ length: skeletonCount }).map((_, i) => (
+                <SwiperSlide key={`skeleton-${i}`}>
+                  <ProductCardSkeleton />
+                </SwiperSlide>
               ))}
-            </div>
-          ) : products.length === 0 ? (
+            </Swiper>
+          ) : products.length === 0 && !loading ? (
             <div className="fp-empty">
               <p>No featured products in this category</p>
             </div>
@@ -354,6 +873,8 @@ export default function FeaturedProducts() {
                 <SwiperSlide key={product.id}>
                   <ProductCard
                     product={product}
+                    variants={variantsMap[product.id] || []}
+                    variantImagesMap={variantImagesMap}
                     onQuickView={handleQuickView}
                   />
                 </SwiperSlide>
@@ -363,7 +884,7 @@ export default function FeaturedProducts() {
 
           <div className="fp-view-all-wrap">
             <Link href={activeTabData?.href || "/"} className="fp-view-all">
-              <span>View All {activeTabData?.label}</span>
+              <span>View All {activeTabData?.label || activeTab}</span>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -378,11 +899,13 @@ export default function FeaturedProducts() {
         </div>
       </section>
 
-      {/* Quick View Modal */}
       <QuickView
         isOpen={quickViewOpen}
         onClose={() => setQuickViewOpen(false)}
         product={quickViewProduct}
+        variants={quickViewVariants}
+        selectedVariant={quickViewSelectedVariant}
+        variantImagesMap={variantImagesMap}
       />
     </>
   );

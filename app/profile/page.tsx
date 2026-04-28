@@ -28,49 +28,99 @@ export default function Profile() {
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [activeTab, setActiveTab] = useState<"info" | "password">("info");
   const [focused, setFocused] = useState<string | null>(null);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
-  // Fetch user data function
-  const fetchUserData = useCallback(async () => {
-    setLoading(true);
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      router.push("/signin");
-      return;
+  // Optimized fetch user data function with caching
+  const fetchUserData = useCallback(async (skipLoading = false) => {
+    if (!skipLoading) {
+      setLoading(true);
     }
 
-    setUser(session.user);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", session.user.id)
-      .single();
+      if (!session) {
+        router.push("/signin");
+        return;
+      }
 
-    if (profileData) {
-      setProfile(profileData);
-      setEditUsername(profileData.username || "");
-      setEditEmail(profileData.email || session.user.email || "");
+      setUser(session.user);
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+
+      if (profileData) {
+        setProfile(profileData);
+        setEditUsername(profileData.username || "");
+        setEditEmail(profileData.email || session.user.email || "");
+      }
+    } catch (err) {
+      console.error("Error fetching user data:", err);
+    } finally {
+      setLoading(false);
+      setInitialLoadDone(true);
     }
-
-    setLoading(false);
   }, [router]);
 
+  // Check for cached session first
   useEffect(() => {
-    fetchUserData();
+    // Try to get cached session from localStorage
+    const checkCachedSession = async () => {
+      const cachedSession = localStorage.getItem('supabase_session');
+      if (cachedSession) {
+        try {
+          const session = JSON.parse(cachedSession);
+          if (session && session.user) {
+            setUser(session.user);
+            // Try to get cached profile
+            const cachedProfile = localStorage.getItem(`profile_${session.user.id}`);
+            if (cachedProfile) {
+              const profileData = JSON.parse(cachedProfile);
+              setProfile(profileData);
+              setEditUsername(profileData.username || "");
+              setEditEmail(profileData.email || session.user.email || "");
+              setLoading(false);
+              setInitialLoadDone(true);
+              // Still fetch fresh data in background
+              fetchUserData(true);
+              return;
+            }
+          }
+        } catch (e) {
+          console.error("Error parsing cached session:", e);
+        }
+      }
+      // If no cache, fetch fresh data
+      fetchUserData(false);
+    };
+
+    checkCachedSession();
 
     // Listen for auth changes
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === "SIGNED_IN" && session) {
-          await fetchUserData();
+        if (session) {
+          // Cache the session
+          localStorage.setItem('supabase_session', JSON.stringify(session));
+          
+          if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+            await fetchUserData(true);
+          }
         } else if (event === "SIGNED_OUT") {
+          localStorage.removeItem('supabase_session');
+          // Clear all profile caches
+          const keys = Object.keys(localStorage);
+          keys.forEach(key => {
+            if (key.startsWith('profile_')) {
+              localStorage.removeItem(key);
+            }
+          });
           router.push("/signin");
-        } else if (event === "USER_UPDATED") {
-          await fetchUserData();
         }
       }
     );
@@ -80,7 +130,15 @@ export default function Profile() {
     };
   }, [fetchUserData, router]);
 
+  // Cache profile data whenever it changes
+  useEffect(() => {
+    if (profile && profile.id) {
+      localStorage.setItem(`profile_${profile.id}`, JSON.stringify(profile));
+    }
+  }, [profile]);
+
   const handleSignOut = async () => {
+    localStorage.removeItem('supabase_session');
     await supabase.auth.signOut();
     router.push("/signin");
   };
@@ -131,7 +189,7 @@ export default function Profile() {
     }
 
     // Refresh profile data
-    await fetchUserData();
+    await fetchUserData(true);
 
     setSuccess("Profile updated successfully.");
     setSaving(false);
@@ -153,7 +211,6 @@ export default function Profile() {
 
     setSaving(true);
 
-    // Update password directly (no need to re-authenticate)
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     });
@@ -170,14 +227,14 @@ export default function Profile() {
     setConfirmPassword("");
     setSaving(false);
 
-    // Sign out after 2 seconds and redirect to signin
     setTimeout(async () => {
       await supabase.auth.signOut();
       router.push("/signin");
     }, 2000);
   };
 
-  if (loading) {
+  // Show loading only on first load
+  if (loading && !initialLoadDone) {
     return (
       <div className="pf-loading">
         <div className="pf-loading-ring">

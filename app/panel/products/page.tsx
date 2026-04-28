@@ -198,13 +198,14 @@ export default function Products() {
                   {p.brand && <p className="pr-card-brand">{p.brand}</p>}
                   <div className="pr-card-price-row">
                     <span className="pr-card-price">
-                      PKR {p.price.toLocaleString()}
+                      PKR {(p.price ?? 0).toLocaleString()}
                     </span>
-                    {p.original_price && p.original_price > p.price && (
-                      <span className="pr-card-orig">
-                        PKR {p.original_price.toLocaleString()}
-                      </span>
-                    )}
+                    {(p.original_price ?? 0) > 0 &&
+                      (p.original_price ?? 0) > (p.price ?? 0) && (
+                        <span className="pr-card-orig">
+                          PKR {(p.original_price ?? 0).toLocaleString()}
+                        </span>
+                      )}
                   </div>
                   <div className="pr-card-meta">
                     <span

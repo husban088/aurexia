@@ -7,8 +7,8 @@ export default function SmartWatches() {
     <Subcategory
       category="Watches"
       subcategory="Smart Watches"
-      title="Smart <em>Watches</em>"
-      description="Advanced fitness trackers, health monitors, and connected smartwatches. Stay connected, track your fitness goals, and manage your day with cutting-edge wearable technology."
+      title="Advanced <em>Smart Watches</em>"
+      description="Stay connected and track your fitness with our premium smartwatch collection"
       breadcrumb={{
         parent: "Watches",
         parentHref: "/watches",

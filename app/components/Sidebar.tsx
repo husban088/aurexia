@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isOwner } from "@/lib/checkOwner";
@@ -35,11 +34,11 @@ const navLinks = [
       </svg>
     ),
     subcategories: [
-      "Chargers",
-      "Cables",
-      "Phone Holders",
-      "Tech Gadgets",
-      "Smart Accessories",
+      { name: "Chargers", href: "/accessories/chargers" },
+      { name: "Cables", href: "/accessories/cables" },
+      { name: "Phone Holders", href: "/accessories/phone-holders" },
+      { name: "Tech Gadgets", href: "/accessories/tech-gadgets" },
+      { name: "Smart Accessories", href: "/accessories/smart-accessories" },
     ],
   },
   {
@@ -53,10 +52,10 @@ const navLinks = [
       </svg>
     ),
     subcategories: [
-      "Men Watches",
-      "Women Watches",
-      "Smart Watches",
-      "Luxury Watches",
+      { name: "Men Watches", href: "/watches/men-watches" },
+      { name: "Women Watches", href: "/watches/women-watches" },
+      { name: "Smart Watches", href: "/watches/smart-watches" },
+      { name: "Luxury Watches", href: "/watches/luxury-watches" },
     ],
   },
   {
@@ -70,10 +69,13 @@ const navLinks = [
       </svg>
     ),
     subcategories: [
-      "Car Accessories",
-      "Car Cleaning Tools",
-      "Phone Holders",
-      "Interior Accessories",
+      { name: "Car Accessories", href: "/automotive/car-accessories" },
+      { name: "Car Cleaning Tools", href: "/automotive/car-cleaning-tools" },
+      { name: "Phone Holders", href: "/automotive/phone-holders" },
+      {
+        name: "Interior Accessories",
+        href: "/automotive/interior-accessories",
+      },
     ],
   },
   {
@@ -86,10 +88,10 @@ const navLinks = [
       </svg>
     ),
     subcategories: [
-      "Wall Decor",
-      "Lighting",
-      "Kitchen Essentials",
-      "Storage & Organizers",
+      { name: "Wall Decor", href: "/home-decor/wall-decor" },
+      { name: "Lighting", href: "/home-decor/lighting" },
+      { name: "Kitchen Essentials", href: "/home-decor/kitchen-essentials" },
+      { name: "Storage & Organizers", href: "/home-decor/storage-organizers" },
     ],
   },
   {
@@ -118,7 +120,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
-  // ✅ FIX: Start undefined so we don't flash signed-in state
   const [user, setUser] = useState<any>(undefined);
   const [profile, setProfile] = useState<any>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -132,8 +133,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     return pathname.startsWith(href);
   };
 
-  const toggleCategory = (href: string) => {
+  // Toggle category dropdown - only for the icon/arrow area
+  const toggleCategory = (href: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setExpandedCategories((prev) => ({ ...prev, [href]: !prev[href] }));
+  };
+
+  // Handle category link click - goes to the page
+  const handleCategoryClick = (href: string) => {
+    router.push(href);
+    onClose();
   };
 
   useEffect(() => {
@@ -145,7 +155,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       if (session?.user) {
         setUser(session.user);
         setUserEmail(session.user.email ?? null);
-        // Fetch profile
         const { data } = await supabase
           .from("profiles")
           .select("username")
@@ -164,17 +173,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("[Sidebar] Auth event:", event);
-
       if (event === "SIGNED_OUT" || !session) {
-        // ✅ Immediately clear all state
         setUser(null);
         setUserEmail(null);
         setProfile(null);
       } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         setUser(session.user);
         setUserEmail(session.user.email ?? null);
-        // Fetch profile
         const { data } = await supabase
           .from("profiles")
           .select("username")
@@ -207,18 +212,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     setSigningOut(true);
 
     try {
-      // ✅ FIX: Immediately clear UI state FIRST before async operations
       setUser(null);
       setUserEmail(null);
       setProfile(null);
       onClose();
-
-      // Then do the actual signout (includes storage/cookie clearing)
       await signOutUser();
-
-      // Navigate to home
       router.push("/");
-      // Force a hard refresh to clear any cached auth state
       router.refresh();
     } catch (err) {
       console.error("Sign out error:", err);
@@ -247,7 +246,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         aria-label="Navigation menu"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         {/* Header */}
         <div className="sidebar-header">
           <Link href="/" className="sidebar-logo" onClick={onClose}>
@@ -278,60 +276,73 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               const isExpanded = expandedCategories[link.href];
 
               return (
-                <li key={link.href}>
-                  <div className="sidebar-nav-item-wrapper">
+                <li key={link.href} className="sidebar-nav-item-wrapper">
+                  <div className="sidebar-nav-link-container">
+                    {/* Category Link - goes to page when clicked on text */}
                     <Link
                       href={link.href}
                       className={`sidebar-nav-link${
                         isActive(link.href) ? " active" : ""
                       }`}
-                      onClick={
-                        hasSubcategories
-                          ? (e) => {
-                              e.preventDefault();
-                              toggleCategory(link.href);
-                            }
-                          : onClose
-                      }
+                      onClick={(e) => {
+                        if (hasSubcategories) {
+                          // Check if click target is the arrow button area
+                          const target = e.target as HTMLElement;
+                          if (target.closest(".sidebar-arrow-btn")) {
+                            e.preventDefault();
+                            return;
+                          }
+                        }
+                        onClose();
+                      }}
                     >
-                      {link.icon}
-                      {link.label}
+                      <span className="sidebar-link-icon">{link.icon}</span>
+                      <span
+                        className="sidebar-link-text"
+                        onClick={() => handleCategoryClick(link.href)}
+                      >
+                        {link.label}
+                      </span>
+
                       {hasSubcategories && (
-                        <svg
-                          className={`sidebar-nav-arrow${
-                            isExpanded ? " expanded" : ""
-                          }`}
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
+                        <button
+                          className="sidebar-arrow-btn"
+                          onClick={(e) => toggleCategory(link.href, e)}
+                          aria-label={isExpanded ? "Collapse" : "Expand"}
                         >
-                          <polyline points="6 9 12 15 18 9" />
-                        </svg>
+                          <svg
+                            className={`sidebar-nav-arrow${
+                              isExpanded ? " expanded" : ""
+                            }`}
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </button>
                       )}
                     </Link>
                   </div>
 
+                  {/* Subcategories Dropdown */}
                   {hasSubcategories && isExpanded && (
                     <ul className="sidebar-subnav-list">
-                      {link.subcategories!.map((sub) => {
-                        const subHref = `${link.href}/${sub
-                          .toLowerCase()
-                          .replace(/ &/g, "")
-                          .replace(/ /g, "-")}`;
-                        return (
-                          <li key={sub}>
-                            <Link
-                              href={subHref}
-                              className={`sidebar-subnav-link${
-                                pathname === subHref ? " active" : ""
-                              }`}
-                              onClick={onClose}
-                            >
-                              {sub}
-                            </Link>
-                          </li>
-                        );
-                      })}
+                      {link.subcategories!.map((sub, index) => (
+                        <li key={sub.href} className="sidebar-subnav-item">
+                          <Link
+                            href={sub.href}
+                            className={`sidebar-subnav-link${
+                              pathname === sub.href ? " active" : ""
+                            }`}
+                            onClick={onClose}
+                            style={{ animationDelay: `${index * 0.03}s` }}
+                          >
+                            <span className="sidebar-subnav-dot" />
+                            {sub.name}
+                          </Link>
+                        </li>
+                      ))}
                     </ul>
                   )}
                 </li>
@@ -352,15 +363,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <li className="sidebar-nav-item">
                   <Link
                     href="/profile"
-                    className={`sidebar-nav-link sidebar-nav-link--welcome${
+                    className={`sidebar-nav-link${
                       isActive("/profile") ? " active" : ""
                     }`}
                     onClick={onClose}
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
+                    <span className="sidebar-link-icon">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                      >
+                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </span>
                     <span className="sidebar-welcome-text">
                       <span className="sidebar-welcome-label">Welcome,</span>
                       <span className="sidebar-welcome-name">
@@ -378,10 +395,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     }`}
                     onClick={onClose}
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <circle cx="12" cy="12" r="3" />
-                      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-                    </svg>
+                    <span className="sidebar-link-icon">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                      >
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                      </svg>
+                    </span>
                     Profile Settings
                   </Link>
                 </li>
@@ -391,11 +414,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     onClick={handleSignOut}
                     disabled={signingOut}
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-                      <polyline points="16 17 21 12 16 7" />
-                      <line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
+                    <span className="sidebar-link-icon">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                      >
+                        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                      </svg>
+                    </span>
                     {signingOut ? "Signing Out…" : "Sign Out"}
                   </button>
                 </li>
@@ -410,10 +439,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     }`}
                     onClick={onClose}
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
+                    <span className="sidebar-link-icon">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                      >
+                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </span>
                     Sign In
                   </Link>
                 </li>
@@ -425,12 +460,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     }`}
                     onClick={onClose}
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
-                      <circle cx="9" cy="7" r="4" />
-                      <line x1="19" y1="8" x2="19" y2="14" />
-                      <line x1="22" y1="11" x2="16" y2="11" />
-                    </svg>
+                    <span className="sidebar-link-icon">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                      >
+                        <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <line x1="19" y1="8" x2="19" y2="14" />
+                        <line x1="22" y1="11" x2="16" y2="11" />
+                      </svg>
+                    </span>
                     Create Account
                   </Link>
                 </li>
@@ -445,11 +486,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 }`}
                 onClick={onClose}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <path d="M16 10a4 4 0 01-8 0" />
-                </svg>
+                <span className="sidebar-link-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <path d="M16 10a4 4 0 01-8 0" />
+                  </svg>
+                </span>
                 Cart
               </Link>
             </li>
@@ -474,9 +517,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     }`}
                     onClick={onClose}
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-                    </svg>
+                    <span className="sidebar-link-icon">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                      >
+                        <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+                      </svg>
+                    </span>
                     Add Product
                   </Link>
                 </li>
@@ -488,12 +537,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     }`}
                     onClick={onClose}
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <rect x="3" y="3" width="7" height="7" rx="1" />
-                      <rect x="14" y="3" width="7" height="7" rx="1" />
-                      <rect x="3" y="14" width="7" height="7" rx="1" />
-                      <rect x="14" y="14" width="7" height="7" rx="1" />
-                    </svg>
+                    <span className="sidebar-link-icon">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                      >
+                        <rect x="3" y="3" width="7" height="7" rx="1" />
+                        <rect x="14" y="3" width="7" height="7" rx="1" />
+                        <rect x="3" y="14" width="7" height="7" rx="1" />
+                        <rect x="14" y="14" width="7" height="7" rx="1" />
+                      </svg>
+                    </span>
                     Manage Products
                   </Link>
                 </li>
@@ -509,51 +564,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </p>
         </div>
       </div>
-
-      <style jsx>{`
-        .sidebar-nav-item-wrapper {
-          position: relative;
-        }
-        .sidebar-nav-arrow {
-          width: 12px;
-          height: 12px;
-          margin-left: auto;
-          transition: transform 0.2s ease;
-        }
-        .sidebar-nav-arrow.expanded {
-          transform: rotate(180deg);
-        }
-        .sidebar-subnav-list {
-          list-style: none;
-          padding-left: 2.5rem;
-          margin: 0.25rem 0 0.5rem;
-        }
-        .sidebar-subnav-link {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          padding: 0.5rem 0.75rem;
-          font-family: var(--font-sans);
-          font-size: 0.6rem;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          color: rgba(245, 240, 232, 0.45);
-          text-decoration: none;
-          transition: all 0.2s ease;
-          border-radius: 2px;
-        }
-        .sidebar-subnav-link:hover {
-          color: var(--gold);
-          background: rgba(184, 150, 62, 0.05);
-        }
-        .sidebar-subnav-link.active {
-          color: var(--gold);
-        }
-        .sidebar-nav-link--signout:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-      `}</style>
     </>
   );
 }

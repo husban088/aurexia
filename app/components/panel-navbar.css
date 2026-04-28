@@ -1,17 +1,20 @@
 /* ============================================================
    PANEL NAVBAR  ·  panel-navbar.css
+   Light/Luxury theme matching Featured Products
    ============================================================ */
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Josefin+Sans:wght@200;300;400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Josefin+Sans:wght@200;300;400;500;600&display=swap");
 
 :root {
-  --pn-gold: #b8963e;
-  --pn-gold-light: #d4b87a;
-  --pn-gold-dim: rgba(184, 150, 62, 0.12);
-  --pn-black: #080808;
-  --pn-dark: #0d0d0d;
-  --pn-border: rgba(184, 150, 62, 0.16);
-  --pn-white: #f5f0e8;
-  --pn-grey: rgba(245, 240, 232, 0.4);
+  --pn-gold: #daa520;
+  --pn-gold-light: #f0c040;
+  --pn-gold-deep: #8b6914;
+  --pn-gold-dim: rgba(218, 165, 32, 0.08);
+  --pn-bg: #f9f5f0;
+  --pn-card-bg: #ffffff;
+  --pn-border: rgba(218, 165, 32, 0.15);
+  --pn-text-primary: #1a1a1a;
+  --pn-text-secondary: #444444;
+  --pn-text-muted: #666666;
   --pn-serif: "Cormorant Garamond", Georgia, serif;
   --pn-sans: "Josefin Sans", sans-serif;
   --pn-ease: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
@@ -25,7 +28,7 @@
   left: 0;
   right: 0;
   height: var(--pn-h);
-  background: rgba(8, 8, 8, 0.92);
+  background: rgba(249, 245, 240, 0.95);
   backdrop-filter: blur(18px) saturate(1.4);
   -webkit-backdrop-filter: blur(18px) saturate(1.4);
   border-bottom: 1px solid var(--pn-border);
@@ -34,8 +37,8 @@
 }
 
 .pn-nav.scrolled {
-  background: rgba(6, 6, 6, 0.97);
-  box-shadow: 0 1px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--pn-border);
+  background: rgba(249, 245, 240, 0.98);
+  box-shadow: 0 1px 40px rgba(218, 165, 32, 0.08);
 }
 
 .pn-inner {
@@ -59,23 +62,23 @@
 .pn-logo-badge {
   width: 36px;
   height: 36px;
-  border: 1px solid var(--pn-gold);
-  border-radius: 2px;
+  border: 1px solid #daa520;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--pn-gold-dim);
+  background: rgba(218, 165, 32, 0.08);
   transition: background var(--pn-ease);
 }
 
 .pn-logo:hover .pn-logo-badge {
-  background: rgba(184, 150, 62, 0.22);
+  background: rgba(218, 165, 32, 0.15);
 }
 
 .pn-logo-badge svg {
   width: 18px;
   height: 18px;
-  color: var(--pn-gold);
+  color: #8b6914;
 }
 
 .pn-logo-text {
@@ -87,18 +90,18 @@
 .pn-logo-title {
   font-family: var(--pn-serif);
   font-size: 1.05rem;
-  font-weight: 400;
-  color: var(--pn-white);
+  font-weight: 600;
+  color: #1a1a1a;
   letter-spacing: 0.06em;
 }
 
 .pn-logo-sub {
   font-family: var(--pn-sans);
   font-size: 0.48rem;
-  font-weight: 300;
+  font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--pn-gold);
+  color: #8b6914;
 }
 
 /* ── Nav links ── */
@@ -117,12 +120,12 @@
   padding: 0.5rem 0.85rem;
   font-family: var(--pn-sans);
   font-size: 0.6rem;
-  font-weight: 300;
+  font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--pn-grey);
+  color: #444444;
   text-decoration: none;
-  border-radius: 2px;
+  border-radius: 40px;
   position: relative;
   transition: color var(--pn-ease), background var(--pn-ease);
   white-space: nowrap;
@@ -133,55 +136,40 @@
   height: 13px;
   flex-shrink: 0;
   transition: transform var(--pn-ease);
-}
-
-.pn-link::after {
-  content: "";
-  position: absolute;
-  bottom: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 1px;
-  background: var(--pn-gold);
-  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  color: #8b6914;
 }
 
 .pn-link:hover {
-  color: var(--pn-gold-light);
-  background: var(--pn-gold-dim);
+  color: #8b6914;
+  background: rgba(218, 165, 32, 0.08);
 }
 
 .pn-link:hover svg {
   transform: translateY(-1px);
 }
 
-.pn-link:hover::after,
-.pn-link.active::after {
-  width: 60%;
-}
-
 .pn-link.active {
-  color: var(--pn-gold);
+  color: #8b6914;
+  background: rgba(218, 165, 32, 0.1);
 }
 
 /* Add product — special */
 .pn-link--add {
-  background: var(--pn-gold);
-  color: var(--pn-black) !important;
-  font-weight: 400;
+  background: linear-gradient(135deg, #daa520, #f0c040);
+  color: #1a1a1a !important;
+  font-weight: 700;
   padding: 0.5rem 1.1rem;
-  border: 1px solid var(--pn-gold);
+  border: none;
 }
 
-.pn-link--add::after {
-  display: none;
+.pn-link--add svg {
+  color: #1a1a1a;
 }
 
 .pn-link--add:hover {
-  background: transparent !important;
-  color: var(--pn-gold) !important;
-  box-shadow: 0 0 24px rgba(184, 150, 62, 0.2);
+  background: linear-gradient(135deg, #f0c040, #daa520);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(218, 165, 32, 0.3);
 }
 
 /* ── Right actions ── */
@@ -200,9 +188,9 @@
   justify-content: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: 40px;
   cursor: pointer;
-  color: var(--pn-grey);
+  color: #444444;
   transition: all var(--pn-ease);
   position: relative;
 }
@@ -213,9 +201,9 @@
 }
 
 .pn-icon-btn:hover {
-  color: var(--pn-gold);
-  border-color: var(--pn-border);
-  background: var(--pn-gold-dim);
+  color: #8b6914;
+  border-color: rgba(218, 165, 32, 0.3);
+  background: rgba(218, 165, 32, 0.08);
 }
 
 .pn-badge {
@@ -224,12 +212,12 @@
   right: 4px;
   width: 14px;
   height: 14px;
-  background: var(--pn-gold);
+  background: #daa520;
   border-radius: 50%;
   font-family: var(--pn-sans);
   font-size: 0.45rem;
-  font-weight: 400;
-  color: var(--pn-black);
+  font-weight: 700;
+  color: #1a1a1a;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -238,7 +226,7 @@
 .pn-divider {
   width: 1px;
   height: 20px;
-  background: var(--pn-border);
+  background: rgba(218, 165, 32, 0.2);
   margin: 0 0.25rem;
 }
 
@@ -248,16 +236,16 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.35rem 0.75rem;
-  border: 1px solid var(--pn-border);
-  border-radius: 2px;
-  background: var(--pn-gold-dim);
+  border: 1px solid rgba(218, 165, 32, 0.2);
+  border-radius: 40px;
+  background: rgba(218, 165, 32, 0.06);
   cursor: default;
 }
 
 .pn-admin-dot {
   width: 6px;
   height: 6px;
-  background: var(--pn-gold);
+  background: #22c55e;
   border-radius: 50%;
   animation: pn-pulse 2s ease-in-out infinite;
 }
@@ -277,10 +265,10 @@
 .pn-admin-label {
   font-family: var(--pn-sans);
   font-size: 0.52rem;
-  font-weight: 300;
+  font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--pn-gold);
+  color: #8b6914;
 }
 
 /* Mobile */

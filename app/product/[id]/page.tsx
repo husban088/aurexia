@@ -2,11 +2,97 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { supabase, Product } from "@/lib/supabase";
+import { supabase, Product, ProductVariant } from "@/lib/supabase";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 import "@/app/styles/product-detail.css";
 import { useCartStore } from "@/lib/cartStore";
+import { useCurrency } from "@/app/context/CurrencyContext";
+import ProductReviews from "@/app/components/ProductReviews";
+
+/* ═══════════════════════════════════════════
+   DATE UTILITIES FOR ESTIMATED DELIVERY
+═══════════════════════════════════════════ */
+
+function getEstimatedDates(): {
+  readyFrom: Date;
+  readyTo: Date;
+  deliveryFrom: Date;
+  deliveryTo: Date;
+} {
+  const today = new Date();
+  const readyFrom = new Date(today);
+  readyFrom.setDate(today.getDate() + 2);
+  const readyTo = new Date(today);
+  readyTo.setDate(today.getDate() + 3);
+  const deliveryFrom = new Date(today);
+  deliveryFrom.setDate(today.getDate() + 6);
+  const deliveryTo = new Date(today);
+  deliveryTo.setDate(today.getDate() + 11);
+  return { readyFrom, readyTo, deliveryFrom, deliveryTo };
+}
+
+function formatDateRange(start: Date, end: Date): string {
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  if (start.getMonth() === end.getMonth()) {
+    return `${months[start.getMonth()]} ${start.getDate()} - ${end.getDate()}`;
+  }
+  return `${months[start.getMonth()]} ${start.getDate()} - ${
+    months[end.getMonth()]
+  } ${end.getDate()}`;
+}
+
+function getDeliveryStatus(): {
+  text: string;
+  icon: React.ReactNode;
+  color: string;
+} {
+  const hour = new Date().getHours();
+  if (hour >= 22) {
+    return {
+      text: "Order within 2 hours for faster processing",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      ),
+      color: "#f59e0b",
+    };
+  }
+  return {
+    text: "Express processing available",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <path d="M22 12h-4l-3 9-4-18-3 9H2" />
+      </svg>
+    ),
+    color: "#22c55e",
+  };
+}
 
 /* ═══════════════════════════════════════════
    TYPES
@@ -18,6 +104,20 @@ interface Toast {
   msg: string;
   type: "success" | "info";
   exiting?: boolean;
+}
+
+interface VariantImagesMap {
+  [variantId: string]: string[];
+}
+
+interface BulkPricingTier {
+  id?: string;
+  variant_id: string;
+  min_quantity: number;
+  max_quantity: number;
+  tier_price: number;
+  discount_percentage: number | null;
+  discount_price: number | null;
 }
 
 /* ═══════════════════════════════════════════
@@ -74,17 +174,187 @@ function Skeleton() {
 }
 
 /* ═══════════════════════════════════════════
+   STAR COMPONENT
+═══════════════════════════════════════════ */
+function StarIcon({
+  filled,
+  half = false,
+  size = 14,
+}: {
+  filled: boolean;
+  half?: boolean;
+  size?: number;
+}) {
+  if (half) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <defs>
+          <linearGradient id="half-grad">
+            <stop offset="50%" stopColor="#b8963e" />
+            <stop offset="50%" stopColor="transparent" />
+          </linearGradient>
+        </defs>
+        <polygon
+          points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+          fill="url(#half-grad)"
+          stroke="#b8963e"
+          strokeWidth="1.5"
+        />
+      </svg>
+    );
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24">
+      <polygon
+        points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+        fill={filled ? "#b8963e" : "none"}
+        stroke="#b8963e"
+        strokeWidth="1.5"
+        opacity={filled ? 1 : 0.35}
+      />
+    </svg>
+  );
+}
+
+function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
+  return (
+    <div style={{ display: "flex", gap: "2px" }}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <StarIcon key={i} filled={i <= Math.round(rating)} size={size} />
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   BULK PRICING COMPONENT
+═══════════════════════════════════════════ */
+function BulkPricingSelector({
+  tiers,
+  unitPrice,
+  onSelect,
+  selectedTier,
+  formatPrice,
+}: {
+  tiers: BulkPricingTier[];
+  unitPrice: number;
+  onSelect: (tier: BulkPricingTier | null) => void;
+  selectedTier: BulkPricingTier | null;
+  formatPrice: (value: number) => string;
+}) {
+  if (tiers.length === 0) return null;
+
+  const getTierLabel = (tier: BulkPricingTier): string => {
+    if (tier.min_quantity === tier.max_quantity) {
+      return `${tier.min_quantity} Piece${tier.min_quantity > 1 ? "s" : ""}`;
+    }
+    return `${tier.min_quantity} – ${tier.max_quantity} Pieces`;
+  };
+
+  return (
+    <div className="pd-bulk-section">
+      <div className="pd-bulk-header">
+        <span className="pd-bulk-title">Quantity Discounts:</span>
+        {selectedTier && (
+          <button
+            className="pd-bulk-clear"
+            onClick={() => onSelect(null)}
+            title="Remove bulk selection"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            Clear
+          </button>
+        )}
+      </div>
+      <div className="pd-bulk-tiers">
+        {tiers.map((tier, idx) => {
+          const isSelected = selectedTier?.id === tier.id;
+          const perPiece = tier.tier_price / tier.min_quantity;
+          const saving = unitPrice - perPiece;
+          const isBestValue = idx === tiers.length - 1 && tiers.length > 1;
+          return (
+            <button
+              key={tier.id ?? idx}
+              className={`pd-bulk-tier ${isSelected ? "active" : ""} ${
+                isBestValue ? "best-value" : ""
+              }`}
+              onClick={() => onSelect(isSelected ? null : tier)}
+            >
+              <div className="pd-bulk-tier-qty">
+                {getTierLabel(tier)}
+                {isBestValue && (
+                  <span className="pd-bulk-best">Best Value</span>
+                )}
+              </div>
+              <div className="pd-bulk-tier-price">
+                {formatPrice(tier.tier_price)}
+              </div>
+              <div className="pd-bulk-tier-perpiece">
+                {formatPrice(perPiece)}/pc
+              </div>
+              {saving > 0 && (
+                <div className="pd-bulk-tier-saving">
+                  Save {formatPrice(saving)}/pc
+                </div>
+              )}
+              {tier.discount_percentage && tier.discount_percentage > 0 && (
+                <div className="pd-bulk-tier-discount">
+                  {tier.discount_percentage}% OFF
+                </div>
+              )}
+              {isSelected && (
+                <div className="pd-bulk-check">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {selectedTier && (
+        <div className="pd-bulk-selected">
+          <span className="pd-bulk-selected-label">Selected:</span>
+          <span className="pd-bulk-selected-value">
+            {selectedTier.min_quantity} pieces
+          </span>
+          <span className="pd-bulk-selected-total">
+            Total: {formatPrice(selectedTier.tier_price)}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
    CATEGORY → ROUTE MAP
 ═══════════════════════════════════════════ */
 const categoryRoute: Record<string, string> = {
   Accessories: "/accessories",
-  Gadgets: "/gadgets",
+  Watches: "/watches",
+  Automotive: "/automotive",
   "Home Decor": "/home-decor",
 };
 
 const categoryLabel: Record<string, string> = {
   Accessories: "Mobile Accessories",
-  Gadgets: "Gadgets",
+  Watches: "Watches",
+  Automotive: "Automotive",
   "Home Decor": "Home Décor",
 };
 
@@ -98,58 +368,318 @@ export default function ProductDetail() {
 
   const [product, setProduct] = useState<Product | null>(null);
   const [related, setRelated] = useState<Product[]>([]);
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [variantImagesMap, setVariantImagesMap] = useState<VariantImagesMap>(
+    {}
+  );
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-
   const [activeImg, setActiveImg] = useState(0);
   const [imgEntering, setImgEntering] = useState(false);
   const [lightbox, setLightbox] = useState(false);
-
   const [qty, setQty] = useState(1);
   const [wishlist, setWishlist] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("description");
+  const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>([]);
+  const [selectedTier, setSelectedTier] = useState<BulkPricingTier | null>(
+    null
+  );
+  const [loadingTiers, setLoadingTiers] = useState(false);
+  const [liveRating, setLiveRating] = useState<number | null>(null);
+  const [liveReviewCount, setLiveReviewCount] = useState<number | null>(null);
+  const [estimatedDates, setEstimatedDates] = useState<{
+    readyFrom: Date;
+    readyTo: Date;
+    deliveryFrom: Date;
+    deliveryTo: Date;
+  } | null>(null);
 
   const { toasts, show: showToast } = useToast();
+  const { addToCart } = useCartStore();
+  const { formatPrice, currency, loading: currencyLoading } = useCurrency();
 
-  /* ── Fetch product ── */
+  // Set estimated dates when product loads
+  useEffect(() => {
+    if (product) setEstimatedDates(getEstimatedDates());
+  }, [product]);
+
+  // Fetch bulk pricing tiers when variant changes
+  useEffect(() => {
+    async function fetchBulkTiers() {
+      if (!selectedVariant?.id) {
+        setBulkTiers([]);
+        setSelectedTier(null);
+        return;
+      }
+      setLoadingTiers(true);
+      try {
+        const { data, error } = await supabase
+          .from("bulk_pricing_tiers")
+          .select("*")
+          .eq("variant_id", selectedVariant.id)
+          .order("min_quantity", { ascending: true });
+        if (!error && data) {
+          setBulkTiers(data);
+          setSelectedTier(null);
+        } else {
+          setBulkTiers([]);
+          setSelectedTier(null);
+        }
+      } catch (err) {
+        console.error("Error fetching bulk tiers:", err);
+        setBulkTiers([]);
+      } finally {
+        setLoadingTiers(false);
+      }
+    }
+    fetchBulkTiers();
+  }, [selectedVariant]);
+
+  /* ── Fetch product and variants ── */
   useEffect(() => {
     if (!id) return;
 
     async function load() {
       setLoading(true);
 
-      const { data, error } = await supabase
+      // Fetch product
+      const { data: productData, error: productError } = await supabase
         .from("products")
         .select("*")
         .eq("id", id)
         .eq("is_active", true)
         .single();
 
-      if (error || !data) {
+      if (productError || !productData) {
         setNotFound(true);
         setLoading(false);
         return;
       }
 
-      setProduct(data);
-      setLoading(false);
+      setProduct(productData);
+      setLiveRating(productData.rating || null);
+      setLiveReviewCount(productData.reviews_count || null);
 
-      /* Fetch related */
+      // Update browser title and URL meta
+      document.title = `${productData.name} | Tech4U`;
+
+      // Fetch variants
+      const { data: variantsData, error: variantsError } = await supabase
+        .from("product_variants")
+        .select("*")
+        .eq("product_id", id)
+        .eq("is_active", true);
+
+      if (!variantsError && variantsData && variantsData.length > 0) {
+        const sortedVariants = variantsData.sort((a, b) => {
+          const order = {
+            standard: 0,
+            color: 1,
+            size: 2,
+            material: 3,
+            capacity: 4,
+          };
+          return (
+            (order[a.attribute_type as keyof typeof order] || 5) -
+            (order[b.attribute_type as keyof typeof order] || 5)
+          );
+        });
+        setVariants(sortedVariants);
+        setSelectedVariant(sortedVariants[0]);
+
+        const variantIds = sortedVariants.map((v) => v.id);
+        const { data: imagesData } = await supabase
+          .from("variant_images")
+          .select("*")
+          .in("variant_id", variantIds)
+          .order("display_order", { ascending: true });
+
+        if (imagesData) {
+          const imagesByVariant: VariantImagesMap = {};
+          imagesData.forEach((img: any) => {
+            if (!imagesByVariant[img.variant_id])
+              imagesByVariant[img.variant_id] = [];
+            imagesByVariant[img.variant_id].push(img.image_url);
+          });
+          setVariantImagesMap(imagesByVariant);
+        }
+      } else {
+        setSelectedVariant(null);
+      }
+
+      // Fetch related products
       const { data: rel } = await supabase
         .from("products")
         .select("*")
         .eq("is_active", true)
-        .eq("category", data.category)
+        .eq("category", productData.category)
         .neq("id", id)
         .limit(4);
 
       setRelated(rel || []);
+      setLoading(false);
     }
 
     load();
   }, [id]);
 
-  /* ── Scroll reveal ── */
+  /* ── Realtime rating updates ── */
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`product-rating-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "product_reviews",
+          filter: `product_id=eq.${id}`,
+        },
+        async () => {
+          const { data } = await supabase
+            .from("products")
+            .select("rating, reviews_count")
+            .eq("id", id)
+            .single();
+          if (data) {
+            setLiveRating(data.rating);
+            setLiveReviewCount(data.reviews_count);
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
+
+  const currentImages =
+    selectedVariant?.id && variantImagesMap[selectedVariant.id]
+      ? variantImagesMap[selectedVariant.id]
+      : product?.images || [];
+
+  const getCurrentPrice = (): number => {
+    if (selectedTier) return selectedTier.tier_price;
+    return selectedVariant?.price || product?.price || 0;
+  };
+
+  const getPerPiecePrice = (): number => {
+    if (selectedTier)
+      return selectedTier.tier_price / selectedTier.min_quantity;
+    return selectedVariant?.price || product?.price || 0;
+  };
+
+  const getQuantityToAdd = (): number => {
+    return selectedTier ? selectedTier.min_quantity : qty;
+  };
+
+  const currentPrice = getCurrentPrice();
+  const currentPerPiecePrice = getPerPiecePrice();
+  const currentOriginalPrice =
+    selectedVariant?.original_price || product?.original_price || 0;
+  const currentStock = selectedVariant?.stock || product?.stock || 0;
+  const discount =
+    currentOriginalPrice > currentPerPiecePrice
+      ? Math.round(
+          ((currentOriginalPrice - currentPerPiecePrice) /
+            currentOriginalPrice) *
+            100
+        )
+      : 0;
+  const savings =
+    currentOriginalPrice > currentPerPiecePrice
+      ? currentOriginalPrice - currentPerPiecePrice
+      : 0;
+  const stockClass =
+    currentStock === 0 ? "out" : currentStock < 5 ? "low" : "in";
+  const stockLabel =
+    currentStock === 0
+      ? "Out of Stock"
+      : currentStock < 5
+      ? `Only ${currentStock} Left`
+      : "In Stock";
+
+  const variantsByType: Record<string, ProductVariant[]> = {};
+  variants.forEach((v) => {
+    if (!variantsByType[v.attribute_type])
+      variantsByType[v.attribute_type] = [];
+    variantsByType[v.attribute_type].push(v);
+  });
+
+  const getVariantImage = (variantId: string): string | null => {
+    const imgs = variantImagesMap[variantId];
+    return imgs && imgs.length > 0 ? imgs[0] : null;
+  };
+
+  function handleVariantSelect(variant: ProductVariant) {
+    setSelectedVariant(variant);
+    setSelectedTier(null);
+    setQty(1);
+    setActiveImg(0);
+  }
+
+  function switchImg(idx: number) {
+    if (idx === activeImg) return;
+    setImgEntering(true);
+    setTimeout(() => {
+      setActiveImg(idx);
+      setImgEntering(false);
+    }, 80);
+  }
+
+  function handleAddToCart() {
+    if (!product || currentStock === 0) return;
+    const quantityToAdd = getQuantityToAdd();
+    const productToAdd = {
+      id: product.id,
+      name: product.name,
+      description: selectedVariant?.description || product.description || "",
+      category: product.category,
+      subcategory: product.subcategory,
+      brand: product.brand || "",
+      condition: product.condition,
+      is_featured: product.is_featured,
+      is_active: product.is_active,
+      images: currentImages,
+      price: currentPerPiecePrice,
+      original_price: currentOriginalPrice,
+      stock: currentStock,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    addToCart(productToAdd, selectedVariant, quantityToAdd);
+    if (selectedTier) {
+      showToast(
+        `${quantityToAdd} × ${product.name} (bulk) added to cart`,
+        "success"
+      );
+    } else {
+      showToast(`${quantityToAdd} × ${product.name} added to cart`, "success");
+    }
+  }
+
+  function handleBuyNow() {
+    if (!product || currentStock === 0) return;
+    handleAddToCart();
+    router.push("/checkout");
+  }
+
+  useEffect(() => {
+    setActiveImg(0);
+  }, [selectedVariant]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightbox(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   useEffect(() => {
     const els = document.querySelectorAll(".pd-reveal");
     const obs = new IntersectionObserver(
@@ -163,67 +693,8 @@ export default function ProductDetail() {
     return () => obs.disconnect();
   }, [loading, product]);
 
-  /* ── ESC closes lightbox ── */
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightbox(false);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  /* ── Image switch ── */
-  function switchImg(idx: number) {
-    if (idx === activeImg) return;
-    setImgEntering(true);
-    setTimeout(() => {
-      setActiveImg(idx);
-      setImgEntering(false);
-    }, 80);
-  }
-
-  /* ── Helpers ── */
-  const discount =
-    product?.original_price && product.original_price > product.price
-      ? Math.round(
-          ((product.original_price - product.price) / product.original_price) *
-            100
-        )
-      : 0;
-
-  const savings =
-    product?.original_price && product.original_price > product.price
-      ? product.original_price - product.price
-      : 0;
-
-  const stockClass = !product
-    ? ""
-    : product.stock === 0
-    ? "out"
-    : product.stock < 5
-    ? "low"
-    : "in";
-
-  const stockLabel = !product
-    ? ""
-    : product.stock === 0
-    ? "Out of Stock"
-    : product.stock < 5
-    ? `Only ${product.stock} Left`
-    : "In Stock";
-
-  const { addToCart } = useCartStore();
-
-  function handleAddToCart() {
-    if (!product || product.stock === 0) return;
-    addToCart(product, qty);
-    showToast(`${qty} × ${product.name} added to cart`, "success");
-  }
-
-  /* ═══════════════════════════════════════════
-     RENDER STATES
-  ═══════════════════════════════════════════ */
-  if (loading) {
+  // Show loading state
+  if (loading || currencyLoading) {
     return (
       <div className="pd-root">
         <div className="pd-ambient" aria-hidden="true" />
@@ -241,7 +712,7 @@ export default function ProductDetail() {
         <div className="pd-notfound">
           <p className="pd-eyebrow">
             <span className="pd-ey-line" />
-            Aurexia Store
+            Tech4U Store
             <span className="pd-ey-line" />
           </p>
           <h1 className="pd-notfound-title">Product Not Found</h1>
@@ -267,16 +738,13 @@ export default function ProductDetail() {
 
   const catHref = categoryRoute[product.category] || "/";
   const catLabel = categoryLabel[product.category] || product.category;
-  const images = product.images?.length ? product.images : [];
-  const specs = product.specs || {};
+  const images =
+    currentImages.length > 0 ? currentImages : product.images || [];
+  const specs = (product as any).specs || {};
   const hasSpecs = Object.keys(specs).length > 0;
 
-  /* ═══════════════════════════════════════════
-     FULL RENDER
-  ═══════════════════════════════════════════ */
   return (
     <div className="pd-root">
-      {/* Background effects */}
       <div className="pd-ambient" aria-hidden="true" />
       <div className="pd-grain" aria-hidden="true" />
       <div className="pd-lines" aria-hidden="true">
@@ -286,8 +754,16 @@ export default function ProductDetail() {
       </div>
 
       <div className="pd-content">
-        {/* Breadcrumb */}
-        <nav className="pd-breadcrumb" aria-label="Breadcrumb">
+        <div className="pd-currency-indicator">
+          <span className="pd-currency-flag">{currency.flag}</span>
+          <span className="pd-currency-code">{currency.code}</span>
+          <span className="pd-currency-rate">
+            1 PKR = {currency.rate} {currency.code}
+          </span>
+        </div>
+
+        {/* Breadcrumb with product name */}
+        <nav className="pd-breadcrumb">
           <Link href="/">Home</Link>
           <span className="pd-breadcrumb-sep">›</span>
           <Link href={catHref}>{catLabel}</Link>
@@ -307,9 +783,8 @@ export default function ProductDetail() {
           <span className="pd-breadcrumb-current">{product.name}</span>
         </nav>
 
-        {/* ── Main grid ── */}
         <div className="pd-grid">
-          {/* ════ IMAGE GALLERY ════ */}
+          {/* GALLERY */}
           <div className="pd-gallery">
             <div
               className="pd-main-img-wrap"
@@ -335,15 +810,11 @@ export default function ProductDetail() {
                   </svg>
                 </div>
               )}
-
-              {/* Image counter */}
               {images.length > 1 && (
                 <div className="pd-img-counter">
                   {activeImg + 1} / {images.length}
                 </div>
               )}
-
-              {/* Zoom hint */}
               {images.length > 0 && (
                 <div className="pd-zoom-hint">
                   <svg
@@ -360,8 +831,6 @@ export default function ProductDetail() {
                   Zoom
                 </div>
               )}
-
-              {/* Badges */}
               <div className="pd-img-badges">
                 {product.is_featured && (
                   <span className="pd-badge pd-badge--feat">Featured</span>
@@ -374,8 +843,6 @@ export default function ProductDetail() {
                 )}
               </div>
             </div>
-
-            {/* Thumbnails */}
             {images.length > 1 && (
               <div className="pd-thumbs">
                 {images.map((src, idx) => (
@@ -383,7 +850,6 @@ export default function ProductDetail() {
                     key={idx}
                     className={`pd-thumb${activeImg === idx ? " active" : ""}`}
                     onClick={() => switchImg(idx)}
-                    aria-label={`Image ${idx + 1}`}
                   >
                     <img src={src} alt="" />
                   </button>
@@ -392,17 +858,29 @@ export default function ProductDetail() {
             )}
           </div>
 
-          {/* ════ PRODUCT INFO ════ */}
+          {/* PRODUCT INFO */}
           <div className="pd-info">
             <p className="pd-eyebrow">
               <span className="pd-ey-line" />
               {product.subcategory || product.category}
               <span className="pd-ey-line" />
             </p>
-
             {product.brand && <p className="pd-brand">{product.brand}</p>}
-
             <h1 className="pd-title">{product.name}</h1>
+
+            {liveRating !== null &&
+              liveReviewCount !== null &&
+              liveReviewCount > 0 && (
+                <div className="pd-rating-display">
+                  <div className="pd-rating-stars-sm">
+                    <StarDisplay rating={liveRating} size={14} />
+                  </div>
+                  <span className="pd-rating-val">{liveRating.toFixed(1)}</span>
+                  <span className="pd-rating-total">
+                    ({liveReviewCount} review{liveReviewCount !== 1 ? "s" : ""})
+                  </span>
+                </div>
+              )}
 
             <div className="pd-sep">
               <span className="pd-sep-line" />
@@ -416,44 +894,79 @@ export default function ProductDetail() {
               />
             </div>
 
-            {/* Price block */}
             <div className="pd-price-block">
               <div className="pd-price-row">
-                <span className="pd-price">
-                  PKR {product.price.toLocaleString()}
-                </span>
-                {product.original_price &&
-                  product.original_price > product.price && (
-                    <span className="pd-price-original">
-                      PKR {product.original_price.toLocaleString()}
-                    </span>
-                  )}
+                <span className="pd-price">{formatPrice(currentPrice)}</span>
+                {currentOriginalPrice > currentPerPiecePrice && (
+                  <span className="pd-price-original">
+                    {formatPrice(currentOriginalPrice)}
+                  </span>
+                )}
                 {discount > 0 && (
                   <span className="pd-discount-pill">−{discount}% OFF</span>
                 )}
               </div>
-              {savings > 0 && (
-                <p className="pd-savings">
-                  ✦ You save PKR {savings.toLocaleString()}
+              {selectedTier && (
+                <p className="pd-per-piece-info">
+                  Per piece: {formatPrice(currentPerPiecePrice)}
                 </p>
               )}
+              {savings > 0 && (
+                <p className="pd-savings">✦ You save {formatPrice(savings)}</p>
+              )}
+              <p className="pd-price-base">
+                Base price: PKR {currentPerPiecePrice.toLocaleString()} / piece
+              </p>
             </div>
 
-            {/* Stock status */}
-            <div
-              className={`pd-stock ${stockClass}`}
-              style={{ marginTop: "1rem" }}
-            >
+            {/* VARIANT SELECTORS */}
+            {Object.entries(variantsByType).map(([type, typeVariants]) => (
+              <div key={type} className="pd-attr">
+                <span className="pd-attr-label">
+                  {type.charAt(0).toUpperCase() + type.slice(1)}:
+                </span>
+                <div className="pd-attr-tags">
+                  {typeVariants.map((variant) => (
+                    <button
+                      key={variant.id}
+                      className={`pd-attr-tag ${
+                        selectedVariant?.id === variant.id ? "active" : ""
+                      }`}
+                      onClick={() => handleVariantSelect(variant)}
+                    >
+                      {variant.id && getVariantImage(variant.id) && (
+                        <img
+                          src={getVariantImage(variant.id!)!}
+                          alt={variant.attribute_value}
+                          className="pd-attr-img"
+                        />
+                      )}
+                      <span>{variant.attribute_value}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {/* BULK PRICING SELECTOR */}
+            {bulkTiers.length > 0 && !loadingTiers && (
+              <BulkPricingSelector
+                tiers={bulkTiers}
+                unitPrice={selectedVariant?.price || product.price || 0}
+                onSelect={setSelectedTier}
+                selectedTier={selectedTier}
+                formatPrice={formatPrice}
+              />
+            )}
+
+            <div className={`pd-stock ${stockClass}`}>
               <span className="pd-stock-dot" />
               {stockLabel}
             </div>
-
-            {/* Short description */}
             {product.description && (
               <p className="pd-description">{product.description}</p>
             )}
 
-            {/* Feature pills */}
             <div className="pd-features">
               <div className="pd-feat-pill">
                 <svg
@@ -503,54 +1016,61 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            {/* Actions */}
             <div className="pd-actions">
-              {/* Qty */}
-              <div className="pd-qty-row">
-                <span className="pd-qty-label">Qty</span>
-                <div className="pd-qty-ctrl">
-                  <button
-                    className="pd-qty-btn"
-                    onClick={() => setQty((q) => Math.max(1, q - 1))}
-                    disabled={qty <= 1}
-                    aria-label="Decrease quantity"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
+              {!selectedTier && (
+                <div className="pd-qty-row">
+                  <span className="pd-qty-label">Qty</span>
+                  <div className="pd-qty-ctrl">
+                    <button
+                      className="pd-qty-btn"
+                      onClick={() => setQty((q) => Math.max(1, q - 1))}
+                      disabled={qty <= 1}
                     >
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </button>
-                  <span className="pd-qty-val">{qty}</span>
-                  <button
-                    className="pd-qty-btn"
-                    onClick={() =>
-                      setQty((q) => Math.min(product.stock, q + 1))
-                    }
-                    disabled={qty >= product.stock || product.stock === 0}
-                    aria-label="Increase quantity"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    </button>
+                    <span className="pd-qty-val">{qty}</span>
+                    <button
+                      className="pd-qty-btn"
+                      onClick={() =>
+                        setQty((q) => Math.min(currentStock, q + 1))
+                      }
+                      disabled={qty >= currentStock || currentStock === 0}
                     >
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </button>
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              {/* CTA row */}
+              )}
+              {selectedTier && (
+                <div className="pd-bulk-qty-display">
+                  <span className="pd-bulk-qty-label">Quantity:</span>
+                  <span className="pd-bulk-qty-value">
+                    {selectedTier.min_quantity} pieces
+                  </span>
+                  <span className="pd-bulk-qty-total">
+                    Total: {formatPrice(selectedTier.tier_price)}
+                  </span>
+                </div>
+              )}
               <div className="pd-cta-row">
                 <button
                   className="pd-add-cart"
-                  disabled={product.stock === 0}
+                  disabled={currentStock === 0}
                   onClick={handleAddToCart}
                 >
                   <svg
@@ -563,9 +1083,12 @@ export default function ProductDetail() {
                     <line x1="3" y1="6" x2="21" y2="6" />
                     <path d="M16 10a4 4 0 01-8 0" />
                   </svg>
-                  {product.stock === 0 ? "Out of Stock" : "Add to Cart"}
+                  {currentStock === 0
+                    ? "Out of Stock"
+                    : selectedTier
+                    ? `Add to Cart (${selectedTier.min_quantity} pcs)`
+                    : `Add to Cart (${qty} pc${qty > 1 ? "s" : ""})`}
                 </button>
-
                 <button
                   className={`pd-wishlist${wishlist ? " active" : ""}`}
                   onClick={() => {
@@ -575,7 +1098,6 @@ export default function ProductDetail() {
                       "success"
                     );
                   }}
-                  aria-label="Toggle wishlist"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -587,13 +1109,8 @@ export default function ProductDetail() {
                   </svg>
                 </button>
               </div>
-
-              {/* Buy Now */}
-              {product.stock > 0 && (
-                <button
-                  className="pd-buy-now"
-                  onClick={() => showToast("Redirecting to checkout…", "info")}
-                >
+              {currentStock > 0 && (
+                <button className="pd-buy-now" onClick={handleBuyNow}>
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -609,7 +1126,6 @@ export default function ProductDetail() {
               )}
             </div>
 
-            {/* Meta info */}
             <div className="pd-meta pd-reveal">
               <div className="pd-meta-item">
                 <p className="pd-meta-label">Category</p>
@@ -635,15 +1151,15 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {/* ════ TABS SECTION ════ */}
+        {/* TABS SECTION */}
         <div className="pd-tabs-section pd-reveal">
-          <div className="pd-tab-bar" role="tablist">
+          <div className="pd-tab-bar">
             {(
               [
                 { key: "description", label: "Description" },
                 { key: "specs", label: "Specifications" },
                 { key: "shipping", label: "Shipping & Returns" },
-              ] as { key: TabKey; label: string }[]
+              ] as const
             ).map(({ key, label }) => (
               <button
                 key={key}
@@ -656,26 +1172,21 @@ export default function ProductDetail() {
               </button>
             ))}
           </div>
-
-          {/* Description panel */}
           {activeTab === "description" && (
-            <div className="pd-tab-panel" role="tabpanel">
+            <div className="pd-tab-panel">
               <p className="pd-desc-long">
-                {product.description ||
-                  "No detailed description available for this product."}
+                {product.description || "No detailed description available."}
               </p>
             </div>
           )}
-
-          {/* Specs panel */}
           {activeTab === "specs" && (
-            <div className="pd-tab-panel" role="tabpanel">
+            <div className="pd-tab-panel">
               {hasSpecs ? (
                 <div className="pd-specs-grid">
                   {Object.entries(specs).map(([key, val]) => (
                     <div className="pd-spec-row" key={key}>
                       <div className="pd-spec-key">{key}</div>
-                      <div className="pd-spec-val">{val}</div>
+                      <div className="pd-spec-val">{val as string}</div>
                     </div>
                   ))}
                 </div>
@@ -684,90 +1195,178 @@ export default function ProductDetail() {
               )}
             </div>
           )}
-
-          {/* Shipping panel */}
           {activeTab === "shipping" && (
-            <div className="pd-tab-panel" role="tabpanel">
-              <div className="pd-shipping-grid">
-                <div className="pd-ship-card">
-                  <div className="pd-ship-icon">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    >
-                      <rect x="1" y="3" width="15" height="13" rx="1" />
-                      <path d="M16 8h4l3 3v5h-7V8z" />
-                      <circle cx="5.5" cy="18.5" r="2.5" />
-                      <circle cx="18.5" cy="18.5" r="2.5" />
-                    </svg>
-                  </div>
-                  <p className="pd-ship-title">Free Delivery</p>
-                  <p className="pd-ship-desc">
-                    Complimentary delivery across Pakistan on all orders.
-                    Estimated 2–5 business days.
-                  </p>
-                </div>
-                <div className="pd-ship-card">
-                  <div className="pd-ship-icon">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    >
-                      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                      <polyline points="17 6 23 6 23 12" />
-                    </svg>
-                  </div>
-                  <p className="pd-ship-title">Easy Returns</p>
-                  <p className="pd-ship-desc">
-                    30-day hassle-free returns on all items. Contact support for
-                    a smooth experience.
-                  </p>
-                </div>
-                <div className="pd-ship-card">
-                  <div className="pd-ship-icon">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    >
-                      <rect x="1" y="4" width="22" height="16" rx="2" />
-                      <line x1="1" y1="10" x2="23" y2="10" />
-                    </svg>
-                  </div>
-                  <p className="pd-ship-title">Cash on Delivery</p>
-                  <p className="pd-ship-desc">
-                    Pay at your door — no card needed. COD available across all
-                    major cities.
-                  </p>
-                </div>
-                <div className="pd-ship-card">
-                  <div className="pd-ship-icon">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    >
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </svg>
-                  </div>
-                  <p className="pd-ship-title">Authentic Products</p>
-                  <p className="pd-ship-desc">
-                    Every product is verified for authenticity. 100% genuine or
-                    full refund guaranteed.
-                  </p>
-                </div>
-              </div>
+            <div className="pd-tab-panel">
+              <p className="pd-desc-long">
+                Free shipping on all orders over PKR 3,000. Standard delivery
+                takes 3-5 business days. Easy returns within 30 days of
+                delivery.
+              </p>
             </div>
           )}
         </div>
 
-        {/* ════ RELATED PRODUCTS ════ */}
+        {/* ESTIMATED DELIVERY SECTION */}
+        {estimatedDates && (
+          <section className="pd-delivery-section pd-reveal">
+            <div className="pd-delivery-header">
+              <div className="pd-delivery-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="pd-delivery-title">Estimated Delivery</h3>
+                <p className="pd-delivery-sub">
+                  Order processing & shipping timeline
+                </p>
+              </div>
+            </div>
+            <div className="pd-delivery-timeline">
+              <div className="pd-timeline-node">
+                <div className="pd-timeline-dot" />
+                <span className="pd-timeline-label">Order</span>
+                <span className="pd-timeline-date">Today</span>
+              </div>
+              <div className="pd-timeline-line" />
+              <div className="pd-timeline-node">
+                <div className="pd-timeline-dot" />
+                <span className="pd-timeline-label">Ready</span>
+                <span className="pd-timeline-date">
+                  {formatDateRange(
+                    estimatedDates.readyFrom,
+                    estimatedDates.readyTo
+                  )}
+                </span>
+              </div>
+              <div className="pd-timeline-line" />
+              <div className="pd-timeline-node">
+                <div className="pd-timeline-dot" />
+                <span className="pd-timeline-label">Deliver</span>
+                <span className="pd-timeline-date">
+                  {formatDateRange(
+                    estimatedDates.deliveryFrom,
+                    estimatedDates.deliveryTo
+                  )}
+                </span>
+              </div>
+            </div>
+            <div className="pd-delivery-row">
+              <span className="pd-delivery-row-label">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                Processing Time
+              </span>
+              <span className="pd-delivery-row-value">2-3 business days</span>
+            </div>
+            <div className="pd-delivery-row">
+              <span className="pd-delivery-row-label">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <path d="M22 12h-4l-3 9-4-18-3 9H2" />
+                </svg>
+                Shipping Time
+              </span>
+              <span className="pd-delivery-row-value">4-8 business days</span>
+            </div>
+            <div className="pd-delivery-status">
+              <span className="pd-delivery-status-text">
+                {getDeliveryStatus().icon}
+                {getDeliveryStatus().text}
+              </span>
+              <span className="pd-delivery-urgency">
+                Free Shipping over PKR 3,000
+              </span>
+            </div>
+          </section>
+        )}
+
+        {/* TRUST BADGES SECTION */}
+        <section className="pd-trust-section pd-reveal">
+          <div className="pd-trust-grid">
+            <div className="pd-trust-item">
+              <div className="pd-trust-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0110 0v4" />
+                </svg>
+              </div>
+              <span className="pd-trust-label">Secure Payment</span>
+              <span className="pd-trust-desc">256-bit SSL encryption</span>
+            </div>
+            <div className="pd-trust-item">
+              <div className="pd-trust-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M16 12h-4V8" />
+                </svg>
+              </div>
+              <span className="pd-trust-label">30-Day Returns</span>
+              <span className="pd-trust-desc">Money back guarantee</span>
+            </div>
+            <div className="pd-trust-item">
+              <div className="pd-trust-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <path d="M9 12l2 2 4-4" />
+                </svg>
+              </div>
+              <span className="pd-trust-label">100% Authentic</span>
+              <span className="pd-trust-desc">Verified products only</span>
+            </div>
+            <div className="pd-trust-item">
+              <div className="pd-trust-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+                </svg>
+              </div>
+              <span className="pd-trust-label">24/7 Support</span>
+              <span className="pd-trust-desc">Live chat & email</span>
+            </div>
+          </div>
+        </section>
+
+        {/* REVIEWS & RATINGS */}
+        {product.id && <ProductReviews productId={product.id} />}
+
+        {/* RELATED PRODUCTS */}
         {related.length > 0 && (
           <section className="pd-related pd-reveal">
             <div className="pd-related-header">
@@ -780,14 +1379,13 @@ export default function ProductDetail() {
                 You May Also <em>Like</em>
               </h2>
             </div>
-
             <div className="pd-related-grid">
               {related.map((rel) => {
+                const relPrice = rel.price || 0;
                 const relDisc =
-                  rel.original_price && rel.original_price > rel.price
+                  rel.original_price && rel.original_price > relPrice
                     ? Math.round(
-                        ((rel.original_price - rel.price) /
-                          rel.original_price) *
+                        ((rel.original_price - relPrice) / rel.original_price) *
                           100
                       )
                     : 0;
@@ -809,7 +1407,6 @@ export default function ProductDetail() {
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
-                            strokeWidth="0.8"
                           >
                             <rect x="3" y="3" width="18" height="18" rx="2" />
                             <circle cx="8.5" cy="8.5" r="1.5" />
@@ -830,8 +1427,29 @@ export default function ProductDetail() {
                         <p className="pd-rel-card-brand">{rel.brand}</p>
                       )}
                       <h3 className="pd-rel-card-name">{rel.name}</h3>
+                      {rel.rating && rel.reviews_count ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.4rem",
+                            marginBottom: "0.3rem",
+                          }}
+                        >
+                          <StarDisplay rating={rel.rating} size={11} />
+                          <span
+                            style={{
+                              fontFamily: "var(--pd-sans)",
+                              fontSize: "0.58rem",
+                              color: "rgba(245,240,232,0.45)",
+                            }}
+                          >
+                            ({rel.reviews_count})
+                          </span>
+                        </div>
+                      ) : null}
                       <p className="pd-rel-card-price">
-                        PKR {rel.price.toLocaleString()}
+                        {formatPrice(relPrice)}
                       </p>
                     </div>
                     <div className="pd-rel-card-line" />
@@ -843,15 +1461,8 @@ export default function ProductDetail() {
         )}
       </div>
 
-      {/* ════ LIGHTBOX ════ */}
       {lightbox && images[activeImg] && (
-        <div
-          className="pd-lightbox"
-          onClick={() => setLightbox(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Image lightbox"
-        >
+        <div className="pd-lightbox" onClick={() => setLightbox(false)}>
           <img
             src={images[activeImg]}
             alt={product.name}
@@ -860,14 +1471,8 @@ export default function ProductDetail() {
           <button
             className="pd-lightbox-close"
             onClick={() => setLightbox(false)}
-            aria-label="Close lightbox"
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -875,8 +1480,7 @@ export default function ProductDetail() {
         </div>
       )}
 
-      {/* ════ TOASTS ════ */}
-      <div className="pd-toast-wrap" aria-live="polite">
+      <div className="pd-toast-wrap">
         {toasts.map((t) => (
           <div
             key={t.id}
@@ -885,12 +1489,7 @@ export default function ProductDetail() {
             }`}
           >
             <div className="pd-toast-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>

@@ -7,8 +7,8 @@ export default function WallDecor() {
     <Subcategory
       category="Home Decor"
       subcategory="Wall Decor"
-      title="Wall <em>Decor</em>"
-      description="Stunning wall art, mirrors, and decorative pieces to enhance your walls"
+      title="Artistic <em>Wall Decor</em>"
+      description="Transform your walls with our curated collection of art, mirrors, and wall installations"
       breadcrumb={{
         parent: "Home Decor",
         parentHref: "/home-decor",

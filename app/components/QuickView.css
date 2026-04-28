@@ -474,3 +474,293 @@
     font-size: 1.3rem;
   }
 }
+
+/* QuickView Attributes Styles */
+.qv-attributes {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(218, 165, 32, 0.15);
+}
+
+.qv-attr {
+  margin-bottom: 0.75rem;
+}
+
+.qv-attr-label {
+  display: block;
+  font-family: var(--fp-sans, "Josefin Sans", sans-serif);
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #8b6914;
+  margin-bottom: 0.4rem;
+}
+
+.qv-attr-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.qv-attr-tag {
+  padding: 0.25rem 0.7rem;
+  background: rgba(218, 165, 32, 0.08);
+  border: 1px solid rgba(218, 165, 32, 0.15);
+  border-radius: 20px;
+  font-family: var(--fp-sans, "Josefin Sans", sans-serif);
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: #444;
+}
+
+/* Add to QuickView.css */
+.qv-attr-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  background: rgba(218, 165, 32, 0.08);
+  border: 1px solid rgba(218, 165, 32, 0.15);
+  border-radius: 30px;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: #444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.qv-attr-tag.active {
+  background: #daa520;
+  border-color: #daa520;
+  color: white;
+}
+
+.qv-attr-tag:hover:not(.active) {
+  background: rgba(218, 165, 32, 0.15);
+  border-color: #daa520;
+}
+
+.qv-attr-img {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Add these styles to QuickView.css */
+
+/* Per Piece Info */
+.qv-per-piece-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: -0.25rem;
+  margin-bottom: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.qv-per-piece-label {
+  font-family: var(--fp-sans, "Josefin Sans", sans-serif);
+  font-size: 0.65rem;
+  color: #666666;
+}
+
+.qv-per-piece-saving {
+  font-family: var(--fp-sans, "Josefin Sans", sans-serif);
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 20px;
+}
+
+/* Bulk Pricing Section */
+.qv-bulk-section {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(218, 165, 32, 0.15);
+}
+
+.qv-bulk-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.qv-bulk-tiers::-webkit-scrollbar {
+  width: 3px;
+}
+
+.qv-bulk-tiers::-webkit-scrollbar-track {
+  background: rgba(218, 165, 32, 0.05);
+  border-radius: 3px;
+}
+
+.qv-bulk-tiers::-webkit-scrollbar-thumb {
+  background: rgba(218, 165, 32, 0.3);
+  border-radius: 3px;
+}
+
+.qv-bulk-tier {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(218, 165, 32, 0.04);
+  border: 1px solid rgba(218, 165, 32, 0.15);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.qv-bulk-tier:hover {
+  background: rgba(218, 165, 32, 0.08);
+  border-color: #daa520;
+  transform: translateX(4px);
+}
+
+.qv-bulk-tier.active {
+  background: rgba(218, 165, 32, 0.12);
+  border-color: #daa520;
+  border-width: 2px;
+}
+
+.qv-bulk-tier.single-item {
+  background: rgba(218, 165, 32, 0.02);
+}
+
+.qv-bulk-tier.best-value {
+  position: relative;
+  overflow: hidden;
+}
+
+.qv-bulk-tier.best-value::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 30px 30px 0;
+  border-color: transparent #daa520 transparent transparent;
+}
+
+.qv-bulk-best {
+  font-size: 0.55rem;
+  font-weight: 700;
+  background: #daa520;
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  margin-left: 0.5rem;
+}
+
+.qv-bulk-tier-qty {
+  font-family: var(--fp-sans, "Josefin Sans", sans-serif);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.qv-bulk-tier-price {
+  font-family: var(--fp-serif, "Cormorant Garamond", serif);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #8b6914;
+}
+
+.qv-bulk-tier-perpiece {
+  font-family: var(--fp-sans, "Josefin Sans", sans-serif);
+  font-size: 0.6rem;
+  color: #666666;
+}
+
+.qv-bulk-tier-saving {
+  font-family: var(--fp-sans, "Josefin Sans", sans-serif);
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: #22c55e;
+}
+
+.qv-bulk-tier-discount {
+  font-family: var(--fp-sans, "Josefin Sans", sans-serif);
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+}
+
+/* Selected Quantity Display */
+.qv-selected-qty {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  background: rgba(218, 165, 32, 0.08);
+  border-radius: 10px;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.qv-qty-label {
+  font-family: var(--fp-sans, "Josefin Sans", sans-serif);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8b6914;
+}
+
+.qv-qty-value {
+  font-family: var(--fp-sans, "Josefin Sans", sans-serif);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  background: #ffffff;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  border: 1px solid rgba(218, 165, 32, 0.2);
+}
+
+.qv-qty-total {
+  font-family: var(--fp-serif, "Cormorant Garamond", serif);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #8b6914;
+  margin-left: auto;
+}
+
+/* Responsive */
+@media (max-width: 500px) {
+  .qv-bulk-tier {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .qv-bulk-tier-price {
+    align-self: flex-end;
+  }
+  .qv-selected-qty {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .qv-qty-total {
+    margin-left: 0;
+  }
+}

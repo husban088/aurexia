@@ -13,29 +13,35 @@ export default function Cart() {
   const {
     items,
     loading,
+    initialized,
     fetchCart,
     updateQuantity,
     removeFromCart,
     getSubtotal,
+    getCartCount,
   } = useCartStore();
-  const { formatPrice, currency, convertPrice } = useCurrency();
+  const { formatPrice, convertPrice } = useCurrency();
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
 
+  // CRITICAL FIX: fetchCart ko dependency array mein mat rakho
+  // Zustand persist middleware ke saath function references change hote hain
+  // har render pe, jo infinite fetch loop create karta hai.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchCart();
-  }, [fetchCart]);
+  }, []);
 
   const subtotal = getSubtotal();
+  const cartCount = getCartCount();
   const discount = promoApplied ? Math.round(subtotal * 0.1) : 0;
   const shipping = subtotal - discount >= FREE_SHIPPING_THRESHOLD ? 0 : 250;
   const total = subtotal - discount + shipping;
   const shippingProgress = Math.min(
-    (subtotal / FREE_SHIPPING_THRESHOLD) * 100,
+    ((subtotal - discount) / FREE_SHIPPING_THRESHOLD) * 100,
     100
   );
 
-  // Convert values for display
   const remainingForFreeShipping = convertPrice(
     FREE_SHIPPING_THRESHOLD - (subtotal - discount)
   );
@@ -50,7 +56,8 @@ export default function Cart() {
     }
   };
 
-  if (loading) {
+  // Show spinner only when no items at all (not during background refresh)
+  if (loading && !initialized && items.length === 0) {
     return (
       <div className="cart-root">
         <div className="cart-grain" aria-hidden="true" />
@@ -91,21 +98,18 @@ export default function Cart() {
             <span className="cart-ey-line" />
           </p>
           <h1 className="cart-page-title">
-            {items.length === 0 ? (
+            {cartCount === 0 ? (
               "Your Cart"
             ) : (
               <>
-                <em>{items.reduce((a, b) => a + b.quantity, 0)}</em>{" "}
-                {items.reduce((a, b) => a + b.quantity, 0) === 1
-                  ? "Item"
-                  : "Items"}{" "}
-                in Cart
+                <em>{cartCount}</em> {cartCount === 1 ? "Item" : "Items"} in
+                Cart
               </>
             )}
           </h1>
         </div>
 
-        {items.length > 0 && (
+        {cartCount > 0 && (
           <div
             className={`cart-ship-bar${
               shipping === 0 ? " cart-ship-bar--done" : ""
@@ -149,7 +153,7 @@ export default function Cart() {
           </div>
         )}
 
-        {items.length === 0 ? (
+        {cartCount === 0 ? (
           <div className="cart-empty">
             <div className="cart-empty-icon" aria-hidden="true">
               <svg
@@ -191,7 +195,44 @@ export default function Cart() {
               <ul className="cart-list">
                 {items.map((item, i) => {
                   const product = item.product;
-                  const itemTotal = product.price * item.quantity;
+                  if (!product) return null;
+
+                  const itemPrice = item.variant_price || product.price || 0;
+                  const itemTotal = itemPrice * item.quantity;
+                  const displayImage =
+                    item.variant_image || product.images?.[0] || null;
+                  const displayName =
+                    item.variant_name && item.variant_name !== "Standard"
+                      ? `${product.name} (${item.variant_name})`
+                      : product.name;
+
+                  // ─── FIX: variantStock & variantStockStatus use karo ──────
+                  // cartStore mein yeh values correctly set hoti hain:
+                  //   in_stock     → variantStock = 999999 (unlimited)
+                  //   low_stock    → variantStock = threshold value
+                  //   out_of_stock → variantStock = 0
+                  // Pehle product.stock use ho raha tha jo GALAT tha —
+                  // product ka base stock alag hota hai variant ke stock se.
+                  const stockStatus = item.variantStockStatus ?? "in_stock";
+                  const variantStock = item.variantStock ?? 999999;
+
+                  const isOutOfStock = stockStatus === "out_of_stock";
+                  const isLowStock = stockStatus === "low_stock";
+
+                  const getStockLabel = () => {
+                    if (isOutOfStock) return "Out of Stock";
+                    if (isLowStock) return `Only ${variantStock} left`;
+                    return "In Stock";
+                  };
+
+                  // ─── FIX: + button disabled logic ────────────────────────
+                  // in_stock  → hamesha increment allow karo (stock=999999)
+                  // low_stock → sirf tab rok jab quantity limit tak pohonch jaye
+                  // out_of_stock → hamesha disabled
+                  const canIncrement =
+                    !isOutOfStock &&
+                    (stockStatus === "in_stock" ||
+                      item.quantity < variantStock);
 
                   return (
                     <li
@@ -200,12 +241,10 @@ export default function Cart() {
                       style={{ animationDelay: `${i * 0.07}s` }}
                     >
                       <div className="cart-item-img">
-                        {product.images?.[0] ? (
-                          <Image
-                            src={product.images[0]}
+                        {displayImage ? (
+                          <img
+                            src={displayImage}
                             alt={product.name}
-                            width={80}
-                            height={80}
                             style={{
                               objectFit: "cover",
                               width: "100%",
@@ -235,9 +274,18 @@ export default function Cart() {
                         {product.brand && (
                           <p className="cart-item-brand">{product.brand}</p>
                         )}
-                        <h3 className="cart-item-name">{product.name}</h3>
+                        <h3 className="cart-item-name">{displayName}</h3>
                         <p className="cart-item-variant">
                           {product.subcategory}
+                        </p>
+
+                        {/* Stock Status Indicator */}
+                        <p
+                          className={`cart-item-stock ${
+                            isOutOfStock ? "out" : isLowStock ? "low" : "in"
+                          }`}
+                        >
+                          {getStockLabel()}
                         </p>
 
                         <div className="cart-item-row">
@@ -248,6 +296,7 @@ export default function Cart() {
                                 updateQuantity(item.id, item.quantity - 1)
                               }
                               aria-label="Decrease quantity"
+                              disabled={isOutOfStock}
                             >
                               <svg
                                 viewBox="0 0 24 24"
@@ -267,7 +316,7 @@ export default function Cart() {
                                 updateQuantity(item.id, item.quantity + 1)
                               }
                               aria-label="Increase quantity"
-                              disabled={item.quantity >= product.stock}
+                              disabled={!canIncrement}
                             >
                               <svg
                                 viewBox="0 0 24 24"
@@ -388,10 +437,7 @@ export default function Cart() {
 
                 <div className="cart-breakdown">
                   <div className="cart-breakdown-row">
-                    <span>
-                      Subtotal ({items.reduce((a, b) => a + b.quantity, 0)}{" "}
-                      items)
-                    </span>
+                    <span>Subtotal ({cartCount} items)</span>
                     <span>{formatPrice(subtotal)}</span>
                   </div>
                   {promoApplied && (

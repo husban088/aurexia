@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════
    CART SIDEBAR — cartsidebar.css
-   Luxury dark, right-side panel
+   Light/Luxury theme matching Featured Products
 ═══════════════════════════════════════════ */
 
 /* Overlay */
@@ -16,7 +16,7 @@
 }
 
 .cs-overlay.open {
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
   pointer-events: auto;
 }
@@ -29,8 +29,8 @@
   width: 420px;
   max-width: 100vw;
   height: 100vh;
-  background: #0d0d0d;
-  border-left: 1px solid rgba(180, 145, 80, 0.15);
+  background: #ffffff;
+  border-left: 1px solid rgba(218, 165, 32, 0.2);
   z-index: 1200 !important;
   display: flex;
   flex-direction: column;
@@ -38,6 +38,7 @@
   transform: translateX(100%);
   transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
+  box-shadow: -5px 0 30px rgba(0, 0, 0, 0.1);
 }
 
 .cs-sidebar.open {
@@ -58,7 +59,7 @@
   width: 220px;
   height: 220px;
   border-radius: 50%;
-  border: 1px solid rgba(180, 145, 80, 0.07);
+  border: 1px solid rgba(218, 165, 32, 0.06);
   position: absolute;
   top: 0;
   right: 0;
@@ -67,7 +68,7 @@
 .cs-deco-ring--2 {
   width: 340px;
   height: 340px;
-  border-color: rgba(180, 145, 80, 0.04);
+  border-color: rgba(218, 165, 32, 0.04);
   top: -60px;
   right: -60px;
 }
@@ -80,7 +81,7 @@
   align-items: flex-start;
   justify-content: space-between;
   padding: 2rem 2rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(139, 105, 20, 0.1);
   flex-shrink: 0;
 }
 
@@ -90,10 +91,10 @@
   gap: 0.5rem;
   font-family: "Jost", sans-serif;
   font-size: 0.62rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(180, 145, 80, 0.8);
+  color: #8b6914;
   margin: 0 0 0.5rem;
 }
 
@@ -101,32 +102,33 @@
   display: block;
   width: 16px;
   height: 1px;
-  background: rgba(180, 145, 80, 0.5);
+  background: #daa520;
+  opacity: 0.7;
 }
 
 .cs-title {
   font-family: "Cormorant Garamond", serif;
   font-size: 2rem;
-  font-weight: 300;
-  color: #f5f0e8;
+  font-weight: 500;
+  color: #1a1a1a;
   margin: 0;
   line-height: 1;
 }
 
 .cs-title em {
   font-style: italic;
-  color: rgba(180, 145, 80, 0.9);
+  color: #daa520;
   margin-right: 0.2em;
 }
 
-/* Close */
+/* Close button */
 .cs-close-btn {
   width: 36px;
   height: 36px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(139, 105, 20, 0.15);
   border-radius: 50%;
   background: transparent;
-  color: rgba(245, 240, 232, 0.5);
+  color: #666666;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -142,29 +144,30 @@
 }
 
 .cs-close-btn:hover {
-  border-color: rgba(180, 145, 80, 0.5);
-  color: #b49150;
-  background: rgba(180, 145, 80, 0.06);
+  border-color: #daa520;
+  color: #daa520;
+  background: rgba(218, 165, 32, 0.08);
   transform: rotate(90deg);
 }
 
 /* Shipping Bar */
 .cs-shipping-bar {
   padding: 0.75rem 2rem;
-  background: rgba(180, 145, 80, 0.05);
-  border-bottom: 1px solid rgba(180, 145, 80, 0.1);
+  background: rgba(218, 165, 32, 0.05);
+  border-bottom: 1px solid rgba(218, 165, 32, 0.1);
   flex-shrink: 0;
 }
 
 .cs-shipping-bar--achieved {
   background: rgba(74, 124, 89, 0.08);
-  border-bottom-color: rgba(74, 124, 89, 0.2);
+  border-bottom-color: rgba(74, 124, 89, 0.15);
 }
 
 .cs-shipping-text {
   font-family: "Jost", sans-serif;
   font-size: 0.72rem;
-  color: rgba(245, 240, 232, 0.6);
+  font-weight: 500;
+  color: #444444;
   margin: 0 0 0.5rem;
   display: flex;
   align-items: center;
@@ -172,29 +175,25 @@
 }
 
 .cs-shipping-bar--achieved .cs-shipping-text {
-  color: rgba(120, 180, 130, 0.9);
+  color: #2d6a4f;
   margin-bottom: 0;
 }
 
 .cs-shipping-text strong {
-  color: #b49150;
-  font-weight: 500;
+  color: #daa520;
+  font-weight: 700;
 }
 
 .cs-shipping-track {
   height: 2px;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(139, 105, 20, 0.12);
   border-radius: 2px;
   overflow: hidden;
 }
 
 .cs-shipping-fill {
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    rgba(180, 145, 80, 0.5),
-    rgba(180, 145, 80, 1)
-  );
+  background: linear-gradient(90deg, rgba(218, 165, 32, 0.6), #daa520);
   border-radius: 2px;
   transition: width 0.4s ease;
 }
@@ -205,7 +204,7 @@
   overflow-y: auto;
   padding: 1.5rem 2rem;
   scrollbar-width: thin;
-  scrollbar-color: rgba(180, 145, 80, 0.2) transparent;
+  scrollbar-color: rgba(218, 165, 32, 0.3) transparent;
 }
 
 .cs-items::-webkit-scrollbar {
@@ -213,7 +212,7 @@
 }
 
 .cs-items::-webkit-scrollbar-thumb {
-  background: rgba(180, 145, 80, 0.2);
+  background: rgba(218, 165, 32, 0.3);
   border-radius: 2px;
 }
 
@@ -232,7 +231,7 @@
   align-items: flex-start;
   gap: 1rem;
   padding: 1.25rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(139, 105, 20, 0.08);
   position: relative;
   animation: csItemIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
   transition: background 0.2s ease;
@@ -253,13 +252,13 @@
   }
 }
 
-/* Image placeholder */
+/* Image */
 .cs-item-img-wrap {
   width: 68px;
   height: 68px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  background: #f5f0e8;
+  border: 1px solid rgba(218, 165, 32, 0.15);
   flex-shrink: 0;
   overflow: hidden;
   display: flex;
@@ -267,8 +266,14 @@
   justify-content: center;
 }
 
+.cs-item-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .cs-item-img-placeholder {
-  color: rgba(180, 145, 80, 0.25);
+  color: rgba(218, 165, 32, 0.3);
 }
 
 .cs-item-img-placeholder svg {
@@ -285,18 +290,18 @@
 .cs-item-brand {
   font-family: "Jost", sans-serif;
   font-size: 0.6rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: rgba(180, 145, 80, 0.7);
+  color: #8b6914;
   margin: 0 0 0.2rem;
 }
 
 .cs-item-name {
   font-family: "Cormorant Garamond", serif;
   font-size: 1rem;
-  font-weight: 400;
-  color: #f5f0e8;
+  font-weight: 600;
+  color: #1a1a1a;
   margin: 0 0 0.25rem;
   white-space: nowrap;
   overflow: hidden;
@@ -306,7 +311,8 @@
 .cs-item-variant {
   font-family: "Jost", sans-serif;
   font-size: 0.7rem;
-  color: rgba(245, 240, 232, 0.35);
+  font-weight: 400;
+  color: #666666;
   margin: 0 0 0.75rem;
 }
 
@@ -322,8 +328,8 @@
   display: flex;
   align-items: center;
   gap: 0;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #f5f0e8;
+  border: 1px solid rgba(218, 165, 32, 0.2);
   border-radius: 20px;
   overflow: hidden;
 }
@@ -333,7 +339,7 @@
   height: 26px;
   background: transparent;
   border: none;
-  color: rgba(245, 240, 232, 0.5);
+  color: #444444;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -347,15 +353,15 @@
 }
 
 .cs-qty-btn:hover {
-  color: #b49150;
-  background: rgba(180, 145, 80, 0.08);
+  color: #daa520;
+  background: rgba(218, 165, 32, 0.1);
 }
 
 .cs-qty-num {
   font-family: "Jost", sans-serif;
   font-size: 0.78rem;
-  font-weight: 500;
-  color: #f5f0e8;
+  font-weight: 600;
+  color: #1a1a1a;
   min-width: 22px;
   text-align: center;
 }
@@ -364,8 +370,8 @@
 .cs-item-price {
   font-family: "Cormorant Garamond", serif;
   font-size: 1rem;
-  font-weight: 500;
-  color: rgba(180, 145, 80, 0.9);
+  font-weight: 700;
+  color: #8b6914;
   margin: 0;
 }
 
@@ -374,9 +380,9 @@
   width: 28px;
   height: 28px;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(139, 105, 20, 0.15);
   border-radius: 50%;
-  color: rgba(245, 240, 232, 0.25);
+  color: #999999;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -393,9 +399,9 @@
 }
 
 .cs-item-remove:hover {
-  border-color: rgba(220, 80, 80, 0.4);
-  color: rgba(220, 80, 80, 0.7);
-  background: rgba(220, 80, 80, 0.06);
+  border-color: rgba(220, 80, 80, 0.5);
+  color: #dc2626;
+  background: rgba(220, 80, 80, 0.08);
   transform: rotate(90deg);
 }
 
@@ -412,7 +418,7 @@
 }
 
 .cs-empty-icon {
-  color: rgba(180, 145, 80, 0.25);
+  color: rgba(218, 165, 32, 0.25);
   margin-bottom: 0.75rem;
 }
 
@@ -424,15 +430,16 @@
 .cs-empty-title {
   font-family: "Cormorant Garamond", serif;
   font-size: 1.4rem;
-  font-weight: 300;
-  color: rgba(245, 240, 232, 0.7);
+  font-weight: 500;
+  color: #1a1a1a;
   margin: 0;
 }
 
 .cs-empty-sub {
   font-family: "Jost", sans-serif;
   font-size: 0.78rem;
-  color: rgba(245, 240, 232, 0.35);
+  font-weight: 400;
+  color: #666666;
   margin: 0;
 }
 
@@ -443,12 +450,12 @@
   margin-top: 1rem;
   padding: 0.65rem 1.5rem;
   background: transparent;
-  border: 1px solid rgba(180, 145, 80, 0.4);
+  border: 1px solid rgba(218, 165, 32, 0.4);
   border-radius: 2px;
-  color: rgba(180, 145, 80, 0.9);
+  color: #8b6914;
   font-family: "Jost", sans-serif;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   text-decoration: none;
@@ -456,18 +463,19 @@
 }
 
 .cs-empty-cta:hover {
-  background: rgba(180, 145, 80, 0.1);
-  border-color: rgba(180, 145, 80, 0.7);
-  color: #b49150;
+  background: rgba(218, 165, 32, 0.08);
+  border-color: #daa520;
+  color: #daa520;
   transform: translateY(-1px);
+  gap: 0.75rem;
 }
 
 /* Footer / Checkout */
 .cs-footer {
   padding: 1.5rem 2rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-top: 1px solid rgba(139, 105, 20, 0.1);
   flex-shrink: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: #faf7f2;
 }
 
 .cs-summary {
@@ -481,25 +489,26 @@
   padding: 0.3rem 0;
   font-family: "Jost", sans-serif;
   font-size: 0.78rem;
-  color: rgba(245, 240, 232, 0.5);
+  font-weight: 500;
+  color: #444444;
 }
 
 .cs-summary-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(139, 105, 20, 0.1);
   margin: 0.6rem 0;
 }
 
 .cs-summary-total {
   font-size: 0.9rem;
-  font-weight: 500;
-  color: #f5f0e8;
+  font-weight: 700;
+  color: #1a1a1a;
 }
 
 .cs-summary-total span:last-child {
   font-family: "Cormorant Garamond", serif;
   font-size: 1.15rem;
-  color: rgba(180, 145, 80, 1);
+  color: #8b6914;
 }
 
 /* Checkout Button */
@@ -510,17 +519,13 @@
   gap: 0.6rem;
   width: 100%;
   padding: 0.95rem 1.5rem;
-  background: linear-gradient(
-    135deg,
-    rgba(180, 145, 80, 0.9),
-    rgba(200, 165, 100, 0.9)
-  );
+  background: linear-gradient(135deg, #daa520, #f0c040);
   border: none;
-  border-radius: 2px;
-  color: #0a0a0a;
+  border-radius: 40px;
+  color: #1a1a1a;
   font-family: "Jost", sans-serif;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   text-decoration: none;
@@ -535,14 +540,15 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), transparent);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
 .cs-checkout-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(180, 145, 80, 0.3);
+  box-shadow: 0 8px 30px rgba(218, 165, 32, 0.3);
+  gap: 0.9rem;
 }
 
 .cs-checkout-btn:hover::before {
@@ -554,7 +560,7 @@
   height: 14px;
 }
 
-/* ── View Cart Button — NEW ── */
+/* View Cart Button */
 .cs-view-cart-btn {
   display: flex;
   align-items: center;
@@ -563,12 +569,12 @@
   width: 100%;
   padding: 0.72rem 1.5rem;
   background: transparent;
-  border: 1px solid rgba(180, 145, 80, 0.25);
-  border-radius: 2px;
-  color: rgba(180, 145, 80, 0.75);
+  border: 1px solid rgba(218, 165, 32, 0.3);
+  border-radius: 40px;
+  color: #8b6914;
   font-family: "Jost", sans-serif;
   font-size: 0.72rem;
-  font-weight: 400;
+  font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   text-decoration: none;
@@ -578,9 +584,9 @@
 }
 
 .cs-view-cart-btn:hover {
-  background: rgba(180, 145, 80, 0.08);
-  border-color: rgba(180, 145, 80, 0.55);
-  color: #b49150;
+  background: rgba(218, 165, 32, 0.08);
+  border-color: #daa520;
+  color: #daa520;
   transform: translateY(-1px);
   gap: 0.75rem;
 }
@@ -592,9 +598,10 @@
   padding: 0.55rem;
   background: transparent;
   border: none;
-  color: rgba(245, 240, 232, 0.28);
+  color: #999999;
   font-family: "Jost", sans-serif;
   font-size: 0.7rem;
+  font-weight: 500;
   letter-spacing: 0.08em;
   cursor: pointer;
   text-align: center;
@@ -602,7 +609,24 @@
 }
 
 .cs-continue-btn:hover {
-  color: rgba(245, 240, 232, 0.6);
+  color: #8b6914;
+}
+
+/* Spinner */
+.cs-spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(218, 165, 32, 0.2);
+  border-top-color: #daa520;
+  border-radius: 50%;
+  animation: cs-spin 0.8s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes cs-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Responsive */
@@ -610,4 +634,81 @@
   .cs-sidebar {
     width: 100vw;
   }
+}
+
+/* Stock Status Badge in Cart Sidebar */
+.cs-item-stock {
+  margin: 0.5rem 0 0.75rem;
+}
+
+.cs-stock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  font-family: "Jost", sans-serif;
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.cs-stock-badge.in {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.cs-stock-badge.low {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.cs-stock-badge.out {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Stock Status Badge in Cart Sidebar - FIXED */
+.cs-item-stock {
+  margin: 0.5rem 0 0.75rem;
+}
+
+.cs-stock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.8rem;
+  border-radius: 20px;
+  font-family: "Jost", sans-serif;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.cs-stock-badge.in {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.cs-stock-badge.low {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.cs-stock-badge.out {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Disabled button styles */
+.cs-qty-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -66,10 +66,14 @@ export default function Navbar({
   const [scrolled, setScrolled] = useState(false);
   const [user, setUser] = useState<any>(undefined);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [currencyOpen, setCurrencyOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pathname = usePathname();
-  const cartCount = useCartStore((state) => state.getCartCount());
+
+  const items = useCartStore((state) => state.items);
+  const cartCount = items.reduce((total, item) => total + item.quantity, 0);
+
   const { currency, setCurrency, loading: currencyLoading } = useCurrency();
 
   const isActive = (href: string) => {
@@ -121,8 +125,22 @@ export default function Navbar({
   const authResolved = user !== undefined;
   const isSignedIn = authResolved && user !== null;
 
-  // Filter currencies (remove PKR)
   const availableCurrencies = currencies.filter((c) => c.code !== "PKR");
+
+  // Handle dropdown hover with delay
+  const handleDropdownEnter = (href: string) => {
+    if (dropdownTimeoutRef.current) {
+      clearTimeout(dropdownTimeoutRef.current);
+      dropdownTimeoutRef.current = null;
+    }
+    setOpenDropdown(href);
+  };
+
+  const handleDropdownLeave = () => {
+    dropdownTimeoutRef.current = setTimeout(() => {
+      setOpenDropdown(null);
+    }, 150);
+  };
 
   if (currencyLoading) return null;
 
@@ -256,7 +274,13 @@ export default function Navbar({
             return (
               <li
                 key={link.href}
-                className={`nav-item${hasDropdown ? " has-dropdown" : ""}`}
+                className={`nav-item${hasDropdown ? " has-dropdown" : ""}${
+                  openDropdown === link.href ? " dropdown-active" : ""
+                }`}
+                onMouseEnter={() =>
+                  hasDropdown && handleDropdownEnter(link.href)
+                }
+                onMouseLeave={handleDropdownLeave}
               >
                 <Link href={link.href} className={isLinkActive ? "active" : ""}>
                   {link.label}
@@ -271,8 +295,12 @@ export default function Navbar({
                     </svg>
                   )}
                 </Link>
-                {hasDropdown && (
-                  <div className="dropdown-menu">
+                {hasDropdown && openDropdown === link.href && (
+                  <div
+                    className="dropdown-menu"
+                    onMouseEnter={() => handleDropdownEnter(link.href)}
+                    onMouseLeave={handleDropdownLeave}
+                  >
                     {categorySubcategories[link.href].map((sub) => (
                       <Link
                         key={sub.href}

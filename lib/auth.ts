@@ -1,5 +1,42 @@
+// lib/auth.ts
+import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { Session } from "@supabase/supabase-js";
 
+/* ═══════════════════════════════════════════
+   SESSION HOOK - For client components
+═══════════════════════════════════════════ */
+export function useSession() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user || null);
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user || null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  return { session, user, loading };
+}
+
+/* ═══════════════════════════════════════════
+   SIGN OUT FUNCTION
+═══════════════════════════════════════════ */
 export async function signOutUser() {
   try {
     // 1. Sign out from Supabase (this clears the server session)
@@ -29,6 +66,9 @@ export async function signOutUser() {
   }
 }
 
+/* ═══════════════════════════════════════════
+   CLEAR STORAGE FUNCTIONS
+═══════════════════════════════════════════ */
 export function clearAuthStorage() {
   try {
     const keysToRemove: string[] = [];
@@ -73,5 +113,75 @@ export function clearAuthCookies() {
     });
   } catch (e) {
     console.error("Error clearing cookies:", e);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   GET CURRENT USER (Server-side compatible)
+═══════════════════════════════════════════ */
+export async function getCurrentUser() {
+  try {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+    if (error) throw error;
+    return user;
+  } catch (error) {
+    console.error("Error getting current user:", error);
+    return null;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   CHECK IF USER IS AUTHENTICATED
+═══════════════════════════════════════════ */
+export async function isAuthenticated(): Promise<boolean> {
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    return !!session;
+  } catch (error) {
+    return false;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   GET USER PROFILE
+═══════════════════════════════════════════ */
+export async function getUserProfile(userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("Error getting user profile:", error);
+    return null;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   UPDATE USER PROFILE
+═══════════════════════════════════════════ */
+export async function updateUserProfile(userId: string, updates: any) {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("Error updating user profile:", error);
+    return null;
   }
 }

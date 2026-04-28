@@ -1,13 +1,14 @@
 /* =============================================
-   HERO SECTION CSS — Aurexia Luxury Store
+   HERO SECTION CSS — TECH4U Luxury Store
+   Light theme text on dark backgrounds for contrast
    ============================================= */
 
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@200;300;400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 :root {
-  --hero-gold: #b49150;
-  --hero-gold-light: #d4af70;
-  --hero-gold-pale: rgba(180, 145, 80, 0.15);
+  --hero-gold: #daa520;
+  --hero-gold-light: #f0c040;
+  --hero-gold-pale: rgba(218, 165, 32, 0.15);
   --hero-white: #f5f0e8;
   --hero-dark: #090909;
   --hero-transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -158,12 +159,12 @@
   display: inline-flex;
   align-items: center;
   gap: 0.7rem;
-  font-family: "Jost", sans-serif;
+  font-family: "Goldman", "Cormorant Garamond", Georgia, serif;
   font-size: 0.6rem;
   font-weight: 400;
   letter-spacing: 0.45em;
   text-transform: uppercase;
-  color: var(--hero-gold);
+  color: #daa520;
   margin-bottom: 1.2rem;
 }
 .hero-badge::before,
@@ -172,36 +173,31 @@
   display: inline-block;
   width: 24px;
   height: 1px;
-  background: var(--hero-gold);
+  background: #daa520;
   flex-shrink: 0;
 }
 
 /* Heading */
 .hero-heading {
-  font-family: "Cormorant Garamond", serif;
+  font-family: "Goldman", "Cormorant Garamond", Georgia, serif;
   font-size: clamp(3rem, 7vw, 6.5rem);
   font-weight: 400;
   line-height: 0.95;
   letter-spacing: 0.01em;
-  color: var(--hero-white);
+  color: #ffffff;
   margin: 0 0 1.5rem;
   max-width: 820px;
 }
 .hero-heading em {
   font-style: italic;
-  color: var(--hero-gold-light);
+  color: #f0c040;
 }
 
 /* Divider line under heading */
 .hero-divider {
   width: 48px;
   height: 1px;
-  background: linear-gradient(
-    to right,
-    transparent,
-    var(--hero-gold),
-    transparent
-  );
+  background: linear-gradient(to right, transparent, #daa520, transparent);
   margin: 0 auto 1.5rem;
   opacity: 0;
   transition: opacity 0.6s ease 0.32s;
@@ -212,12 +208,12 @@
 
 /* Para */
 .hero-para {
-  font-family: "Jost", sans-serif;
+  font-family: "Goldman", "Cormorant Garamond", Georgia, serif;
   font-size: clamp(0.82rem, 1.3vw, 0.98rem);
   font-weight: 300;
   letter-spacing: 0.05em;
   line-height: 1.9;
-  color: rgba(245, 240, 232, 0.55);
+  color: rgba(255, 255, 255, 0.7);
   max-width: 500px;
   margin: 0 auto 2.5rem;
 }
@@ -236,22 +232,22 @@
   align-items: center;
   gap: 0.65rem;
   padding: 0.95rem 2.6rem;
-  font-family: "Jost", sans-serif;
+  font-family: "Goldman", "Cormorant Garamond", Georgia, serif;
   font-size: 0.68rem;
   font-weight: 500;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: #080808;
+  color: #1a1a1a;
   background: linear-gradient(
     120deg,
-    #b49150 0%,
-    #d4af70 45%,
-    #c9a060 55%,
-    #b49150 100%
+    #daa520 0%,
+    #f0c040 45%,
+    #e8b830 55%,
+    #daa520 100%
   );
   background-size: 220% 100%;
   background-position: right center;
-  border-radius: 1px;
+  border-radius: 40px;
   text-decoration: none;
   transition: background-position 0.55s ease, transform 0.35s ease,
     box-shadow 0.35s ease;
@@ -259,7 +255,7 @@
 .hero-btn-primary:hover {
   background-position: left center;
   transform: translateY(-3px);
-  box-shadow: 0 14px 38px rgba(180, 145, 80, 0.38);
+  box-shadow: 0 14px 38px rgba(218, 165, 80, 0.38);
 }
 .hero-btn-primary svg {
   width: 13px;
@@ -276,23 +272,23 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.95rem 2rem;
-  font-family: "Jost", sans-serif;
+  font-family: "Goldman", "Cormorant Garamond", Georgia, serif;
   font-size: 0.68rem;
   font-weight: 300;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: rgba(245, 240, 232, 0.6);
+  color: rgba(255, 255, 255, 0.7);
   background: transparent;
-  border: 1px solid rgba(245, 240, 232, 0.18);
-  border-radius: 1px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 40px;
   text-decoration: none;
   transition: color 0.35s ease, border-color 0.35s ease, background 0.35s ease,
     transform 0.35s ease;
 }
 .hero-btn-ghost:hover {
-  color: var(--hero-white);
-  border-color: rgba(180, 145, 80, 0.55);
-  background: rgba(180, 145, 80, 0.07);
+  color: #ffffff;
+  border-color: #daa520;
+  background: rgba(218, 165, 32, 0.15);
   transform: translateY(-3px);
 }
 
@@ -311,7 +307,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: rgba(245, 240, 232, 0.28);
+  background: rgba(255, 255, 255, 0.3);
   opacity: 1;
   margin: 0 !important;
   transition: width 0.4s ease, background 0.4s ease, border-radius 0.4s ease;
@@ -319,7 +315,7 @@
 .hero-section .swiper-pagination-bullet-active {
   width: 32px;
   border-radius: 4px;
-  background: var(--hero-gold);
+  background: #daa520;
 }
 
 /* ── Slide counter — top right ── */
@@ -331,23 +327,23 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: "Jost", sans-serif;
+  font-family: "Goldman", "Cormorant Garamond", Georgia, serif;
   font-size: 0.65rem;
   font-weight: 300;
   letter-spacing: 0.15em;
-  color: rgba(245, 240, 232, 0.35);
+  color: rgba(255, 255, 255, 0.5);
   pointer-events: none;
 }
 .hero-counter-num {
   font-size: 1.05rem;
   font-weight: 400;
-  color: var(--hero-gold);
+  color: #daa520;
   line-height: 1;
 }
 .hero-counter-line {
   width: 18px;
   height: 1px;
-  background: rgba(245, 240, 232, 0.2);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 /* ── Scroll hint — bottom right ── */
@@ -363,18 +359,18 @@
   pointer-events: none;
 }
 .hero-scroll-hint span {
-  font-family: "Jost", sans-serif;
+  font-family: "Goldman", "Cormorant Garamond", Georgia, serif;
   font-size: 0.54rem;
   font-weight: 300;
   letter-spacing: 0.32em;
   text-transform: uppercase;
-  color: rgba(245, 240, 232, 0.3);
+  color: rgba(255, 255, 255, 0.4);
   writing-mode: vertical-rl;
 }
 .hero-scroll-line {
   width: 1px;
   height: 50px;
-  background: linear-gradient(to bottom, var(--hero-gold), transparent);
+  background: linear-gradient(to bottom, #daa520, transparent);
   animation: heroPulse 2.2s ease-in-out infinite;
 }
 @keyframes heroPulse {
@@ -426,7 +422,7 @@
   left: 0;
   width: 100%;
   height: 1.5px;
-  background: var(--hero-gold);
+  background: #daa520;
 }
 .hero-corner-tl::after {
   content: "";
@@ -435,7 +431,7 @@
   left: 0;
   height: 100%;
   width: 1.5px;
-  background: var(--hero-gold);
+  background: #daa520;
 }
 /* TR */
 .hero-corner-tr::before {
@@ -445,7 +441,7 @@
   right: 0;
   width: 100%;
   height: 1.5px;
-  background: var(--hero-gold);
+  background: #daa520;
 }
 .hero-corner-tr::after {
   content: "";
@@ -454,7 +450,7 @@
   right: 0;
   height: 100%;
   width: 1.5px;
-  background: var(--hero-gold);
+  background: #daa520;
 }
 /* BL */
 .hero-corner-bl::before {
@@ -464,7 +460,7 @@
   left: 0;
   width: 100%;
   height: 1.5px;
-  background: var(--hero-gold);
+  background: #daa520;
 }
 .hero-corner-bl::after {
   content: "";
@@ -473,7 +469,7 @@
   left: 0;
   height: 100%;
   width: 1.5px;
-  background: var(--hero-gold);
+  background: #daa520;
 }
 /* BR */
 .hero-corner-br::before {
@@ -483,7 +479,7 @@
   right: 0;
   width: 100%;
   height: 1.5px;
-  background: var(--hero-gold);
+  background: #daa520;
 }
 .hero-corner-br::after {
   content: "";
@@ -492,7 +488,7 @@
   right: 0;
   height: 100%;
   width: 1.5px;
-  background: var(--hero-gold);
+  background: #daa520;
 }
 
 /* ── Arrow navigation buttons ── */
@@ -504,9 +500,9 @@
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  border: 1px solid rgba(180, 145, 80, 0.3);
-  background: rgba(0, 0, 0, 0.4);
-  color: rgba(245, 240, 232, 0.6);
+  border: 1px solid rgba(218, 165, 32, 0.4);
+  background: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -516,9 +512,9 @@
   backdrop-filter: blur(4px);
 }
 .hero-nav-btn:hover {
-  border-color: var(--hero-gold);
-  background: rgba(180, 145, 80, 0.12);
-  color: var(--hero-gold-light);
+  border-color: #daa520;
+  background: rgba(218, 165, 32, 0.2);
+  color: #f0c040;
   transform: translateY(-50%) scale(1.08);
 }
 .hero-nav-btn svg {

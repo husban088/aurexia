@@ -1,28 +1,31 @@
 /* ============================================================
    FEATURED PRODUCTS SECTION  ·  featured-products.css
    Home page — Tech4U Luxury Store
-   Brighter Premium Theme with Always Visible Icons
+   High Contrast Theme with Clear Text Visibility
    ============================================================ */
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Josefin+Sans:wght@200;300;400;500;600&display=swap");
+
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 @import url("https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css");
 
 :root {
-  --fp-gold: #d4af37;
-  --fp-gold-light: #f0d884;
-  --fp-gold-dim: rgba(212, 175, 55, 0.12);
-  --fp-gold-glow: rgba(212, 175, 55, 0.2);
+  --fp-gold: #daa520;
+  --fp-gold-dark: #b8860b;
+  --fp-gold-deep: #8b6914;
+  --fp-gold-light: #f0c040;
+  --fp-gold-dim: rgba(218, 165, 32, 0.12);
+  --fp-gold-glow: rgba(218, 165, 32, 0.2);
   --fp-bg: #f9f5f0;
-  --fp-dark: #0a0a0a;
+  --fp-dark: #1a1a1a;
   --fp-card: #ffffff;
   --fp-card-hover: #fffaf5;
-  --fp-border: rgba(212, 175, 55, 0.18);
-  --fp-border-h: rgba(212, 175, 55, 0.35);
-  --fp-white: #0a0a0a;
-  --fp-grey: rgba(0, 0, 0, 0.55);
-  --fp-text-light: #444444;
-  --fp-text-muted: #2a2a2a;
-  --fp-serif: "Cormorant Garamond", Georgia, serif;
-  --fp-sans: "Josefin Sans", sans-serif;
+  --fp-border: rgba(184, 134, 11, 0.18);
+  --fp-border-h: rgba(184, 134, 11, 0.35);
+  --fp-text-primary: #1a1a1a;
+  --fp-text-secondary: #444444;
+  --fp-text-muted: #666666;
+  --fp-text-gold: #8b6914;
+  --fp-serif: "Goldman", "Cormorant Garamond", Georgia, serif;
+  --fp-sans: "Goldman", "Josefin Sans", sans-serif;
   --fp-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -35,7 +38,7 @@
   overflow: hidden;
 }
 
-/* Ambient top glow - gold */
+/* Ambient top glow */
 .fp-section::before {
   content: "";
   position: absolute;
@@ -47,7 +50,7 @@
   background: linear-gradient(
     to right,
     transparent,
-    rgba(212, 175, 55, 0.5),
+    rgba(218, 165, 32, 0.5),
     transparent
   );
   pointer-events: none;
@@ -71,10 +74,10 @@
   gap: 0.75rem;
   font-family: var(--fp-sans);
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.4em;
   text-transform: uppercase;
-  color: var(--fp-gold);
+  color: #8b6914;
   margin-bottom: 0.9rem;
 }
 
@@ -82,7 +85,7 @@
   display: block;
   width: 30px;
   height: 1px;
-  background: var(--fp-gold);
+  background: #daa520;
   opacity: 0.7;
 }
 
@@ -90,7 +93,7 @@
   font-family: var(--fp-serif);
   font-size: clamp(2.4rem, 5vw, 4rem);
   font-weight: 400;
-  color: #0a0a0a;
+  color: #1a1a1a;
   margin: 0 0 1rem;
   line-height: 1.08;
   letter-spacing: 0.01em;
@@ -98,15 +101,15 @@
 
 .fp-title em {
   font-style: italic;
-  color: var(--fp-gold);
+  color: #8b6914;
 }
 
 .fp-subtitle {
   font-family: var(--fp-sans);
   font-size: 0.85rem;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.12em;
-  color: #555555;
+  color: #444444;
   max-width: 500px;
   line-height: 1.8;
   margin-bottom: 2.5rem;
@@ -132,7 +135,7 @@
   border-right: 1px solid var(--fp-border);
   font-family: var(--fp-sans);
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.25em;
   text-transform: uppercase;
   color: #666666;
@@ -155,17 +158,17 @@
   left: 0;
   width: 0;
   height: 2px;
-  background: linear-gradient(90deg, var(--fp-gold), var(--fp-gold-light));
+  background: linear-gradient(90deg, #daa520, #f0c040);
   transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .fp-tab:hover {
-  color: var(--fp-gold);
+  color: #8b6914;
   background: var(--fp-gold-dim);
 }
 
 .fp-tab.fp-tab--active {
-  color: var(--fp-gold);
+  color: #8b6914;
   background: var(--fp-gold-dim);
 }
 
@@ -199,14 +202,14 @@
   width: 20px;
   height: 2px;
   border-radius: 2px;
-  background: rgba(212, 175, 55, 0.3);
+  background: rgba(184, 134, 11, 0.3);
   opacity: 1;
   transition: all 0.35s ease;
 }
 
 .fp-swiper .swiper-pagination-bullet-active {
   width: 40px;
-  background: var(--fp-gold);
+  background: #daa520;
 }
 
 /* Swiper Navigation Arrows */
@@ -224,7 +227,7 @@
   border: 1px solid var(--fp-border);
   border-radius: 50%;
   background: white;
-  color: #666666;
+  color: #8b6914;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -239,13 +242,13 @@
 }
 
 .fp-nav-btn:hover {
-  border-color: var(--fp-gold);
-  color: var(--fp-gold);
-  background: var(--fp-gold-dim);
+  border-color: #daa520;
+  color: white;
+  background: #daa520;
   transform: scale(1.08);
 }
 
-/* ── Product Card - Fixed Design with Always Visible Icons ── */
+/* ── Product Card - High Contrast Text ── */
 .fp-card {
   position: relative;
   background: var(--fp-card);
@@ -272,7 +275,7 @@
   height: 0;
   border-style: solid;
   border-width: 0 30px 30px 0;
-  border-color: transparent var(--fp-gold) transparent transparent;
+  border-color: transparent #daa520 transparent transparent;
   opacity: 0;
   transition: opacity 0.4s ease;
   z-index: 3;
@@ -281,8 +284,8 @@
 /* Hover effect */
 .fp-card:hover {
   transform: translateY(-8px);
-  box-shadow: 0 25px 50px rgba(212, 175, 55, 0.12);
-  border-color: rgba(212, 175, 55, 0.35);
+  box-shadow: 0 25px 50px rgba(184, 134, 11, 0.12);
+  border-color: rgba(184, 134, 11, 0.35);
   background: var(--fp-card-hover);
 }
 
@@ -322,7 +325,7 @@
 .fp-card-placeholder svg {
   width: 55px;
   height: 55px;
-  color: rgba(212, 175, 55, 0.25);
+  color: rgba(184, 134, 11, 0.25);
 }
 
 /* Badges */
@@ -349,9 +352,9 @@
 }
 
 .fp-badge--feat {
-  background: var(--fp-gold);
+  background: #daa520;
   color: white;
-  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
+  box-shadow: 0 2px 8px rgba(218, 165, 32, 0.3);
 }
 
 .fp-badge--new {
@@ -366,7 +369,7 @@
   color: #dc2626;
 }
 
-/* ========== ICON BUTTONS - ALWAYS VISIBLE (NO HOVER) ========== */
+/* Icon Buttons */
 .fp-icon-buttons {
   position: absolute;
   bottom: 12px;
@@ -384,7 +387,7 @@
   height: 40px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(212, 175, 55, 0.25);
+  border: 1px solid rgba(184, 134, 11, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -397,13 +400,13 @@
 .fp-icon-btn svg {
   width: 18px;
   height: 18px;
-  color: #0a0a0a;
+  color: #1a1a1a;
   transition: all 0.3s ease;
 }
 
 .fp-icon-btn:hover {
-  background: var(--fp-gold);
-  border-color: var(--fp-gold);
+  background: #daa520;
+  border-color: #daa520;
   transform: scale(1.08);
 }
 
@@ -411,17 +414,7 @@
   color: white;
 }
 
-/* View button (left side) */
-.fp-icon-btn--view {
-  background: rgba(255, 255, 255, 0.95);
-}
-
-/* Cart button (right side) */
-.fp-icon-btn--cart {
-  background: rgba(255, 255, 255, 0.95);
-}
-
-/* ── Card Body ── */
+/* ── Card Body - DARK TEXT for readability ── */
 .fp-card-body {
   padding: 1.4rem 1.2rem 1.2rem;
   flex: 1;
@@ -433,10 +426,10 @@
 .fp-card-brand {
   font-family: var(--fp-sans);
   font-size: 0.65rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--fp-gold);
+  color: #8b6914;
   margin: 0;
 }
 
@@ -444,14 +437,14 @@
   font-family: var(--fp-serif);
   font-size: 1.25rem;
   font-weight: 600;
-  color: #0a0a0a;
+  color: #1a1a1a;
   margin: 0;
   line-height: 1.35;
   transition: color var(--fp-ease);
 }
 
 .fp-card:hover .fp-card-name {
-  color: var(--fp-gold);
+  color: #8b6914;
 }
 
 .fp-card-price-row {
@@ -466,13 +459,13 @@
   font-family: var(--fp-serif);
   font-size: 1.35rem;
   font-weight: 700;
-  color: var(--fp-gold);
+  color: #8b6914;
 }
 
 .fp-card-orig {
   font-family: var(--fp-sans);
   font-size: 0.8rem;
-  font-weight: 400;
+  font-weight: 500;
   color: rgba(0, 0, 0, 0.4);
   text-decoration: line-through;
 }
@@ -489,9 +482,9 @@
 .fp-card-stock {
   font-family: var(--fp-sans);
   font-size: 0.6rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.12em;
-  color: #888888;
+  color: #666666;
   margin-top: 0.3rem;
 }
 
@@ -510,7 +503,7 @@
   left: 0;
   height: 3px;
   width: 0;
-  background: linear-gradient(90deg, var(--fp-gold), var(--fp-gold-light));
+  background: linear-gradient(90deg, #daa520, #f0c040);
   transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
   z-index: 2;
 }
@@ -535,10 +528,10 @@
   border-radius: 40px;
   font-family: var(--fp-sans);
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: var(--fp-gold);
+  color: #8b6914;
   text-decoration: none;
   background: white;
   cursor: pointer;
@@ -551,14 +544,14 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: var(--fp-gold);
+  background: #daa520;
   transform: translateX(-100%);
   transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .fp-view-all:hover {
   color: white;
-  border-color: var(--fp-gold);
+  border-color: #daa520;
   transform: translateY(-2px);
 }
 
@@ -580,6 +573,43 @@
 
 .fp-view-all:hover svg {
   transform: translateX(4px);
+}
+
+/* Skeleton Loading */
+.fp-card--skeleton {
+  opacity: 0.6;
+}
+
+.fp-skel-img {
+  background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
+  background-size: 200% 100%;
+  animation: fp-skeleton 1.5s ease-in-out infinite;
+}
+
+.fp-skel-line {
+  height: 12px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  margin: 8px 0;
+  background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
+  background-size: 200% 100%;
+  animation: fp-skeleton 1.5s ease-in-out infinite;
+}
+
+@keyframes fp-skeleton {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.fp-empty {
+  text-align: center;
+  padding: 3rem;
+  font-family: var(--fp-sans);
+  color: #666666;
 }
 
 /* ── Responsive ── */
@@ -678,4 +708,298 @@
   .fp-panel {
     transition: none;
   }
+  .fp-card--skeleton,
+  .fp-skel-img,
+  .fp-skel-line {
+    animation: none;
+  }
+}
+
+/* Variant Thumbnails Styles - Add to featured-products.css */
+.fp-card-variants {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.55rem;
+}
+
+.fp-variant-label {
+  font-family: var(--fp-sans);
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: #8b6914;
+  letter-spacing: 0.05em;
+}
+
+.fp-variant-thumbnails {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.fp-variant-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(218, 165, 32, 0.2);
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fp-variant-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fp-variant-thumb .fp-variant-text {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #666;
+}
+
+.fp-variant-thumb:hover {
+  border-color: #daa520;
+  transform: scale(1.1);
+}
+
+.fp-variant-thumb.active {
+  border-color: #daa520;
+  box-shadow: 0 0 0 1px #daa520;
+  transform: scale(1.05);
+}
+
+.fp-variant-more {
+  font-size: 0.55rem;
+  font-weight: 500;
+  color: #daa520;
+  font-family: var(--fp-sans);
+  margin-left: 0.2rem;
+}
+
+.fp-badge--low {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+}
+
+/* Add to featured-products.css - Variant thumbnails with labels */
+
+.fp-variant-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  border: 1px solid rgba(218, 165, 32, 0.2);
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.fp-variant-thumb img {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.fp-variant-thumb .fp-variant-text {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #666;
+}
+
+.fp-variant-label-text {
+  font-size: 0.55rem;
+  font-weight: 500;
+  color: #8b6914;
+  text-align: center;
+  max-width: 48px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fp-variant-thumb:hover {
+  border-color: #daa520;
+  transform: translateY(-2px);
+}
+
+.fp-variant-thumb.active {
+  border-color: #daa520;
+  box-shadow: 0 0 0 1px #daa520;
+  background: rgba(218, 165, 32, 0.05);
+}
+
+.fp-variant-thumb.active .fp-variant-label-text {
+  color: #daa520;
+  font-weight: 700;
+}
+
+.fp-variant-more {
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: #daa520;
+  font-family: var(--fp-sans);
+  margin-left: 0.2rem;
+  background: rgba(218, 165, 32, 0.1);
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .fp-variant-thumb {
+    width: 42px;
+    height: 42px;
+  }
+
+  .fp-variant-thumb img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .fp-variant-label-text {
+    font-size: 0.5rem;
+    max-width: 42px;
+  }
+}
+
+/* Low Stock Badge */
+.fp-badge--low,
+.pg-badge--low {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+}
+
+/* Enhanced Skeleton Loader Styles - Match Product Card Exactly */
+.fp-card--skeleton {
+  opacity: 1;
+  pointer-events: none;
+  animation: none;
+}
+
+.fp-skel-img {
+  position: relative;
+  background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
+  background-size: 200% 100%;
+  animation: fp-skeleton-wave 1.2s ease-in-out infinite;
+  width: 100%;
+  height: 100%;
+  min-height: 250px;
+}
+
+.fp-skel-img-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  animation: fp-skeleton-shine 1.5s infinite;
+}
+
+.fp-skel-line {
+  background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
+  background-size: 200% 100%;
+  animation: fp-skeleton-wave 1.2s ease-in-out infinite;
+  border-radius: 4px;
+  margin: 6px 0;
+}
+
+@keyframes fp-skeleton-wave {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes fp-skeleton-shine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Faster loading animation for products */
+.fp-card-img img {
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Prevent layout shift during loading */
+.fp-swiper {
+  min-height: 450px;
+}
+
+/* Ensure skeleton cards have same dimensions as real cards */
+.fp-card--skeleton .fp-card-img {
+  aspect-ratio: 1 / 1;
+}
+
+.fp-card--skeleton .fp-card-body {
+  padding: 1.4rem 1.2rem 1.2rem;
+}
+
+/* Responsive skeleton */
+@media (max-width: 768px) {
+  .fp-swiper {
+    min-height: 380px;
+  }
+
+  .fp-skel-img {
+    min-height: 200px;
+  }
+}
+
+@media (max-width: 640px) {
+  .fp-swiper {
+    min-height: 350px;
+  }
+
+  .fp-skel-img {
+    min-height: 180px;
+  }
+}
+
+/* Improve loading performance */
+.fp-card-img img {
+  will-change: transform;
+}
+
+/* Optional: Add a subtle fade-in for products */
+@keyframes fp-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fp-card {
+  animation: fp-fade-in 0.4s ease-out forwards;
 }

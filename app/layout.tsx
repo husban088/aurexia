@@ -1,3 +1,4 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Orbitron } from "next/font/google";
 import "./globals.css";
@@ -22,12 +23,9 @@ const orbitron = Orbitron({
 
 export const metadata: Metadata = {
   title: "Tech4U | Luxury in Every Detail",
-  description:
-    "Tech4U — Luxury in Every Detail. Discover premium watches, automotive essentials, home decor, and cutting-edge mobile accessories designed to elevate your lifestyle.",
+  description: "Tech4U — Luxury in Every Detail.",
   icons: {
-    icon: "/images/mainlogo.png",
-    shortcut: "/images/mainlogo.png",
-    apple: "/images/mainlogo.png",
+    icon: "/icon.jpg",
   },
 };
 

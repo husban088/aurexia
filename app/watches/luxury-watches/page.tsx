@@ -7,8 +7,8 @@ export default function LuxuryWatches() {
     <Subcategory
       category="Watches"
       subcategory="Luxury Watches"
-      title="Luxury <em>Watches</em>"
-      description="Premium craftsmanship and luxury brands. Experience the pinnacle of horology with our curated selection of exquisite timepieces from the world's most prestigious watchmakers."
+      title="Luxury <em>Timepieces</em>"
+      description="Experience unparalleled craftsmanship with our curated luxury watch collection"
       breadcrumb={{
         parent: "Watches",
         parentHref: "/watches",

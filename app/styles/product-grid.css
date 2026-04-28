@@ -4,7 +4,7 @@
    Matches Featured Products luxury theme
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Josefin+Sans:wght@200;300;400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 :root {
   --pg-gold: #d4af37;
@@ -21,8 +21,8 @@
   --pg-grey: rgba(0, 0, 0, 0.55);
   --pg-text-light: #444444;
   --pg-text-muted: #2a2a2a;
-  --pg-serif: "Cormorant Garamond", Georgia, serif;
-  --pg-sans: "Josefin Sans", sans-serif;
+  --pg-serif: "Goldman", "Cormorant Garamond", Georgia, serif;
+  --pg-sans: "Goldman", "Josefin Sans", sans-serif;
   --pg-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 

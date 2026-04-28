@@ -1,11 +1,12 @@
-// middleware.ts
+// 📁 File name: proxy.ts (was: middleware.ts)
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const OWNER_EMAIL = "info@tech4ru.com";
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
+  // ← middleware se proxy mein change kiya
   let response = NextResponse.next({
     request: {
       headers: req.headers,
@@ -36,29 +37,32 @@ export async function middleware(req: NextRequest) {
   const isPanelRoute = req.nextUrl.pathname.startsWith("/panel");
 
   if (isPanelRoute) {
-    // ✅ Use getUser() instead of getSession()
-    // getSession() reads from cookie only (can be stale/missing server-side)
-    // getUser() makes a real request to Supabase to verify the token — always reliable
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
+    try {
+      // ✅ Use getUser() instead of getSession()
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
 
-    console.log(
-      "Panel route accessed, user:",
-      user?.email ?? "none",
-      "error:",
-      error?.message ?? "none"
-    );
+      // If no user or error, redirect to signin
+      if (error || !user) {
+        const redirectUrl = new URL("/signin", req.url);
+        redirectUrl.searchParams.set("redirectTo", req.nextUrl.pathname);
+        return NextResponse.redirect(redirectUrl);
+      }
 
-    if (error || !user) {
+      // Check if user is owner (case-insensitive)
+      const userEmail = user.email?.trim().toLowerCase();
+      const ownerEmail = OWNER_EMAIL.toLowerCase();
+
+      if (userEmail !== ownerEmail) {
+        return NextResponse.redirect(new URL("/", req.url));
+      }
+    } catch (err) {
+      console.error("Middleware auth error:", err);
       const redirectUrl = new URL("/signin", req.url);
       redirectUrl.searchParams.set("redirectTo", req.nextUrl.pathname);
       return NextResponse.redirect(redirectUrl);
-    }
-
-    if (user.email?.toLowerCase() !== OWNER_EMAIL.toLowerCase()) {
-      return NextResponse.redirect(new URL("/", req.url));
     }
   }
 

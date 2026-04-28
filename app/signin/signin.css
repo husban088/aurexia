@@ -1,24 +1,26 @@
 /* ============================================================
    SIGN IN PAGE  ·  signin.css
-   Brighter Luxury Theme — Cream/Gold aesthetic
+   Premium Theme with High Contrast Text
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,600&family=Josefin+Sans:wght@200;300;400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,600&family=Josefin+Sans:wght@200;300;400;500;600;700&display=swap");
 
 :root {
-  --si-gold: #d4af37;
-  --si-gold-light: #f0d884;
-  --si-gold-dim: #c9a03d;
-  --si-gold-soft: rgba(212, 175, 55, 0.12);
+  --si-gold: #daa520;
+  --si-gold-dark: #b8860b;
+  --si-gold-deep: #8b6914;
+  --si-gold-light: #f0c040;
+  --si-gold-soft: rgba(218, 165, 32, 0.12);
   --si-bg: #f9f5f0;
   --si-bg-light: #ffffff;
   --si-card-bg: #ffffff;
-  --si-border: rgba(212, 175, 55, 0.18);
-  --si-border-hover: rgba(212, 175, 55, 0.35);
-  --si-text-dark: #0a0a0a;
+  --si-border: rgba(184, 134, 11, 0.18);
+  --si-border-hover: rgba(184, 134, 11, 0.35);
+  --si-text-dark: #1a1a1a;
   --si-text-muted: #2a2a2a;
-  --si-text-light: #555555;
-  --si-text-grey: #888888;
+  --si-text-light: #444444;
+  --si-text-grey: #666666;
+  --si-text-gold: #8b6914;
   --si-serif: "Cormorant Garamond", Georgia, serif;
   --si-sans: "Josefin Sans", sans-serif;
   --si-ease: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
@@ -63,8 +65,8 @@
   background: linear-gradient(
     to bottom,
     transparent 0%,
-    rgba(212, 175, 55, 0.1) 30%,
-    rgba(212, 175, 55, 0.1) 70%,
+    rgba(184, 134, 11, 0.1) 30%,
+    rgba(184, 134, 11, 0.1) 70%,
     transparent 100%
   );
 }
@@ -79,26 +81,26 @@
 .si-corner--tl {
   top: 1.5rem;
   left: 1.5rem;
-  border-top: 1px solid rgba(212, 175, 55, 0.35);
-  border-left: 1px solid rgba(212, 175, 55, 0.35);
+  border-top: 1px solid rgba(184, 134, 11, 0.4);
+  border-left: 1px solid rgba(184, 134, 11, 0.4);
 }
 .si-corner--tr {
   top: 1.5rem;
   right: 1.5rem;
-  border-top: 1px solid rgba(212, 175, 55, 0.35);
-  border-right: 1px solid rgba(212, 175, 55, 0.35);
+  border-top: 1px solid rgba(184, 134, 11, 0.4);
+  border-right: 1px solid rgba(184, 134, 11, 0.4);
 }
 .si-corner--bl {
   bottom: 1.5rem;
   left: 1.5rem;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.35);
-  border-left: 1px solid rgba(212, 175, 55, 0.35);
+  border-bottom: 1px solid rgba(184, 134, 11, 0.4);
+  border-left: 1px solid rgba(184, 134, 11, 0.4);
 }
 .si-corner--br {
   bottom: 1.5rem;
   right: 1.5rem;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.35);
-  border-right: 1px solid rgba(212, 175, 55, 0.35);
+  border-bottom: 1px solid rgba(184, 134, 11, 0.4);
+  border-right: 1px solid rgba(184, 134, 11, 0.4);
 }
 
 .si-card {
@@ -116,7 +118,7 @@
   background: white;
 }
 
-/* LEFT BRAND PANEL - Brighter */
+/* LEFT BRAND PANEL - Dark Gold Text */
 .si-brand {
   position: relative;
   background: linear-gradient(135deg, #faf5ec 0%, #fdf9f2 100%);
@@ -137,7 +139,7 @@
   height: 360px;
   background: radial-gradient(
     circle,
-    rgba(212, 175, 55, 0.08) 0%,
+    rgba(218, 165, 32, 0.08) 0%,
     transparent 70%
   );
   pointer-events: none;
@@ -159,7 +161,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(212, 175, 55, 0.08);
+  background: rgba(218, 165, 32, 0.08);
   margin-bottom: 0.25rem;
 }
 .si-logo-img {
@@ -171,23 +173,23 @@
   gap: 0.7rem;
   font-family: var(--si-sans);
   font-size: 0.62rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: var(--si-gold-dim);
+  color: #8b6914;
 }
 .si-ey-line {
   display: block;
   width: 24px;
   height: 1px;
-  background: var(--si-gold);
-  opacity: 0.5;
+  background: #daa520;
+  opacity: 0.6;
 }
 .si-brand-title {
   font-family: var(--si-serif);
   font-size: clamp(2rem, 3.5vw, 3rem);
   font-weight: 400;
-  color: var(--si-text-dark);
+  color: #1a1a1a;
   letter-spacing: 0.12em;
   line-height: 1;
   margin: 0;
@@ -196,27 +198,27 @@
   font-family: var(--si-serif);
   font-size: 1.1rem;
   font-weight: 400;
-  color: var(--si-text-light);
+  color: #444444;
   line-height: 1.5;
   margin: 0;
 }
 .si-brand-tagline em {
   font-style: italic;
-  color: var(--si-gold);
+  color: #8b6914;
 }
 .si-brand-divider {
   width: 36px;
   height: 1px;
-  background: var(--si-gold);
-  opacity: 0.5;
+  background: #daa520;
+  opacity: 0.6;
   margin: 0.25rem auto;
 }
 .si-brand-quote {
   font-family: var(--si-serif);
   font-style: italic;
   font-size: 0.85rem;
-  font-weight: 400;
-  color: var(--si-text-grey);
+  font-weight: 500;
+  color: #666666;
   line-height: 1.7;
   max-width: 220px;
   margin: 0;
@@ -227,7 +229,7 @@
   right: -60px;
   width: 200px;
   height: 200px;
-  border: 1px solid rgba(212, 175, 55, 0.12);
+  border: 1px solid rgba(218, 165, 32, 0.12);
   border-radius: 50%;
   animation: si-rotate 30s linear infinite;
   pointer-events: none;
@@ -238,7 +240,7 @@
   left: 14px;
   right: 14px;
   bottom: 14px;
-  border: 1px solid rgba(212, 175, 55, 0.06);
+  border: 1px solid rgba(218, 165, 32, 0.06);
   border-radius: 50%;
 }
 @keyframes si-rotate {
@@ -277,31 +279,31 @@
   gap: 0.7rem;
   font-family: var(--si-sans);
   font-size: 0.62rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: var(--si-gold-dim);
+  color: #8b6914;
   margin: 0;
 }
 .si-form-title {
   font-family: var(--si-serif);
   font-size: clamp(1.8rem, 3vw, 2.4rem);
   font-weight: 400;
-  color: var(--si-text-dark);
+  color: #1a1a1a;
   line-height: 1.05;
   margin: 0;
   letter-spacing: -0.01em;
 }
 .si-form-title em {
   font-style: italic;
-  color: var(--si-gold);
+  color: #8b6914;
 }
 .si-form-sub {
   font-family: var(--si-sans);
   font-size: 0.72rem;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.05em;
-  color: var(--si-text-grey);
+  color: #666666;
   margin: 0;
 }
 
@@ -320,7 +322,7 @@
   border-radius: 12px;
   font-family: var(--si-sans);
   font-size: 0.7rem;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.03em;
   color: var(--si-success);
   max-width: 280px;
@@ -335,6 +337,42 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Error Box */
+.si-error-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 12px;
+  font-family: var(--si-sans);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: #ef4444;
+  margin-bottom: 1rem;
+  animation: si-shake 0.4s ease;
+}
+@keyframes si-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-5px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
   }
 }
 
@@ -353,16 +391,16 @@
 .si-label {
   font-family: var(--si-sans);
   font-size: 0.65rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: var(--si-text-grey);
+  color: #666666;
   transition: color var(--si-ease);
   cursor: pointer;
 }
 .si-field--focused .si-label,
 .si-field--filled .si-label {
-  color: var(--si-gold);
+  color: #8b6914;
 }
 .si-input-wrap {
   position: relative;
@@ -386,7 +424,7 @@
 }
 .si-field--focused .si-input-icon,
 .si-field--filled .si-input-icon {
-  color: var(--si-gold);
+  color: #8b6914;
 }
 .si-input {
   width: 100%;
@@ -396,13 +434,14 @@
   padding: 0.6rem 2rem 0.6rem 1.8rem;
   font-family: var(--si-sans);
   font-size: 0.85rem;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.02em;
-  color: var(--si-text-dark);
-  caret-color: var(--si-gold);
+  color: #1a1a1a;
+  caret-color: #daa520;
 }
 .si-input::placeholder {
   color: #bbbbbb;
+  font-weight: 400;
 }
 .si-field-line {
   height: 1px;
@@ -417,7 +456,7 @@
   top: 0;
   width: 100%;
   height: 100%;
-  background: var(--si-gold);
+  background: #daa520;
   transition: left var(--si-ease);
 }
 .si-field--focused .si-field-line::after {
@@ -442,7 +481,7 @@
   transition: color var(--si-ease);
 }
 .si-eye-btn:hover {
-  color: var(--si-gold);
+  color: #8b6914;
 }
 .si-eye-btn svg {
   width: 16px;
@@ -457,14 +496,14 @@
 .si-forgot-link {
   font-family: var(--si-sans);
   font-size: 0.68rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.1em;
-  color: var(--si-text-grey);
+  color: #666666;
   text-decoration: none;
   transition: color var(--si-ease);
 }
 .si-forgot-link:hover {
-  color: var(--si-gold);
+  color: #8b6914;
 }
 
 .si-submit-btn {
@@ -474,12 +513,12 @@
   gap: 0.6rem;
   width: 100%;
   padding: 0.9rem 1.5rem;
-  background: var(--si-gold);
-  border: 1px solid var(--si-gold);
+  background: #daa520;
+  border: 1px solid #daa520;
   color: white;
   font-family: var(--si-sans);
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.28em;
   text-transform: uppercase;
   cursor: pointer;
@@ -494,8 +533,8 @@
 }
 .si-submit-btn:hover:not(:disabled) {
   background: transparent;
-  color: var(--si-gold);
-  box-shadow: 0 8px 25px rgba(212, 175, 55, 0.2);
+  color: #8b6914;
+  box-shadow: 0 8px 25px rgba(218, 165, 32, 0.2);
   transform: translateY(-2px);
   gap: 1rem;
 }
@@ -505,6 +544,25 @@
 .si-submit-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+.si-btn-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.si-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: si-spin 0.6s linear infinite;
+}
+@keyframes si-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .si-or {
@@ -516,37 +574,37 @@
 .si-or-line {
   flex: 1;
   height: 1px;
-  background: rgba(212, 175, 55, 0.2);
+  background: rgba(184, 134, 11, 0.2);
 }
 .si-or-text {
   font-family: var(--si-sans);
   font-size: 0.62rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--si-text-grey);
+  color: #666666;
 }
 
 .si-switch {
   font-family: var(--si-sans);
   font-size: 0.75rem;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.04em;
-  color: var(--si-text-grey);
+  color: #666666;
   text-align: center;
   margin: 0;
 }
 .si-switch-link {
-  color: var(--si-gold);
+  color: #8b6914;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   transition: all var(--si-ease);
-  font-weight: 500;
+  font-weight: 600;
 }
 .si-switch-link:hover {
-  color: var(--si-gold-dim);
+  color: #daa520;
   gap: 0.5rem;
 }
 
@@ -588,21 +646,4 @@
   .si-switch-link {
     transition: none;
   }
-}
-
-.si-btn-loader {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-}
-
-/* Spinner improve */
-.si-spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: si-spin 0.6s linear infinite;
 }

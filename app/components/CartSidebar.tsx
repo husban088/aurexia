@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useCartStore } from "@/lib/cartStore";
 import "./cartsidebar.css";
 import { useCurrency } from "../context/CurrencyContext";
@@ -12,26 +11,41 @@ interface CartSidebarProps {
   onClose: () => void;
 }
 
-const FREE_SHIPPING_THRESHOLD = 3000; // Base PKR threshold
+const FREE_SHIPPING_THRESHOLD_PKR = 3000;
+const SHIPPING_COST_PKR = 250;
 
 export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
-  const {
-    items,
-    loading,
-    fetchCart,
-    updateQuantity,
-    removeFromCart,
-    getSubtotal,
-    getCartCount,
-  } = useCartStore();
-  const { formatPrice, currency, convertPrice } = useCurrency();
+  const items = useCartStore((state) => state.items);
+  const loading = useCartStore((state) => state.loading);
+  const initialized = useCartStore((state) => state.initialized);
+  const fetchCart = useCartStore((state) => state.fetchCart);
+  const updateQuantity = useCartStore((state) => state.updateQuantity);
+  const removeFromCart = useCartStore((state) => state.removeFromCart);
+
+  const subtotalPKR = useCartStore((state) =>
+    state.items.reduce((t, i) => {
+      const price = i.variant_price ?? i.product?.price ?? 0;
+      const ppu = i.pieces_per_unit ?? 1;
+      return t + price * ppu * i.quantity;
+    }, 0)
+  );
+
+  const cartUnitCount = useCartStore((state) =>
+    state.items.reduce((t, i) => t + i.quantity, 0)
+  );
+
+  const totalPieces = useCartStore((state) =>
+    state.items.reduce((t, i) => t + (i.pieces_per_unit ?? 1) * i.quantity, 0)
+  );
+
+  const { formatPrice, convertPrice } = useCurrency();
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !initialized) {
       fetchCart();
     }
-  }, [isOpen, fetchCart]);
+  }, [isOpen, initialized, fetchCart]);
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : "";
@@ -48,24 +62,19 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     return () => document.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]);
 
-  const subtotal = getSubtotal();
-  const cartCount = getCartCount();
-  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 250;
-  const total = subtotal + shipping;
+  const shippingPKR =
+    subtotalPKR >= FREE_SHIPPING_THRESHOLD_PKR ? 0 : SHIPPING_COST_PKR;
+  const totalPKR = subtotalPKR + shippingPKR;
+
+  const remainingPKR = Math.max(0, FREE_SHIPPING_THRESHOLD_PKR - subtotalPKR);
   const shippingProgress = Math.min(
-    (subtotal / FREE_SHIPPING_THRESHOLD) * 100,
+    (subtotalPKR / FREE_SHIPPING_THRESHOLD_PKR) * 100,
     100
   );
 
-  // Convert shipping threshold to current currency for display
-  const thresholdInCurrentCurrency = convertPrice(FREE_SHIPPING_THRESHOLD);
-  const remainingForFreeShipping = convertPrice(
-    FREE_SHIPPING_THRESHOLD - subtotal
-  );
-  const remainingForFreeShippingPositive =
-    remainingForFreeShipping > 0 ? remainingForFreeShipping : 0;
-
   const handleSidebarClick = (e: React.MouseEvent) => e.stopPropagation();
+
+  const showSpinner = loading && items.length === 0;
 
   return (
     <>
@@ -88,7 +97,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           <div className="cs-deco-ring cs-deco-ring--2" />
         </div>
 
-        {/* Header */}
         <div className="cs-header">
           <div className="cs-header-left">
             <p className="cs-eyebrow">
@@ -97,11 +105,16 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               <span className="cs-ey-line" />
             </p>
             <h2 className="cs-title">
-              {cartCount === 0 ? (
-                "Empty"
+              {cartUnitCount === 0 ? (
+                showSpinner ? (
+                  "..."
+                ) : (
+                  "Empty"
+                )
               ) : (
                 <>
-                  <em>{cartCount}</em> {cartCount === 1 ? "Item" : "Items"}
+                  <em>{cartUnitCount}</em>{" "}
+                  {cartUnitCount === 1 ? "Item" : "Items"}
                 </>
               )}
             </h2>
@@ -122,14 +135,13 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           </button>
         </div>
 
-        {/* Free Shipping Bar */}
-        {cartCount > 0 && (
+        {cartUnitCount > 0 && (
           <div
             className={`cs-shipping-bar${
-              shipping === 0 ? " cs-shipping-bar--achieved" : ""
+              shippingPKR === 0 ? " cs-shipping-bar--achieved" : ""
             }`}
           >
-            {shipping === 0 ? (
+            {shippingPKR === 0 ? (
               <p className="cs-shipping-text">
                 <svg
                   viewBox="0 0 24 24"
@@ -150,10 +162,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             ) : (
               <>
                 <p className="cs-shipping-text">
-                  Add{" "}
-                  <strong>
-                    {formatPrice(remainingForFreeShippingPositive)}
-                  </strong>{" "}
+                  Add <strong>{formatPrice(convertPrice(remainingPKR))}</strong>{" "}
                   more for free shipping
                 </p>
                 <div className="cs-shipping-track">
@@ -167,14 +176,13 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           </div>
         )}
 
-        {/* Items List */}
         <div className="cs-items">
-          {loading ? (
+          {showSpinner ? (
             <div className="cs-empty">
               <div className="cs-spinner" />
               <p className="cs-empty-title">Loading cart...</p>
             </div>
-          ) : cartCount === 0 ? (
+          ) : cartUnitCount === 0 ? (
             <div className="cs-empty">
               <div className="cs-empty-icon" aria-hidden="true">
                 <svg
@@ -211,24 +219,71 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           ) : (
             <ul className="cs-item-list">
               {items.map((item, i) => {
-                const product = item.product;
-                if (!product) return null;
-                const itemTotal = (product.price || 0) * item.quantity;
+                const product = item.product ?? {
+                  id: item.product_id,
+                  name: item.variant_name || "Product",
+                  description: "",
+                  category: "",
+                  subcategory: "",
+                  condition: "new",
+                  is_featured: false,
+                  is_active: true,
+                  price: item.variant_price || 0,
+                  original_price: item.variant_original_price || undefined,
+                  images: item.variant_image ? [item.variant_image] : [],
+                  stock: item.variantStock ?? 0,
+                };
+
+                const ppu = item.pieces_per_unit ?? 1;
+                const pricePerPiecePKR =
+                  item.variant_price ?? product.price ?? 0;
+                const itemTotalPKR = pricePerPiecePKR * ppu * item.quantity;
+                const rowPhysicalPieces = ppu * item.quantity;
+
+                const displayImage =
+                  item.variant_image || product.images?.[0] || null;
+
+                const tierLabel = ppu > 1 ? ` (${ppu}-Piece)` : "";
+                const variantSuffix =
+                  item.variant_name && item.variant_name !== "Standard"
+                    ? ` — ${item.variant_name}`
+                    : "";
+                const displayName = `${product.name}${tierLabel}${variantSuffix}`;
+
+                const stockStatus = item.variantStockStatus ?? "in_stock";
+                const variantStock = item.variantStock ?? 999999;
+
+                const isOutOfStock = stockStatus === "out_of_stock";
+                const isLowStock = stockStatus === "low_stock";
+
+                const stockLabel = isOutOfStock
+                  ? "Out of Stock"
+                  : isLowStock
+                  ? `Only ${variantStock} left`
+                  : "In Stock";
+
+                // Max units = floor(stock / ppu)
+                const maxUnits =
+                  stockStatus === "in_stock"
+                    ? 999999
+                    : stockStatus === "out_of_stock"
+                    ? 0
+                    : Math.max(1, Math.floor(variantStock / ppu));
+
+                const canIncrement = !isOutOfStock && item.quantity < maxUnits;
+                const canDecrement = item.quantity > 1;
 
                 return (
                   <li
                     key={item.id}
                     className="cs-item"
-                    style={{ animationDelay: `${0.1 + i * 0.05}s` }}
+                    style={{ animationDelay: `${0.05 + i * 0.04}s` }}
                   >
-                    {/* Image */}
                     <div className="cs-item-img-wrap">
-                      {product.images?.[0] ? (
-                        <Image
-                          src={product.images[0]}
+                      {displayImage ? (
+                        <img
+                          src={displayImage}
                           alt={product.name}
-                          width={68}
-                          height={68}
                           style={{
                             objectFit: "cover",
                             width: "100%",
@@ -254,13 +309,33 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                       )}
                     </div>
 
-                    {/* Info */}
                     <div className="cs-item-info">
                       {product.brand && (
                         <p className="cs-item-brand">{product.brand}</p>
                       )}
-                      <p className="cs-item-name">{product.name}</p>
-                      <p className="cs-item-variant">{product.subcategory}</p>
+                      <p className="cs-item-name">{displayName}</p>
+
+                      {product.subcategory && (
+                        <p className="cs-item-variant">{product.subcategory}</p>
+                      )}
+
+                      {/* Breakdown: price per piece × pieces × units */}
+                      <p className="cs-item-breakdown">
+                        {formatPrice(convertPrice(pricePerPiecePKR))} × {ppu}{" "}
+                        pcs × {item.quantity} unit
+                        {item.quantity !== 1 ? "s" : ""} = {rowPhysicalPieces}{" "}
+                        pcs total
+                      </p>
+
+                      <div className="cs-item-stock">
+                        <span
+                          className={`cs-stock-badge ${
+                            isOutOfStock ? "out" : isLowStock ? "low" : "in"
+                          }`}
+                        >
+                          {stockLabel}
+                        </span>
+                      </div>
 
                       <div className="cs-item-bottom">
                         <div className="cs-qty">
@@ -270,6 +345,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                               updateQuantity(item.id, item.quantity - 1)
                             }
                             aria-label="Decrease quantity"
+                            disabled={!canDecrement}
                           >
                             <svg
                               viewBox="0 0 24 24"
@@ -280,14 +356,21 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                               <path d="M5 12h14" strokeLinecap="round" />
                             </svg>
                           </button>
-                          <span className="cs-qty-num">{item.quantity}</span>
+
+                          <span className="cs-qty-num">
+                            {item.quantity}
+                            {ppu > 1 && (
+                              <span className="cs-qty-ppu">×{ppu}</span>
+                            )}
+                          </span>
+
                           <button
                             className="cs-qty-btn"
                             onClick={() =>
                               updateQuantity(item.id, item.quantity + 1)
                             }
                             aria-label="Increase quantity"
-                            disabled={item.quantity >= product.stock}
+                            disabled={!canIncrement}
                           >
                             <svg
                               viewBox="0 0 24 24"
@@ -302,13 +385,13 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                             </svg>
                           </button>
                         </div>
+
                         <p className="cs-item-price">
-                          {formatPrice(itemTotal)}
+                          {formatPrice(convertPrice(itemTotalPKR))}
                         </p>
                       </div>
                     </div>
 
-                    {/* Remove */}
                     <button
                       className="cs-item-remove"
                       onClick={() => removeFromCart(item.id)}
@@ -330,22 +413,31 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           )}
         </div>
 
-        {/* Footer Summary */}
-        {cartCount > 0 && !loading && (
+        {cartUnitCount > 0 && (
           <div className="cs-footer">
             <div className="cs-summary">
               <div className="cs-summary-row">
-                <span>Subtotal ({cartCount} items)</span>
-                <span>{formatPrice(subtotal)}</span>
+                <span>
+                  Subtotal ({totalPieces}{" "}
+                  {totalPieces === 1 ? "piece" : "pieces"})
+                </span>
+                <span>{formatPrice(convertPrice(subtotalPKR))}</span>
               </div>
+
               <div className="cs-summary-row">
                 <span>Shipping</span>
-                <span>{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
+                <span>
+                  {shippingPKR === 0
+                    ? "Free"
+                    : formatPrice(convertPrice(shippingPKR))}
+                </span>
               </div>
+
               <div className="cs-summary-divider" />
+
               <div className="cs-summary-row cs-summary-total">
                 <span>Total</span>
-                <span>{formatPrice(total)}</span>
+                <span>{formatPrice(convertPrice(totalPKR))}</span>
               </div>
             </div>
 
@@ -390,6 +482,20 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             </button>
           </div>
         )}
+
+        <style jsx>{`
+          .cs-item-breakdown {
+            font-size: 0.65rem;
+            color: #888;
+            margin: 0.1rem 0 0.2rem;
+            line-height: 1.4;
+          }
+          .cs-qty-ppu {
+            font-size: 0.6rem;
+            opacity: 0.65;
+            margin-left: 2px;
+          }
+        `}</style>
       </div>
     </>
   );

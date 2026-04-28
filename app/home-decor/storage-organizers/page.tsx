@@ -7,8 +7,8 @@ export default function StorageOrganizers() {
     <Subcategory
       category="Home Decor"
       subcategory="Storage & Organizers"
-      title="Storage <em>& Organizers</em>"
-      description="Beautiful and functional storage solutions for every room"
+      title="Elegant <em>Storage Solutions</em>"
+      description="Declutter your space with our stylish and functional storage solutions"
       breadcrumb={{
         parent: "Home Decor",
         parentHref: "/home-decor",

@@ -7,8 +7,8 @@ export default function KitchenEssentials() {
     <Subcategory
       category="Home Decor"
       subcategory="Kitchen Essentials"
-      title="Kitchen <em>Essentials</em>"
-      description="Premium cookware, utensils, and organization for your kitchen"
+      title="Premium <em>Kitchen Essentials</em>"
+      description="Elevate your cooking experience with our premium kitchenware collection"
       breadcrumb={{
         parent: "Home Decor",
         parentHref: "/home-decor",

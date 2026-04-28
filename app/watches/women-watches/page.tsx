@@ -7,8 +7,8 @@ export default function WomenWatches() {
     <Subcategory
       category="Watches"
       subcategory="Women Watches"
-      title="Women's <em>Watches</em>"
-      description="Elegant and stylish watches that complement your unique personality. Discover diamond-set dials, mother-of-pearl faces, and rose gold bracelets — time, reimagined as jewellery."
+      title="Elegant <em>Women's Watches</em>"
+      description="From minimalist designs to diamond-adorned luxury, find your perfect timepiece"
       breadcrumb={{
         parent: "Watches",
         parentHref: "/watches",

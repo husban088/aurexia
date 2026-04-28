@@ -8,10 +8,12 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname: "res.cloudinary.com", // ← Add this line
+        hostname: "res.cloudinary.com",
       },
     ],
   },
+  // Add font optimization
+  optimizeFonts: true,
 };
 
 module.exports = nextConfig;

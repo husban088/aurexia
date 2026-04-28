@@ -7,8 +7,8 @@ export default function InteriorAccessories() {
     <Subcategory
       category="Automotive"
       subcategory="Interior Accessories"
-      title="Interior <em>Accessories</em>"
-      description="Transform your cabin with ambient lighting, organizers, and premium accents"
+      title="Luxury <em>Interior Accessories</em>"
+      description="Enhance your car's cabin with premium interior accessories"
       breadcrumb={{
         parent: "Automotive",
         parentHref: "/automotive",

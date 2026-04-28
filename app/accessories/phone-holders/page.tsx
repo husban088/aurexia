@@ -8,7 +8,7 @@ export default function PhoneHolders() {
       category="Accessories"
       subcategory="Phone Holders"
       title="Secure <em>Phone Holders</em>"
-      description="Magnetic car mounts, desk stands, and universal phone grips"
+      description="Magnetic car mounts, desk stands, and universal phone grips for hands-free convenience"
       breadcrumb={{
         parent: "Accessories",
         parentHref: "/accessories",

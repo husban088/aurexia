@@ -24,6 +24,9 @@ export interface Product {
   is_active: boolean;
   specs: Record<string, string>;
   created_at: string;
+  low_stock_threshold?: number | null;
+  stockStatus?: "in_stock" | "out_of_stock" | "low_stock";
+  variantId?: string;
 }
 
 interface ProductGridProps {
@@ -31,13 +34,40 @@ interface ProductGridProps {
   subcategory?: string;
   limit?: number;
   featured?: boolean;
+  onQuickView?: (productId: string) => void;
 }
+
+const getStockStatus = (
+  stock: number,
+  threshold?: number | null
+): "in_stock" | "out_of_stock" | "low_stock" => {
+  if (stock === 0) return "out_of_stock";
+  if (stock >= 999999) return "in_stock";
+  if (threshold && threshold > 0 && stock <= threshold) return "low_stock";
+  return "in_stock";
+};
+
+const getStockLabel = (
+  status: "in_stock" | "out_of_stock" | "low_stock",
+  stock: number
+) => {
+  if (status === "out_of_stock") return "Out of stock";
+  if (status === "low_stock") return `Only ${stock} left`;
+  return "In stock";
+};
+
+const getStockClass = (status: "in_stock" | "out_of_stock" | "low_stock") => {
+  if (status === "out_of_stock") return "out";
+  if (status === "low_stock") return "low";
+  return "";
+};
 
 export default function ProductGrid({
   category,
   subcategory,
   limit,
   featured = false,
+  onQuickView,
 }: ProductGridProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,28 +108,111 @@ export default function ProductGrid({
         if (error) {
           console.error("ProductGrid error:", error);
           setProducts([]);
-        } else {
-          // Convert data to match Product interface
-          const formattedData = (data || []).map((item: any) => ({
+          setLoading(false);
+          return;
+        }
+
+        const productIds = (data || []).map((item: any) => item.id);
+
+        if (productIds.length === 0) {
+          setProducts([]);
+          setLoading(false);
+          return;
+        }
+
+        const { data: variantsData } = await supabase
+          .from("product_variants")
+          .select("*")
+          .in("product_id", productIds)
+          .eq("is_active", true)
+          .order("created_at", { ascending: true });
+
+        const variantMap: Record<string, any> = {};
+        if (variantsData) {
+          const typePriority: Record<string, number> = {
+            standard: 0,
+            color: 1,
+            size: 2,
+            material: 3,
+            capacity: 4,
+          };
+          variantsData.forEach((variant: any) => {
+            const existing = variantMap[variant.product_id];
+            if (!existing) {
+              variantMap[variant.product_id] = variant;
+            } else {
+              const existingPriority =
+                typePriority[existing.attribute_type] ?? 9;
+              const newPriority = typePriority[variant.attribute_type] ?? 9;
+              if (newPriority < existingPriority) {
+                variantMap[variant.product_id] = variant;
+              }
+            }
+          });
+        }
+
+        const variantIds = Object.values(variantMap).map((v: any) => v.id);
+        const variantImagesMap: Record<string, string[]> = {};
+
+        if (variantIds.length > 0) {
+          const { data: imagesData } = await supabase
+            .from("variant_images")
+            .select("variant_id, image_url, display_order")
+            .in("variant_id", variantIds)
+            .order("display_order", { ascending: true });
+
+          if (imagesData) {
+            imagesData.forEach((img: any) => {
+              if (!variantImagesMap[img.variant_id]) {
+                variantImagesMap[img.variant_id] = [];
+              }
+              variantImagesMap[img.variant_id].push(img.image_url);
+            });
+          }
+        }
+
+        const formattedData: Product[] = (data || []).map((item: any) => {
+          const variant = variantMap[item.id];
+          const stock = variant?.stock ?? item.stock ?? 0;
+          const lowStockThreshold =
+            variant?.low_stock_threshold ?? item.low_stock_threshold ?? null;
+          const stockStatus = getStockStatus(stock, lowStockThreshold);
+
+          const variantImages =
+            variant && variantImagesMap[variant.id]
+              ? variantImagesMap[variant.id]
+              : [];
+          const productImages = item.images || [];
+          const images =
+            variantImages.length > 0 ? variantImages : productImages;
+
+          return {
             id: item.id,
             name: item.name,
             description: item.description || "",
-            price: item.price,
-            original_price: item.original_price || undefined,
+            price: variant?.price ?? item.price ?? 0,
+            original_price:
+              variant?.original_price ?? item.original_price ?? undefined,
             category: item.category,
             subcategory: item.subcategory,
-            images: item.images || [],
-            stock: item.stock || 0,
+            images,
+            stock,
             brand: item.brand || undefined,
             condition: item.condition || "new",
             is_featured: item.is_featured || false,
-            is_active: item.is_active || true,
+            is_active: item.is_active ?? true,
             specs: item.specs || {},
             created_at: item.created_at || new Date().toISOString(),
-          }));
+            low_stock_threshold: lowStockThreshold,
+            stockStatus,
+            variantId: variant?.id,
+          };
+        });
+
+        if (!cancelled) {
           setProducts(formattedData);
+          setLoading(false);
         }
-        setLoading(false);
       }
     }
 
@@ -154,11 +267,44 @@ export default function ProductGrid({
     return 0;
   }, []);
 
-  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
+  const handleQuickViewClick = (e: React.MouseEvent, productId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (product.stock > 0) {
-      addToCart({
+    if (onQuickView) {
+      onQuickView(productId);
+    }
+  };
+
+  const handleAddToCartClick = (e: React.MouseEvent, product: Product) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const stockStatus =
+      product.stockStatus ||
+      getStockStatus(product.stock, product.low_stock_threshold);
+
+    if (stockStatus === "out_of_stock") {
+      return;
+    }
+
+    const qtyToAdd = 1;
+
+    const variantObj = product.variantId
+      ? {
+          id: product.variantId,
+          product_id: product.id,
+          attribute_type: "standard" as const,
+          attribute_value: "Standard",
+          price: product.price,
+          original_price: product.original_price,
+          stock: product.stock,
+          low_stock_threshold: product.low_stock_threshold ?? undefined,
+          is_active: true,
+        }
+      : null;
+
+    addToCart(
+      {
         id: product.id,
         name: product.name,
         description: product.description,
@@ -172,10 +318,16 @@ export default function ProductGrid({
         condition: product.condition,
         is_featured: product.is_featured,
         is_active: product.is_active,
-        specs: product.specs,
+        ...(product.low_stock_threshold != null && {
+          low_stock_threshold: product.low_stock_threshold,
+        }),
         created_at: product.created_at,
-      });
-    }
+        updated_at: new Date().toISOString(),
+      },
+      variantObj,
+      qtyToAdd,
+      1
+    );
   };
 
   if (loading) {
@@ -263,6 +415,14 @@ export default function ProductGrid({
       <div className="pg-grid">
         {filteredAndSorted.map((product) => {
           const discount = calculateDiscount(product);
+          const stockStatus =
+            product.stockStatus ||
+            getStockStatus(product.stock, product.low_stock_threshold);
+          const stockLabel = getStockLabel(stockStatus, product.stock);
+          const stockClass = getStockClass(stockStatus);
+          const isOutOfStock = stockStatus === "out_of_stock";
+          const isLowStock = stockStatus === "low_stock";
+
           return (
             <Link
               key={product.id}
@@ -308,13 +468,16 @@ export default function ProductGrid({
                   {product.condition === "new" && !discount && (
                     <span className="pg-badge pg-badge--new">New</span>
                   )}
+                  {isLowStock && (
+                    <span className="pg-badge pg-badge--low">Low Stock</span>
+                  )}
                 </div>
 
-                {/* Icon Buttons - Always Visible */}
                 <div className="pg-icon-buttons">
                   <button
                     className="pg-icon-btn pg-icon-btn--view"
                     aria-label="Quick View"
+                    onClick={(e) => handleQuickViewClick(e, product.id)}
                   >
                     <svg
                       viewBox="0 0 24 24"
@@ -328,8 +491,8 @@ export default function ProductGrid({
                   </button>
                   <button
                     className="pg-icon-btn pg-icon-btn--cart"
-                    onClick={(e) => handleAddToCart(e, product)}
-                    disabled={product.stock === 0}
+                    onClick={(e) => handleAddToCartClick(e, product)}
+                    disabled={isOutOfStock}
                     aria-label="Add to Cart"
                   >
                     <svg
@@ -368,20 +531,8 @@ export default function ProductGrid({
               </div>
 
               <div className="pg-card-foot">
-                <span
-                  className={`pg-card-stock${
-                    product.stock === 0
-                      ? " out"
-                      : product.stock < 5
-                      ? " low"
-                      : ""
-                  }`}
-                >
-                  {product.stock === 0
-                    ? "Out of stock"
-                    : product.stock < 5
-                    ? `Only ${product.stock} left`
-                    : "In stock"}
+                <span className={`pg-card-stock ${stockClass}`}>
+                  {stockLabel}
                 </span>
               </div>
 

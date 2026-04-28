@@ -1,5 +1,6 @@
 /* ── Google Fonts — MUST be first, before any other rules ── */
 @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 /* ── Tailwind ── */
 @import "tailwindcss";
@@ -7,6 +8,10 @@
 :root {
   --background: #1f1f1f;
   --foreground: #f5f0e8;
+  --font-goldman: "Goldman", "Jost", "Segoe UI", system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  --font-jost: "Jost", sans-serif;
+  --font-cormorant: "Cormorant Garamond", serif;
 }
 
 @theme inline {
@@ -27,10 +32,143 @@ html {
   overflow-x: hidden !important;
 }
 
+/* ============================================================
+   GOLDMAN FONT - MAIN FONT FOR ENTIRE PROJECT
+   ============================================================ */
+
+/* Set Goldman as default font for everything */
+body,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+a,
+span,
+div,
+button,
+input,
+textarea,
+select,
+label,
+.navbar,
+.nav-links,
+.footer,
+.card,
+.product-card,
+.cart-item,
+.checkout-form,
+.panel,
+.admin-panel {
+  font-family: var(--font-goldman);
+}
+
+/* Override for specific elements that need different fonts */
+code,
+pre,
+kbd,
+samp,
+.monospace {
+  font-family: monospace;
+}
+
+/* For headings - keep Goldman but adjust weight */
+h1,
+.h1,
+.page-title,
+.hero-title {
+  font-family: var(--font-goldman);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+h2,
+.h2,
+.section-title {
+  font-family: var(--font-goldman);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+h3,
+.h3,
+.card-title {
+  font-family: var(--font-goldman);
+  font-weight: 600;
+}
+
+/* Button text */
+button,
+.btn,
+.cta-button {
+  font-family: var(--font-goldman);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* Navbar links */
+.nav-links a,
+.navbar a,
+.menu-item {
+  font-family: var(--font-goldman);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+/* Product names */
+.product-name,
+.product-title,
+.fp-card-name,
+.pg-card-name {
+  font-family: var(--font-goldman);
+  font-weight: 600;
+}
+
+/* Prices */
+.price,
+.product-price,
+.fp-card-price,
+.pg-card-price {
+  font-family: var(--font-goldman);
+  font-weight: 700;
+}
+
+/* Form labels and inputs */
+label,
+input,
+textarea,
+select {
+  font-family: var(--font-goldman);
+}
+
+/* Small text, meta info */
+.small-text,
+.meta,
+.eyebrow,
+.badge,
+.stock-status {
+  font-family: var(--font-goldman);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+/* Footer text */
+.footer-text,
+.copyright {
+  font-family: var(--font-goldman);
+  font-weight: 400;
+}
+
+/* ============================================================
+   BODY STYLES
+   ============================================================ */
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: "Jost", Arial, Helvetica, sans-serif;
+  font-family: var(--font-goldman);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden !important;
@@ -56,4 +194,37 @@ ol {
 
 a {
   text-decoration: none;
+}
+
+/* ============================================================
+   ADDITIONAL HELPER CLASSES
+   ============================================================ */
+
+/* Goldman font variations */
+.font-goldman {
+  font-family: "Goldman", "Jost", sans-serif;
+}
+
+.font-goldman-regular {
+  font-family: "Goldman", "Jost", sans-serif;
+  font-weight: 400;
+}
+
+.font-goldman-bold {
+  font-family: "Goldman", "Jost", sans-serif;
+  font-weight: 700;
+}
+
+/* Fallback fonts */
+.font-jost {
+  font-family: "Jost", sans-serif;
+}
+
+.font-cormorant {
+  font-family: "Cormorant Garamond", serif;
+}
+
+/* Monospace fallback */
+.font-mono {
+  font-family: monospace;
 }

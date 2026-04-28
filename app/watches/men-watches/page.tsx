@@ -7,8 +7,8 @@ export default function MenWatches() {
     <Subcategory
       category="Watches"
       subcategory="Men Watches"
-      title="Men's <em>Watches</em>"
-      description="Sophisticated timepieces for the modern gentleman. From classic analog to chronograph, explore our collection of precision-crafted watches that blend heritage with contemporary style."
+      title="Classic <em>Men's Watches</em>"
+      description="Discover our collection of sophisticated timepieces designed for the modern gentleman"
       breadcrumb={{
         parent: "Watches",
         parentHref: "/watches",

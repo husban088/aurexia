@@ -1,25 +1,27 @@
 /* ============================================================
    PROFILE PAGE  ·  profile.css
-   Brighter Luxury Theme — Cream/Gold aesthetic
+   Premium Theme with High Contrast Text
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,600&family=Josefin+Sans:wght@200;300;400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,600&family=Josefin+Sans:wght@200;300;400;500;600;700&display=swap");
 
 :root {
-  --pf-gold: #d4af37;
-  --pf-gold-light: #f0d884;
-  --pf-gold-dim: #c9a03d;
-  --pf-gold-soft: rgba(212, 175, 55, 0.12);
+  --pf-gold: #daa520;
+  --pf-gold-dark: #b8860b;
+  --pf-gold-deep: #8b6914;
+  --pf-gold-light: #f0c040;
+  --pf-gold-soft: rgba(218, 165, 32, 0.12);
   --pf-bg: #f9f5f0;
   --pf-bg-light: #ffffff;
   --pf-card-bg: #ffffff;
   --pf-card-hover: #fffaf5;
-  --pf-border: rgba(212, 175, 55, 0.18);
-  --pf-border-hover: rgba(212, 175, 55, 0.35);
-  --pf-text-dark: #0a0a0a;
+  --pf-border: rgba(184, 134, 11, 0.18);
+  --pf-border-hover: rgba(184, 134, 11, 0.35);
+  --pf-text-dark: #1a1a1a;
   --pf-text-muted: #2a2a2a;
-  --pf-text-light: #555555;
-  --pf-text-grey: #888888;
+  --pf-text-light: #444444;
+  --pf-text-grey: #666666;
+  --pf-text-gold: #8b6914;
   --pf-serif: "Cormorant Garamond", Georgia, serif;
   --pf-sans: "Josefin Sans", sans-serif;
   --pf-ease: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
@@ -40,24 +42,24 @@
 .pf-loading-ring {
   width: 60px;
   height: 60px;
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  border-top-color: var(--pf-gold);
+  border: 1px solid rgba(184, 134, 11, 0.2);
+  border-top-color: #daa520;
   border-radius: 50%;
   animation: pf-spin 1.2s linear infinite;
 }
 .pf-loading-inner {
   position: absolute;
   inset: 8px;
-  border: 1px solid rgba(212, 175, 55, 0.1);
+  border: 1px solid rgba(184, 134, 11, 0.1);
   border-radius: 50%;
 }
 .pf-loading-text {
   font-family: var(--pf-sans);
   font-size: 0.7rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--pf-text-grey);
+  color: #666666;
   margin: 0;
 }
 
@@ -97,8 +99,8 @@
   background: linear-gradient(
     to bottom,
     transparent 0%,
-    rgba(212, 175, 55, 0.1) 30%,
-    rgba(212, 175, 55, 0.1) 70%,
+    rgba(184, 134, 11, 0.1) 30%,
+    rgba(184, 134, 11, 0.1) 70%,
     transparent 100%
   );
 }
@@ -112,26 +114,26 @@
 .pf-corner--tl {
   top: 1.5rem;
   left: 1.5rem;
-  border-top: 1px solid rgba(212, 175, 55, 0.35);
-  border-left: 1px solid rgba(212, 175, 55, 0.35);
+  border-top: 1px solid rgba(184, 134, 11, 0.4);
+  border-left: 1px solid rgba(184, 134, 11, 0.4);
 }
 .pf-corner--tr {
   top: 1.5rem;
   right: 1.5rem;
-  border-top: 1px solid rgba(212, 175, 55, 0.35);
-  border-right: 1px solid rgba(212, 175, 55, 0.35);
+  border-top: 1px solid rgba(184, 134, 11, 0.4);
+  border-right: 1px solid rgba(184, 134, 11, 0.4);
 }
 .pf-corner--bl {
   bottom: 1.5rem;
   left: 1.5rem;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.35);
-  border-left: 1px solid rgba(212, 175, 55, 0.35);
+  border-bottom: 1px solid rgba(184, 134, 11, 0.4);
+  border-left: 1px solid rgba(184, 134, 11, 0.4);
 }
 .pf-corner--br {
   bottom: 1.5rem;
   right: 1.5rem;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.35);
-  border-right: 1px solid rgba(212, 175, 55, 0.35);
+  border-bottom: 1px solid rgba(184, 134, 11, 0.4);
+  border-right: 1px solid rgba(184, 134, 11, 0.4);
 }
 
 /* ── Layout ── */
@@ -172,7 +174,7 @@
   height: 300px;
   background: radial-gradient(
     circle,
-    rgba(212, 175, 55, 0.08) 0%,
+    rgba(218, 165, 32, 0.08) 0%,
     transparent 70%
   );
   pointer-events: none;
@@ -191,7 +193,7 @@
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(212, 175, 55, 0.12) 0%,
+    rgba(218, 165, 32, 0.12) 0%,
     transparent 70%
   );
   animation: pf-pulse 3s ease-in-out infinite;
@@ -218,14 +220,14 @@
   justify-content: center;
   position: relative;
   background: white;
-  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.1);
+  box-shadow: 0 4px 15px rgba(184, 134, 11, 0.1);
 }
 .pf-avatar {
   width: 80px;
   height: 80px;
   border-radius: 50%;
   background: linear-gradient(135deg, #f0ebe4 0%, #e8e0d8 100%);
-  border: 2px solid var(--pf-gold);
+  border: 2px solid #daa520;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -234,7 +236,7 @@
   font-family: var(--pf-serif);
   font-size: 1.8rem;
   font-weight: 500;
-  color: var(--pf-gold);
+  color: #8b6914;
   letter-spacing: 0.05em;
 }
 
@@ -253,41 +255,41 @@
   gap: 0.6rem;
   font-family: var(--pf-sans);
   font-size: 0.58rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: var(--pf-gold-dim);
+  color: #8b6914;
   margin: 0;
 }
 .pf-ey-line {
   display: block;
   width: 20px;
   height: 1px;
-  background: var(--pf-gold);
+  background: #daa520;
   opacity: 0.6;
 }
 .pf-aside-name {
   font-family: var(--pf-serif);
   font-size: 1.5rem;
   font-weight: 500;
-  color: var(--pf-text-dark);
+  color: #1a1a1a;
   letter-spacing: 0.06em;
   margin: 0.2rem 0 0;
 }
 .pf-aside-email {
   font-family: var(--pf-sans);
   font-size: 0.65rem;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.05em;
-  color: var(--pf-text-light);
+  color: #444444;
   margin: 0;
   word-break: break-all;
 }
 .pf-aside-divider {
   width: 40px;
   height: 1px;
-  background: var(--pf-gold);
-  opacity: 0.5;
+  background: #daa520;
+  opacity: 0.6;
   margin: 0.5rem auto;
 }
 .pf-aside-meta {
@@ -309,28 +311,28 @@
 .pf-meta-label {
   font-family: var(--pf-sans);
   font-size: 0.6rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--pf-text-grey);
+  color: #666666;
 }
 .pf-meta-value {
   font-family: var(--pf-sans);
   font-size: 0.68rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.05em;
-  color: var(--pf-text-dark);
+  color: #1a1a1a;
   display: flex;
   align-items: center;
   gap: 0.35rem;
 }
 .pf-meta-active {
-  color: var(--pf-success);
+  color: #22c55e;
 }
 .pf-dot {
   width: 7px;
   height: 7px;
-  background: var(--pf-success);
+  background: #22c55e;
   border-radius: 50%;
   animation: pf-blink 2s ease-in-out infinite;
 }
@@ -352,10 +354,10 @@
   padding: 0.7rem 1.2rem;
   background: transparent;
   border: 1px solid rgba(239, 68, 68, 0.25);
-  color: var(--pf-error);
+  color: #ef4444;
   font-family: var(--pf-sans);
   font-size: 0.65rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
   cursor: pointer;
@@ -398,30 +400,30 @@
   gap: 0.7rem;
   font-family: var(--pf-sans);
   font-size: 0.6rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: var(--pf-gold-dim);
+  color: #8b6914;
   margin: 0;
 }
 .pf-main-title {
   font-family: var(--pf-serif);
   font-size: clamp(1.6rem, 2.5vw, 2.2rem);
   font-weight: 500;
-  color: var(--pf-text-dark);
+  color: #1a1a1a;
   line-height: 1.05;
   margin: 0;
 }
 .pf-main-title em {
   font-style: italic;
-  color: var(--pf-gold);
+  color: #8b6914;
 }
 .pf-main-sub {
   font-family: var(--pf-sans);
   font-size: 0.7rem;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.05em;
-  color: var(--pf-text-grey);
+  color: #666666;
   margin: 0;
 }
 
@@ -442,10 +444,10 @@
   border-bottom: 2px solid transparent;
   font-family: var(--pf-sans);
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--pf-text-grey);
+  color: #666666;
   cursor: pointer;
   margin-bottom: -1px;
   transition: all var(--pf-ease);
@@ -456,14 +458,14 @@
   transition: color var(--pf-ease);
 }
 .pf-tab:hover {
-  color: var(--pf-gold);
+  color: #8b6914;
 }
 .pf-tab--active {
-  color: var(--pf-gold);
-  border-bottom-color: var(--pf-gold);
+  color: #8b6914;
+  border-bottom-color: #daa520;
 }
 .pf-tab--active svg {
-  color: var(--pf-gold);
+  color: #8b6914;
 }
 
 /* Alerts */
@@ -475,19 +477,19 @@
   border-radius: 12px;
   font-family: var(--pf-sans);
   font-size: 0.68rem;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.03em;
   margin-bottom: 1.5rem;
 }
 .pf-alert--error {
   background: rgba(239, 68, 68, 0.05);
   border: 1px solid rgba(239, 68, 68, 0.2);
-  color: var(--pf-error);
+  color: #ef4444;
 }
 .pf-alert--success {
   background: rgba(34, 197, 94, 0.05);
   border: 1px solid rgba(34, 197, 94, 0.2);
-  color: var(--pf-success);
+  color: #22c55e;
 }
 
 /* Form */
@@ -516,16 +518,16 @@
 .pf-label {
   font-family: var(--pf-sans);
   font-size: 0.65rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: var(--pf-text-grey);
+  color: #666666;
   transition: color var(--pf-ease);
   cursor: pointer;
 }
 .pf-field--focused .pf-label,
 .pf-field--filled .pf-label {
-  color: var(--pf-gold);
+  color: #8b6914;
 }
 .pf-input-wrap {
   position: relative;
@@ -549,7 +551,7 @@
 }
 .pf-field--focused .pf-input-icon,
 .pf-field--filled .pf-input-icon {
-  color: var(--pf-gold);
+  color: #8b6914;
 }
 .pf-input {
   width: 100%;
@@ -559,10 +561,10 @@
   padding: 0.6rem 2rem 0.6rem 1.8rem;
   font-family: var(--pf-sans);
   font-size: 0.85rem;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.02em;
-  color: var(--pf-text-dark);
-  caret-color: var(--pf-gold);
+  color: #1a1a1a;
+  caret-color: #daa520;
 }
 .pf-input::placeholder {
   color: #bbbbbb;
@@ -580,7 +582,7 @@
   top: 0;
   width: 100%;
   height: 100%;
-  background: var(--pf-gold);
+  background: #daa520;
   transition: left var(--pf-ease);
 }
 .pf-field--focused .pf-field-line::after {
@@ -604,7 +606,7 @@
   transition: color var(--pf-ease);
 }
 .pf-eye-btn:hover {
-  color: var(--pf-gold);
+  color: #8b6914;
 }
 .pf-eye-btn svg {
   width: 16px;
@@ -618,13 +620,13 @@
   gap: 0.4rem;
   font-family: var(--pf-sans);
   font-size: 0.62rem;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.03em;
-  color: var(--pf-text-grey);
+  color: #666666;
   margin: 0.5rem 0 1.5rem;
 }
 .pf-form-info svg {
-  color: var(--pf-gold);
+  color: #8b6914;
   opacity: 0.7;
 }
 
@@ -636,12 +638,12 @@
   gap: 0.6rem;
   align-self: flex-start;
   padding: 0.9rem 2rem;
-  background: var(--pf-gold);
-  border: 1px solid var(--pf-gold);
+  background: #daa520;
+  border: 1px solid #daa520;
   color: white;
   font-family: var(--pf-sans);
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.28em;
   text-transform: uppercase;
   cursor: pointer;
@@ -661,8 +663,8 @@
 }
 .pf-save-btn:hover:not(:disabled) {
   background: transparent;
-  color: var(--pf-gold);
-  box-shadow: 0 8px 25px rgba(212, 175, 55, 0.2);
+  color: #8b6914;
+  box-shadow: 0 8px 25px rgba(218, 165, 32, 0.2);
   transform: translateY(-2px);
   gap: 1rem;
 }
