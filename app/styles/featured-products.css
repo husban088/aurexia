@@ -1003,3 +1003,39 @@
 .fp-card {
   animation: fp-fade-in 0.4s ease-out forwards;
 }
+
+/* Spinner Animation */
+@keyframes fp-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.fp-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(218, 165, 32, 0.2);
+  border-top-color: #daa520;
+  border-radius: 50%;
+  animation: fp-spin 0.8s linear infinite;
+}
+
+/* Disabled button styles */
+.fp-icon-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.fp-icon-btn:disabled:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: none;
+}
+
+.fp-icon-btn:disabled:hover svg {
+  color: #1a1a1a;
+}

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import "./hero.css";
 
 /* ──────────────────────────────────────────
@@ -252,9 +253,9 @@ export default function HeroSection() {
                 {/* Para */}
                 <p className="hero-para">{slide.para}</p>
 
-                {/* Buttons */}
+                {/* Buttons - CHANGED: a tags to Link for page reload navigation */}
                 <div className="hero-btn-wrap">
-                  <a href={slide.cta.href} className="hero-btn-primary">
+                  <Link href={slide.cta.href} className="hero-btn-primary">
                     {slide.cta.label}
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                       <path
@@ -263,10 +264,10 @@ export default function HeroSection() {
                         strokeLinejoin="round"
                       />
                     </svg>
-                  </a>
-                  <a href={slide.ghost.href} className="hero-btn-ghost">
+                  </Link>
+                  <Link href={slide.ghost.href} className="hero-btn-ghost">
                     {slide.ghost.label}
-                  </a>
+                  </Link>
                 </div>
               </div>
             </div>

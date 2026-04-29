@@ -131,9 +131,10 @@ export default function Checkout() {
     cvv: "",
   });
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchCart();
-  }, [fetchCart]);
+  }, []);
 
   // Update country code based on currency
   useEffect(() => {
@@ -275,7 +276,8 @@ export default function Checkout() {
   const total = subtotal + shipping;
   const currentStepIndex = STEPS.findIndex((s) => s.id === step);
 
-  const validItems = items.filter((item) => item.product);
+  // Don't filter by item.product — cartStore always builds a fallback product
+  const validItems = items;
 
   const validateShipping = (): boolean => {
     const fieldsToValidate: (keyof FormData)[] = [
@@ -375,9 +377,13 @@ export default function Checkout() {
 
       // Prepare order items
       const orderItems = validItems.map((item) => {
-        const product = item.product!;
+        const product = item.product ?? {
+          id: item.product_id,
+          name: item.variant_name || "Product",
+          price: item.variant_price ?? 0,
+        };
         const ppu = item.pieces_per_unit ?? 1;
-        const pricePerPiece = item.variant_price ?? product.price ?? 0;
+        const pricePerPiece = item.variant_price ?? (product as any).price ?? 0;
         return {
           product_id: product.id,
           product_name: product.name,
@@ -426,9 +432,13 @@ export default function Checkout() {
           phone: `${selectedCountryCode}${form.phone}`,
           name: `${form.firstName} ${form.lastName}`,
           items: validItems.map((item) => {
-            const product = item.product!;
+            const product = item.product ?? {
+              name: item.variant_name || "Product",
+              price: item.variant_price ?? 0,
+            };
             const ppu = item.pieces_per_unit ?? 1;
-            const pricePerPiece = item.variant_price ?? product.price ?? 0;
+            const pricePerPiece =
+              item.variant_price ?? (product as any).price ?? 0;
             return {
               name: product.name,
               variant: item.variant_name,
@@ -465,8 +475,8 @@ export default function Checkout() {
     }
   };
 
-  // Loading state
-  if (loading && !initialized) {
+  // Loading state — show spinner only when no items yet
+  if (loading && items.length === 0) {
     return (
       <div className="co-root">
         <div className="co-grain" aria-hidden="true" />
@@ -477,8 +487,8 @@ export default function Checkout() {
     );
   }
 
-  // Empty cart state
-  if (validItems.length === 0 && !placed) {
+  // Empty cart state — only show after loading done AND truly empty
+  if (!loading && items.length === 0 && !placed) {
     return (
       <div className="co-root">
         <div className="co-grain" aria-hidden="true" />
@@ -1035,7 +1045,18 @@ export default function Checkout() {
                 </div>
                 <ul className="co-review-items">
                   {validItems.map((item) => {
-                    const product = item.product!;
+                    const product = item.product ?? {
+                      id: item.product_id,
+                      name: item.variant_name || "Product",
+                      description: "",
+                      category: "",
+                      subcategory: "",
+                      condition: "new",
+                      is_featured: false,
+                      is_active: true,
+                      price: item.variant_price ?? 0,
+                      images: [],
+                    };
                     const ppu = item.pieces_per_unit ?? 1;
                     const pricePerPiecePKR =
                       item.variant_price ?? product.price ?? 0;
@@ -1123,7 +1144,18 @@ export default function Checkout() {
               </p>
               <ul className="co-summary-items">
                 {validItems.slice(0, 3).map((item) => {
-                  const product = item.product!;
+                  const product = item.product ?? {
+                    id: item.product_id,
+                    name: item.variant_name || "Product",
+                    description: "",
+                    category: "",
+                    subcategory: "",
+                    condition: "new",
+                    is_featured: false,
+                    is_active: true,
+                    price: item.variant_price ?? 0,
+                    images: item.variant_image ? [item.variant_image] : [],
+                  };
                   const ppu = item.pieces_per_unit ?? 1;
                   const pricePerPiecePKR =
                     item.variant_price ?? product.price ?? 0;

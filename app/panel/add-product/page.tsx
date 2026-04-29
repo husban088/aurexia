@@ -1,7 +1,11 @@
 "use client";
 
-import { BulkPricingManager, BulkPricingTier } from "@/app/components/BulkPricingManager";
+import {
+  BulkPricingManager,
+  BulkPricingTier,
+} from "@/app/components/BulkPricingManager";
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation"; // ← YEH IMPORT ADD KIYA
 import PanelNavbar from "@/app/components/PanelNavbar";
 import {
   supabase,
@@ -10,6 +14,8 @@ import {
   ProductFAQ,
 } from "@/lib/supabase";
 import { uploadToCloudinary } from "@/lib/cloudinary";
+import { useCurrency } from "../../context/CurrencyContext";
+import { convertPriceToPKR, convertPriceFromPKR } from "@/lib/panelCurrency";
 import "../panel.css";
 import "./add-product.css";
 
@@ -263,7 +269,7 @@ function ToastContainer({
   );
 }
 
-// Simplified Stock Status Component
+// Stock Status Selector Component
 function StockStatusSelector({
   value,
   onChange,
@@ -275,48 +281,71 @@ function StockStatusSelector({
   lowStockThreshold: number | null;
   onThresholdChange: (threshold: number | null) => void;
 }) {
+  const handleInStock = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onChange("in_stock");
+  };
+
+  const handleOutOfStock = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onChange("out_of_stock");
+  };
+
+  const handleLowStock = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onChange("low_stock");
+  };
+
+  const uniqueId = useRef(`stock_${Date.now()}_${Math.random()}`).current;
+
   return (
     <div>
       <div className="ap-stock-radio-group">
-        <label
+        <div
           className={`ap-stock-radio-option ${
             value === "in_stock" ? "active-in-stock" : ""
           }`}
+          onClick={handleInStock}
         >
           <input
             type="radio"
-            name="stockStatus"
+            name={uniqueId}
             checked={value === "in_stock"}
-            onChange={() => onChange("in_stock")}
+            readOnly
           />
           <span>In Stock</span>
-        </label>
-        <label
+        </div>
+        <div
           className={`ap-stock-radio-option ${
             value === "out_of_stock" ? "active-out-stock" : ""
           }`}
+          onClick={handleOutOfStock}
         >
           <input
             type="radio"
-            name="stockStatus"
+            name={uniqueId}
             checked={value === "out_of_stock"}
-            onChange={() => onChange("out_of_stock")}
+            readOnly
           />
           <span>Out of Stock</span>
-        </label>
-        <label
+        </div>
+        <div
           className={`ap-stock-radio-option ${
             value === "low_stock" ? "active-low-stock" : ""
           }`}
+          onClick={handleLowStock}
         >
           <input
             type="radio"
-            name="stockStatus"
+            name={uniqueId}
             checked={value === "low_stock"}
-            onChange={() => onChange("low_stock")}
+            readOnly
           />
           <span>Low Stock Alert</span>
-        </label>
+        </div>
       </div>
 
       {value === "low_stock" && (
@@ -360,27 +389,21 @@ function FAQBuilder({
   faqs: FAQ[];
   setFaqs: (v: FAQ[]) => void;
 }) {
-  const addFAQ = () => {
+  const addFAQ = () =>
     setFaqs([
       ...faqs,
       { question: "", answer: "", display_order: faqs.length },
     ]);
+  const removeFAQ = (i: number) => setFaqs(faqs.filter((_, idx) => idx !== i));
+  const updateQ = (i: number, v: string) => {
+    const n = [...faqs];
+    n[i] = { ...n[i], question: v };
+    setFaqs(n);
   };
-
-  const removeFAQ = (index: number) => {
-    setFaqs(faqs.filter((_, i) => i !== index));
-  };
-
-  const updateQuestion = (index: number, value: string) => {
-    const newFaqs = [...faqs];
-    newFaqs[index] = { ...newFaqs[index], question: value };
-    setFaqs(newFaqs);
-  };
-
-  const updateAnswer = (index: number, value: string) => {
-    const newFaqs = [...faqs];
-    newFaqs[index] = { ...newFaqs[index], answer: value };
-    setFaqs(newFaqs);
+  const updateA = (i: number, v: string) => {
+    const n = [...faqs];
+    n[i] = { ...n[i], answer: v };
+    setFaqs(n);
   };
 
   if (faqs.length === 0) {
@@ -415,7 +438,7 @@ function FAQBuilder({
                 type="text"
                 className="ap-faq-question-input"
                 value={faq.question}
-                onChange={(e) => updateQuestion(i, e.target.value)}
+                onChange={(e) => updateQ(i, e.target.value)}
                 placeholder={`Question ${i + 1}...`}
               />
               <button
@@ -438,7 +461,7 @@ function FAQBuilder({
               <textarea
                 className="ap-faq-answer-input"
                 value={faq.answer}
-                onChange={(e) => updateAnswer(i, e.target.value)}
+                onChange={(e) => updateA(i, e.target.value)}
                 placeholder="Write your answer here..."
                 rows={2}
               />
@@ -469,7 +492,7 @@ function MultiImageUploader({
   onError,
 }: {
   images: string[];
-  onImagesChange: (images: string[]) => void;
+  onImagesChange: (imgs: string[]) => void;
   onError: (msg: string) => void;
 }) {
   const [uploading, setUploading] = useState(false);
@@ -493,22 +516,15 @@ function MultiImageUploader({
     setUploading(false);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleUpload(file);
-    if (fileRef.current) fileRef.current.value = "";
-  };
-
-  const removeImage = (index: number) => {
+  const removeImage = (index: number) =>
     onImagesChange(images.filter((_, i) => i !== index));
-  };
 
   return (
     <div className="ap-variant-images">
       <div className="ap-variant-image-list">
         {images.map((img, idx) => (
           <div key={idx} className="ap-variant-image-item">
-            <img src={img} alt={`Variant ${idx + 1}`} />
+            <img src={img} alt={`Image ${idx + 1}`} />
             <button
               type="button"
               className="ap-variant-image-remove"
@@ -545,7 +561,11 @@ function MultiImageUploader({
           ref={fileRef}
           type="file"
           accept="image/*"
-          onChange={handleFileChange}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleUpload(f);
+            if (fileRef.current) fileRef.current.value = "";
+          }}
           style={{ display: "none" }}
         />
       </div>
@@ -553,7 +573,7 @@ function MultiImageUploader({
   );
 }
 
-// Variant Form Item with simplified stock options and bulk pricing
+// Variant Form Item
 function VariantFormItem({
   attributeType,
   attributeValue,
@@ -567,8 +587,9 @@ function VariantFormItem({
   onRemove: () => void;
   onError: (msg: string) => void;
 }) {
-  const [price, setPrice] = useState("");
-  const [originalPrice, setOriginalPrice] = useState("");
+  const { currency } = useCurrency();
+  const [priceDisplay, setPriceDisplay] = useState("");
+  const [originalPriceDisplay, setOriginalPriceDisplay] = useState("");
   const [description, setDescription] = useState("");
   const [stockStatus, setStockStatus] = useState<StockStatus>("in_stock");
   const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
@@ -589,43 +610,44 @@ function VariantFormItem({
     }
   };
 
+  const getPriceInPKR = (displayPrice: string): number => {
+    const priceNum = parseFloat(displayPrice) || 0;
+    return convertPriceToPKR(priceNum, currency);
+  };
+
   useEffect(() => {
     onUpdate({
       attributeType,
       attributeValue,
-      price: parseFloat(price) || 0,
-      originalPrice: originalPrice ? parseFloat(originalPrice) : null,
+      pricePKR: getPriceInPKR(priceDisplay),
+      priceDisplay: priceDisplay,
+      originalPricePKR: originalPriceDisplay
+        ? getPriceInPKR(originalPriceDisplay)
+        : null,
+      originalPriceDisplay: originalPriceDisplay,
       description,
       stock: getStockValue(),
       lowStockThreshold: stockStatus === "low_stock" ? lowStockThreshold : null,
       images,
       stockStatus,
-      bulkPricingTiers: bulkTiers,
+      bulkPricingTiers: bulkTiers.map((tier) => ({
+        ...tier,
+        tier_price: convertPriceToPKR(tier.tier_price, currency),
+      })),
+      displayCurrency: currency.code,
     });
   }, [
-    price,
-    originalPrice,
+    priceDisplay,
+    originalPriceDisplay,
     description,
     stockStatus,
     lowStockThreshold,
     images,
     bulkTiers,
+    currency,
   ]);
 
-  const getStockStatusLabel = () => {
-    switch (stockStatus) {
-      case "in_stock":
-        return "In Stock";
-      case "out_of_stock":
-        return "Out of Stock";
-      case "low_stock":
-        return `Low Stock (Alert at ${lowStockThreshold || 5})`;
-      default:
-        return "In Stock";
-    }
-  };
-
-  const currentUnitPrice = parseFloat(price) || 0;
+  const currentUnitPrice = parseFloat(priceDisplay) || 0;
 
   return (
     <div className="ap-variant-form-item">
@@ -637,18 +659,14 @@ function VariantFormItem({
         <span className="ap-variant-form-badge">{attributeType}</span>
         <span
           className="ap-variant-form-badge"
-          style={{ background: "rgba(245, 158, 11, 0.1)", color: "#f59e0b" }}
+          style={{ background: "rgba(245,158,11,0.1)", color: "#f59e0b" }}
         >
-          {getStockStatusLabel()}
+          {stockStatus === "out_of_stock"
+            ? "Out of Stock"
+            : stockStatus === "low_stock"
+            ? "Low Stock"
+            : "In Stock"}
         </span>
-        {bulkTiers.length > 0 && (
-          <span
-            className="ap-variant-form-badge"
-            style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e" }}
-          >
-            {bulkTiers.length} Bulk Tiers
-          </span>
-        )}
         <button
           type="button"
           className="ap-variant-form-remove"
@@ -673,23 +691,24 @@ function VariantFormItem({
         <div className="ap-variant-form-body">
           <div className="ap-row">
             <div className="ap-field">
-              <label className="ap-label">Sale Price (PKR) *</label>
+              <label className="ap-label">Sale Price ({currency.symbol})</label>
               <input
                 type="number"
                 className="ap-input"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
+                value={priceDisplay}
+                onChange={(e) => setPriceDisplay(e.target.value)}
                 placeholder="0"
-                required
               />
             </div>
             <div className="ap-field">
-              <label className="ap-label">Original Price (PKR)</label>
+              <label className="ap-label">
+                Original Price ({currency.symbol})
+              </label>
               <input
                 type="number"
                 className="ap-input"
-                value={originalPrice}
-                onChange={(e) => setOriginalPrice(e.target.value)}
+                value={originalPriceDisplay}
+                onChange={(e) => setOriginalPriceDisplay(e.target.value)}
                 placeholder="0"
               />
             </div>
@@ -770,8 +789,8 @@ function AttributeSelector({
         {
           attributeType: type,
           attributeValue: trimmed,
-          price: 0,
-          originalPrice: null,
+          priceDisplay: "",
+          originalPriceDisplay: "",
           description: "",
           stock: 999999,
           lowStockThreshold: null,
@@ -850,21 +869,24 @@ function AttributeSelector({
   );
 }
 
-// Simple Mode Form with bulk pricing
+// Simple Mode Form - FIXED with safe page reload using router
 function SimpleModeForm({
   tab,
   onSuccess,
   onError,
+  router, // ← router prop add kiya
 }: {
   tab: (typeof TABS)[0];
   onSuccess: () => void;
   onError: (msg: string) => void;
+  router: any; // ← router prop add kiya
 }) {
+  const { currency } = useCurrency();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [brand, setBrand] = useState("");
-  const [price, setPrice] = useState("");
-  const [originalPrice, setOriginalPrice] = useState("");
+  const [priceDisplay, setPriceDisplay] = useState("");
+  const [originalPriceDisplay, setOriginalPriceDisplay] = useState("");
   const [condition, setCondition] = useState("new");
   const [isFeatured, setIsFeatured] = useState(false);
   const [isActive, setIsActive] = useState(true);
@@ -876,18 +898,18 @@ function SimpleModeForm({
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const getStockValue = (): number => {
-    switch (stockStatus) {
-      case "out_of_stock":
-        return 0;
-      case "low_stock":
-        return lowStockThreshold || 5;
-      default:
-        return 999999;
-    }
+    if (stockStatus === "out_of_stock") return 0;
+    if (stockStatus === "low_stock") return lowStockThreshold || 5;
+    return 999999;
+  };
+
+  const getPriceInPKR = (displayPrice: string): number => {
+    const priceNum = parseFloat(displayPrice) || 0;
+    return convertPriceToPKR(priceNum, currency);
   };
 
   const handleImageUpload = async (file: File) => {
@@ -908,113 +930,16 @@ function SimpleModeForm({
     setUploading(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !price) {
-      onError("Product name and price are required");
-      return;
-    }
+  const handleBulkTiersChange = (tiers: BulkPricingTier[]) => {
+    setBulkTiers(tiers);
+  };
 
-    setLoading(true);
-
-    const { data: productData, error: productError } = await supabase
-      .from("products")
-      .insert([
-        {
-          name: name.trim(),
-          description: description.trim(),
-          category: tab.category,
-          subcategory: tab.sub,
-          brand: brand.trim() || null,
-          condition,
-          is_featured: isFeatured,
-          is_active: isActive,
-        },
-      ])
-      .select()
-      .single();
-
-    if (productError) {
-      onError("Supabase error: " + productError.message);
-      setLoading(false);
-      return;
-    }
-
-    const { data: variantData, error: variantError } = await supabase
-      .from("product_variants")
-      .insert([
-        {
-          product_id: productData.id,
-          attribute_type: "standard",
-          attribute_value: "Standard",
-          price: parseFloat(price),
-          original_price: originalPrice ? parseFloat(originalPrice) : null,
-          description: description.trim(),
-          stock: getStockValue(),
-          low_stock_threshold:
-            stockStatus === "low_stock" ? lowStockThreshold : null,
-          is_active: true,
-        },
-      ])
-      .select()
-      .single();
-
-    if (variantError) {
-      onError("Failed to save variant: " + variantError.message);
-      setLoading(false);
-      return;
-    }
-
-    if (images.length > 0) {
-      const imageInserts = images.map((url, idx) => ({
-        variant_id: variantData.id,
-        image_url: url,
-        display_order: idx,
-      }));
-      await supabase.from("variant_images").insert(imageInserts);
-    }
-
-    // Save bulk pricing tiers
-    if (bulkTiers.length > 0) {
-      const bulkInserts = bulkTiers
-        .filter(t => t.min_quantity && t.tier_price)
-        .map(t => ({
-          variant_id: variantData.id,
-          min_quantity: t.min_quantity,
-          max_quantity: t.max_quantity,
-          tier_price: t.tier_price,
-          discount_percentage: t.discount_percentage,
-          discount_price: t.discount_price,
-        }));
-      const { error: bulkError } = await supabase.from("bulk_pricing_tiers").insert(bulkInserts);
-      if (bulkError) {
-        console.error("Bulk pricing save error:", bulkError);
-      }
-    }
-
-    if (faqs.length > 0) {
-      const faqInserts = faqs
-        .filter((f) => f.question.trim())
-        .map((f, idx) => ({
-          product_id: productData.id,
-          question: f.question.trim(),
-          answer: f.answer.trim() || null,
-          display_order: idx,
-        }));
-      if (faqInserts.length > 0) {
-        await supabase.from("product_faqs").insert(faqInserts);
-      }
-    }
-
-    setLoading(false);
-    onSuccess();
-
-    // Reset form
+  const resetForm = () => {
     setName("");
     setDescription("");
     setBrand("");
-    setPrice("");
-    setOriginalPrice("");
+    setPriceDisplay("");
+    setOriginalPriceDisplay("");
     setImages([]);
     setFaqs([]);
     setBulkTiers([]);
@@ -1022,16 +947,125 @@ function SimpleModeForm({
     setStockStatus("in_stock");
   };
 
-  const getStockLabel = () => {
-    switch (stockStatus) {
-      case "in_stock":
-        return "In Stock";
-      case "out_of_stock":
-        return "Out of Stock";
-      case "low_stock":
-        return `Low Stock (${lowStockThreshold || 5} units left)`;
-      default:
-        return "In Stock";
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!name.trim()) {
+      onError("Product name is required");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Insert product
+      const { data: productData, error: productError } = await supabase
+        .from("products")
+        .insert([
+          {
+            name: name.trim(),
+            description: description.trim(),
+            category: tab.category,
+            subcategory: tab.sub,
+            brand: brand.trim() || null,
+            condition,
+            is_featured: isFeatured,
+            is_active: isActive,
+            currency_code: currency.code,
+          },
+        ])
+        .select()
+        .single();
+
+      if (productError) throw new Error(productError.message);
+
+      const pricePKR = getPriceInPKR(priceDisplay);
+      const originalPricePKR = originalPriceDisplay
+        ? getPriceInPKR(originalPriceDisplay)
+        : null;
+      const stockVal = getStockValue();
+
+      const { data: variantData, error: variantError } = await supabase
+        .from("product_variants")
+        .insert([
+          {
+            product_id: productData.id,
+            attribute_type: "standard",
+            attribute_value: "Standard",
+            price: pricePKR,
+            original_price: originalPricePKR,
+            description: description.trim(),
+            stock: stockVal,
+            low_stock_threshold:
+              stockStatus === "low_stock" ? lowStockThreshold : null,
+            is_active: true,
+            currency_code: currency.code,
+            base_price_pkr: pricePKR,
+            base_original_price_pkr: originalPricePKR,
+          },
+        ])
+        .select()
+        .single();
+
+      if (variantError) throw new Error(variantError.message);
+
+      if (images.length > 0) {
+        const imageInserts = images.map((url, idx) => ({
+          variant_id: variantData.id,
+          image_url: url,
+          display_order: idx,
+        }));
+        await supabase.from("variant_images").insert(imageInserts);
+      }
+
+      if (bulkTiers.length > 0) {
+        const validTiers = bulkTiers.filter(
+          (t) => t.min_quantity && t.tier_price
+        );
+        if (validTiers.length > 0) {
+          const bulkInserts = validTiers.map((t) => ({
+            variant_id: variantData.id,
+            min_quantity: t.min_quantity,
+            max_quantity: t.max_quantity,
+            tier_price: convertPriceToPKR(t.tier_price, currency),
+            discount_percentage: t.discount_percentage,
+            discount_price: t.discount_price
+              ? convertPriceToPKR(t.discount_price, currency)
+              : null,
+            currency_code: currency.code,
+            base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
+          }));
+          await supabase.from("bulk_pricing_tiers").insert(bulkInserts);
+        }
+      }
+
+      if (faqs.length > 0) {
+        const validFaqs = faqs.filter((f) => f.question.trim());
+        if (validFaqs.length > 0) {
+          const faqInserts = validFaqs.map((f, idx) => ({
+            product_id: productData.id,
+            question: f.question.trim(),
+            answer: f.answer.trim() || null,
+            display_order: idx,
+          }));
+          await supabase.from("product_faqs").insert(faqInserts);
+        }
+      }
+
+      // Reset form, show success toast, then redirect to panel page
+      resetForm();
+      onSuccess(); // This will show the success toast
+
+      // Safe redirect to panel page after delay
+      setTimeout(() => {
+        // Client-side safe navigation
+        if (typeof window !== "undefined") {
+          router.push("/panel");
+        }
+      }, 1500);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Failed to save product");
+      setIsSubmitting(false);
     }
   };
 
@@ -1067,22 +1101,27 @@ function SimpleModeForm({
 
               <div className="ap-row">
                 <div className="ap-field">
-                  <label className="ap-label">Sale Price (PKR) *</label>
+                  <label className="ap-label">
+                    Sale Price ({currency.symbol})
+                  </label>
                   <input
                     type="number"
                     className="ap-input"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    required
+                    value={priceDisplay}
+                    onChange={(e) => setPriceDisplay(e.target.value)}
+                    placeholder="0"
                   />
                 </div>
                 <div className="ap-field">
-                  <label className="ap-label">Original Price (PKR)</label>
+                  <label className="ap-label">
+                    Original Price ({currency.symbol})
+                  </label>
                   <input
                     type="number"
                     className="ap-input"
-                    value={originalPrice}
-                    onChange={(e) => setOriginalPrice(e.target.value)}
+                    value={originalPriceDisplay}
+                    onChange={(e) => setOriginalPriceDisplay(e.target.value)}
+                    placeholder="0"
                   />
                 </div>
               </div>
@@ -1130,14 +1169,15 @@ function SimpleModeForm({
                 />
               </div>
 
-              {/* Bulk Pricing Section */}
-              {parseFloat(price) > 0 && (
+              {parseFloat(priceDisplay) > 0 && (
                 <div className="ap-field">
-                  <label className="ap-label">Bulk Pricing (Quantity Discounts)</label>
+                  <label className="ap-label">
+                    Bulk Pricing (Quantity Discounts)
+                  </label>
                   <BulkPricingManager
-                    unitPrice={parseFloat(price) || 0}
+                    unitPrice={parseFloat(priceDisplay) || 0}
                     tiers={bulkTiers}
-                    onTiersChange={setBulkTiers}
+                    onTiersChange={handleBulkTiersChange}
                     onError={onError}
                   />
                 </div>
@@ -1283,60 +1323,18 @@ function SimpleModeForm({
               <h3 className="ap-card-title">Summary</h3>
             </div>
             <div className="ap-card-body">
-              {[
-                ["Category", tab.category],
-                ["Subcategory", tab.sub],
-                ["Images", `${images.length} uploaded`],
-                ["Stock", getStockLabel()],
-                ["Bulk Tiers", `${bulkTiers.length} tiers added`],
-                ["FAQs", `${faqs.length} added`],
-              ].map(([k, v]) => (
-                <div
-                  key={k}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    padding: "0.5rem 0",
-                    borderBottom: "1px solid rgba(218, 165, 32, 0.1)",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "var(--ap-sans)",
-                      fontSize: "0.6rem",
-                      fontWeight: 600,
-                      letterSpacing: "0.15em",
-                      textTransform: "uppercase",
-                      color: "#999999",
-                    }}
-                  >
-                    {k}
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "var(--ap-serif)",
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                      color: "#8b6914",
-                    }}
-                  >
-                    {v}
-                  </span>
-                </div>
-              ))}
               <button
                 type="submit"
                 className="ap-submit-btn"
-                disabled={loading}
-                style={{ marginTop: "1rem" }}
+                disabled={isSubmitting}
               >
-                {loading ? (
+                {isSubmitting ? (
                   <>
-                    <div className="ap-spinner" /> Saving...
+                    <div className="ap-spinner" /> Saving in {currency.code}...
                   </>
                 ) : (
                   <>
-                    Save Product{" "}
+                    Save Product in {currency.code}{" "}
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -1356,16 +1354,19 @@ function SimpleModeForm({
   );
 }
 
-// Detailed Mode Form
+// Detailed Mode Form - FIXED with safe page reload using router
 function DetailedModeForm({
   tab,
   onSuccess,
   onError,
+  router, // ← router prop add kiya
 }: {
   tab: (typeof TABS)[0];
   onSuccess: () => void;
   onError: (msg: string) => void;
+  router: any; // ← router prop add kiya
 }) {
+  const { currency } = useCurrency();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [brand, setBrand] = useState("");
@@ -1373,6 +1374,7 @@ function DetailedModeForm({
   const [isFeatured, setIsFeatured] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [faqs, setFaqs] = useState<FAQ[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [colors, setColors] = useState<string[]>([]);
   const [sizes, setSizes] = useState<string[]>([]);
@@ -1384,10 +1386,29 @@ function DetailedModeForm({
   const [materialVariants, setMaterialVariants] = useState<any[]>([]);
   const [capacityVariants, setCapacityVariants] = useState<any[]>([]);
 
-  const [loading, setLoading] = useState(false);
+  const getPriceInPKR = (displayPrice: string): number => {
+    const priceNum = parseFloat(displayPrice) || 0;
+    return convertPriceToPKR(priceNum, currency);
+  };
+
+  const resetForm = () => {
+    setName("");
+    setDescription("");
+    setBrand("");
+    setColors([]);
+    setSizes([]);
+    setMaterials([]);
+    setCapacities([]);
+    setColorVariants([]);
+    setSizeVariants([]);
+    setMaterialVariants([]);
+    setCapacityVariants([]);
+    setFaqs([]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!name.trim()) {
       onError("Product name is required");
       return;
@@ -1406,119 +1427,119 @@ function DetailedModeForm({
       return;
     }
 
-    const hasPrice = allVariants.some((v) => v.price > 0);
-    if (!hasPrice) {
-      onError("At least one variant must have a price");
-      return;
-    }
+    setIsSubmitting(true);
 
-    setLoading(true);
-
-    const { data: productData, error: productError } = await supabase
-      .from("products")
-      .insert([
-        {
-          name: name.trim(),
-          description: description.trim(),
-          category: tab.category,
-          subcategory: tab.sub,
-          brand: brand.trim() || null,
-          condition,
-          is_featured: isFeatured,
-          is_active: isActive,
-        },
-      ])
-      .select()
-      .single();
-
-    if (productError) {
-      onError("Supabase error: " + productError.message);
-      setLoading(false);
-      return;
-    }
-
-    for (const variant of allVariants) {
-      const { data: variantData, error: variantError } = await supabase
-        .from("product_variants")
+    try {
+      const { data: productData, error: productError } = await supabase
+        .from("products")
         .insert([
           {
-            product_id: productData.id,
-            attribute_type: variant.attributeType,
-            attribute_value: variant.attributeValue,
-            price: variant.price,
-            original_price: variant.originalPrice,
-            description: variant.description || "",
-            stock: variant.stock,
-            low_stock_threshold: variant.lowStockThreshold,
-            is_active: true,
+            name: name.trim(),
+            description: description.trim(),
+            category: tab.category,
+            subcategory: tab.sub,
+            brand: brand.trim() || null,
+            condition,
+            is_featured: isFeatured,
+            is_active: isActive,
+            currency_code: currency.code,
           },
         ])
         .select()
         .single();
 
-      if (variantError) {
-        onError("Failed to save variant: " + variantError.message);
-        setLoading(false);
-        return;
-      }
+      if (productError) throw new Error(productError.message);
 
-      // Save bulk pricing tiers for this variant
-      if (variant.bulkPricingTiers && variant.bulkPricingTiers.length > 0) {
-        const bulkInserts = variant.bulkPricingTiers
-          .filter((t: BulkPricingTier) => t.min_quantity && t.tier_price)
-          .map((t: BulkPricingTier) => ({
-            variant_id: variantData.id,
-            min_quantity: t.min_quantity,
-            max_quantity: t.max_quantity,
-            tier_price: t.tier_price,
-            discount_percentage: t.discount_percentage,
-            discount_price: t.discount_price,
-          }));
-        const { error: bulkError } = await supabase.from("bulk_pricing_tiers").insert(bulkInserts);
-        if (bulkError) {
-          console.error("Bulk pricing save error:", bulkError);
+      for (const variant of allVariants) {
+        const pricePKR = getPriceInPKR(variant.priceDisplay || "0");
+        const originalPricePKR = variant.originalPriceDisplay
+          ? getPriceInPKR(variant.originalPriceDisplay)
+          : null;
+
+        const { data: variantData, error: variantError } = await supabase
+          .from("product_variants")
+          .insert([
+            {
+              product_id: productData.id,
+              attribute_type: variant.attributeType,
+              attribute_value: variant.attributeValue,
+              price: pricePKR,
+              original_price: originalPricePKR,
+              description: variant.description || "",
+              stock: variant.stock || 999999,
+              low_stock_threshold: variant.lowStockThreshold,
+              is_active: true,
+              currency_code: currency.code,
+              base_price_pkr: pricePKR,
+              base_original_price_pkr: originalPricePKR,
+            },
+          ])
+          .select()
+          .single();
+
+        if (variantError) throw new Error(variantError.message);
+
+        if (variant.images && variant.images.length > 0) {
+          const imageInserts = variant.images.map(
+            (url: string, idx: number) => ({
+              variant_id: variantData.id,
+              image_url: url,
+              display_order: idx,
+            })
+          );
+          await supabase.from("variant_images").insert(imageInserts);
+        }
+
+        if (variant.bulkPricingTiers && variant.bulkPricingTiers.length > 0) {
+          const validTiers = variant.bulkPricingTiers.filter(
+            (t: BulkPricingTier) => t.min_quantity && t.tier_price
+          );
+          if (validTiers.length > 0) {
+            const bulkInserts = validTiers.map((t: BulkPricingTier) => ({
+              variant_id: variantData.id,
+              min_quantity: t.min_quantity,
+              max_quantity: t.max_quantity,
+              tier_price: convertPriceToPKR(t.tier_price, currency),
+              discount_percentage: t.discount_percentage,
+              discount_price: t.discount_price
+                ? convertPriceToPKR(t.discount_price, currency)
+                : null,
+              currency_code: currency.code,
+              base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
+            }));
+            await supabase.from("bulk_pricing_tiers").insert(bulkInserts);
+          }
         }
       }
 
-      if (variant.images && variant.images.length > 0) {
-        const imageInserts = variant.images.map((url: string, idx: number) => ({
-          variant_id: variantData.id,
-          image_url: url,
-          display_order: idx,
-        }));
-        await supabase.from("variant_images").insert(imageInserts);
+      if (faqs.length > 0) {
+        const validFaqs = faqs.filter((f) => f.question.trim());
+        if (validFaqs.length > 0) {
+          const faqInserts = validFaqs.map((f, idx) => ({
+            product_id: productData.id,
+            question: f.question.trim(),
+            answer: f.answer.trim() || null,
+            display_order: idx,
+          }));
+          await supabase.from("product_faqs").insert(faqInserts);
+        }
       }
+
+      // Reset form, show success toast, then redirect to panel page
+      resetForm();
+      onSuccess(); // This will show the success toast
+
+      // Safe redirect to panel page after delay
+      setTimeout(() => {
+        // Client-side safe navigation
+        if (typeof window !== "undefined") {
+          router.push("/panel");
+        }
+      }, 1500);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Failed to save product");
+      setIsSubmitting(false);
     }
-
-    if (faqs.length > 0) {
-      const faqInserts = faqs
-        .filter((f) => f.question.trim())
-        .map((f, idx) => ({
-          product_id: productData.id,
-          question: f.question.trim(),
-          answer: f.answer.trim() || null,
-          display_order: idx,
-        }));
-      if (faqInserts.length > 0) {
-        await supabase.from("product_faqs").insert(faqInserts);
-      }
-    }
-
-    setLoading(false);
-    onSuccess();
-
-    setName("");
-    setDescription("");
-    setBrand("");
-    setColors([]);
-    setSizes([]);
-    setMaterials([]);
-    setCapacities([]);
-    setColorVariants([]);
-    setSizeVariants([]);
-    setMaterialVariants([]);
-    setCapacityVariants([]);
-    setFaqs([]);
   };
 
   const totalVariants =
@@ -1723,6 +1744,7 @@ function DetailedModeForm({
                 ],
                 ["Total Variants", totalVariants.toString()],
                 ["FAQs", `${faqs.length} added`],
+                ["Currency", currency.code],
               ].map(([k, v]) => (
                 <div
                   key={k}
@@ -1730,7 +1752,7 @@ function DetailedModeForm({
                     display: "flex",
                     justifyContent: "space-between",
                     padding: "0.5rem 0",
-                    borderBottom: "1px solid rgba(218, 165, 32, 0.1)",
+                    borderBottom: "1px solid rgba(218,165,32,0.1)",
                   }}
                 >
                   <span
@@ -1740,7 +1762,7 @@ function DetailedModeForm({
                       fontWeight: 600,
                       letterSpacing: "0.15em",
                       textTransform: "uppercase",
-                      color: "#999999",
+                      color: "#999",
                     }}
                   >
                     {k}
@@ -1760,16 +1782,16 @@ function DetailedModeForm({
               <button
                 type="submit"
                 className="ap-submit-btn"
-                disabled={loading}
+                disabled={isSubmitting}
                 style={{ marginTop: "1rem" }}
               >
-                {loading ? (
+                {isSubmitting ? (
                   <>
-                    <div className="ap-spinner" /> Saving...
+                    <div className="ap-spinner" /> Saving in {currency.code}...
                   </>
                 ) : (
                   <>
-                    Save Product with Variants{" "}
+                    Save Product with Variants in {currency.code}{" "}
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -1790,9 +1812,11 @@ function DetailedModeForm({
 }
 
 export default function AddProductPage() {
+  const router = useRouter(); // ← YEH ADD KIYA
   const [activeTab, setActiveTab] = useState(0);
   const [mode, setMode] = useState<Mode>("simple");
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const { currency, loading: currencyLoading } = useCurrency();
 
   const addToast = (type: Toast["type"], title: string, msg: string) => {
     const id = Date.now();
@@ -1812,6 +1836,28 @@ export default function AddProductPage() {
     setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 350);
   };
 
+  if (currencyLoading) {
+    return (
+      <div className="ap-root">
+        <div className="ap-ambient" aria-hidden="true" />
+        <div className="ap-grain" aria-hidden="true" />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "100vh",
+          }}
+        >
+          <div
+            className="ap-spinner"
+            style={{ width: "40px", height: "40px" }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="ap-root">
       <div className="ap-ambient" aria-hidden="true" />
@@ -1821,14 +1867,19 @@ export default function AddProductPage() {
         <div className="ap-page-header">
           <p className="ap-eyebrow">
             <span className="ap-ey-line" />
-            Inventory Management
+            Inventory Management - {currency.code}
             <span className="ap-ey-line" />
           </p>
           <h1 className="ap-page-title">
-            Add <em>Product</em>
+            Add <em>Product</em> in {currency.code}
           </h1>
           <p className="ap-page-sub">
             Choose mode: Simple images only or detailed variant management
+            <br />
+            <span style={{ fontSize: "0.7rem", color: "#8b6914" }}>
+              💱 All prices will be saved in PKR (base) and converted to{" "}
+              {currency.code} for display
+            </span>
           </p>
         </div>
 
@@ -1895,10 +1946,11 @@ export default function AddProductPage() {
               addToast(
                 "success",
                 "Product Saved",
-                `${TABS[activeTab].sub} added successfully!`
+                `${TABS[activeTab].sub} added successfully in ${currency.code}! Redirecting...`
               )
             }
             onError={(msg) => addToast("error", "Error", msg)}
+            router={router} // ← router prop pass kiya
           />
         ) : (
           <DetailedModeForm
@@ -1908,10 +1960,11 @@ export default function AddProductPage() {
               addToast(
                 "success",
                 "Product Saved",
-                `${TABS[activeTab].sub} with variants added successfully!`
+                `${TABS[activeTab].sub} with variants added successfully in ${currency.code}! Redirecting...`
               )
             }
             onError={(msg) => addToast("error", "Error", msg)}
+            router={router} // ← router prop pass kiya
           />
         )}
       </div>

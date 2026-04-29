@@ -11,7 +11,13 @@ import PanelNavbar from "@/app/components/PanelNavbar";
 import { supabase } from "@/lib/supabase";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { isOwner } from "@/lib/checkOwner";
+import {
+  convertPriceToPKR,
+  convertPriceFromPKR,
+  formatPanelPrice,
+} from "@/lib/panelCurrency";
 import "@/app/panel/add-product/add-product.css";
+import { useCurrency } from "@/app/context/CurrencyContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,68 +42,223 @@ type FAQ = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const COLOR_SUGGESTIONS = [
-  "Black","White","Red","Blue","Green","Yellow","Gold","Silver",
-  "Rose Gold","Pink","Purple","Orange","Brown","Grey","Navy Blue","Beige",
+  "Black",
+  "White",
+  "Red",
+  "Blue",
+  "Green",
+  "Yellow",
+  "Gold",
+  "Silver",
+  "Rose Gold",
+  "Pink",
+  "Purple",
+  "Orange",
+  "Brown",
+  "Grey",
+  "Navy Blue",
+  "Beige",
 ];
 const SIZE_SUGGESTIONS = [
-  "XS","S","M","L","XL","XXL","28mm","32mm","36mm","40mm","42mm","44mm",
+  "XS",
+  "S",
+  "M",
+  "L",
+  "XL",
+  "XXL",
+  "28mm",
+  "32mm",
+  "36mm",
+  "40mm",
+  "42mm",
+  "44mm",
 ];
 const MATERIAL_SUGGESTIONS = [
-  "Plastic","Metal","Stainless Steel","Titanium","Aluminum","Fabric",
-  "Leather","Silicone","Glass","Ceramic","Wood","Gold Plated","Carbon Fiber",
+  "Plastic",
+  "Metal",
+  "Stainless Steel",
+  "Titanium",
+  "Aluminum",
+  "Fabric",
+  "Leather",
+  "Silicone",
+  "Glass",
+  "Ceramic",
+  "Wood",
+  "Gold Plated",
+  "Carbon Fiber",
 ];
 const CAPACITY_SUGGESTIONS = [
-  "100ml","200ml","300ml","500ml","1L","2L","50mAh","100mAh","500mAh",
-  "1000mAh","2000mAh","5000mAh","10000mAh","65W","100W",
+  "100ml",
+  "200ml",
+  "300ml",
+  "500ml",
+  "1L",
+  "2L",
+  "50mAh",
+  "100mAh",
+  "500mAh",
+  "1000mAh",
+  "2000mAh",
+  "5000mAh",
+  "10000mAh",
+  "65W",
+  "100W",
 ];
 
 const TABS = [
-  { id: "chargers", label: "Chargers", category: "Accessories", sub: "Chargers" },
+  {
+    id: "chargers",
+    label: "Chargers",
+    category: "Accessories",
+    sub: "Chargers",
+  },
   { id: "cables", label: "Cables", category: "Accessories", sub: "Cables" },
-  { id: "phone-holders", label: "Phone Holders", category: "Accessories", sub: "Phone Holders" },
-  { id: "tech-gadgets", label: "Tech Gadgets", category: "Accessories", sub: "Tech Gadgets" },
-  { id: "smart-accessories", label: "Smart Accessories", category: "Accessories", sub: "Smart Accessories" },
-  { id: "men-watches", label: "Men Watches", category: "Watches", sub: "Men Watches" },
-  { id: "women-watches", label: "Women Watches", category: "Watches", sub: "Women Watches" },
-  { id: "smart-watches", label: "Smart Watches", category: "Watches", sub: "Smart Watches" },
-  { id: "luxury-watches", label: "Luxury Watches", category: "Watches", sub: "Luxury Watches" },
-  { id: "car-accessories", label: "Car Accessories", category: "Automotive", sub: "Car Accessories" },
-  { id: "car-cleaning", label: "Car Cleaning", category: "Automotive", sub: "Car Cleaning Tools" },
-  { id: "interior-auto", label: "Interior Auto", category: "Automotive", sub: "Interior Accessories" },
-  { id: "wall-decor", label: "Wall Decor", category: "Home Decor", sub: "Wall Decor" },
-  { id: "lighting", label: "Lighting", category: "Home Decor", sub: "Lighting" },
-  { id: "kitchen", label: "Kitchen", category: "Home Decor", sub: "Kitchen Essentials" },
-  { id: "storage", label: "Storage", category: "Home Decor", sub: "Storage & Organizers" },
+  {
+    id: "phone-holders",
+    label: "Phone Holders",
+    category: "Accessories",
+    sub: "Phone Holders",
+  },
+  {
+    id: "tech-gadgets",
+    label: "Tech Gadgets",
+    category: "Accessories",
+    sub: "Tech Gadgets",
+  },
+  {
+    id: "smart-accessories",
+    label: "Smart Accessories",
+    category: "Accessories",
+    sub: "Smart Accessories",
+  },
+  {
+    id: "men-watches",
+    label: "Men Watches",
+    category: "Watches",
+    sub: "Men Watches",
+  },
+  {
+    id: "women-watches",
+    label: "Women Watches",
+    category: "Watches",
+    sub: "Women Watches",
+  },
+  {
+    id: "smart-watches",
+    label: "Smart Watches",
+    category: "Watches",
+    sub: "Smart Watches",
+  },
+  {
+    id: "luxury-watches",
+    label: "Luxury Watches",
+    category: "Watches",
+    sub: "Luxury Watches",
+  },
+  {
+    id: "car-accessories",
+    label: "Car Accessories",
+    category: "Automotive",
+    sub: "Car Accessories",
+  },
+  {
+    id: "car-cleaning",
+    label: "Car Cleaning",
+    category: "Automotive",
+    sub: "Car Cleaning Tools",
+  },
+  {
+    id: "interior-auto",
+    label: "Interior Auto",
+    category: "Automotive",
+    sub: "Interior Accessories",
+  },
+  {
+    id: "wall-decor",
+    label: "Wall Decor",
+    category: "Home Decor",
+    sub: "Wall Decor",
+  },
+  {
+    id: "lighting",
+    label: "Lighting",
+    category: "Home Decor",
+    sub: "Lighting",
+  },
+  {
+    id: "kitchen",
+    label: "Kitchen",
+    category: "Home Decor",
+    sub: "Kitchen Essentials",
+  },
+  {
+    id: "storage",
+    label: "Storage",
+    category: "Home Decor",
+    sub: "Storage & Organizers",
+  },
 ];
 
-// ✅ FIX: Stock status correctly detect karo
-function detectStockStatus(stock: number, lowStockThreshold: number | null): StockStatus {
+function detectStockStatus(
+  stock: number,
+  lowStockThreshold: number | null
+): StockStatus {
   if (stock === 0) return "out_of_stock";
-  if (lowStockThreshold && lowStockThreshold > 0 && stock <= lowStockThreshold) return "low_stock";
+  if (lowStockThreshold && lowStockThreshold > 0 && stock <= lowStockThreshold)
+    return "low_stock";
   return "in_stock";
 }
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
+// ─── Toast Container ─────────────────────────────────────────────────────────
 
-function ToastContainer({ toasts, onRemove }: { toasts: Toast[]; onRemove: (id: number) => void }) {
+function ToastContainer({
+  toasts,
+  onRemove,
+}: {
+  toasts: Toast[];
+  onRemove: (id: number) => void;
+}) {
   return (
     <div className="ap-toast-wrap">
       {toasts.map((t) => (
-        <div key={t.id} className={`ap-toast ap-toast--${t.type}${t.exiting ? " exiting" : ""}`}>
+        <div
+          key={t.id}
+          className={`ap-toast ap-toast--${t.type}${
+            t.exiting ? " exiting" : ""
+          }`}
+        >
           <div className="ap-toast-icon">
             {t.type === "success" && (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             )}
             {t.type === "error" && (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             )}
             {t.type === "info" && (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" />
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
               </svg>
             )}
           </div>
@@ -106,8 +267,14 @@ function ToastContainer({ toasts, onRemove }: { toasts: Toast[]; onRemove: (id: 
             <p className="ap-toast-msg">{t.msg}</p>
           </div>
           <button className="ap-toast-close" onClick={() => onRemove(t.id)}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
@@ -116,10 +283,15 @@ function ToastContainer({ toasts, onRemove }: { toasts: Toast[]; onRemove: (id: 
   );
 }
 
-// ─── Stock Status Selector ────────────────────────────────────────────────────
+// ─── Stock Status Selector ───────────────────────────────────────────────────
 
 function StockStatusSelector({
-  value, onChange, stock, onStockChange, lowStockThreshold, onThresholdChange,
+  value,
+  onChange,
+  stock,
+  onStockChange,
+  lowStockThreshold,
+  onThresholdChange,
 }: {
   value: StockStatus;
   onChange: (s: StockStatus) => void;
@@ -128,28 +300,85 @@ function StockStatusSelector({
   lowStockThreshold: number | null;
   onThresholdChange: (v: number | null) => void;
 }) {
+  const uniqueId = useRef(`stock_${Date.now()}_${Math.random()}`).current;
+
+  const handleInStock = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onChange("in_stock");
+  };
+
+  const handleOutOfStock = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onChange("out_of_stock");
+  };
+
+  const handleLowStock = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onChange("low_stock");
+  };
+
   return (
     <div>
       <div className="ap-stock-radio-group">
-        <label className={`ap-stock-radio-option ${value === "in_stock" ? "active-in-stock" : ""}`}>
-          <input type="radio" name="stockStatus" checked={value === "in_stock"} onChange={() => onChange("in_stock")} />
+        <div
+          className={`ap-stock-radio-option ${
+            value === "in_stock" ? "active-in-stock" : ""
+          }`}
+          onClick={handleInStock}
+        >
+          <input
+            type="radio"
+            name={uniqueId}
+            checked={value === "in_stock"}
+            readOnly
+          />
           <span>In Stock</span>
-        </label>
-        <label className={`ap-stock-radio-option ${value === "out_of_stock" ? "active-out-stock" : ""}`}>
-          <input type="radio" name="stockStatus" checked={value === "out_of_stock"} onChange={() => onChange("out_of_stock")} />
+        </div>
+        <div
+          className={`ap-stock-radio-option ${
+            value === "out_of_stock" ? "active-out-stock" : ""
+          }`}
+          onClick={handleOutOfStock}
+        >
+          <input
+            type="radio"
+            name={uniqueId}
+            checked={value === "out_of_stock"}
+            readOnly
+          />
           <span>Out of Stock</span>
-        </label>
-        <label className={`ap-stock-radio-option ${value === "low_stock" ? "active-low-stock" : ""}`}>
-          <input type="radio" name="stockStatus" checked={value === "low_stock"} onChange={() => onChange("low_stock")} />
+        </div>
+        <div
+          className={`ap-stock-radio-option ${
+            value === "low_stock" ? "active-low-stock" : ""
+          }`}
+          onClick={handleLowStock}
+        >
+          <input
+            type="radio"
+            name={uniqueId}
+            checked={value === "low_stock"}
+            readOnly
+          />
           <span>Low Stock Alert</span>
-        </label>
+        </div>
       </div>
 
-      {/* ✅ FIX: Pieces/Quantity field har status mein dikhao (sirf out_of_stock mein disabled) */}
       {value !== "out_of_stock" && (
-        <div className="ap-low-stock-threshold" style={{ marginTop: "0.75rem" }}>
+        <div
+          className="ap-low-stock-threshold"
+          style={{ marginTop: "0.75rem" }}
+        >
           <label>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <rect x="2" y="7" width="20" height="14" rx="2" />
               <path d="M16 3h-8l-2 4h12l-2-4z" />
             </svg>
@@ -159,7 +388,9 @@ function StockStatusSelector({
             type="number"
             min="1"
             value={stock === 999999 ? "" : stock || ""}
-            onChange={(e) => onStockChange(e.target.value ? parseInt(e.target.value) : 999999)}
+            onChange={(e) =>
+              onStockChange(e.target.value ? parseInt(e.target.value) : 999999)
+            }
             placeholder="e.g., 50 (leave empty = unlimited)"
           />
           <span>units</span>
@@ -169,7 +400,12 @@ function StockStatusSelector({
       {value === "low_stock" && (
         <div className="ap-low-stock-threshold" style={{ marginTop: "0.5rem" }}>
           <label>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -180,7 +416,11 @@ function StockStatusSelector({
             type="number"
             min="1"
             value={lowStockThreshold || ""}
-            onChange={(e) => onThresholdChange(e.target.value ? parseInt(e.target.value) : null)}
+            onChange={(e) =>
+              onThresholdChange(
+                e.target.value ? parseInt(e.target.value) : null
+              )
+            }
             placeholder="e.g., 5"
           />
           <span>units or less</span>
@@ -190,21 +430,47 @@ function StockStatusSelector({
   );
 }
 
-// ─── FAQ Builder ──────────────────────────────────────────────────────────────
+// ─── FAQ Builder ─────────────────────────────────────────────────────────────
 
-function FAQBuilder({ faqs, setFaqs }: { faqs: FAQ[]; setFaqs: (v: FAQ[]) => void }) {
-  const addFAQ = () => setFaqs([...faqs, { question: "", answer: "", display_order: faqs.length }]);
+function FAQBuilder({
+  faqs,
+  setFaqs,
+}: {
+  faqs: FAQ[];
+  setFaqs: (v: FAQ[]) => void;
+}) {
+  const addFAQ = () =>
+    setFaqs([
+      ...faqs,
+      { question: "", answer: "", display_order: faqs.length },
+    ]);
   const removeFAQ = (i: number) => setFaqs(faqs.filter((_, idx) => idx !== i));
-  const updateQ = (i: number, v: string) => { const n = [...faqs]; n[i] = { ...n[i], question: v }; setFaqs(n); };
-  const updateA = (i: number, v: string) => { const n = [...faqs]; n[i] = { ...n[i], answer: v }; setFaqs(n); };
+  const updateQ = (i: number, v: string) => {
+    const n = [...faqs];
+    n[i] = { ...n[i], question: v };
+    setFaqs(n);
+  };
+  const updateA = (i: number, v: string) => {
+    const n = [...faqs];
+    n[i] = { ...n[i], answer: v };
+    setFaqs(n);
+  };
 
   if (faqs.length === 0) {
     return (
       <div className="ap-faq-section">
-        <div className="ap-faq-empty"><p>No FAQs added yet. Click the button below to add.</p></div>
+        <div className="ap-faq-empty">
+          <p>No FAQs added yet. Click the button below to add.</p>
+        </div>
         <button type="button" className="ap-add-faq-btn" onClick={addFAQ}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           Add FAQ
         </button>
@@ -219,29 +485,49 @@ function FAQBuilder({ faqs, setFaqs }: { faqs: FAQ[]; setFaqs: (v: FAQ[]) => voi
           <div key={i} className="ap-faq-item">
             <div className="ap-faq-header">
               <input
-                type="text" className="ap-faq-question-input"
-                value={faq.question} onChange={(e) => updateQ(i, e.target.value)}
+                type="text"
+                className="ap-faq-question-input"
+                value={faq.question}
+                onChange={(e) => updateQ(i, e.target.value)}
                 placeholder={`Question ${i + 1}...`}
               />
-              <button type="button" className="ap-faq-remove-btn" onClick={() => removeFAQ(i)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              <button
+                type="button"
+                className="ap-faq-remove-btn"
+                onClick={() => removeFAQ(i)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>
             <div className="ap-faq-answer-section">
               <textarea
                 className="ap-faq-answer-input"
-                value={faq.answer} onChange={(e) => updateA(i, e.target.value)}
-                placeholder="Write your answer here..." rows={2}
+                value={faq.answer}
+                onChange={(e) => updateA(i, e.target.value)}
+                placeholder="Write your answer here..."
+                rows={2}
               />
             </div>
           </div>
         ))}
       </div>
       <button type="button" className="ap-add-faq-btn" onClick={addFAQ}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
         Add Another FAQ
       </button>
@@ -249,10 +535,12 @@ function FAQBuilder({ faqs, setFaqs }: { faqs: FAQ[]; setFaqs: (v: FAQ[]) => voi
   );
 }
 
-// ─── Multi-Image Uploader ─────────────────────────────────────────────────────
+// ─── Multi-Image Uploader ───────────────────────────────────────────────────
 
 function MultiImageUploader({
-  images, onImagesChange, onError,
+  images,
+  onImagesChange,
+  onError,
 }: {
   images: string[];
   onImagesChange: (imgs: string[]) => void;
@@ -262,18 +550,25 @@ function MultiImageUploader({
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async (file: File) => {
-    if (!file.type.startsWith("image/")) { onError("Only image files are allowed"); return; }
+    if (!file.type.startsWith("image/")) {
+      onError("Only image files are allowed");
+      return;
+    }
     setUploading(true);
     try {
       const url = await uploadToCloudinary(file);
       onImagesChange([...images, url]);
     } catch (err) {
-      onError("Upload failed: " + (err instanceof Error ? err.message : "Unknown error"));
+      onError(
+        "Upload failed: " +
+          (err instanceof Error ? err.message : "Unknown error")
+      );
     }
     setUploading(false);
   };
 
-  const removeImage = (index: number) => onImagesChange(images.filter((_, i) => i !== index));
+  const removeImage = (index: number) =>
+    onImagesChange(images.filter((_, i) => i !== index));
 
   return (
     <div className="ap-variant-images">
@@ -281,21 +576,47 @@ function MultiImageUploader({
         {images.map((img, idx) => (
           <div key={idx} className="ap-variant-image-item">
             <img src={img} alt={`Image ${idx + 1}`} />
-            <button type="button" className="ap-variant-image-remove" onClick={() => removeImage(idx)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            <button
+              type="button"
+              className="ap-variant-image-remove"
+              onClick={() => removeImage(idx)}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           </div>
         ))}
         <button
-          type="button" className="ap-variant-image-add"
-          onClick={() => fileRef.current?.click()} disabled={uploading}
+          type="button"
+          className="ap-variant-image-add"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
         >
-          {uploading ? <div className="ap-spinner" style={{ width: "20px", height: "20px" }} /> : "+ Upload Image"}
+          {uploading ? (
+            <div
+              className="ap-spinner"
+              style={{ width: "20px", height: "20px" }}
+            />
+          ) : (
+            "+ Upload Image"
+          )}
         </button>
-        <input ref={fileRef} type="file" accept="image/*"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); if (fileRef.current) fileRef.current.value = ""; }}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleUpload(f);
+            if (fileRef.current) fileRef.current.value = "";
+          }}
           style={{ display: "none" }}
         />
       </div>
@@ -303,41 +624,75 @@ function MultiImageUploader({
   );
 }
 
-// ─── Variant Form Item ────────────────────────────────────────────────────────
+// ─── Variant Form Item ──────────────────────────────────────────────────────
+
+interface VariantData {
+  attributeType: string;
+  attributeValue: string;
+  price?: number;
+  originalPrice?: number | null;
+  description?: string;
+  stock?: number;
+  lowStockThreshold?: number | null;
+  images?: string[];
+  stockStatus?: StockStatus;
+  bulkPricingTiers?: BulkPricingTier[];
+}
 
 function VariantFormItem({
-  attributeType, attributeValue,
-  initialData, onUpdate, onRemove, onError,
+  attributeType,
+  attributeValue,
+  initialData,
+  onUpdate,
+  onRemove,
+  onError,
 }: {
   attributeType: string;
   attributeValue: string;
-  initialData?: any;
+  initialData?: VariantData;
   onUpdate: (data: any) => void;
   onRemove: () => void;
   onError: (msg: string) => void;
 }) {
-  const [price, setPrice] = useState(initialData?.price?.toString() || "");
-  const [originalPrice, setOriginalPrice] = useState(initialData?.original_price?.toString() || "");
-  const [description, setDescription] = useState(initialData?.description || "");
+  const { currency } = useCurrency();
 
-  // ✅ FIX: Correct stock status detection
+  const [priceDisplay, setPriceDisplay] = useState(() => {
+    const pkrPrice = initialData?.price || 0;
+    return convertPriceFromPKR(pkrPrice, currency).toFixed(2);
+  });
+  const [originalPriceDisplay, setOriginalPriceDisplay] = useState(() => {
+    const pkrPrice = initialData?.originalPrice || 0;
+    return pkrPrice ? convertPriceFromPKR(pkrPrice, currency).toFixed(2) : "";
+  });
+  const [description, setDescription] = useState(
+    initialData?.description || ""
+  );
+
   const initStatus = detectStockStatus(
     initialData?.stock ?? 999999,
-    initialData?.low_stock_threshold ?? null
+    initialData?.lowStockThreshold ?? null
   );
   const [stockStatus, setStockStatus] = useState<StockStatus>(initStatus);
-
-  // ✅ FIX: Actual stock pieces correctly load karo
   const initStock = initialData?.stock ?? 999999;
-  const [stockPieces, setStockPieces] = useState<number>(initStock === 0 ? 0 : initStock);
-
-  const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
-    initialData?.low_stock_threshold ?? null
+  const [stockPieces, setStockPieces] = useState<number>(
+    initStock === 0 ? 0 : initStock
   );
-
-  // ✅ FIX: Images correctly load — already string[] hain (parent ne convert kiya hai)
+  const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
+    initialData?.lowStockThreshold ?? null
+  );
   const [images, setImages] = useState<string[]>(initialData?.images || []);
-  const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>(initialData?.bulkPricingTiers || []);
+
+  const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>(() => {
+    const tiers = initialData?.bulkPricingTiers || [];
+    return tiers.map((tier: BulkPricingTier) => ({
+      ...tier,
+      tier_price: convertPriceFromPKR(tier.tier_price, currency),
+      discount_price: tier.discount_price
+        ? convertPriceFromPKR(tier.discount_price, currency)
+        : null,
+    }));
+  });
+
   const [expanded, setExpanded] = useState(true);
 
   const getStockValue = (): number => {
@@ -347,48 +702,99 @@ function VariantFormItem({
 
   const getStockStatusLabel = () => {
     if (stockStatus === "out_of_stock") return "Out of Stock";
-    if (stockStatus === "low_stock") return `Low Stock (Alert at ${lowStockThreshold || 5})`;
+    if (stockStatus === "low_stock")
+      return `Low Stock (Alert at ${lowStockThreshold || 5})`;
     const pieces = stockPieces === 999999 ? "Unlimited" : `${stockPieces} pcs`;
     return `In Stock (${pieces})`;
   };
 
-  const currentUnitPrice = parseFloat(price) || 0;
+  const currentUnitPrice = parseFloat(priceDisplay) || 0;
+
+  const getPriceInPKR = (displayPrice: string): number => {
+    const priceNum = parseFloat(displayPrice) || 0;
+    return convertPriceToPKR(priceNum, currency);
+  };
 
   useEffect(() => {
     onUpdate({
-      attributeType, attributeValue,
-      price: parseFloat(price) || 0,
-      originalPrice: originalPrice ? parseFloat(originalPrice) : null,
+      attributeType,
+      attributeValue,
+      price: getPriceInPKR(priceDisplay),
+      originalPrice: originalPriceDisplay
+        ? getPriceInPKR(originalPriceDisplay)
+        : null,
       description,
       stock: getStockValue(),
       lowStockThreshold: stockStatus === "low_stock" ? lowStockThreshold : null,
       images,
       stockStatus,
-      bulkPricingTiers: bulkTiers,
+      bulkPricingTiers: bulkTiers.map((tier: BulkPricingTier) => ({
+        ...tier,
+        tier_price: convertPriceToPKR(tier.tier_price, currency),
+        discount_price: tier.discount_price
+          ? convertPriceToPKR(tier.discount_price, currency)
+          : null,
+      })),
+      displayCurrency: currency.code,
     });
-  }, [price, originalPrice, description, stockStatus, stockPieces, lowStockThreshold, images, bulkTiers]);
+  }, [
+    priceDisplay,
+    originalPriceDisplay,
+    description,
+    stockStatus,
+    stockPieces,
+    lowStockThreshold,
+    images,
+    bulkTiers,
+    currency,
+  ]);
 
   return (
     <div className="ap-variant-form-item">
-      <div className="ap-variant-form-header" onClick={() => setExpanded(!expanded)}>
+      <div
+        className="ap-variant-form-header"
+        onClick={() => setExpanded(!expanded)}
+      >
         <span className="ap-variant-form-value">{attributeValue}</span>
         <span className="ap-variant-form-badge">{attributeType}</span>
-        <span className="ap-variant-form-badge" style={{ background: "rgba(245,158,11,0.1)", color: "#f59e0b" }}>
+        <span
+          className="ap-variant-form-badge"
+          style={{ background: "rgba(245,158,11,0.1)", color: "#f59e0b" }}
+        >
           {getStockStatusLabel()}
         </span>
         {bulkTiers.length > 0 && (
-          <span className="ap-variant-form-badge" style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
+          <span
+            className="ap-variant-form-badge"
+            style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}
+          >
             {bulkTiers.length} Bulk Tiers
           </span>
         )}
         {images.length > 0 && (
-          <span className="ap-variant-form-badge" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
+          <span
+            className="ap-variant-form-badge"
+            style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}
+          >
             {images.length} Images
           </span>
         )}
-        <button type="button" className="ap-variant-form-remove" onClick={(e) => { e.stopPropagation(); onRemove(); }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        <button
+          type="button"
+          className="ap-variant-form-remove"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         </button>
       </div>
@@ -397,17 +803,40 @@ function VariantFormItem({
         <div className="ap-variant-form-body">
           <div className="ap-row">
             <div className="ap-field">
-              <label className="ap-label">Sale Price (PKR) *</label>
-              <input type="number" className="ap-input" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" required />
+              <label className="ap-label">
+                Sale Price ({currency.symbol}) *
+              </label>
+              <input
+                type="number"
+                className="ap-input"
+                value={priceDisplay}
+                onChange={(e) => setPriceDisplay(e.target.value)}
+                placeholder="0"
+                required
+              />
             </div>
             <div className="ap-field">
-              <label className="ap-label">Original Price (PKR)</label>
-              <input type="number" className="ap-input" value={originalPrice} onChange={(e) => setOriginalPrice(e.target.value)} placeholder="0" />
+              <label className="ap-label">
+                Original Price ({currency.symbol})
+              </label>
+              <input
+                type="number"
+                className="ap-input"
+                value={originalPriceDisplay}
+                onChange={(e) => setOriginalPriceDisplay(e.target.value)}
+                placeholder="0"
+              />
             </div>
           </div>
           <div className="ap-field">
             <label className="ap-label">Description</label>
-            <textarea className="ap-textarea" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Product description for this variant..." rows={2} />
+            <textarea
+              className="ap-textarea"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Product description for this variant..."
+              rows={2}
+            />
           </div>
           <div className="ap-field">
             <label className="ap-label">Stock Status</label>
@@ -425,10 +854,19 @@ function VariantFormItem({
           </div>
           <div className="ap-field">
             <label className="ap-label">Variant Images</label>
-            <MultiImageUploader images={images} onImagesChange={setImages} onError={onError} />
+            <MultiImageUploader
+              images={images}
+              onImagesChange={setImages}
+              onError={onError}
+            />
           </div>
           {currentUnitPrice > 0 && (
-            <BulkPricingManager unitPrice={currentUnitPrice} tiers={bulkTiers} onTiersChange={setBulkTiers} onError={onError} />
+            <BulkPricingManager
+              unitPrice={currentUnitPrice}
+              tiers={bulkTiers}
+              onTiersChange={setBulkTiers}
+              onError={onError}
+            />
           )}
         </div>
       )}
@@ -436,10 +874,18 @@ function VariantFormItem({
   );
 }
 
-// ─── Attribute Selector ───────────────────────────────────────────────────────
+// ─── Attribute Selector ─────────────────────────────────────────────────────
 
 function AttributeSelector({
-  label, type, values, setValues, suggestions, variants, setVariants, onError, initialVariantsData,
+  label,
+  type,
+  values,
+  setValues,
+  suggestions,
+  variants,
+  setVariants,
+  onError,
+  initialVariantsData,
 }: {
   label: string;
   type: string;
@@ -451,36 +897,56 @@ function AttributeSelector({
   onError: (msg: string) => void;
   initialVariantsData?: any[];
 }) {
+  const { currency } = useCurrency();
   const [inputValue, setInputValue] = useState("");
+
+  const convertVariantData = (v: any) => ({
+    attributeType: type,
+    attributeValue: v.attribute_value,
+    price: v.price || 0,
+    originalPrice: v.original_price || null,
+    description: v.description || "",
+    stock: v.stock ?? 999999,
+    lowStockThreshold: v.low_stock_threshold || null,
+    images: v.images || [],
+    stockStatus: detectStockStatus(
+      v.stock ?? 999999,
+      v.low_stock_threshold ?? null
+    ),
+    bulkPricingTiers: (v.bulk_pricing_tiers || []).map((tier: any) => ({
+      ...tier,
+      tier_price: convertPriceFromPKR(tier.tier_price, currency),
+      discount_price: tier.discount_price
+        ? convertPriceFromPKR(tier.discount_price, currency)
+        : null,
+    })),
+  });
 
   const addValue = (value: string) => {
     const trimmed = value.trim();
     if (trimmed && !values.includes(trimmed)) {
       setValues([...values, trimmed]);
-      // ✅ Check karo ke existing variant hai ya nahi
       const existingVariant = initialVariantsData?.find(
         (v) => v.attribute_value === trimmed && v.attribute_type === type
       );
       if (existingVariant) {
-        setVariants([...variants, {
-          attributeType: type,
-          attributeValue: trimmed,
-          price: existingVariant.price || 0,
-          originalPrice: existingVariant.original_price || null,
-          description: existingVariant.description || "",
-          stock: existingVariant.stock ?? 999999,
-          lowStockThreshold: existingVariant.low_stock_threshold || null,
-          images: existingVariant.images || [],
-          stockStatus: detectStockStatus(existingVariant.stock ?? 999999, existingVariant.low_stock_threshold ?? null),
-          bulkPricingTiers: existingVariant.bulk_pricing_tiers || [],
-        }]);
+        setVariants([...variants, convertVariantData(existingVariant)]);
       } else {
-        setVariants([...variants, {
-          attributeType: type, attributeValue: trimmed,
-          price: 0, originalPrice: null, description: "",
-          stock: 999999, lowStockThreshold: null, images: [],
-          stockStatus: "in_stock", bulkPricingTiers: [],
-        }]);
+        setVariants([
+          ...variants,
+          {
+            attributeType: type,
+            attributeValue: trimmed,
+            priceDisplay: "",
+            originalPriceDisplay: "",
+            description: "",
+            stock: 999999,
+            lowStockThreshold: null,
+            images: [],
+            stockStatus: "in_stock",
+            bulkPricingTiers: [],
+          },
+        ]);
       }
     }
     setInputValue("");
@@ -498,7 +964,8 @@ function AttributeSelector({
   };
 
   const filteredSuggestions = suggestions.filter(
-    (s) => !values.includes(s) && s.toLowerCase().includes(inputValue.toLowerCase())
+    (s) =>
+      !values.includes(s) && s.toLowerCase().includes(inputValue.toLowerCase())
   );
 
   return (
@@ -507,17 +974,27 @@ function AttributeSelector({
         <label className="ap-label">{label}</label>
         <div className="ap-attribute-input-wrap">
           <input
-            type="text" className="ap-input" value={inputValue}
+            type="text"
+            className="ap-input"
+            value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addValue(inputValue)}
             placeholder={`Add ${label.toLowerCase()}...`}
           />
-          <button type="button" className="ap-attribute-add" onClick={() => addValue(inputValue)}>Add</button>
+          <button
+            type="button"
+            className="ap-attribute-add"
+            onClick={() => addValue(inputValue)}
+          >
+            Add
+          </button>
         </div>
         {filteredSuggestions.length > 0 && (
           <div className="ap-attribute-suggestions">
             {filteredSuggestions.map((s) => (
-              <button key={s} type="button" onClick={() => addValue(s)}>+ {s}</button>
+              <button key={s} type="button" onClick={() => addValue(s)}>
+                + {s}
+              </button>
             ))}
           </div>
         )}
@@ -533,7 +1010,9 @@ function AttributeSelector({
                 key={`${type}-${value}`}
                 attributeType={type}
                 attributeValue={value}
-                initialData={initData}
+                initialData={
+                  initData ? convertVariantData(initData) : undefined
+                }
                 onUpdate={(data) => updateVariant(idx, data)}
                 onRemove={() => removeValue(value)}
                 onError={onError}
@@ -546,10 +1025,18 @@ function AttributeSelector({
   );
 }
 
-// ─── Simple Mode Edit Form ────────────────────────────────────────────────────
+// ─── Simple Mode Edit Form ─────────────────────────────────────────────────
 
 function SimpleModeEditForm({
-  tab, productId, initialProduct, initialVariant, initialImages, initialFaqs, initialBulkTiers, onSuccess, onError,
+  tab,
+  productId,
+  initialProduct,
+  initialVariant,
+  initialImages,
+  initialFaqs,
+  initialBulkTiers,
+  onSuccess,
+  onError,
 }: {
   tab: (typeof TABS)[0];
   productId: string;
@@ -561,34 +1048,55 @@ function SimpleModeEditForm({
   onSuccess: () => void;
   onError: (msg: string) => void;
 }) {
+  const { currency } = useCurrency();
   const [name, setName] = useState(initialProduct?.name || "");
-  // ✅ FIX: Description — variant ki description pehle, phir product ki
   const [description, setDescription] = useState(
     initialVariant?.description || initialProduct?.description || ""
   );
   const [brand, setBrand] = useState(initialProduct?.brand || "");
-  const [price, setPrice] = useState(initialVariant?.price?.toString() || "");
-  const [originalPrice, setOriginalPrice] = useState(initialVariant?.original_price?.toString() || "");
-  const [condition, setCondition] = useState(initialProduct?.condition || "new");
-  const [isFeatured, setIsFeatured] = useState(initialProduct?.is_featured || false);
+  const [priceDisplay, setPriceDisplay] = useState(() => {
+    const pkrPrice = initialVariant?.price || 0;
+    return convertPriceFromPKR(pkrPrice, currency).toFixed(2);
+  });
+  const [originalPriceDisplay, setOriginalPriceDisplay] = useState(() => {
+    const pkrPrice = initialVariant?.original_price || 0;
+    return pkrPrice ? convertPriceFromPKR(pkrPrice, currency).toFixed(2) : "";
+  });
+
+  const [condition, setCondition] = useState(
+    initialProduct?.condition || "new"
+  );
+  const [isFeatured, setIsFeatured] = useState(
+    initialProduct?.is_featured || false
+  );
   const [isActive, setIsActive] = useState(initialProduct?.is_active !== false);
 
-  // ✅ FIX: Correct stock status
   const initStock = initialVariant?.stock ?? 999999;
   const initThreshold = initialVariant?.low_stock_threshold ?? null;
   const [stockStatus, setStockStatus] = useState<StockStatus>(
     detectStockStatus(initStock, initThreshold)
   );
-  // ✅ FIX: Actual pieces load karo
-  const [stockPieces, setStockPieces] = useState<number>(initStock === 0 ? 0 : initStock);
-  const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(initThreshold);
+  const [stockPieces, setStockPieces] = useState<number>(
+    initStock === 0 ? 0 : initStock
+  );
+  const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
+    initThreshold
+  );
 
-  // ✅ FIX: Images — already string[] passed from parent
   const [images, setImages] = useState<string[]>(initialImages);
   const [faqs, setFaqs] = useState<FAQ[]>(initialFaqs);
-  const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>(initialBulkTiers);
+  const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>(() => {
+    return initialBulkTiers.map((tier: BulkPricingTier) => ({
+      ...tier,
+      tier_price: convertPriceFromPKR(tier.tier_price, currency),
+      discount_price: tier.discount_price
+        ? convertPriceFromPKR(tier.discount_price, currency)
+        : null,
+    }));
+  });
+
   const [uploading, setUploading] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const getStockValue = (): number => {
@@ -598,28 +1106,47 @@ function SimpleModeEditForm({
 
   const getStockLabel = () => {
     if (stockStatus === "out_of_stock") return "Out of Stock";
-    if (stockStatus === "low_stock") return `Low Stock (Alert: ${lowStockThreshold || 5} units)`;
+    if (stockStatus === "low_stock")
+      return `Low Stock (Alert: ${lowStockThreshold || 5} units)`;
     const pieces = stockPieces === 999999 ? "Unlimited" : `${stockPieces} pcs`;
     return `In Stock (${pieces})`;
   };
 
+  const getPriceInPKR = (displayPrice: string): number => {
+    const priceNum = parseFloat(displayPrice) || 0;
+    return convertPriceToPKR(priceNum, currency);
+  };
+
   const handleImageUpload = async (file: File) => {
-    if (!file.type.startsWith("image/")) { onError("Only image files are allowed"); return; }
+    if (!file.type.startsWith("image/")) {
+      onError("Only image files are allowed");
+      return;
+    }
     setUploading(true);
     try {
       const url = await uploadToCloudinary(file);
       setImages((prev) => [...prev, url]);
     } catch (err) {
-      onError("Upload failed: " + (err instanceof Error ? err.message : "Unknown error"));
+      onError(
+        "Upload failed: " +
+          (err instanceof Error ? err.message : "Unknown error")
+      );
     }
     setUploading(false);
   };
 
+  const handleBulkTiersChange = (tiers: BulkPricingTier[]) => {
+    setBulkTiers(tiers);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !price) { onError("Product name and price are required"); return; }
+    if (!name.trim() || !priceDisplay) {
+      onError("Product name and price are required");
+      return;
+    }
 
-    setLoading(true);
+    setIsUpdating(true);
 
     // 1. Update product
     const { error: productError } = await supabase
@@ -633,18 +1160,23 @@ function SimpleModeEditForm({
         condition,
         is_featured: isFeatured,
         is_active: isActive,
+        currency_code: currency.code,
         updated_at: new Date().toISOString(),
       })
       .eq("id", productId);
 
     if (productError) {
       onError("Failed to update product: " + productError.message);
-      setLoading(false);
+      setIsUpdating(false);
       return;
     }
 
     // 2. Update or create variant
     let variantId = initialVariant?.id;
+    const pricePKR = getPriceInPKR(priceDisplay);
+    const originalPricePKR = originalPriceDisplay
+      ? getPriceInPKR(originalPriceDisplay)
+      : null;
     const stockVal = getStockValue();
     const thresholdVal = stockStatus === "low_stock" ? lowStockThreshold : null;
 
@@ -652,71 +1184,92 @@ function SimpleModeEditForm({
       const { error: variantError } = await supabase
         .from("product_variants")
         .update({
-          price: parseFloat(price),
-          original_price: originalPrice ? parseFloat(originalPrice) : null,
+          price: pricePKR,
+          original_price: originalPricePKR,
           description: description.trim(),
           stock: stockVal,
           low_stock_threshold: thresholdVal,
+          currency_code: currency.code,
+          base_price_pkr: pricePKR,
+          base_original_price_pkr: originalPricePKR,
           is_active: true,
         })
         .eq("id", variantId);
 
       if (variantError) {
         onError("Failed to update variant: " + variantError.message);
-        setLoading(false);
+        setIsUpdating(false);
         return;
       }
     } else {
       const { data: newVariant, error: variantError } = await supabase
         .from("product_variants")
-        .insert([{
-          product_id: productId,
-          attribute_type: "standard",
-          attribute_value: "Standard",
-          price: parseFloat(price),
-          original_price: originalPrice ? parseFloat(originalPrice) : null,
-          description: description.trim(),
-          stock: stockVal,
-          low_stock_threshold: thresholdVal,
-          is_active: true,
-        }])
+        .insert([
+          {
+            product_id: productId,
+            attribute_type: "standard",
+            attribute_value: "Standard",
+            price: pricePKR,
+            original_price: originalPricePKR,
+            description: description.trim(),
+            stock: stockVal,
+            low_stock_threshold: thresholdVal,
+            is_active: true,
+            currency_code: currency.code,
+            base_price_pkr: pricePKR,
+            base_original_price_pkr: originalPricePKR,
+          },
+        ])
         .select()
         .single();
 
       if (variantError) {
         onError("Failed to create variant: " + variantError.message);
-        setLoading(false);
+        setIsUpdating(false);
         return;
       }
       variantId = newVariant.id;
     }
 
-    // 3. Update images — delete old, insert new
+    // 3. Update images
     await supabase.from("variant_images").delete().eq("variant_id", variantId);
     if (images.length > 0) {
       const { error: imgErr } = await supabase.from("variant_images").insert(
-        images.map((url, idx) => ({ variant_id: variantId, image_url: url, display_order: idx }))
+        images.map((url, idx) => ({
+          variant_id: variantId,
+          image_url: url,
+          display_order: idx,
+        }))
       );
       if (imgErr) {
         onError("Failed to save images: " + imgErr.message);
-        setLoading(false);
+        setIsUpdating(false);
         return;
       }
     }
 
     // 4. Update bulk pricing
-    await supabase.from("bulk_pricing_tiers").delete().eq("variant_id", variantId);
+    await supabase
+      .from("bulk_pricing_tiers")
+      .delete()
+      .eq("variant_id", variantId);
     if (bulkTiers.length > 0) {
-      const validTiers = bulkTiers.filter((t) => t.min_quantity && t.tier_price);
+      const validTiers = bulkTiers.filter(
+        (t) => t.min_quantity && t.tier_price
+      );
       if (validTiers.length > 0) {
         await supabase.from("bulk_pricing_tiers").insert(
           validTiers.map((t) => ({
             variant_id: variantId,
             min_quantity: t.min_quantity,
             max_quantity: t.max_quantity,
-            tier_price: t.tier_price,
+            tier_price: convertPriceToPKR(t.tier_price, currency),
             discount_percentage: t.discount_percentage,
-            discount_price: t.discount_price,
+            discount_price: t.discount_price
+              ? convertPriceToPKR(t.discount_price, currency)
+              : null,
+            currency_code: currency.code,
+            base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
           }))
         );
       }
@@ -738,7 +1291,7 @@ function SimpleModeEditForm({
       }
     }
 
-    setLoading(false);
+    setIsUpdating(false);
     onSuccess();
   };
 
@@ -746,11 +1299,15 @@ function SimpleModeEditForm({
     <form onSubmit={handleSubmit}>
       <div className="ap-form-grid-simple">
         <div>
-          {/* Basic Info */}
           <div className="ap-card">
             <div className="ap-card-header">
               <div className="ap-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
                   <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
@@ -760,33 +1317,66 @@ function SimpleModeEditForm({
             <div className="ap-card-body">
               <div className="ap-field">
                 <label className="ap-label">Product Name *</label>
-                <input className="ap-input" value={name} onChange={(e) => setName(e.target.value)} required />
+                <input
+                  className="ap-input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
               </div>
 
               <div className="ap-row">
                 <div className="ap-field">
-                  <label className="ap-label">Sale Price (PKR) *</label>
-                  <input type="number" className="ap-input" value={price} onChange={(e) => setPrice(e.target.value)} required />
+                  <label className="ap-label">
+                    Sale Price ({currency.symbol}) *
+                  </label>
+                  <input
+                    type="number"
+                    className="ap-input"
+                    value={priceDisplay}
+                    onChange={(e) => setPriceDisplay(e.target.value)}
+                    required
+                  />
                 </div>
                 <div className="ap-field">
-                  <label className="ap-label">Original Price (PKR)</label>
-                  <input type="number" className="ap-input" value={originalPrice} onChange={(e) => setOriginalPrice(e.target.value)} />
+                  <label className="ap-label">
+                    Original Price ({currency.symbol})
+                  </label>
+                  <input
+                    type="number"
+                    className="ap-input"
+                    value={originalPriceDisplay}
+                    onChange={(e) => setOriginalPriceDisplay(e.target.value)}
+                  />
                 </div>
               </div>
 
               <div className="ap-field">
                 <label className="ap-label">Description</label>
-                <textarea className="ap-textarea" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+                <textarea
+                  className="ap-textarea"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                />
               </div>
 
               <div className="ap-row">
                 <div className="ap-field">
                   <label className="ap-label">Brand</label>
-                  <input className="ap-input" value={brand} onChange={(e) => setBrand(e.target.value)} />
+                  <input
+                    className="ap-input"
+                    value={brand}
+                    onChange={(e) => setBrand(e.target.value)}
+                  />
                 </div>
                 <div className="ap-field">
                   <label className="ap-label">Condition</label>
-                  <select className="ap-select" value={condition} onChange={(e) => setCondition(e.target.value)}>
+                  <select
+                    className="ap-select"
+                    value={condition}
+                    onChange={(e) => setCondition(e.target.value)}
+                  >
                     <option value="new">New</option>
                     <option value="used">Used</option>
                     <option value="refurbished">Refurbished</option>
@@ -809,31 +1399,50 @@ function SimpleModeEditForm({
                 />
               </div>
 
-              {parseFloat(price) > 0 && (
+              {parseFloat(priceDisplay) > 0 && (
                 <div className="ap-field">
-                  <label className="ap-label">Bulk Pricing (Quantity Discounts)</label>
-                  <BulkPricingManager unitPrice={parseFloat(price) || 0} tiers={bulkTiers} onTiersChange={setBulkTiers} onError={onError} />
+                  <label className="ap-label">
+                    Bulk Pricing (Quantity Discounts)
+                  </label>
+                  <BulkPricingManager
+                    unitPrice={parseFloat(priceDisplay) || 0}
+                    tiers={bulkTiers}
+                    onTiersChange={handleBulkTiersChange}
+                    onError={onError}
+                  />
                 </div>
               )}
 
               <div style={{ display: "flex", gap: "1.5rem" }}>
                 <label className="ap-check-wrap">
-                  <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={isFeatured}
+                    onChange={(e) => setIsFeatured(e.target.checked)}
+                  />
                   <span className="ap-check-label">Featured</span>
                 </label>
                 <label className="ap-check-wrap">
-                  <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={(e) => setIsActive(e.target.checked)}
+                  />
                   <span className="ap-check-label">Active</span>
                 </label>
               </div>
             </div>
           </div>
 
-          {/* FAQs */}
           <div className="ap-card" style={{ marginTop: "1.5rem" }}>
             <div className="ap-card-header">
               <div className="ap-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
                   <circle cx="12" cy="12" r="10" />
                   <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                   <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -847,12 +1456,16 @@ function SimpleModeEditForm({
           </div>
         </div>
 
-        {/* Right column — Images */}
         <div>
           <div className="ap-card">
             <div className="ap-card-header">
               <div className="ap-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <polyline points="21 15 16 10 5 21" />
@@ -861,22 +1474,38 @@ function SimpleModeEditForm({
               <h3 className="ap-card-title">Product Images</h3>
             </div>
             <div className="ap-card-body">
-              <div className="ap-img-upload" onClick={() => !uploading && fileRef.current?.click()}>
+              <div
+                className="ap-img-upload"
+                onClick={() => !uploading && fileRef.current?.click()}
+              >
                 <input
-                  ref={fileRef} type="file" accept="image/*"
-                  onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) =>
+                    e.target.files?.[0] && handleImageUpload(e.target.files[0])
+                  }
                   style={{ display: "none" }}
                 />
                 <div className="ap-img-upload-icon">
-                  {uploading ? <div className="ap-spinner" /> : (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  {uploading ? (
+                    <div className="ap-spinner" />
+                  ) : (
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
                       <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                       <polyline points="17 8 12 3 7 8" />
                       <line x1="12" y1="3" x2="12" y2="15" />
                     </svg>
                   )}
                 </div>
-                <p className="ap-img-upload-title">{uploading ? "Uploading..." : "Click to Upload Images"}</p>
+                <p className="ap-img-upload-title">
+                  {uploading ? "Uploading..." : "Click to Upload Images"}
+                </p>
                 <p className="ap-img-upload-sub">JPG, PNG, WEBP</p>
               </div>
               {images.length > 0 && (
@@ -884,10 +1513,21 @@ function SimpleModeEditForm({
                   {images.map((url, i) => (
                     <div key={i} className="ap-img-thumb">
                       <img src={url} alt={`Product ${i + 1}`} />
-                      <button type="button" className="ap-img-thumb-remove"
-                        onClick={() => setImages(images.filter((_, j) => j !== i))}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      <button
+                        type="button"
+                        className="ap-img-thumb-remove"
+                        onClick={() =>
+                          setImages(images.filter((_, j) => j !== i))
+                        }
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
                         </svg>
                       </button>
                     </div>
@@ -897,11 +1537,15 @@ function SimpleModeEditForm({
             </div>
           </div>
 
-          {/* Summary */}
           <div className="ap-card" style={{ marginTop: "1.5rem" }}>
             <div className="ap-card-header">
               <div className="ap-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
@@ -915,15 +1559,77 @@ function SimpleModeEditForm({
                 ["Stock", getStockLabel()],
                 ["Bulk Tiers", `${bulkTiers.length} tiers`],
                 ["FAQs", `${faqs.length} added`],
+                ["Currency", currency.code],
               ].map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 0", borderBottom: "1px solid rgba(218,165,32,0.1)" }}>
-                  <span style={{ fontFamily: "var(--ap-sans)", fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: "#999" }}>{k}</span>
-                  <span style={{ fontFamily: "var(--ap-serif)", fontSize: "0.85rem", fontWeight: 600, color: "#8b6914" }}>{v}</span>
+                <div
+                  key={k}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    padding: "0.5rem 0",
+                    borderBottom: "1px solid rgba(218,165,32,0.1)",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "var(--ap-sans)",
+                      fontSize: "0.6rem",
+                      fontWeight: 600,
+                      letterSpacing: "0.15em",
+                      textTransform: "uppercase",
+                      color: "#999",
+                    }}
+                  >
+                    {k}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "var(--ap-serif)",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                      color: "#8b6914",
+                    }}
+                  >
+                    {v}
+                  </span>
                 </div>
               ))}
-              <button type="submit" className="ap-submit-btn" disabled={loading} style={{ marginTop: "1rem" }}>
-                {loading ? <><div className="ap-spinner" /> Updating...</> : <>Update Product <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg></>}
+              <button
+                type="submit"
+                className="ap-submit-btn"
+                disabled={isUpdating}
+                style={{ marginTop: "1rem" }}
+              >
+                {isUpdating ? (
+                  <>
+                    <div className="ap-spinner" /> Updating in {currency.code}
+                    ...
+                  </>
+                ) : (
+                  <>
+                    Update Product in {currency.code}{" "}
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  </>
+                )}
               </button>
+              <p
+                style={{
+                  fontSize: "0.7rem",
+                  color: "#666",
+                  textAlign: "center",
+                  marginTop: "0.5rem",
+                }}
+              >
+                Prices will be saved in PKR (base) and converted to{" "}
+                {currency.code} for display
+              </p>
             </div>
           </div>
         </div>
@@ -932,10 +1638,16 @@ function SimpleModeEditForm({
   );
 }
 
-// ─── Detailed Mode Edit Form ──────────────────────────────────────────────────
+// ─── Detailed Mode Edit Form ────────────────────────────────────────────────
 
 function DetailedModeEditForm({
-  tab, productId, initialProduct, initialVariants, initialFaqs, onSuccess, onError,
+  tab,
+  productId,
+  initialProduct,
+  initialVariants,
+  initialFaqs,
+  onSuccess,
+  onError,
 }: {
   tab: (typeof TABS)[0];
   productId: string;
@@ -945,55 +1657,107 @@ function DetailedModeEditForm({
   onSuccess: () => void;
   onError: (msg: string) => void;
 }) {
+  const { currency } = useCurrency();
   const [name, setName] = useState(initialProduct?.name || "");
-  const [description, setDescription] = useState(initialProduct?.description || "");
+  const [description, setDescription] = useState(
+    initialProduct?.description || ""
+  );
   const [brand, setBrand] = useState(initialProduct?.brand || "");
-  const [condition, setCondition] = useState(initialProduct?.condition || "new");
-  const [isFeatured, setIsFeatured] = useState(initialProduct?.is_featured || false);
+  const [condition, setCondition] = useState(
+    initialProduct?.condition || "new"
+  );
+  const [isFeatured, setIsFeatured] = useState(
+    initialProduct?.is_featured || false
+  );
   const [isActive, setIsActive] = useState(initialProduct?.is_active !== false);
   const [faqs, setFaqs] = useState<FAQ[]>(initialFaqs);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const buildInitial = (type: string) =>
-    initialVariants.filter((v) => v.attribute_type === type).map((v) => v.attribute_value);
+    initialVariants
+      .filter((v) => v.attribute_type === type)
+      .map((v) => v.attribute_value);
 
   const [colors, setColors] = useState<string[]>(buildInitial("color"));
   const [sizes, setSizes] = useState<string[]>(buildInitial("size"));
-  const [materials, setMaterials] = useState<string[]>(buildInitial("material"));
-  const [capacities, setCapacities] = useState<string[]>(buildInitial("capacity"));
+  const [materials, setMaterials] = useState<string[]>(
+    buildInitial("material")
+  );
+  const [capacities, setCapacities] = useState<string[]>(
+    buildInitial("capacity")
+  );
 
-  // ✅ FIX: initialVariants mein images already string[] hain (parent ne convert kiya)
+  const convertVariantData = (v: any) => ({
+    attributeType: v.attribute_type,
+    attributeValue: v.attribute_value,
+    price: v.price || 0,
+    originalPrice: v.original_price || null,
+    description: v.description || "",
+    stock: v.stock ?? 999999,
+    lowStockThreshold: v.low_stock_threshold ?? null,
+    images: v.images || [],
+    stockStatus: detectStockStatus(
+      v.stock ?? 999999,
+      v.low_stock_threshold ?? null
+    ),
+    bulkPricingTiers: (v.bulk_pricing_tiers || []).map((tier: any) => ({
+      ...tier,
+      tier_price: convertPriceFromPKR(tier.tier_price, currency),
+      discount_price: tier.discount_price
+        ? convertPriceFromPKR(tier.discount_price, currency)
+        : null,
+    })),
+  });
+
   const buildInitialVariants = (type: string) =>
-    initialVariants.filter((v) => v.attribute_type === type).map((v) => ({
-      attributeType: type,
-      attributeValue: v.attribute_value,
-      price: v.price || 0,
-      originalPrice: v.original_price || null,
-      description: v.description || "",
-      stock: v.stock ?? 999999,
-      lowStockThreshold: v.low_stock_threshold ?? null,
-      images: v.images || [],   // ✅ already string[] from parent
-      stockStatus: detectStockStatus(v.stock ?? 999999, v.low_stock_threshold ?? null),
-      bulkPricingTiers: v.bulk_pricing_tiers || [],
-    }));
+    initialVariants
+      .filter((v) => v.attribute_type === type)
+      .map(convertVariantData);
 
-  const [colorVariants, setColorVariants] = useState<any[]>(buildInitialVariants("color"));
-  const [sizeVariants, setSizeVariants] = useState<any[]>(buildInitialVariants("size"));
-  const [materialVariants, setMaterialVariants] = useState<any[]>(buildInitialVariants("material"));
-  const [capacityVariants, setCapacityVariants] = useState<any[]>(buildInitialVariants("capacity"));
+  const [colorVariants, setColorVariants] = useState<any[]>(
+    buildInitialVariants("color")
+  );
+  const [sizeVariants, setSizeVariants] = useState<any[]>(
+    buildInitialVariants("size")
+  );
+  const [materialVariants, setMaterialVariants] = useState<any[]>(
+    buildInitialVariants("material")
+  );
+  const [capacityVariants, setCapacityVariants] = useState<any[]>(
+    buildInitialVariants("capacity")
+  );
 
-  const [loading, setLoading] = useState(false);
+  const totalVariants =
+    colorVariants.length +
+    sizeVariants.length +
+    materialVariants.length +
+    capacityVariants.length;
 
-  const totalVariants = colorVariants.length + sizeVariants.length + materialVariants.length + capacityVariants.length;
+  const getPriceInPKR = (priceNum: number): number => {
+    return convertPriceToPKR(priceNum, currency);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) { onError("Product name is required"); return; }
+    if (!name.trim()) {
+      onError("Product name is required");
+      return;
+    }
 
-    const allVariants = [...colorVariants, ...sizeVariants, ...materialVariants, ...capacityVariants];
-    if (allVariants.length === 0) { onError("Please add at least one attribute (color, size, material, or capacity)"); return; }
-    if (!allVariants.some((v) => v.price > 0)) { onError("At least one variant must have a price"); return; }
+    const allVariants = [
+      ...colorVariants,
+      ...sizeVariants,
+      ...materialVariants,
+      ...capacityVariants,
+    ];
+    if (allVariants.length === 0) {
+      onError(
+        "Please add at least one attribute (color, size, material, or capacity)"
+      );
+      return;
+    }
 
-    setLoading(true);
+    setIsUpdating(true);
 
     // 1. Update product
     const { error: productError } = await supabase
@@ -1007,13 +1771,18 @@ function DetailedModeEditForm({
         condition,
         is_featured: isFeatured,
         is_active: isActive,
+        currency_code: currency.code,
         updated_at: new Date().toISOString(),
       })
       .eq("id", productId);
 
-    if (productError) { onError("Failed to update product: " + productError.message); setLoading(false); return; }
+    if (productError) {
+      onError("Failed to update product: " + productError.message);
+      setIsUpdating(false);
+      return;
+    }
 
-    // 2. Delete existing variants (images + bulk tiers)
+    // 2. Delete existing variants
     const { data: existingVariants } = await supabase
       .from("product_variants")
       .select("id")
@@ -1021,32 +1790,54 @@ function DetailedModeEditForm({
 
     if (existingVariants && existingVariants.length > 0) {
       const variantIds = existingVariants.map((v) => v.id);
-      await supabase.from("variant_images").delete().in("variant_id", variantIds);
-      await supabase.from("bulk_pricing_tiers").delete().in("variant_id", variantIds);
-      await supabase.from("product_variants").delete().eq("product_id", productId);
+      await supabase
+        .from("variant_images")
+        .delete()
+        .in("variant_id", variantIds);
+      await supabase
+        .from("bulk_pricing_tiers")
+        .delete()
+        .in("variant_id", variantIds);
+      await supabase
+        .from("product_variants")
+        .delete()
+        .eq("product_id", productId);
     }
 
-    // 3. Insert new variants with images and bulk tiers
+    // 3. Insert new variants
     for (const variant of allVariants) {
+      const pricePKR = getPriceInPKR(variant.price);
+      const originalPricePKR = variant.originalPrice
+        ? getPriceInPKR(variant.originalPrice)
+        : null;
+
       const { data: variantData, error: variantError } = await supabase
         .from("product_variants")
-        .insert([{
-          product_id: productId,
-          attribute_type: variant.attributeType,
-          attribute_value: variant.attributeValue,
-          price: variant.price,
-          original_price: variant.originalPrice,
-          description: variant.description || "",
-          stock: variant.stock,
-          low_stock_threshold: variant.lowStockThreshold,
-          is_active: true,
-        }])
+        .insert([
+          {
+            product_id: productId,
+            attribute_type: variant.attributeType,
+            attribute_value: variant.attributeValue,
+            price: pricePKR,
+            original_price: originalPricePKR,
+            description: variant.description || "",
+            stock: variant.stock,
+            low_stock_threshold: variant.lowStockThreshold,
+            is_active: true,
+            currency_code: currency.code,
+            base_price_pkr: pricePKR,
+            base_original_price_pkr: originalPricePKR,
+          },
+        ])
         .select()
         .single();
 
-      if (variantError) { onError("Failed to save variant: " + variantError.message); setLoading(false); return; }
+      if (variantError) {
+        onError("Failed to save variant: " + variantError.message);
+        setIsUpdating(false);
+        return;
+      }
 
-      // ✅ Images save karo
       if (variant.images?.length > 0) {
         const { error: imgErr } = await supabase.from("variant_images").insert(
           variant.images.map((url: string, idx: number) => ({
@@ -1058,18 +1849,23 @@ function DetailedModeEditForm({
         if (imgErr) console.error("Image save error:", imgErr);
       }
 
-      // Bulk pricing tiers save karo
       if (variant.bulkPricingTiers?.length > 0) {
-        const validTiers = variant.bulkPricingTiers.filter((t: BulkPricingTier) => t.min_quantity && t.tier_price);
+        const validTiers = variant.bulkPricingTiers.filter(
+          (t: BulkPricingTier) => t.min_quantity && t.tier_price
+        );
         if (validTiers.length > 0) {
           await supabase.from("bulk_pricing_tiers").insert(
             validTiers.map((t: BulkPricingTier) => ({
               variant_id: variantData.id,
               min_quantity: t.min_quantity,
               max_quantity: t.max_quantity,
-              tier_price: t.tier_price,
+              tier_price: convertPriceToPKR(t.tier_price, currency),
               discount_percentage: t.discount_percentage,
-              discount_price: t.discount_price,
+              discount_price: t.discount_price
+                ? convertPriceToPKR(t.discount_price, currency)
+                : null,
+              currency_code: currency.code,
+              base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
             }))
           );
         }
@@ -1092,7 +1888,7 @@ function DetailedModeEditForm({
       }
     }
 
-    setLoading(false);
+    setIsUpdating(false);
     onSuccess();
   };
 
@@ -1100,11 +1896,15 @@ function DetailedModeEditForm({
     <form onSubmit={handleSubmit}>
       <div className="ap-form-grid-detailed">
         <div className="ap-detailed-left">
-          {/* Basic Info */}
           <div className="ap-card">
             <div className="ap-card-header">
               <div className="ap-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
                   <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
@@ -1114,20 +1914,38 @@ function DetailedModeEditForm({
             <div className="ap-card-body">
               <div className="ap-field">
                 <label className="ap-label">Product Name *</label>
-                <input className="ap-input" value={name} onChange={(e) => setName(e.target.value)} required />
+                <input
+                  className="ap-input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
               </div>
               <div className="ap-field">
                 <label className="ap-label">Description</label>
-                <textarea className="ap-textarea" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+                <textarea
+                  className="ap-textarea"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                />
               </div>
               <div className="ap-row">
                 <div className="ap-field">
                   <label className="ap-label">Brand</label>
-                  <input className="ap-input" value={brand} onChange={(e) => setBrand(e.target.value)} />
+                  <input
+                    className="ap-input"
+                    value={brand}
+                    onChange={(e) => setBrand(e.target.value)}
+                  />
                 </div>
                 <div className="ap-field">
                   <label className="ap-label">Condition</label>
-                  <select className="ap-select" value={condition} onChange={(e) => setCondition(e.target.value)}>
+                  <select
+                    className="ap-select"
+                    value={condition}
+                    onChange={(e) => setCondition(e.target.value)}
+                  >
                     <option value="new">New</option>
                     <option value="used">Used</option>
                     <option value="refurbished">Refurbished</option>
@@ -1136,22 +1954,34 @@ function DetailedModeEditForm({
               </div>
               <div style={{ display: "flex", gap: "1.5rem" }}>
                 <label className="ap-check-wrap">
-                  <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={isFeatured}
+                    onChange={(e) => setIsFeatured(e.target.checked)}
+                  />
                   <span className="ap-check-label">Featured</span>
                 </label>
                 <label className="ap-check-wrap">
-                  <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={(e) => setIsActive(e.target.checked)}
+                  />
                   <span className="ap-check-label">Active</span>
                 </label>
               </div>
             </div>
           </div>
 
-          {/* Attributes */}
           <div className="ap-card">
             <div className="ap-card-header">
               <div className="ap-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
                   <circle cx="12" cy="12" r="3" />
                   <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
                 </svg>
@@ -1159,18 +1989,62 @@ function DetailedModeEditForm({
               <h3 className="ap-card-title">Product Attributes</h3>
             </div>
             <div className="ap-card-body">
-              <AttributeSelector label="Colors" type="color" values={colors} setValues={setColors} suggestions={COLOR_SUGGESTIONS} variants={colorVariants} setVariants={setColorVariants} onError={onError} initialVariantsData={initialVariants} />
-              <AttributeSelector label="Sizes" type="size" values={sizes} setValues={setSizes} suggestions={SIZE_SUGGESTIONS} variants={sizeVariants} setVariants={setSizeVariants} onError={onError} initialVariantsData={initialVariants} />
-              <AttributeSelector label="Materials" type="material" values={materials} setValues={setMaterials} suggestions={MATERIAL_SUGGESTIONS} variants={materialVariants} setVariants={setMaterialVariants} onError={onError} initialVariantsData={initialVariants} />
-              <AttributeSelector label="Capacities" type="capacity" values={capacities} setValues={setCapacities} suggestions={CAPACITY_SUGGESTIONS} variants={capacityVariants} setVariants={setCapacityVariants} onError={onError} initialVariantsData={initialVariants} />
+              <AttributeSelector
+                label="Colors"
+                type="color"
+                values={colors}
+                setValues={setColors}
+                suggestions={COLOR_SUGGESTIONS}
+                variants={colorVariants}
+                setVariants={setColorVariants}
+                onError={onError}
+                initialVariantsData={initialVariants}
+              />
+              <AttributeSelector
+                label="Sizes"
+                type="size"
+                values={sizes}
+                setValues={setSizes}
+                suggestions={SIZE_SUGGESTIONS}
+                variants={sizeVariants}
+                setVariants={setSizeVariants}
+                onError={onError}
+                initialVariantsData={initialVariants}
+              />
+              <AttributeSelector
+                label="Materials"
+                type="material"
+                values={materials}
+                setValues={setMaterials}
+                suggestions={MATERIAL_SUGGESTIONS}
+                variants={materialVariants}
+                setVariants={setMaterialVariants}
+                onError={onError}
+                initialVariantsData={initialVariants}
+              />
+              <AttributeSelector
+                label="Capacities"
+                type="capacity"
+                values={capacities}
+                setValues={setCapacities}
+                suggestions={CAPACITY_SUGGESTIONS}
+                variants={capacityVariants}
+                setVariants={setCapacityVariants}
+                onError={onError}
+                initialVariantsData={initialVariants}
+              />
             </div>
           </div>
 
-          {/* FAQs */}
           <div className="ap-card">
             <div className="ap-card-header">
               <div className="ap-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
                   <circle cx="12" cy="12" r="10" />
                   <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                   <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -1184,12 +2058,16 @@ function DetailedModeEditForm({
           </div>
         </div>
 
-        {/* Right: Summary */}
         <div className="ap-detailed-right">
           <div className="ap-card">
             <div className="ap-card-header">
               <div className="ap-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
@@ -1201,19 +2079,87 @@ function DetailedModeEditForm({
                 ["Subcategory", tab.sub],
                 ["Colors", colors.length > 0 ? colors.join(", ") : "—"],
                 ["Sizes", sizes.length > 0 ? sizes.join(", ") : "—"],
-                ["Materials", materials.length > 0 ? materials.join(", ") : "—"],
-                ["Capacities", capacities.length > 0 ? capacities.join(", ") : "—"],
+                [
+                  "Materials",
+                  materials.length > 0 ? materials.join(", ") : "—",
+                ],
+                [
+                  "Capacities",
+                  capacities.length > 0 ? capacities.join(", ") : "—",
+                ],
                 ["Total Variants", totalVariants.toString()],
                 ["FAQs", `${faqs.length} added`],
+                ["Currency", currency.code],
               ].map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 0", borderBottom: "1px solid rgba(218,165,32,0.1)" }}>
-                  <span style={{ fontFamily: "var(--ap-sans)", fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: "#999" }}>{k}</span>
-                  <span style={{ fontFamily: "var(--ap-serif)", fontSize: "0.85rem", fontWeight: 600, color: "#8b6914" }}>{v}</span>
+                <div
+                  key={k}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    padding: "0.5rem 0",
+                    borderBottom: "1px solid rgba(218,165,32,0.1)",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "var(--ap-sans)",
+                      fontSize: "0.6rem",
+                      fontWeight: 600,
+                      letterSpacing: "0.15em",
+                      textTransform: "uppercase",
+                      color: "#999",
+                    }}
+                  >
+                    {k}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "var(--ap-serif)",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                      color: "#8b6914",
+                    }}
+                  >
+                    {v}
+                  </span>
                 </div>
               ))}
-              <button type="submit" className="ap-submit-btn" disabled={loading} style={{ marginTop: "1rem" }}>
-                {loading ? <><div className="ap-spinner" /> Updating...</> : <>Update Product with Variants <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg></>}
+              <button
+                type="submit"
+                className="ap-submit-btn"
+                disabled={isUpdating}
+                style={{ marginTop: "1rem" }}
+              >
+                {isUpdating ? (
+                  <>
+                    <div className="ap-spinner" /> Updating in {currency.code}
+                    ...
+                  </>
+                ) : (
+                  <>
+                    Update Product with Variants in {currency.code}{" "}
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  </>
+                )}
               </button>
+              <p
+                style={{
+                  fontSize: "0.7rem",
+                  color: "#666",
+                  textAlign: "center",
+                  marginTop: "0.5rem",
+                }}
+              >
+                Prices will be saved in PKR (base) and converted to{" "}
+                {currency.code} for display
+              </p>
             </div>
           </div>
         </div>
@@ -1222,13 +2168,14 @@ function DetailedModeEditForm({
   );
 }
 
-// ─── Main Edit Product Page ───────────────────────────────────────────────────
+// ─── Main Edit Product Page ─────────────────────────────────────────────────
 
 export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
   const productId = params?.id as string;
 
+  const { currency, loading: currencyLoading } = useCurrency();
   const [authorized, setAuthorized] = useState(false);
   const [checking, setChecking] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
@@ -1247,7 +2194,13 @@ export default function EditProductPage() {
   const addToast = (type: Toast["type"], title: string, msg: string) => {
     const id = Date.now();
     setToasts((p) => [...p, { id, type, title, msg }]);
-    setTimeout(() => setToasts((p) => p.map((t) => (t.id === id ? { ...t, exiting: true } : t))), 4000);
+    setTimeout(
+      () =>
+        setToasts((p) =>
+          p.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+        ),
+      4000
+    );
     setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 4500);
   };
 
@@ -1261,17 +2214,33 @@ export default function EditProductPage() {
     let mounted = true;
     const checkAuth = async () => {
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error || !user) { router.push("/signin?redirectTo=/panel"); return; }
-        if (!isOwner(user.email)) { router.push("/"); return; }
-        if (mounted) { setAuthorized(true); setChecking(false); }
-      } catch { router.push("/signin"); }
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+        if (error || !user) {
+          router.push("/signin?redirectTo=/panel");
+          return;
+        }
+        if (!isOwner(user.email)) {
+          router.push("/");
+          return;
+        }
+        if (mounted) {
+          setAuthorized(true);
+          setChecking(false);
+        }
+      } catch {
+        router.push("/signin");
+      }
     };
     checkAuth();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [router]);
 
-  // ✅ FIX: Load product + variants + faqs — images correctly as string[]
+  // Load product data
   useEffect(() => {
     if (!authorized || !productId) return;
     let mounted = true;
@@ -1279,7 +2248,6 @@ export default function EditProductPage() {
     async function loadAll() {
       setDataLoading(true);
       try {
-        // Product
         const { data: prod, error: prodErr } = await supabase
           .from("products")
           .select("*")
@@ -1287,14 +2255,12 @@ export default function EditProductPage() {
           .single();
         if (prodErr) throw prodErr;
 
-        // Variants with images and bulk tiers
         const { data: variants } = await supabase
           .from("product_variants")
           .select("*, variant_images(*), bulk_pricing_tiers(*)")
           .eq("product_id", productId)
           .order("created_at", { ascending: true });
 
-        // FAQs
         const { data: faqs } = await supabase
           .from("product_faqs")
           .select("*")
@@ -1314,13 +2280,14 @@ export default function EditProductPage() {
         );
 
         const allVariants = variants || [];
-        const isSimple = allVariants.length === 0 || allVariants.every((v: any) => v.attribute_type === "standard");
+        const isSimple =
+          allVariants.length === 0 ||
+          allVariants.every((v: any) => v.attribute_type === "standard");
 
         if (isSimple) {
           setMode("simple");
           const sv = allVariants[0] || null;
           setSimpleVariant(sv);
-          // ✅ FIX: variant_images sorted by display_order, then extract URLs
           const sortedImages = (sv?.variant_images || [])
             .sort((a: any, b: any) => a.display_order - b.display_order)
             .map((i: any) => i.image_url);
@@ -1328,7 +2295,6 @@ export default function EditProductPage() {
           setSimpleBulkTiers(sv?.bulk_pricing_tiers || []);
         } else {
           setMode("detailed");
-          // ✅ FIX: Detailed variants mein bhi images correctly convert karo
           const processedVariants = allVariants.map((v: any) => ({
             ...v,
             images: (v.variant_images || [])
@@ -1338,7 +2304,6 @@ export default function EditProductPage() {
           setVariantsData(processedVariants);
         }
 
-        // Set correct tab from product category/subcategory
         if (prod) {
           const tabIdx = TABS.findIndex(
             (t) => t.category === prod.category && t.sub === prod.subcategory
@@ -1354,19 +2319,42 @@ export default function EditProductPage() {
     }
 
     loadAll();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [authorized, productId]);
 
-  // Loading states
-  if (checking || dataLoading) {
+  if (currencyLoading || checking || dataLoading) {
     return (
       <div className="ap-root">
         <div className="ap-ambient" aria-hidden="true" />
         <div className="ap-grain" aria-hidden="true" />
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", flexDirection: "column", gap: "1rem" }}>
-          <div className="ap-spinner" style={{ width: "40px", height: "40px" }} />
-          <p style={{ color: "#666", fontFamily: "var(--ap-sans)", fontSize: "0.8rem" }}>
-            {checking ? "Verifying access..." : "Loading product..."}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "100vh",
+            flexDirection: "column",
+            gap: "1rem",
+          }}
+        >
+          <div
+            className="ap-spinner"
+            style={{ width: "40px", height: "40px" }}
+          />
+          <p
+            style={{
+              color: "#666",
+              fontFamily: "var(--ap-sans)",
+              fontSize: "0.8rem",
+            }}
+          >
+            {checking
+              ? "Verifying access..."
+              : currencyLoading
+              ? "Loading currency..."
+              : "Loading product..."}
           </p>
         </div>
       </div>
@@ -1376,27 +2364,53 @@ export default function EditProductPage() {
   if (!authorized || !productData) return null;
 
   const handleSuccess = () => {
-    addToast("success", "Product Updated", `${productData.name || "Product"} has been updated successfully!`);
-    setTimeout(() => router.push("/panel"), 1500);
+    addToast(
+      "success",
+      "Product Updated",
+      `${productData.name || "Product"} has been updated successfully in ${
+        currency.code
+      }! Product will be updated in the list.`
+    );
+    setTimeout(() => {
+      router.push("/panel");
+    }, 1500);
   };
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this product? This action cannot be undone.")) return;
+    if (
+      !confirm(
+        "Are you sure you want to delete this product? This action cannot be undone."
+      )
+    )
+      return;
 
-    const { data: variants } = await supabase.from("product_variants").select("id").eq("product_id", productId);
+    const { data: variants } = await supabase
+      .from("product_variants")
+      .select("id")
+      .eq("product_id", productId);
     if (variants && variants.length > 0) {
       const ids = variants.map((v) => v.id);
       await supabase.from("variant_images").delete().in("variant_id", ids);
       await supabase.from("bulk_pricing_tiers").delete().in("variant_id", ids);
     }
-    await supabase.from("product_variants").delete().eq("product_id", productId);
+    await supabase
+      .from("product_variants")
+      .delete()
+      .eq("product_id", productId);
     await supabase.from("product_faqs").delete().eq("product_id", productId);
-    const { error } = await supabase.from("products").delete().eq("id", productId);
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", productId);
 
     if (error) {
       addToast("error", "Delete Failed", error.message);
     } else {
-      addToast("success", "Product Deleted", "Product has been removed from store");
+      addToast(
+        "success",
+        "Product Deleted",
+        "Product has been removed from store. Redirecting..."
+      );
       setTimeout(() => router.push("/panel"), 1500);
     }
   };
@@ -1408,20 +2422,38 @@ export default function EditProductPage() {
       <PanelNavbar />
 
       <div className="ap-content">
-        {/* Header */}
         <div className="ap-page-header" style={{ position: "relative" }}>
           <Link
             href="/panel"
             style={{
-              position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)",
-              display: "flex", alignItems: "center", gap: "0.4rem",
-              fontFamily: "var(--ap-sans)", fontSize: "0.75rem", fontWeight: 600,
-              letterSpacing: "0.1em", textTransform: "uppercase",
-              color: "#8b6914", textDecoration: "none",
+              position: "absolute",
+              left: 0,
+              top: "50%",
+              transform: "translateY(-50%)",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              fontFamily: "var(--ap-sans)",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "#8b6914",
+              textDecoration: "none",
             }}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: "16px", height: "16px" }}>
-              <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              style={{ width: "16px", height: "16px" }}
+            >
+              <path
+                d="M19 12H5M12 19l-7-7 7-7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
             Back
           </Link>
@@ -1429,29 +2461,48 @@ export default function EditProductPage() {
           <div>
             <p className="ap-eyebrow">
               <span className="ap-ey-line" />
-              Inventory Management
+              Inventory Management - {currency.code}
               <span className="ap-ey-line" />
             </p>
             <h1 className="ap-page-title">
-              Edit <em>{productData.name || "Product"}</em>
+              Edit <em>{productData.name || "Product"}</em> in {currency.code}
             </h1>
-            <p className="ap-page-sub">Update product information, images, and specifications</p>
+            <p className="ap-page-sub">
+              Update product information, images, and specifications
+            </p>
           </div>
 
           <button
             type="button"
             onClick={handleDelete}
             style={{
-              position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)",
-              display: "flex", alignItems: "center", gap: "0.4rem",
-              padding: "0.5rem 1rem", borderRadius: "6px",
-              background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)",
-              color: "#ef4444", fontFamily: "var(--ap-sans)", fontSize: "0.7rem",
-              fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase",
+              position: "absolute",
+              right: 0,
+              top: "50%",
+              transform: "translateY(-50%)",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              padding: "0.5rem 1rem",
+              borderRadius: "6px",
+              background: "rgba(239,68,68,0.1)",
+              border: "1px solid rgba(239,68,68,0.3)",
+              color: "#ef4444",
+              fontFamily: "var(--ap-sans)",
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
               cursor: "pointer",
             }}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: "14px", height: "14px" }}>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              style={{ width: "14px", height: "14px" }}
+            >
               <polyline points="3 6 5 6 21 6" />
               <path d="M19 6l-1 14H6L5 6" />
               <path d="M10 11v6M14 11v6M9 6V4h6v2" />
@@ -1460,14 +2511,18 @@ export default function EditProductPage() {
           </button>
         </div>
 
-        {/* Mode Toggle */}
         <div className="ap-mode-buttons">
           <button
             type="button"
             className={`ap-mode-btn ${mode === "simple" ? "active" : ""}`}
             onClick={() => setMode("simple")}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <circle cx="8.5" cy="8.5" r="1.5" />
               <polyline points="21 15 16 10 5 21" />
@@ -1481,17 +2536,23 @@ export default function EditProductPage() {
             className={`ap-mode-btn ${mode === "detailed" ? "active" : ""}`}
             onClick={() => setMode("detailed")}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
             </svg>
             Detailed Mode
             <br />
-            <span>Colors, sizes, materials, capacities with variant images</span>
+            <span>
+              Colors, sizes, materials, capacities with variant images
+            </span>
           </button>
         </div>
 
-        {/* Category Tabs */}
         <div className="ap-tabs">
           {TABS.map((t, i) => (
             <button
@@ -1505,7 +2566,6 @@ export default function EditProductPage() {
           ))}
         </div>
 
-        {/* Forms */}
         {mode === "simple" ? (
           <SimpleModeEditForm
             key={`simple-${activeTab}`}

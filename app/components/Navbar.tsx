@@ -63,11 +63,13 @@ export default function Navbar({
   onSearchOpen,
   onCartOpen,
 }: NavbarProps) {
+  const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [user, setUser] = useState<any>(undefined);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [currentPath, setCurrentPath] = useState("");
   const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pathname = usePathname();
 
@@ -76,12 +78,10 @@ export default function Navbar({
 
   const { currency, setCurrency, loading: currencyLoading } = useCurrency();
 
-  const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
-  };
-
   useEffect(() => {
+    setMounted(true);
+    setCurrentPath(window.location.pathname);
+
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
@@ -127,7 +127,6 @@ export default function Navbar({
 
   const availableCurrencies = currencies.filter((c) => c.code !== "PKR");
 
-  // Handle dropdown hover with delay
   const handleDropdownEnter = (href: string) => {
     if (dropdownTimeoutRef.current) {
       clearTimeout(dropdownTimeoutRef.current);
@@ -142,12 +141,31 @@ export default function Navbar({
     }, 150);
   };
 
-  if (currencyLoading) return null;
+  // Helper: safe navigation with page reload
+  const navigateTo = (href: string) => {
+    window.location.href = href;
+  };
+
+  // Don't render until mounted (SSR fix)
+  if (!mounted || currencyLoading) {
+    return (
+      <nav className="navbar">
+        <div className="navbar-container">
+          <div className="navbar-center">
+            <a href="/" className="navbar-logo">
+              <span className="logo-tech">TECH</span>
+              <span className="logo-four">4U</span>
+            </a>
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav className={`navbar${scrolled ? " scrolled" : ""}`}>
       <div className="navbar-container">
-        {/* LEFT SECTION - Currency Dropdown + Search Icon */}
+        {/* LEFT SECTION */}
         <div className="navbar-left">
           <div className="currency-dropdown">
             <button
@@ -193,7 +211,10 @@ export default function Navbar({
 
           <button
             className="nav-icon-btn search-btn"
-            onClick={onSearchOpen}
+            onClick={(e) => {
+              e.preventDefault();
+              onSearchOpen();
+            }}
             aria-label="Search"
           >
             <svg
@@ -208,20 +229,31 @@ export default function Navbar({
           </button>
         </div>
 
-        {/* CENTER SECTION - Logo */}
+        {/* CENTER SECTION */}
         <div className="navbar-center">
-          <Link href="/" className="navbar-logo">
+          <a
+            href="/"
+            className="navbar-logo"
+            onClick={(e) => {
+              e.preventDefault();
+              navigateTo("/");
+            }}
+          >
             <span className="logo-tech">TECH</span>
             <span className="logo-four">4U</span>
-          </Link>
+          </a>
         </div>
 
-        {/* RIGHT SECTION - User, Cart & Menu Icons */}
+        {/* RIGHT SECTION */}
         <div className="navbar-right">
-          <Link
+          <a
             href={isSignedIn ? "/profile" : "/signin"}
             className="nav-icon-btn user-btn"
             aria-label={isSignedIn ? "My Profile" : "Sign In"}
+            onClick={(e) => {
+              e.preventDefault();
+              navigateTo(isSignedIn ? "/profile" : "/signin");
+            }}
           >
             <svg
               viewBox="0 0 24 24"
@@ -233,11 +265,14 @@ export default function Navbar({
               <circle cx="12" cy="7" r="4" />
             </svg>
             {isSignedIn && <span className="user-active-dot" />}
-          </Link>
+          </a>
 
           <button
             className="nav-icon-btn cart-btn"
-            onClick={onCartOpen}
+            onClick={(e) => {
+              e.preventDefault();
+              onCartOpen();
+            }}
             aria-label="Cart"
           >
             <svg
@@ -255,7 +290,10 @@ export default function Navbar({
 
           <button
             className="nav-icon-btn menu-btn"
-            onClick={onMenuOpen}
+            onClick={(e) => {
+              e.preventDefault();
+              onMenuOpen();
+            }}
             aria-label="Menu"
           >
             <span />
@@ -265,12 +303,12 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* BOTTOM NAVIGATION LINKS - Desktop Only */}
+      {/* BOTTOM NAVIGATION */}
       <div className="navbar-bottom">
         <ul className="nav-links">
           {navLinks.map((link) => {
             const hasDropdown = categorySubcategories[link.href];
-            const isLinkActive = isActive(link.href);
+            const isLinkActive = currentPath === link.href;
             return (
               <li
                 key={link.href}
@@ -282,7 +320,14 @@ export default function Navbar({
                 }
                 onMouseLeave={handleDropdownLeave}
               >
-                <Link href={link.href} className={isLinkActive ? "active" : ""}>
+                <a
+                  href={link.href}
+                  className={isLinkActive ? "active" : ""}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigateTo(link.href);
+                  }}
+                >
                   {link.label}
                   {hasDropdown && (
                     <svg
@@ -294,7 +339,7 @@ export default function Navbar({
                       <polyline points="6 9 12 15 18 9" />
                     </svg>
                   )}
-                </Link>
+                </a>
                 {hasDropdown && openDropdown === link.href && (
                   <div
                     className="dropdown-menu"
@@ -302,15 +347,19 @@ export default function Navbar({
                     onMouseLeave={handleDropdownLeave}
                   >
                     {categorySubcategories[link.href].map((sub) => (
-                      <Link
+                      <a
                         key={sub.href}
                         href={sub.href}
                         className={`dropdown-item${
-                          pathname === sub.href ? " active" : ""
+                          currentPath === sub.href ? " active" : ""
                         }`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigateTo(sub.href);
+                        }}
                       >
                         {sub.name}
-                      </Link>
+                      </a>
                     ))}
                   </div>
                 )}
@@ -319,12 +368,16 @@ export default function Navbar({
           })}
           {showPanel && (
             <li className="nav-item">
-              <Link
+              <a
                 href="/panel"
-                className={isActive("/panel") ? "active" : ""}
+                className={currentPath === "/panel" ? "active" : ""}
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigateTo("/panel");
+                }}
               >
                 Panel
-              </Link>
+              </a>
             </li>
           )}
         </ul>

@@ -96,6 +96,7 @@ export default function Subcategory({
       }
 
       // Fetch variant images
+      let imagesByVariant: Record<string, string[]> = {};
       if (variantsData && variantsData.length > 0) {
         const variantIds = variantsData.map((v: any) => v.id);
         const { data: imagesData } = await supabase
@@ -105,28 +106,36 @@ export default function Subcategory({
           .order("display_order", { ascending: true });
 
         if (imagesData) {
-          const imagesByVariant: Record<string, string[]> = {};
           imagesData.forEach((img: any) => {
             if (!imagesByVariant[img.variant_id]) {
               imagesByVariant[img.variant_id] = [];
             }
             imagesByVariant[img.variant_id].push(img.image_url);
           });
-          setVariantImagesMap(imagesByVariant);
         }
+        setVariantImagesMap(imagesByVariant);
       }
 
-      // Get best variant for price
-      const bestVariant =
-        variantsData?.find((v: any) => v.attribute_type === "standard") ||
-        variantsData?.[0];
+      // Get best variant for price (priority: standard > color > size > material > capacity)
+      const typePriority: Record<string, number> = {
+        standard: 0,
+        color: 1,
+        size: 2,
+        material: 3,
+        capacity: 4,
+      };
+      const sortedVariants = [...(variantsData || [])].sort((a, b) => {
+        return (
+          (typePriority[a.attribute_type] || 5) -
+          (typePriority[b.attribute_type] || 5)
+        );
+      });
+      const bestVariant = sortedVariants[0];
 
-      // Get product images from variant or product
+      // Get product images from variant
       let productImages: string[] = [];
-      if (bestVariant && variantImagesMap[bestVariant.id]) {
-        productImages = variantImagesMap[bestVariant.id];
-      } else if (productData.images) {
-        productImages = productData.images;
+      if (bestVariant && imagesByVariant[bestVariant.id]) {
+        productImages = imagesByVariant[bestVariant.id];
       }
 
       const stock = bestVariant?.stock || productData.stock || 0;

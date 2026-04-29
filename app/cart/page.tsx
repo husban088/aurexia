@@ -57,7 +57,7 @@ export default function Cart() {
   };
 
   // Show spinner only when no items at all (not during background refresh)
-  if (loading && !initialized && items.length === 0) {
+  if (loading && items.length === 0) {
     return (
       <div className="cart-root">
         <div className="cart-grain" aria-hidden="true" />
@@ -98,7 +98,7 @@ export default function Cart() {
             <span className="cart-ey-line" />
           </p>
           <h1 className="cart-page-title">
-            {cartCount === 0 ? (
+            {items.length === 0 ? (
               "Your Cart"
             ) : (
               <>
@@ -109,7 +109,7 @@ export default function Cart() {
           </h1>
         </div>
 
-        {cartCount > 0 && (
+        {items.length > 0 && (
           <div
             className={`cart-ship-bar${
               shipping === 0 ? " cart-ship-bar--done" : ""
@@ -153,14 +153,14 @@ export default function Cart() {
           </div>
         )}
 
-        {cartCount === 0 ? (
+        {items.length === 0 ? (
           <div className="cart-empty">
-            <div className="cart-empty-icon" aria-hidden="true">
+            <div className="cart-empty-icon">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="0.7"
+                strokeWidth="1"
               >
                 <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
                 <line x1="3" y1="6" x2="21" y2="6" />
@@ -194,25 +194,43 @@ export default function Cart() {
             <div className="cart-items-col">
               <ul className="cart-list">
                 {items.map((item, i) => {
-                  const product = item.product;
-                  if (!product) return null;
+                  // NEVER skip items — cartStore always builds a fallback product
+                  const product = item.product ?? {
+                    id: item.product_id,
+                    name: item.variant_name || "Product",
+                    description: "",
+                    category: "",
+                    subcategory: "",
+                    condition: "new",
+                    is_featured: false,
+                    is_active: true,
+                    price: item.variant_price ?? 0,
+                    original_price: item.variant_original_price ?? undefined,
+                    images: item.variant_image ? [item.variant_image] : [],
+                    stock: item.variantStock ?? 0,
+                  };
 
-                  const itemPrice = item.variant_price || product.price || 0;
-                  const itemTotal = itemPrice * item.quantity;
+                  // pieces_per_unit: physical pieces per cart "unit"
+                  const ppu = item.pieces_per_unit ?? 1;
+
+                  // price is per-piece; total = price × ppu × quantity
+                  const itemPrice = item.variant_price ?? product.price ?? 0;
+                  const itemTotal = itemPrice * ppu * item.quantity;
+
+                  // total physical pieces for display
+                  const totalPieces = ppu * item.quantity;
+
                   const displayImage =
                     item.variant_image || product.images?.[0] || null;
-                  const displayName =
-                    item.variant_name && item.variant_name !== "Standard"
-                      ? `${product.name} (${item.variant_name})`
-                      : product.name;
 
-                  // ─── FIX: variantStock & variantStockStatus use karo ──────
-                  // cartStore mein yeh values correctly set hoti hain:
-                  //   in_stock     → variantStock = 999999 (unlimited)
-                  //   low_stock    → variantStock = threshold value
-                  //   out_of_stock → variantStock = 0
-                  // Pehle product.stock use ho raha tha jo GALAT tha —
-                  // product ka base stock alag hota hai variant ke stock se.
+                  // name: "Product (2-Piece)" if bulk tier
+                  const tierLabel = ppu > 1 ? ` (${ppu}-Piece)` : "";
+                  const variantSuffix =
+                    item.variant_name && item.variant_name !== "Standard"
+                      ? ` — ${item.variant_name}`
+                      : "";
+                  const displayName = `${product.name}${tierLabel}${variantSuffix}`;
+
                   const stockStatus = item.variantStockStatus ?? "in_stock";
                   const variantStock = item.variantStock ?? 999999;
 
@@ -225,14 +243,15 @@ export default function Cart() {
                     return "In Stock";
                   };
 
-                  // ─── FIX: + button disabled logic ────────────────────────
-                  // in_stock  → hamesha increment allow karo (stock=999999)
-                  // low_stock → sirf tab rok jab quantity limit tak pohonch jaye
-                  // out_of_stock → hamesha disabled
+                  // max units = floor(stock / ppu); in_stock = unlimited
+                  const maxUnits =
+                    stockStatus === "in_stock"
+                      ? 999999
+                      : Math.floor(variantStock / ppu);
+
                   const canIncrement =
-                    !isOutOfStock &&
-                    (stockStatus === "in_stock" ||
-                      item.quantity < variantStock);
+                    !isOutOfStock && item.quantity < maxUnits;
+                  const canDecrement = !isOutOfStock && item.quantity > 1;
 
                   return (
                     <li
@@ -279,7 +298,33 @@ export default function Cart() {
                           {product.subcategory}
                         </p>
 
-                        {/* Stock Status Indicator */}
+                        {/* Per-piece breakdown for bulk tiers */}
+                        {ppu > 1 && (
+                          <p
+                            style={{
+                              fontSize: "0.68rem",
+                              color: "#888",
+                              margin: "0.15rem 0",
+                            }}
+                          >
+                            {formatPrice(itemPrice)} × {ppu} pcs ×{" "}
+                            {item.quantity} unit{item.quantity !== 1 ? "s" : ""}{" "}
+                            = {totalPieces} pcs total
+                          </p>
+                        )}
+                        {ppu === 1 && item.quantity > 1 && (
+                          <p
+                            style={{
+                              fontSize: "0.68rem",
+                              color: "#888",
+                              margin: "0.15rem 0",
+                            }}
+                          >
+                            {formatPrice(itemPrice)} / pc
+                          </p>
+                        )}
+
+                        {/* Stock Status */}
                         <p
                           className={`cart-item-stock ${
                             isOutOfStock ? "out" : isLowStock ? "low" : "in"
@@ -296,7 +341,7 @@ export default function Cart() {
                                 updateQuantity(item.id, item.quantity - 1)
                               }
                               aria-label="Decrease quantity"
-                              disabled={isOutOfStock}
+                              disabled={!canDecrement}
                             >
                               <svg
                                 viewBox="0 0 24 24"
@@ -309,6 +354,17 @@ export default function Cart() {
                             </button>
                             <span className="cart-qty-num">
                               {item.quantity}
+                              {ppu > 1 && (
+                                <span
+                                  style={{
+                                    fontSize: "0.58rem",
+                                    opacity: 0.65,
+                                    marginLeft: 2,
+                                  }}
+                                >
+                                  ×{ppu}
+                                </span>
+                              )}
                             </span>
                             <button
                               className="cart-qty-btn"

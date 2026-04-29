@@ -69,12 +69,18 @@ export default function ProductGrid({
   featured = false,
   onQuickView,
 }: ProductGridProps) {
+  const [mounted, setMounted] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
   const { formatPrice } = useCurrency();
   const { addToCart } = useCartStore();
+
+  // Mount check to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -330,7 +336,8 @@ export default function ProductGrid({
     );
   };
 
-  if (loading) {
+  // Show skeleton on server or during initial load
+  if (!mounted || loading) {
     return (
       <div className="pg-skeleton-grid">
         {[...Array(limit || 8)].map((_, i) => (

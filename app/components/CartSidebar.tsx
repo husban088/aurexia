@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCartStore } from "@/lib/cartStore";
 import "./cartsidebar.css";
@@ -15,6 +15,7 @@ const FREE_SHIPPING_THRESHOLD_PKR = 3000;
 const SHIPPING_COST_PKR = 250;
 
 export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
+  const [mounted, setMounted] = useState(false);
   const items = useCartStore((state) => state.items);
   const loading = useCartStore((state) => state.loading);
   const initialized = useCartStore((state) => state.initialized);
@@ -42,25 +43,31 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isOpen && !initialized) {
-      fetchCart();
-    }
-  }, [isOpen, initialized, fetchCart]);
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
+    if (isOpen && !initialized && mounted) {
+      fetchCart();
+    }
+  }, [isOpen, initialized, fetchCart, mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
     document.body.style.overflow = isOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [isOpen]);
+  }, [isOpen, mounted]);
 
   useEffect(() => {
+    if (!mounted) return;
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) onClose();
     };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, mounted]);
 
   const shippingPKR =
     subtotalPKR >= FREE_SHIPPING_THRESHOLD_PKR ? 0 : SHIPPING_COST_PKR;
@@ -74,7 +81,28 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
   const handleSidebarClick = (e: React.MouseEvent) => e.stopPropagation();
 
+  const handleCheckoutClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onClose();
+    setTimeout(() => {
+      window.location.href = "/checkout";
+    }, 150);
+  };
+
+  const handleViewCartClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onClose();
+    setTimeout(() => {
+      window.location.href = "/cart";
+    }, 150);
+  };
+
   const showSpinner = loading && items.length === 0;
+
+  // Server-side fallback
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <>
@@ -262,7 +290,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   ? `Only ${variantStock} left`
                   : "In Stock";
 
-                // Max units = floor(stock / ppu)
                 const maxUnits =
                   stockStatus === "in_stock"
                     ? 999999
@@ -319,7 +346,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                         <p className="cs-item-variant">{product.subcategory}</p>
                       )}
 
-                      {/* Breakdown: price per piece × pieces × units */}
                       <p className="cs-item-breakdown">
                         {formatPrice(convertPrice(pricePerPiecePKR))} × {ppu}{" "}
                         pcs × {item.quantity} unit
@@ -441,11 +467,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               </div>
             </div>
 
-            <Link
-              href="/checkout"
-              className="cs-checkout-btn"
-              onClick={onClose}
-            >
+            <button className="cs-checkout-btn" onClick={handleCheckoutClick}>
               <span>Proceed to Checkout</span>
               <svg
                 viewBox="0 0 24 24"
@@ -459,9 +481,9 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   strokeLinejoin="round"
                 />
               </svg>
-            </Link>
+            </button>
 
-            <Link href="/cart" className="cs-view-cart-btn" onClick={onClose}>
+            <button className="cs-view-cart-btn" onClick={handleViewCartClick}>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -475,7 +497,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 <path d="M16 10a4 4 0 01-8 0" />
               </svg>
               View Full Cart
-            </Link>
+            </button>
 
             <button className="cs-continue-btn" onClick={onClose}>
               Continue Shopping

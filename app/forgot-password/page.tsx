@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
@@ -13,6 +13,12 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState("");
+
+  // Ye fix hai: window ko client-side pe access karo
+  useEffect(() => {
+    setRedirectUrl(`${window.location.origin}/reset-password`);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,10 +30,11 @@ export default function ForgotPassword() {
       clearAuthStorage();
       await supabase.auth.signOut();
 
+      // Ab redirectUrl use karo jo useEffect mein set hua
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email.trim(),
         {
-          redirectTo: `${window.location.origin}/reset-password`,
+          redirectTo: redirectUrl || `${window.location.origin}/reset-password`,
         }
       );
 

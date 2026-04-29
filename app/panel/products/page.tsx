@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { supabase, Product } from "@/lib/supabase";
+import { useCurrency } from "@/app/context/CurrencyContext";
+import { convertPriceFromPKR } from "@/lib/panelCurrency";
 import "../panel.css";
 import "./products.css";
 import PanelNavbar from "@/app/components/PanelNavbar";
@@ -13,16 +15,17 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
+  const { currency, formatPrice } = useCurrency();
 
   const categories = [
     "All",
-    "Mobiles",
     "Accessories",
-    "Gadgets",
-    "Home Decor",
     "Watches",
+    "Automotive",
+    "Home Decor",
   ];
 
+  // Initial load
   useEffect(() => {
     async function load() {
       const query = supabase
@@ -36,6 +39,54 @@ export default function Products() {
     load();
   }, []);
 
+  // Realtime subscription for instant updates
+  useEffect(() => {
+    const channel = supabase
+      .channel("products-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "products" },
+        (payload) => {
+          const newProduct = {
+            ...payload.new,
+            price: payload.new.price ?? 0,
+            stock: payload.new.stock ?? 0,
+            subcategory: payload.new.subcategory ?? "Uncategorized",
+            is_active: payload.new.is_active ?? true,
+          } as Product;
+          setProducts((prev) => [newProduct, ...prev]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "products" },
+        (payload) => {
+          const updated = {
+            ...payload.new,
+            price: payload.new.price ?? 0,
+            stock: payload.new.stock ?? 0,
+            subcategory: payload.new.subcategory ?? "Uncategorized",
+            is_active: payload.new.is_active ?? true,
+          } as Product;
+          setProducts((prev) =>
+            prev.map((p) => (p.id === updated.id ? updated : p))
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "products" },
+        (payload) => {
+          setProducts((prev) => prev.filter((p) => p.id !== payload.old.id));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const filtered = products.filter((p) => {
     const matchCat = filter === "All" || p.category === filter;
     const matchSearch =
@@ -47,18 +98,37 @@ export default function Products() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this product?")) return;
-    await supabase.from("products").delete().eq("id", id);
-    setProducts((p) => p.filter((x) => x.id !== id));
+    const { error } = await supabase.from("products").delete().eq("id", id);
+    if (!error) {
+      setProducts((p) => p.filter((x) => x.id !== id));
+    }
   };
 
   const toggleActive = async (p: Product) => {
-    await supabase
+    const newStatus = !p.is_active;
+    const { error } = await supabase
       .from("products")
-      .update({ is_active: !p.is_active })
+      .update({ is_active: newStatus })
       .eq("id", p.id!);
-    setProducts((prev) =>
-      prev.map((x) => (x.id === p.id ? { ...x, is_active: !x.is_active } : x))
-    );
+    if (!error) {
+      setProducts((prev) =>
+        prev.map((x) => (x.id === p.id ? { ...x, is_active: newStatus } : x))
+      );
+    }
+  };
+
+  const getDisplayPrice = (priceInPKR: number | undefined): string => {
+    if (!priceInPKR || priceInPKR === 0) return "Price not set";
+    return formatPrice(priceInPKR);
+  };
+
+  const getDisplayOriginalPrice = (
+    originalPrice: number | undefined,
+    price: number | undefined
+  ): string | null => {
+    if (!originalPrice || originalPrice === 0) return null;
+    if (price && originalPrice <= price) return null;
+    return formatPrice(originalPrice);
   };
 
   return (
@@ -198,14 +268,13 @@ export default function Products() {
                   {p.brand && <p className="pr-card-brand">{p.brand}</p>}
                   <div className="pr-card-price-row">
                     <span className="pr-card-price">
-                      PKR {(p.price ?? 0).toLocaleString()}
+                      {getDisplayPrice(p.price)}
                     </span>
-                    {(p.original_price ?? 0) > 0 &&
-                      (p.original_price ?? 0) > (p.price ?? 0) && (
-                        <span className="pr-card-orig">
-                          PKR {(p.original_price ?? 0).toLocaleString()}
-                        </span>
-                      )}
+                    {getDisplayOriginalPrice(p.original_price, p.price) && (
+                      <span className="pr-card-orig">
+                        {getDisplayOriginalPrice(p.original_price, p.price)}
+                      </span>
+                    )}
                   </div>
                   <div className="pr-card-meta">
                     <span
@@ -216,7 +285,9 @@ export default function Products() {
                       <span className="pr-dot" />
                       {p.is_active ? "Active" : "Inactive"}
                     </span>
-                    <span className="pr-card-stock">Stock: {p.stock}</span>
+                    <span className="pr-card-stock">
+                      Stock: {p.stock === 999999 ? "∞" : p.stock}
+                    </span>
                   </div>
                 </div>
                 <div className="pr-card-actions">

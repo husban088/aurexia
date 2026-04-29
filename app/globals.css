@@ -6,7 +6,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #1f1f1f;
+  --background: #f5f0e8;
   --foreground: #f5f0e8;
   --font-goldman: "Goldman", "Jost", "Segoe UI", system-ui, -apple-system,
     BlinkMacSystemFont, sans-serif;

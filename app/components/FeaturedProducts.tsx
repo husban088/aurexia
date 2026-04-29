@@ -1,4 +1,5 @@
 "use client";
+
 import { useRef, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -11,6 +12,9 @@ import { supabase } from "@/lib/supabase";
 import { useCartStore } from "@/lib/cartStore";
 import { useCurrency } from "../context/CurrencyContext";
 import QuickView from "./QuickView";
+
+// Dynamic import for QuickView to avoid SSR issues
+// Already using dynamic import below
 
 interface QuickViewProduct {
   id: string;
@@ -60,7 +64,7 @@ interface VariantImagesMap {
   [variantId: string]: string[];
 }
 
-// ✅ Pre-fetched initial data type
+// Pre-fetched initial data type
 export interface FeaturedTabData {
   products: FeaturedProduct[];
   variantsMap: Record<string, ProductVariant[]>;
@@ -76,7 +80,7 @@ const getStockStatus = (
   return "in_stock";
 };
 
-// ✅ Standalone fetch function — server component mein import karke use karo
+// Standalone fetch function
 export async function fetchFeaturedTabData(
   tab: string
 ): Promise<FeaturedTabData> {
@@ -109,7 +113,6 @@ export async function fetchFeaturedTabData(
 
   const productIds = productsData.map((p: any) => p.id);
 
-  // ✅ Variants aur images ek saath parallel fetch karo
   const { data: variantsData } = await supabase
     .from("product_variants")
     .select("*")
@@ -220,13 +223,14 @@ function VariantThumbnails({
   type,
   onSelect,
   currentValue,
+  variantImagesMap,
   getVariantImage,
 }: {
   variants: ProductVariant[];
   type: string;
   onSelect: (variant: ProductVariant) => void;
   currentValue: string;
-  variantImages: VariantImagesMap;
+  variantImagesMap: VariantImagesMap;
   getVariantImage: (variantId: string) => string | null;
 }) {
   if (!variants || variants.length === 0) return null;
@@ -285,6 +289,7 @@ function VariantThumbnails({
               title={variant.attribute_value}
             >
               {variantImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={variantImage} alt={variant.attribute_value} />
               ) : (
                 <span className="fp-variant-text">
@@ -307,7 +312,25 @@ function VariantThumbnails({
   );
 }
 
-// Single Product Card Component
+// Loading Spinner Component
+function LoadingSpinner({ size = 18 }: { size?: number }) {
+  return (
+    <div
+      className="fp-spinner"
+      style={{
+        width: size,
+        height: size,
+        border: "2px solid rgba(218,165,32,0.2)",
+        borderTopColor: "#daa520",
+        borderRadius: "50%",
+        animation: "fp-spin 0.8s linear infinite",
+        display: "inline-block",
+      }}
+    />
+  );
+}
+
+// Single Product Card Component with Currency Support
 function ProductCard({
   product,
   variants,
@@ -325,15 +348,17 @@ function ProductCard({
     productPrice: number,
     productStock: number,
     stockStatus: "in_stock" | "out_of_stock" | "low_stock",
-    lowStockThreshold: number | null | undefined
+    lowStockThreshold: number | null | undefined,
+    variantImagesMap: VariantImagesMap
   ) => void;
 }) {
+  const [mounted, setMounted] = useState(false);
+  const { currency, formatPrice } = useCurrency();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
-    variants.length > 0 ? variants[0] : null // ✅ Seedha set karo — useEffect nahi
+    variants.length > 0 ? variants[0] : null
   );
   const [currentImages, setCurrentImages] = useState<string[]>(() => {
-    // ✅ Initial images bhi seedha set karo
     const firstVariant = variants[0];
     if (firstVariant && variantImagesMap[firstVariant.id]) {
       return variantImagesMap[firstVariant.id];
@@ -341,8 +366,15 @@ function ProductCard({
     return [];
   });
 
+  // Loading states for buttons
+  const [quickViewLoading, setQuickViewLoading] = useState(false);
+  const [addToCartLoading, setAddToCartLoading] = useState(false);
+
   const { addToCart } = useCartStore();
-  const { formatPrice } = useCurrency();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const colorVariants = variants.filter((v) => v.attribute_type === "color");
   const sizeVariants = variants.filter((v) => v.attribute_type === "size");
@@ -368,7 +400,6 @@ function ProductCard({
     [variantImagesMap]
   );
 
-  // ✅ Sirf variant change hone par images update karo
   const handleVariantSelect = (variant: ProductVariant) => {
     setSelectedVariant(variant);
     setCurrentImages(getVariantImages(variant.id));
@@ -419,7 +450,7 @@ function ProductCard({
     return "in";
   };
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -432,6 +463,11 @@ function ProductCard({
       alert("This product is out of stock");
       return;
     }
+
+    setAddToCartLoading(true);
+
+    // Small delay to show loader
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     const productToAdd = {
       id: product.id,
@@ -454,11 +490,18 @@ function ProductCard({
     };
 
     addToCart(productToAdd, selectedVariant, 1, 1);
+    setAddToCartLoading(false);
   };
 
-  const handleQuickViewClick = (e: React.MouseEvent) => {
+  const handleQuickViewClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    setQuickViewLoading(true);
+
+    // Small delay to show loader
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
     onQuickView(
       product,
       variants,
@@ -467,9 +510,25 @@ function ProductCard({
       selectedVariant?.price || 0,
       selectedVariant?.stock || 0,
       stockStatus,
-      selectedVariant?.low_stock_threshold
+      selectedVariant?.low_stock_threshold,
+      variantImagesMap
     );
+
+    setQuickViewLoading(false);
   };
+
+  // Display prices in user's currency using formatPrice
+  const displaySalePrice = selectedVariant
+    ? formatPrice(selectedVariant.price)
+    : formatPrice(0);
+  const displayOriginalPrice = selectedVariant?.original_price
+    ? formatPrice(selectedVariant.original_price)
+    : null;
+
+  // Don't render until mounted to avoid hydration mismatch
+  if (!mounted) {
+    return <ProductCardSkeleton />;
+  }
 
   return (
     <Link href={`/product/${product.id}`} className="fp-card">
@@ -479,6 +538,7 @@ function ProductCard({
         onMouseLeave={handleMouseLeave}
       >
         {displayImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={displayImage} alt={product.name} loading="lazy" />
         ) : (
           <div className="fp-card-placeholder">
@@ -515,33 +575,42 @@ function ProductCard({
             className="fp-icon-btn fp-icon-btn--view"
             onClick={handleQuickViewClick}
             aria-label="Quick View"
+            disabled={quickViewLoading}
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <circle cx="12" cy="12" r="3" />
-              <path d="M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10z" />
-            </svg>
+            {quickViewLoading ? (
+              <LoadingSpinner size={18} />
+            ) : (
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path d="M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10z" />
+              </svg>
+            )}
           </button>
           <button
             className="fp-icon-btn fp-icon-btn--cart"
             onClick={handleAddToCart}
             aria-label="Add to Cart"
-            disabled={isOutOfStock}
+            disabled={isOutOfStock || addToCartLoading}
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <path d="M16 10a4 4 0 01-8 0" />
-            </svg>
+            {addToCartLoading ? (
+              <LoadingSpinner size={18} />
+            ) : (
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <path d="M16 10a4 4 0 01-8 0" />
+              </svg>
+            )}
           </button>
         </div>
       </div>
@@ -551,17 +620,10 @@ function ProductCard({
         <h3 className="fp-card-name">{product.name}</h3>
 
         <div className="fp-card-price-row">
-          <span className="fp-card-price">
-            {selectedVariant
-              ? formatPrice(selectedVariant.price)
-              : formatPrice(0)}
-          </span>
-          {selectedVariant?.original_price &&
-            selectedVariant.original_price > selectedVariant.price && (
-              <span className="fp-card-orig">
-                {formatPrice(selectedVariant.original_price)}
-              </span>
-            )}
+          <span className="fp-card-price">{displaySalePrice}</span>
+          {displayOriginalPrice && (
+            <span className="fp-card-orig">{displayOriginalPrice}</span>
+          )}
           {discount && discount > 0 && (
             <span className="fp-card-discount">-{discount}%</span>
           )}
@@ -573,7 +635,7 @@ function ProductCard({
             type="color"
             onSelect={handleVariantSelect}
             currentValue={selectedVariant?.attribute_value || ""}
-            variantImages={variantImagesMap}
+            variantImagesMap={variantImagesMap}
             getVariantImage={getVariantImage}
           />
         )}
@@ -584,7 +646,7 @@ function ProductCard({
             type="size"
             onSelect={handleVariantSelect}
             currentValue={selectedVariant?.attribute_value || ""}
-            variantImages={variantImagesMap}
+            variantImagesMap={variantImagesMap}
             getVariantImage={getVariantImage}
           />
         )}
@@ -595,7 +657,7 @@ function ProductCard({
             type="material"
             onSelect={handleVariantSelect}
             currentValue={selectedVariant?.attribute_value || ""}
-            variantImages={variantImagesMap}
+            variantImagesMap={variantImagesMap}
             getVariantImage={getVariantImage}
           />
         )}
@@ -606,7 +668,7 @@ function ProductCard({
             type="capacity"
             onSelect={handleVariantSelect}
             currentValue={selectedVariant?.attribute_value || ""}
-            variantImages={variantImagesMap}
+            variantImagesMap={variantImagesMap}
             getVariantImage={getVariantImage}
           />
         )}
@@ -617,19 +679,30 @@ function ProductCard({
       </div>
 
       <div className="fp-card-line" />
+
+      {/* Add spinner animation styles */}
+      <style jsx>{`
+        @keyframes fp-spin {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </Link>
   );
 }
 
-// ✅ FeaturedProducts now accepts initialData for the default tab
+// FeaturedProducts Component
 export default function FeaturedProducts({
   initialData,
 }: {
   initialData?: { [tab: string]: FeaturedTabData };
 }) {
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("Accessories");
-
-  // ✅ Agar initialData hai toh seedha use karo — blank screen nahi aayega
   const [products, setProducts] = useState<FeaturedProduct[]>(
     initialData?.["Accessories"]?.products || []
   );
@@ -639,7 +712,6 @@ export default function FeaturedProducts({
   const [variantImagesMap, setVariantImagesMap] = useState<
     Record<string, string[]>
   >(initialData?.["Accessories"]?.variantImagesMap || {});
-  // ✅ Agar initialData hai toh loading false rakho
   const [loading, setLoading] = useState(!initialData?.["Accessories"]);
 
   const [quickViewProduct, setQuickViewProduct] =
@@ -649,15 +721,22 @@ export default function FeaturedProducts({
   );
   const [quickViewSelectedVariant, setQuickViewSelectedVariant] =
     useState<ProductVariant | null>(null);
+  const [quickViewVariantImagesMap, setQuickViewVariantImagesMap] = useState<
+    Record<string, string[]>
+  >({});
   const [quickViewOpen, setQuickViewOpen] = useState(false);
   const prevRef = useRef<HTMLButtonElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
   const swiperRef = useRef<SwiperType | null>(null);
+  const { currency } = useCurrency();
 
-  // ✅ Cache mein initialData daal do taake tab switch instant ho
   const dataCache = useRef<{
     [tab: string]: FeaturedTabData;
   }>(initialData || {});
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const loadDataForTab = useCallback(
     async (tab: string, isInitialLoad: boolean = false) => {
@@ -675,12 +754,10 @@ export default function FeaturedProducts({
 
       try {
         const tabData = await fetchFeaturedTabData(tab);
-
         dataCache.current[tab] = tabData;
         setProducts(tabData.products);
         setVariantsMap(tabData.variantsMap);
         setVariantImagesMap(tabData.variantImagesMap);
-
         if (isInitialLoad) setLoading(false);
       } catch (error) {
         console.error("Error loading products:", error);
@@ -693,18 +770,16 @@ export default function FeaturedProducts({
   useEffect(() => {
     const categories = ["Accessories", "Watches", "Automotive", "Home Decor"];
 
-    // ✅ Agar initialData nahi hai sirf tab load karo, warna skip karo
     if (!initialData?.["Accessories"]) {
       loadDataForTab("Accessories", true);
     }
 
-    // Background mein baaki tabs preload karo
     categories.forEach((category) => {
       if (category !== "Accessories" && !initialData?.[category]) {
         setTimeout(() => loadDataForTab(category, false), 100);
       }
     });
-  }, []);
+  }, [initialData, loadDataForTab]);
 
   const handleTabChange = useCallback(
     (tab: string) => {
@@ -715,12 +790,12 @@ export default function FeaturedProducts({
   );
 
   useEffect(() => {
-    if (swiperRef.current && !loading && products.length > 0) {
+    if (swiperRef.current && !loading && products.length > 0 && mounted) {
       setTimeout(() => {
         swiperRef.current?.update();
       }, 50);
     }
-  }, [products, loading]);
+  }, [products, loading, mounted]);
 
   const handleQuickView = (
     product: FeaturedProduct,
@@ -730,7 +805,8 @@ export default function FeaturedProducts({
     productPrice: number,
     productStock: number,
     stockStatus: "in_stock" | "out_of_stock" | "low_stock",
-    lowStockThreshold: number | null | undefined
+    lowStockThreshold: number | null | undefined,
+    variantImages: VariantImagesMap
   ) => {
     const quickViewProductData: QuickViewProduct = {
       id: product.id,
@@ -753,6 +829,7 @@ export default function FeaturedProducts({
     setQuickViewProduct(quickViewProductData);
     setQuickViewVariants(variants);
     setQuickViewSelectedVariant(selectedVariant);
+    setQuickViewVariantImagesMap(variantImages);
     setQuickViewOpen(true);
   };
 
@@ -765,13 +842,46 @@ export default function FeaturedProducts({
 
   const skeletonCount = 8;
 
+  const getCurrencyText = () => {
+    if (!mounted) return "";
+    if (currency.code === "PKR") return "PKR (₨)";
+    return `${currency.code} (${currency.symbol})`;
+  };
+
+  // Don't render until mounted to avoid hydration mismatch
+  if (!mounted) {
+    return (
+      <section className="fp-section">
+        <div className="fp-header">
+          <div className="fp-skeleton-header">
+            <div
+              className="fp-skel-line"
+              style={{ width: "200px", height: "20px", margin: "0 auto" }}
+            ></div>
+            <div
+              className="fp-skel-line"
+              style={{ width: "300px", height: "40px", margin: "10px auto" }}
+            ></div>
+          </div>
+        </div>
+        <div className="fp-container">
+          <div className="fp-skeleton-grid">
+            {[...Array(4)].map((_, i) => (
+              <ProductCardSkeleton key={i} />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <>
       <section className="fp-section">
         <div className="fp-header">
           <p className="fp-eyebrow">
             <span className="fp-ey-line" />
-            Curated Selection
+            Curated Selection {currency.flag} {getCurrencyText()}
             <span className="fp-ey-line" />
           </p>
           <h2 className="fp-title">
@@ -779,7 +889,37 @@ export default function FeaturedProducts({
           </h2>
           <p className="fp-subtitle">
             Handpicked luxury essentials across our finest categories
+            <br />
+            <span style={{ fontSize: "0.7rem", color: "#8b6914" }}>
+              💱 Prices shown in {currency.code} ({currency.symbol})
+            </span>
           </p>
+
+          {/* Featured Banner Image - FULLY RESPONSIVE */}
+          <div
+            style={{
+              width: "100%",
+              marginTop: "1.5rem",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              overflow: "hidden",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/feat.png"
+              alt="Featured Banner"
+              style={{
+                width: "100%",
+                height: "auto",
+                maxWidth: "100%",
+                objectFit: "contain",
+                display: "block",
+              }}
+            />
+          </div>
+
           <div className="fp-tabs" style={{ marginTop: "2rem" }}>
             {["Accessories", "Watches", "Automotive", "Home Decor"].map(
               (tab) => (
@@ -905,7 +1045,7 @@ export default function FeaturedProducts({
         product={quickViewProduct}
         variants={quickViewVariants}
         selectedVariant={quickViewSelectedVariant}
-        variantImagesMap={variantImagesMap}
+        variantImagesMap={quickViewVariantImagesMap}
       />
     </>
   );

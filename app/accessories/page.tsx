@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import Link from "next/link";
 import "@/app/styles/product-grid.css";
-import ProductGrid from "../components/ProductGrid";
-import QuickView from "../components/QuickView";
 import { supabase } from "@/lib/supabase";
+
+// Lazy load components with SSR disabled
+const ProductGrid = lazy(() => import("../components/ProductGrid"));
+const QuickView = lazy(() => import("../components/QuickView"));
 
 const SUBCATEGORIES = [
   {
@@ -67,6 +69,14 @@ interface ProductVariant {
   stock: number;
   low_stock_threshold?: number;
 }
+
+// Loading component for Suspense
+const LoadingFallback = () => (
+  <div className="loading-container">
+    <div className="loading-spinner"></div>
+    <p>Loading products...</p>
+  </div>
+);
 
 export default function Accessories() {
   const [quickViewOpen, setQuickViewOpen] = useState(false);
@@ -231,19 +241,26 @@ export default function Accessories() {
               <h2 className="cat-section-title">All Accessories</h2>
               <div className="cat-section-line" />
             </div>
-            <ProductGrid category="Accessories" onQuickView={handleQuickView} />
+            <Suspense fallback={<LoadingFallback />}>
+              <ProductGrid
+                category="Accessories"
+                onQuickView={handleQuickView}
+              />
+            </Suspense>
           </div>
         </div>
       </div>
 
-      <QuickView
-        isOpen={quickViewOpen}
-        onClose={() => setQuickViewOpen(false)}
-        product={quickViewProduct}
-        variants={quickViewVariants}
-        selectedVariant={quickViewSelectedVariant}
-        variantImagesMap={variantImagesMap}
-      />
+      <Suspense fallback={null}>
+        <QuickView
+          isOpen={quickViewOpen}
+          onClose={() => setQuickViewOpen(false)}
+          product={quickViewProduct}
+          variants={quickViewVariants}
+          selectedVariant={quickViewSelectedVariant}
+          variantImagesMap={variantImagesMap}
+        />
+      </Suspense>
     </>
   );
 }

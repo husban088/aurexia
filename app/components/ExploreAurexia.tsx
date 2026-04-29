@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import "./explore-aurexia.css";
 
 /* ──────────────────────────────────────────
@@ -64,6 +65,8 @@ const categories = [
 ];
 
 export default function ExploreAurexia() {
+  const [mounted, setMounted] = useState(false);
+
   /* ── Refs ─────────────────────────────────────── */
   const swiperRef = useRef<HTMLDivElement>(null);
   const prevBtnRef = useRef<HTMLButtonElement>(null);
@@ -71,8 +74,15 @@ export default function ExploreAurexia() {
   const paginationRef = useRef<HTMLDivElement>(null);
   const swiperInstRef = useRef<any>(null);
 
+  /* ── Mount check ──────────────────────────────── */
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   /* ── Init Swiper ──────────────────────────────── */
   const initSwiper = useCallback(() => {
+    // Only run on client side and if all refs exist
+    if (typeof window === "undefined") return;
     if (
       !swiperRef.current ||
       !prevBtnRef.current ||
@@ -141,7 +151,12 @@ export default function ExploreAurexia() {
 
   /* ── Load CDN → Init ──────────────────────────── */
   useEffect(() => {
+    if (!mounted) return;
+
     const load = async () => {
+      // Only run on client side
+      if (typeof window === "undefined") return;
+
       if (!document.querySelector("link[data-swiper-css]")) {
         const link = document.createElement("link");
         link.rel = "stylesheet";
@@ -163,19 +178,60 @@ export default function ExploreAurexia() {
         });
       }
 
-      initSwiper();
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        initSwiper();
+      }, 100);
     };
 
     load().catch(console.error);
 
     return () => {
-      swiperInstRef.current?.destroy?.(true, true);
-      swiperInstRef.current = null;
+      if (swiperInstRef.current) {
+        swiperInstRef.current.destroy?.(true, true);
+        swiperInstRef.current = null;
+      }
     };
-  }, [initSwiper]);
+  }, [mounted, initSwiper]);
 
-  const goPrev = () => swiperInstRef.current?.slidePrev();
-  const goNext = () => swiperInstRef.current?.slideNext();
+  const goPrev = () => {
+    if (swiperInstRef.current) {
+      swiperInstRef.current.slidePrev();
+    }
+  };
+
+  const goNext = () => {
+    if (swiperInstRef.current) {
+      swiperInstRef.current.slideNext();
+    }
+  };
+
+  // Server-side fallback - show loading state
+  if (!mounted) {
+    return (
+      <section className="ea-section" aria-label="Explore Aurexia Categories">
+        <div className="ea-header">
+          <p className="ea-header-eyebrow">
+            <span className="ea-eyebrow-line" />
+            Curated Collections
+            <span className="ea-eyebrow-line" />
+          </p>
+          <h2 className="ea-header-title">
+            Explore <em>Tech4U</em>
+          </h2>
+          <p className="ea-header-sub">
+            Four worlds of luxury. One destination. Yours to discover.
+          </p>
+        </div>
+        <div className="ea-slider-wrap">
+          <div className="ea-loading">
+            <div className="ea-loading-spinner"></div>
+            <p>Loading categories...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="ea-section" aria-label="Explore Aurexia Categories">
@@ -293,7 +349,7 @@ export default function ExploreAurexia() {
                     </h3>
                     <div className="ea-card-divider" aria-hidden="true" />
                     <p className="ea-card-para">{cat.para}</p>
-                    <a href={cat.cta.href} className="ea-card-cta">
+                    <Link href={cat.cta.href} className="ea-card-cta">
                       <span>{cat.cta.label}</span>
                       <svg
                         viewBox="0 0 24 24"
@@ -307,7 +363,7 @@ export default function ExploreAurexia() {
                           strokeLinejoin="round"
                         />
                       </svg>
-                    </a>
+                    </Link>
                   </div>
 
                   <div

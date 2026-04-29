@@ -150,111 +150,76 @@ function DeleteConfirmModal({
   );
 }
 
-const quickActions = [
-  {
-    href: "/panel/add-product",
-    name: "Add Product",
-    desc: "Add new item to store",
-    primary: true,
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      >
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 8v8M8 12h8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    href: "/panel/products",
-    name: "All Products",
-    desc: "View & manage inventory",
-    primary: false,
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      >
-        <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
-        <path d="M16 3H8l-2 4h12l-2-4z" />
-      </svg>
-    ),
-  },
-  {
-    href: "/panel/users",
-    name: "Users",
-    desc: "Signups & accounts",
-    primary: false,
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      >
-        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
-      </svg>
-    ),
-  },
-  {
-    href: "/panel/orders",
-    name: "Cart Orders",
-    desc: "View pending orders",
-    primary: false,
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      >
-        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-        <line x1="3" y1="6" x2="21" y2="6" />
-        <path d="M16 10a4 4 0 01-8 0" />
-      </svg>
-    ),
-  },
-  {
-    href: "/panel/contacts",
-    name: "Contacts",
-    desc: "Messages from visitors",
-    primary: false,
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      >
-        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-      </svg>
-    ),
-  },
-  {
-    href: "/panel/settings",
-    name: "Settings",
-    desc: "Store configuration",
-    primary: false,
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      >
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-      </svg>
-    ),
-  },
-];
+// Product Row Component for better performance
+function ProductRow({
+  product,
+  onEdit,
+  onDelete,
+}: {
+  product: Product;
+  onEdit: (id: string) => void;
+  onDelete: (id: string, name: string) => void;
+}) {
+  // Handle edit with page reload
+  const handleEditClick = () => {
+    if (product.id) {
+      window.location.href = `/panel/edit-product/${product.id}`;
+    }
+  };
+
+  return (
+    <tr>
+      <td className="p-td-name">{product.name || "Unnamed"}</td>
+      <td>
+        <span className="p-td-category">
+          {product.subcategory || "Uncategorized"}
+        </span>
+      </td>
+      <td>
+        <span className="p-td-status">
+          <span
+            className={`p-td-status-dot p-td-status-dot--${
+              product.is_active ? "active" : "inactive"
+            }`}
+          />
+          {product.is_active ? "Active" : "Inactive"}
+        </span>
+      </td>
+      <td>
+        <div className="p-td-actions">
+          <button className="p-td-btn" title="Edit" onClick={handleEditClick}>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+          <button
+            className="p-td-btn"
+            title="Delete"
+            onClick={() => product.id && onDelete(product.id, product.name)}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14H6L5 6" />
+              <path d="M10 11v6M14 11v6" />
+              <path d="M9 6V4h6v2" />
+            </svg>
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
 
 export default function Panel() {
   const router = useRouter();
@@ -379,9 +344,11 @@ export default function Panel() {
     };
   }, [router, addToast]);
 
-  // ─── Realtime subscription — products foran show hon bina reload ke ────────
+  // ─── Realtime subscription for INSTANT updates without page reload ─────────
   useEffect(() => {
     if (isAuthorized !== true) return;
+
+    console.log("Setting up realtime subscription for products...");
 
     const channel = supabase
       .channel("panel-products-realtime")
@@ -389,6 +356,7 @@ export default function Panel() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "products" },
         (payload) => {
+          console.log("New product inserted:", payload.new);
           const newProduct = {
             ...payload.new,
             price: payload.new.price ?? 0,
@@ -396,14 +364,20 @@ export default function Panel() {
             subcategory: payload.new.subcategory ?? "Uncategorized",
             is_active: payload.new.is_active ?? true,
           } as Product;
-          // Naya product sabse upar aa jaye foran
+          // Add to beginning of array instantly
           setProducts((prev) => [newProduct, ...prev]);
+          addToast(
+            "success",
+            "Product Added",
+            `${newProduct.name} added to store!`
+          );
         }
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "products" },
         (payload) => {
+          console.log("Product updated:", payload.new);
           const updated = {
             ...payload.new,
             price: payload.new.price ?? 0,
@@ -414,31 +388,31 @@ export default function Panel() {
           setProducts((prev) =>
             prev.map((p) => (p.id === updated.id ? updated : p))
           );
+          addToast("info", "Product Updated", `${updated.name} updated!`);
         }
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "products" },
         (payload) => {
+          console.log("Product deleted:", payload.old);
           setProducts((prev) => prev.filter((p) => p.id !== payload.old.id));
+          addToast(
+            "info",
+            "Product Deleted",
+            "A product was removed from store"
+          );
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Subscription status:", status);
+      });
 
     return () => {
+      console.log("Cleaning up realtime subscription");
       supabase.removeChannel(channel);
     };
-  }, [isAuthorized]);
-
-  // ─── Edit page prefetch — edit icon click karte hi foran open ho ──────────
-  useEffect(() => {
-    if (products.length === 0) return;
-    products.forEach((p) => {
-      if (p.id) {
-        router.prefetch(`/panel/edit-product/${p.id}`);
-      }
-    });
-  }, [products, router]);
+  }, [isAuthorized, addToast]);
 
   const handleDeleteClick = (id: string, name: string) => {
     setDeleteModal({ isOpen: true, productId: id, productName: name });
@@ -456,8 +430,7 @@ export default function Panel() {
     if (error) {
       addToast("error", "Delete Failed", error.message);
     } else {
-      // Realtime DELETE event bhi handle karega, lekin
-      // optimistic update bhi lagao takay foran remove ho
+      // Optimistic update - remove instantly (realtime will also handle this)
       setProducts((p) => p.filter((x) => x.id !== productId));
       addToast("success", "Deleted", `${productName} removed from store`);
     }
@@ -472,7 +445,7 @@ export default function Panel() {
     return null;
   }
 
-  // products.length se live count — stats.products ki zaroorat nahi
+  // products.length se live count
   const totalProducts = products.length;
 
   return (
@@ -497,12 +470,10 @@ export default function Panel() {
           <h1 className="p-page-title">
             Welcome to <em>TECH4U</em> Panel
           </h1>
-          <p className="p-page-sub">
-            Manage your store, products, users and orders from here.
-          </p>
+          <p className="p-page-sub">Manage your store, products from here.</p>
         </div>
 
-        {/* Stats — live count from products array */}
+        {/* Stats — live count */}
         <div className="p-stats-grid">
           <div className="p-stat-card">
             <div className="p-stat-icon">
@@ -522,42 +493,7 @@ export default function Panel() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <p className="p-section-title">
-          Quick <em>Actions</em>
-        </p>
-        <div className="p-actions-grid">
-          {quickActions.map((a) => (
-            <Link
-              key={a.href}
-              href={a.href}
-              prefetch={true}
-              className={`p-action-card${
-                a.primary ? " p-action-card--primary" : ""
-              }`}
-            >
-              <div className="p-action-icon">{a.icon}</div>
-              <div className="p-action-info">
-                <p className="p-action-name">{a.name}</p>
-                <p className="p-action-desc">{a.desc}</p>
-              </div>
-              <div className="p-action-arrow">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path
-                    d="M5 12h14M12 5l7 7-7 7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-            </Link>
-          ))}
-        </div>
+        {/* ✅ QUICK ACTIONS SECTION - COMPLETELY REMOVED */}
 
         {/* Recent products table */}
         <div className="p-table-wrap">
@@ -568,10 +504,13 @@ export default function Panel() {
                 Latest {totalProducts} items in your store
               </p>
             </div>
-            <Link
+            <a
               href="/panel/add-product"
-              prefetch={true}
               className="p-table-action-btn"
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = "/panel/add-product";
+              }}
             >
               <svg
                 viewBox="0 0 24 24"
@@ -583,7 +522,7 @@ export default function Panel() {
                 <path d="M12 8v8M8 12h8" strokeLinecap="round" />
               </svg>
               Add New
-            </Link>
+            </a>
           </div>
 
           {productsLoading ? (
@@ -630,65 +569,12 @@ export default function Panel() {
               </thead>
               <tbody>
                 {products.map((p) => (
-                  <tr key={p.id}>
-                    <td className="p-td-name">{p.name || "Unnamed"}</td>
-                    <td>
-                      <span className="p-td-category">
-                        {p.subcategory || "Uncategorized"}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="p-td-status">
-                        <span
-                          className={`p-td-status-dot p-td-status-dot--${
-                            p.is_active ? "active" : "inactive"
-                          }`}
-                        />
-                        {p.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="p-td-actions">
-                        {/* Edit button — prefetch already kiya upar, foran open hoga */}
-                        <button
-                          className="p-td-btn"
-                          title="Edit"
-                          onClick={() =>
-                            router.push(`/panel/edit-product/${p.id}`)
-                          }
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                          >
-                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                        </button>
-                        <button
-                          className="p-td-btn"
-                          title="Delete"
-                          onClick={() =>
-                            p.id && handleDeleteClick(p.id, p.name)
-                          }
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                          >
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6l-1 14H6L5 6" />
-                            <path d="M10 11v6M14 11v6" />
-                            <path d="M9 6V4h6v2" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                  <ProductRow
+                    key={p.id}
+                    product={p}
+                    onEdit={() => {}} // Not used, edit handled inside ProductRow
+                    onDelete={handleDeleteClick}
+                  />
                 ))}
               </tbody>
             </table>

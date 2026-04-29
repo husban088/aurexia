@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isOwner } from "@/lib/checkOwner";
@@ -128,9 +127,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   >({});
   const [signingOut, setSigningOut] = useState(false);
 
-  const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
+  // Helper function to handle navigation with page reload
+  const handleNavigation = (href: string) => {
+    onClose(); // Close sidebar first
+    setTimeout(() => {
+      window.location.href = href;
+    }, 150);
   };
 
   // Toggle category dropdown - only for the icon/arrow area
@@ -140,10 +142,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     setExpandedCategories((prev) => ({ ...prev, [href]: !prev[href] }));
   };
 
-  // Handle category link click - goes to the page
+  // Handle category link click - goes to the page with reload
   const handleCategoryClick = (href: string) => {
-    router.push(href);
-    onClose();
+    handleNavigation(href);
   };
 
   useEffect(() => {
@@ -217,11 +218,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       setProfile(null);
       onClose();
       await signOutUser();
-      router.push("/");
-      router.refresh();
+      window.location.href = "/";
     } catch (err) {
       console.error("Sign out error:", err);
-      router.push("/");
+      window.location.href = "/";
     } finally {
       setSigningOut(false);
     }
@@ -248,12 +248,23 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       >
         {/* Header */}
         <div className="sidebar-header">
-          <Link href="/" className="sidebar-logo" onClick={onClose}>
+          {/* Logo - Page reload on click */}
+          <a
+            href="/"
+            className="sidebar-logo"
+            onClick={(e) => {
+              e.preventDefault();
+              onClose();
+              setTimeout(() => {
+                window.location.href = "/";
+              }, 150);
+            }}
+          >
             <span className="sidebar-logo-text">
               <span className="sidebar-logo-tech">TECH</span>
               <span className="sidebar-logo-four">4U</span>
             </span>
-          </Link>
+          </a>
 
           <button
             className="sidebar-close-btn"
@@ -278,23 +289,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               return (
                 <li key={link.href} className="sidebar-nav-item-wrapper">
                   <div className="sidebar-nav-link-container">
-                    {/* Category Link - goes to page when clicked on text */}
-                    <Link
-                      href={link.href}
+                    {/* Category Link - goes to page with reload when clicked on text */}
+                    <div
                       className={`sidebar-nav-link${
-                        isActive(link.href) ? " active" : ""
+                        window.location.pathname === link.href ? " active" : ""
                       }`}
-                      onClick={(e) => {
-                        if (hasSubcategories) {
-                          // Check if click target is the arrow button area
-                          const target = e.target as HTMLElement;
-                          if (target.closest(".sidebar-arrow-btn")) {
-                            e.preventDefault();
-                            return;
-                          }
-                        }
-                        onClose();
-                      }}
                     >
                       <span className="sidebar-link-icon">{link.icon}</span>
                       <span
@@ -322,7 +321,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                           </svg>
                         </button>
                       )}
-                    </Link>
+                    </div>
                   </div>
 
                   {/* Subcategories Dropdown */}
@@ -330,17 +329,25 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <ul className="sidebar-subnav-list">
                       {link.subcategories!.map((sub, index) => (
                         <li key={sub.href} className="sidebar-subnav-item">
-                          <Link
+                          <a
                             href={sub.href}
                             className={`sidebar-subnav-link${
-                              pathname === sub.href ? " active" : ""
+                              window.location.pathname === sub.href
+                                ? " active"
+                                : ""
                             }`}
-                            onClick={onClose}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              onClose();
+                              setTimeout(() => {
+                                window.location.href = sub.href;
+                              }, 150);
+                            }}
                             style={{ animationDelay: `${index * 0.03}s` }}
                           >
                             <span className="sidebar-subnav-dot" />
                             {sub.name}
-                          </Link>
+                          </a>
                         </li>
                       ))}
                     </ul>
@@ -361,12 +368,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             {isSignedIn ? (
               <>
                 <li className="sidebar-nav-item">
-                  <Link
+                  <a
                     href="/profile"
                     className={`sidebar-nav-link${
-                      isActive("/profile") ? " active" : ""
+                      window.location.pathname === "/profile" ? " active" : ""
                     }`}
-                    onClick={onClose}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onClose();
+                      setTimeout(() => {
+                        window.location.href = "/profile";
+                      }, 150);
+                    }}
                   >
                     <span className="sidebar-link-icon">
                       <svg
@@ -385,15 +398,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       </span>
                     </span>
                     <span className="sidebar-welcome-dot" aria-hidden="true" />
-                  </Link>
+                  </a>
                 </li>
                 <li className="sidebar-nav-item">
-                  <Link
+                  <a
                     href="/profile"
                     className={`sidebar-nav-link${
-                      isActive("/profile") ? " active" : ""
+                      window.location.pathname === "/profile" ? " active" : ""
                     }`}
-                    onClick={onClose}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onClose();
+                      setTimeout(() => {
+                        window.location.href = "/profile";
+                      }, 150);
+                    }}
                   >
                     <span className="sidebar-link-icon">
                       <svg
@@ -406,7 +425,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       </svg>
                     </span>
                     Profile Settings
-                  </Link>
+                  </a>
                 </li>
                 <li className="sidebar-nav-item">
                   <button
@@ -432,12 +451,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             ) : (
               <>
                 <li className="sidebar-nav-item">
-                  <Link
+                  <a
                     href="/signin"
                     className={`sidebar-nav-link${
-                      isActive("/signin") ? " active" : ""
+                      window.location.pathname === "/signin" ? " active" : ""
                     }`}
-                    onClick={onClose}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onClose();
+                      setTimeout(() => {
+                        window.location.href = "/signin";
+                      }, 150);
+                    }}
                   >
                     <span className="sidebar-link-icon">
                       <svg
@@ -450,15 +475,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       </svg>
                     </span>
                     Sign In
-                  </Link>
+                  </a>
                 </li>
                 <li className="sidebar-nav-item">
-                  <Link
+                  <a
                     href="/signup"
                     className={`sidebar-nav-link${
-                      isActive("/signup") ? " active" : ""
+                      window.location.pathname === "/signup" ? " active" : ""
                     }`}
-                    onClick={onClose}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onClose();
+                      setTimeout(() => {
+                        window.location.href = "/signup";
+                      }, 150);
+                    }}
                   >
                     <span className="sidebar-link-icon">
                       <svg
@@ -473,18 +504,24 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       </svg>
                     </span>
                     Create Account
-                  </Link>
+                  </a>
                 </li>
               </>
             )}
 
             <li className="sidebar-nav-item">
-              <Link
+              <a
                 href="/cart"
                 className={`sidebar-nav-link${
-                  isActive("/cart") ? " active" : ""
+                  window.location.pathname === "/cart" ? " active" : ""
                 }`}
-                onClick={onClose}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onClose();
+                  setTimeout(() => {
+                    window.location.href = "/cart";
+                  }, 150);
+                }}
               >
                 <span className="sidebar-link-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -494,7 +531,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   </svg>
                 </span>
                 Cart
-              </Link>
+              </a>
             </li>
           </ul>
 
@@ -510,12 +547,20 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               </p>
               <ul className="sidebar-nav-list">
                 <li className="sidebar-nav-item">
-                  <Link
+                  <a
                     href="/panel/add-product"
                     className={`sidebar-nav-link${
-                      isActive("/panel/add-product") ? " active" : ""
+                      window.location.pathname === "/panel/add-product"
+                        ? " active"
+                        : ""
                     }`}
-                    onClick={onClose}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onClose();
+                      setTimeout(() => {
+                        window.location.href = "/panel/add-product";
+                      }, 150);
+                    }}
                   >
                     <span className="sidebar-link-icon">
                       <svg
@@ -527,15 +572,23 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       </svg>
                     </span>
                     Add Product
-                  </Link>
+                  </a>
                 </li>
                 <li className="sidebar-nav-item">
-                  <Link
+                  <a
                     href="/panel/products"
                     className={`sidebar-nav-link${
-                      isActive("/panel/products") ? " active" : ""
+                      window.location.pathname === "/panel/products"
+                        ? " active"
+                        : ""
                     }`}
-                    onClick={onClose}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onClose();
+                      setTimeout(() => {
+                        window.location.href = "/panel/products";
+                      }, 150);
+                    }}
                   >
                     <span className="sidebar-link-icon">
                       <svg
@@ -550,7 +603,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       </svg>
                     </span>
                     Manage Products
-                  </Link>
+                  </a>
                 </li>
               </ul>
             </>
@@ -560,7 +613,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Footer */}
         <div className="sidebar-footer">
           <p className="sidebar-footer-text">
-            © 2024 Aurexia — All Rights Reserved
+            © 2026 Tech4U — All Rights Reserved
           </p>
         </div>
       </div>
