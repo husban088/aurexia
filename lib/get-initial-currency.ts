@@ -1,16 +1,11 @@
 // lib/get-initial-currency.ts
 import { cookies } from "next/headers";
 import { headers } from "next/headers";
-import {
-  currencies,
-  getCurrencyByCountry,
-  getCountryFromHeaders,
-  defaultCurrency,
-} from "./currency";
+import { currencies, getCurrencyByCountry, defaultCurrency } from "./currency";
 
 export async function getInitialCurrency() {
   try {
-    // First check saved preference from cookies
+    // Check saved preference from cookies
     const cookieStore = await cookies();
     const savedCurrencyCode = cookieStore.get("preferredCurrency")?.value;
 
@@ -24,23 +19,36 @@ export async function getInitialCurrency() {
       }
     }
 
-    // Then try to detect from headers (server-side)
+    // Detect from Cloudflare/Vercel headers
     const headersList = await headers();
-    const countryCode = getCountryFromHeaders(headersList);
 
-    if (countryCode) {
-      const detectedCurrency = getCurrencyByCountry(countryCode);
-      console.log(
-        "🌍 Detected currency from country header:",
-        countryCode,
-        detectedCurrency.code
-      );
-      return detectedCurrency;
+    const headersToCheck = [
+      "cf-ipcountry",
+      "x-vercel-ip-country",
+      "cloudfront-viewer-country",
+      "x-country",
+      "x-geo-country",
+    ];
+
+    for (const header of headersToCheck) {
+      const value = headersList.get(header);
+      if (value && value.length === 2) {
+        const detectedCurrency = getCurrencyByCountry(value);
+        console.log(
+          "🌍 Country header detected:",
+          value,
+          "→ Currency:",
+          detectedCurrency.code
+        );
+        return detectedCurrency;
+      }
     }
 
-    // Default to USD
+    // Default to USD for international visitors
+    const defaultCurr =
+      currencies.find((c) => c.code === "USD") || defaultCurrency;
     console.log("🌎 Using default currency: USD");
-    return defaultCurrency;
+    return defaultCurr;
   } catch (error) {
     console.error("❌ Error getting initial currency:", error);
     return defaultCurrency;

@@ -42,9 +42,33 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const { formatPrice, convertPrice } = useCurrency();
   const sidebarRef = useRef<HTMLDivElement>(null);
 
+  // Track which items are being removed to prevent multiple triggers
+  const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // 🔥 CRITICAL: Load from localStorage immediately on mount - FIXES PAGE RELOAD DISAPPEAR
+  useEffect(() => {
+    if (mounted && !initialized) {
+      try {
+        const persisted = localStorage.getItem("cart-storage");
+        if (persisted) {
+          const parsed = JSON.parse(persisted);
+          if (parsed.state?.items?.length > 0) {
+            console.log(
+              "📦 CartSidebar - Loaded from storage:",
+              parsed.state.items.length,
+              "items"
+            );
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load cart from storage:", e);
+      }
+    }
+  }, [mounted, initialized]);
 
   useEffect(() => {
     if (isOpen && !initialized && mounted) {
@@ -96,6 +120,31 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
       window.location.href = "/cart";
     }, 150);
   };
+
+  // Auto remove out of stock items
+  useEffect(() => {
+    if (!items.length) return;
+
+    items.forEach((item) => {
+      const stockStatus = item.variantStockStatus ?? "in_stock";
+      const variantStock = item.variantStock ?? 999999;
+
+      // Check if item is out of stock
+      if (
+        (stockStatus === "out_of_stock" || variantStock === 0) &&
+        !removingItems.has(item.id)
+      ) {
+        setRemovingItems((prev) => new Set(prev).add(item.id));
+        removeFromCart(item.id).then(() => {
+          setRemovingItems((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(item.id);
+            return newSet;
+          });
+        });
+      }
+    });
+  }, [items, removeFromCart, removingItems]);
 
   const showSpinner = loading && items.length === 0;
 
@@ -300,10 +349,49 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 const canIncrement = !isOutOfStock && item.quantity < maxUnits;
                 const canDecrement = item.quantity > 1;
 
+                // Check if item is being removed
+                const isBeingRemoved = removingItems.has(item.id);
+
+                // INSTANT DELETE HANDLER - Immediate UI removal
+                const handleRemoveClick = async (e: React.MouseEvent) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+
+                  if (isBeingRemoved) return;
+
+                  setRemovingItems((prev) => new Set(prev).add(item.id));
+
+                  // Optimistic UI update - item will disappear from list
+                  await removeFromCart(item.id);
+
+                  setRemovingItems((prev) => {
+                    const newSet = new Set(prev);
+                    newSet.delete(item.id);
+                    return newSet;
+                  });
+                };
+
+                // Handle quantity update with stock check
+                const handleQuantityUpdate = async (newQuantity: number) => {
+                  if (isOutOfStock) return;
+
+                  const maxAllowed = Math.floor(variantStock / ppu);
+                  if (newQuantity > maxAllowed && maxAllowed > 0) {
+                    alert(
+                      `Only ${variantStock} items in stock. Max ${maxAllowed} unit(s) of ${ppu}-piece size.`
+                    );
+                    return;
+                  }
+
+                  await updateQuantity(item.id, newQuantity);
+                };
+
                 return (
                   <li
                     key={item.id}
-                    className="cs-item"
+                    className={`cs-item ${
+                      isBeingRemoved ? "cs-item--removing" : ""
+                    }`}
                     style={{ animationDelay: `${0.05 + i * 0.04}s` }}
                   >
                     <div className="cs-item-img-wrap">
@@ -368,10 +456,12 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                           <button
                             className="cs-qty-btn"
                             onClick={() =>
-                              updateQuantity(item.id, item.quantity - 1)
+                              handleQuantityUpdate(item.quantity - 1)
                             }
                             aria-label="Decrease quantity"
-                            disabled={!canDecrement}
+                            disabled={
+                              !canDecrement || isOutOfStock || isBeingRemoved
+                            }
                           >
                             <svg
                               viewBox="0 0 24 24"
@@ -393,10 +483,12 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                           <button
                             className="cs-qty-btn"
                             onClick={() =>
-                              updateQuantity(item.id, item.quantity + 1)
+                              handleQuantityUpdate(item.quantity + 1)
                             }
                             aria-label="Increase quantity"
-                            disabled={!canIncrement}
+                            disabled={
+                              !canIncrement || isOutOfStock || isBeingRemoved
+                            }
                           >
                             <svg
                               viewBox="0 0 24 24"
@@ -420,17 +512,25 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
                     <button
                       className="cs-item-remove"
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={handleRemoveClick}
                       aria-label={`Remove ${product.name}`}
+                      disabled={isBeingRemoved}
                     >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                      >
-                        <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" />
-                      </svg>
+                      {isBeingRemoved ? (
+                        <div className="cs-remove-spinner" />
+                      ) : (
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                        >
+                          <path
+                            d="M6 18L18 6M6 6l12 12"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      )}
                     </button>
                   </li>
                 );
@@ -516,6 +616,28 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             font-size: 0.6rem;
             opacity: 0.65;
             margin-left: 2px;
+          }
+          .cs-item--removing {
+            opacity: 0.5;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+          }
+          .cs-remove-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(218, 165, 32, 0.2);
+            border-top-color: #daa520;
+            border-radius: 50%;
+            animation: cs-spin 0.6s linear infinite;
+          }
+          @keyframes cs-spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
+          .cs-item-remove:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
           }
         `}</style>
       </div>

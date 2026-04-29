@@ -1,4 +1,4 @@
-// context/CurrencyContext.tsx
+// app/context/CurrencyContext.tsx
 "use client";
 
 import {
@@ -18,7 +18,6 @@ import {
   loadCurrencyPreference,
   convertPrice,
   formatPrice,
-  defaultCurrency,
 } from "@/lib/currency";
 
 interface CurrencyContextType {
@@ -35,104 +34,96 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(
 );
 
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
-  const [currency, setCurrencyState] = useState<Currency>(defaultCurrency);
+  // ✅ ALL HOOKS MUST BE AT TOP LEVEL - NO CONDITIONS BEFORE HOOKS
+  const [currency, setCurrencyState] = useState<Currency>(currencies[0]); // Initialize with USD
   const [loading, setLoading] = useState(true);
   const initializedRef = useRef(false);
+  const detectionAttemptedRef = useRef(false);
 
   const setCurrency = useCallback((newCurrency: Currency) => {
-    console.log("💰 Setting currency to:", newCurrency.code);
+    console.log("💰 Setting currency to:", newCurrency.code, newCurrency.flag);
     setCurrencyState(newCurrency);
     saveCurrencyPreference(newCurrency.code);
   }, []);
 
   const refreshCurrency = useCallback(async () => {
-    console.log("🔄 Refreshing currency detection...");
+    if (detectionAttemptedRef.current) return;
+    detectionAttemptedRef.current = true;
+
+    console.log("🔄 Detecting user country and currency...");
 
     try {
       // Try server API first
       const serverResponse = await fetch("/api/detect-country");
-
-      if (!serverResponse.ok) {
-        throw new Error(`Server responded with ${serverResponse.status}`);
-      }
-
       const serverData = await serverResponse.json();
 
       if (serverData.country && serverData.success !== false) {
         const detectedCurrency = getCurrencyByCountry(serverData.country);
         console.log(
-          "📍 Server detected country:",
+          "📍 Server detected:",
           serverData.country,
-          "Currency:",
+          "→ Currency:",
           detectedCurrency.code
         );
         setCurrency(detectedCurrency);
+        setLoading(false);
         return;
       }
 
-      // Fallback to client-side IP detection
+      // Client-side detection
       const countryCode = await detectUserCountry();
       const detectedCurrency = getCurrencyByCountry(countryCode);
       console.log(
-        "📍 Client detected country:",
+        "📍 Client detected:",
         countryCode,
-        "Currency:",
+        "→ Currency:",
         detectedCurrency.code
       );
       setCurrency(detectedCurrency);
+      setLoading(false);
     } catch (error) {
       console.error("❌ Currency detection failed:", error);
-      // Try to get from localStorage as last resort
-      const savedCode = loadCurrencyPreference();
-      if (savedCode) {
-        const savedCurrency = currencies.find((c) => c.code === savedCode);
-        if (savedCurrency) {
-          console.log(
-            "💾 Using saved currency from localStorage:",
-            savedCurrency.code
-          );
-          setCurrency(savedCurrency);
-        } else {
-          // If saved currency not found, use default
-          console.log("⚠️ Saved currency not found, using default");
-          setCurrency(defaultCurrency);
-        }
+      // Fallback - use browser language
+      if (typeof navigator !== "undefined") {
+        const lang = navigator.language;
+        if (lang.includes("PK")) setCurrency(getCurrencyByCountry("PK"));
+        else if (lang.includes("GB")) setCurrency(getCurrencyByCountry("GB"));
+        else if (lang.includes("AE")) setCurrency(getCurrencyByCountry("AE"));
+        else if (lang.includes("SA")) setCurrency(getCurrencyByCountry("SA"));
+        else if (lang.includes("AU")) setCurrency(getCurrencyByCountry("AU"));
+        else if (lang.includes("CA")) setCurrency(getCurrencyByCountry("CA"));
+        else if (lang.includes("IN")) setCurrency(getCurrencyByCountry("IN"));
+        else setCurrency(getCurrencyByCountry("US"));
       } else {
-        // Last resort: use default
-        console.log("⚠️ No saved currency, using default");
-        setCurrency(defaultCurrency);
+        setCurrency(getCurrencyByCountry("US"));
       }
-    } finally {
       setLoading(false);
     }
   }, [setCurrency]);
 
+  // Refresh on mount - but keep hooks at top level
   useEffect(() => {
-    // Prevent multiple initializations
     if (initializedRef.current) return;
     initializedRef.current = true;
 
-    // Check localStorage first
+    // Check for saved preference first
     const savedCode = loadCurrencyPreference();
     if (savedCode) {
       const savedCurrency = currencies.find((c) => c.code === savedCode);
       if (savedCurrency) {
-        console.log(
-          "💾 Using saved currency from localStorage:",
-          savedCurrency.code
-        );
+        console.log("📀 Found saved currency:", savedCurrency.code);
         setCurrencyState(savedCurrency);
         setLoading(false);
-        // Still refresh in background to update if country changed
+        // Still refresh in background
         refreshCurrency();
         return;
       }
     }
 
-    // Force fresh detection
     refreshCurrency();
   }, [refreshCurrency]);
 
+  // ✅ HOOKS ARE ALWAYS CALLED - NO CONDITIONAL RETURNS BEFORE HOOKS
   const convert = useCallback(
     (priceInPKR: number) => convertPrice(priceInPKR, currency),
     [currency]
@@ -143,6 +134,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     [currency]
   );
 
+  // ✅ Return JSX after all hooks
   return (
     <CurrencyContext.Provider
       value={{

@@ -93,6 +93,7 @@ const COUNTRY_CODES: Record<
 
 export default function Checkout() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const {
     items,
     loading,
@@ -131,10 +132,33 @@ export default function Checkout() {
     cvv: "",
   });
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    fetchCart();
+    setMounted(true);
   }, []);
+
+  // 🔥 CRITICAL: Load from localStorage immediately
+  useEffect(() => {
+    if (mounted && !initialized) {
+      try {
+        const persisted = localStorage.getItem("cart-storage");
+        if (persisted) {
+          const parsed = JSON.parse(persisted);
+          if (parsed.state?.items?.length > 0) {
+            console.log(
+              "📦 Checkout Page - Loaded from storage:",
+              parsed.state.items.length
+            );
+          }
+        }
+      } catch (e) {}
+    }
+  }, [mounted, initialized]);
+
+  useEffect(() => {
+    if (mounted) {
+      fetchCart();
+    }
+  }, [fetchCart, mounted]);
 
   // Update country code based on currency
   useEffect(() => {
@@ -181,7 +205,6 @@ export default function Checkout() {
         if (value.length > 4) value = value.slice(0, 4);
       }
       setForm((f) => ({ ...f, [key]: value }));
-      // Clear error when user starts typing
       if (errors[key as keyof FormErrors]) {
         setErrors((prev) => ({ ...prev, [key]: undefined }));
       }
@@ -276,7 +299,6 @@ export default function Checkout() {
   const total = subtotal + shipping;
   const currentStepIndex = STEPS.findIndex((s) => s.id === step);
 
-  // Don't filter by item.product — cartStore always builds a fallback product
   const validItems = items;
 
   const validateShipping = (): boolean => {
@@ -375,7 +397,6 @@ export default function Checkout() {
       } = await supabase.auth.getSession();
       const userId = session?.user?.id || null;
 
-      // Prepare order items
       const orderItems = validItems.map((item) => {
         const product = item.product ?? {
           id: item.product_id,
@@ -397,7 +418,6 @@ export default function Checkout() {
         };
       });
 
-      // Save order to Supabase
       const { error: orderError } = await supabase.from("orders").insert({
         order_number: orderRef,
         user_id: userId,
@@ -424,7 +444,6 @@ export default function Checkout() {
         return;
       }
 
-      // Send notification to customer's email and phone via backend API
       try {
         const notificationData = {
           orderNumber: orderRef,
@@ -475,8 +494,8 @@ export default function Checkout() {
     }
   };
 
-  // Loading state — show spinner only when no items yet
-  if (loading && items.length === 0) {
+  // Show loading state
+  if (!mounted || (loading && items.length === 0)) {
     return (
       <div className="co-root">
         <div className="co-grain" aria-hidden="true" />
@@ -487,7 +506,7 @@ export default function Checkout() {
     );
   }
 
-  // Empty cart state — only show after loading done AND truly empty
+  // Empty cart state
   if (!loading && items.length === 0 && !placed) {
     return (
       <div className="co-root">
@@ -658,6 +677,7 @@ export default function Checkout() {
                       </span>
                     )}
                   </div>
+
                   <div
                     className={`co-field co-field--half ${
                       focused === "lastName" ? "co-field--focused" : ""
@@ -685,6 +705,7 @@ export default function Checkout() {
                       </span>
                     )}
                   </div>
+
                   <div
                     className={`co-field ${
                       focused === "email" ? "co-field--focused" : ""
@@ -712,6 +733,7 @@ export default function Checkout() {
                       </span>
                     )}
                   </div>
+
                   <div
                     className={`co-field ${
                       focused === "phone" ? "co-field--focused" : ""
@@ -748,6 +770,7 @@ export default function Checkout() {
                       We'll send order updates via SMS to this number
                     </span>
                   </div>
+
                   <div
                     className={`co-field ${
                       focused === "address" ? "co-field--focused" : ""
@@ -775,6 +798,7 @@ export default function Checkout() {
                       </span>
                     )}
                   </div>
+
                   <div
                     className={`co-field ${
                       focused === "apartment" ? "co-field--focused" : ""
@@ -796,6 +820,7 @@ export default function Checkout() {
                     </div>
                     <div className="co-field-line" />
                   </div>
+
                   <div
                     className={`co-field co-field--half ${
                       focused === "city" ? "co-field--focused" : ""
@@ -823,6 +848,7 @@ export default function Checkout() {
                       </span>
                     )}
                   </div>
+
                   <div
                     className={`co-field co-field--half ${
                       focused === "zip" ? "co-field--focused" : ""
@@ -904,6 +930,7 @@ export default function Checkout() {
                       </span>
                     )}
                   </div>
+
                   <div
                     className={`co-field ${
                       focused === "cardName" ? "co-field--focused" : ""
@@ -931,6 +958,7 @@ export default function Checkout() {
                       </span>
                     )}
                   </div>
+
                   <div
                     className={`co-field co-field--half ${
                       focused === "expiry" ? "co-field--focused" : ""
@@ -959,6 +987,7 @@ export default function Checkout() {
                       </span>
                     )}
                   </div>
+
                   <div
                     className={`co-field co-field--half ${
                       focused === "cvv" ? "co-field--focused" : ""

@@ -13,9 +13,6 @@ import { useCartStore } from "@/lib/cartStore";
 import { useCurrency } from "../context/CurrencyContext";
 import QuickView from "./QuickView";
 
-// Dynamic import for QuickView to avoid SSR issues
-// Already using dynamic import below
-
 interface QuickViewProduct {
   id: string;
   name: string;
@@ -64,29 +61,21 @@ interface VariantImagesMap {
   [variantId: string]: string[];
 }
 
-// Pre-fetched initial data type
-export interface FeaturedTabData {
-  products: FeaturedProduct[];
-  variantsMap: Record<string, ProductVariant[]>;
-  variantImagesMap: Record<string, string[]>;
-}
-
 const getStockStatus = (
   stock: number,
   threshold?: number | null
 ): "in_stock" | "out_of_stock" | "low_stock" => {
   if (stock === 0) return "out_of_stock";
+  if (stock >= 999999) return "in_stock";
   if (threshold && threshold > 0 && stock <= threshold) return "low_stock";
   return "in_stock";
 };
 
-// Standalone fetch function
-export async function fetchFeaturedTabData(
-  tab: string
-): Promise<FeaturedTabData> {
+// FAST fetch function with optimizations
+async function fetchFeaturedTabDataFast(tab: string) {
   const { data: productsData, error: productsError } = await supabase
     .from("products")
-    .select("*")
+    .select("*, product_variants(*, variant_images(*))")
     .eq("is_active", true)
     .eq("is_featured", true)
     .eq("category", tab)
@@ -111,72 +100,39 @@ export async function fetchFeaturedTabData(
     })
   );
 
-  const productIds = productsData.map((p: any) => p.id);
-
-  const { data: variantsData } = await supabase
-    .from("product_variants")
-    .select("*")
-    .in("product_id", productIds)
-    .eq("is_active", true);
-
   const variantsByProduct: Record<string, ProductVariant[]> = {};
+  const variantImagesMap: VariantImagesMap = {};
 
-  if (variantsData && variantsData.length > 0) {
-    variantsData.forEach((variant: any) => {
-      if (!variantsByProduct[variant.product_id]) {
-        variantsByProduct[variant.product_id] = [];
+  productsData.forEach((product: any) => {
+    const variants = product.product_variants || [];
+    variantsByProduct[product.id] = variants.map((variant: any) => ({
+      id: variant.id,
+      product_id: variant.product_id,
+      attribute_type: variant.attribute_type,
+      attribute_value: variant.attribute_value,
+      price: variant.price,
+      original_price: variant.original_price,
+      description: variant.description,
+      stock: variant.stock,
+      low_stock_threshold: variant.low_stock_threshold,
+      images: [],
+      stockStatus: getStockStatus(variant.stock, variant.low_stock_threshold),
+    }));
+
+    variants.forEach((variant: any) => {
+      const images = (variant.variant_images || [])
+        .sort((a: any, b: any) => a.display_order - b.display_order)
+        .map((img: any) => img.image_url);
+      if (images.length > 0) {
+        variantImagesMap[variant.id] = images;
       }
-      variantsByProduct[variant.product_id].push({
-        id: variant.id,
-        product_id: variant.product_id,
-        attribute_type: variant.attribute_type,
-        attribute_value: variant.attribute_value,
-        price: variant.price,
-        original_price: variant.original_price,
-        description: variant.description,
-        stock: variant.stock,
-        low_stock_threshold: variant.low_stock_threshold,
-        images: [],
-        stockStatus: getStockStatus(variant.stock, variant.low_stock_threshold),
-      });
     });
-
-    const order = { standard: 0, color: 1, size: 2, material: 3, capacity: 4 };
-    for (const productId in variantsByProduct) {
-      variantsByProduct[productId].sort(
-        (a, b) =>
-          (order[a.attribute_type as keyof typeof order] || 5) -
-          (order[b.attribute_type as keyof typeof order] || 5)
-      );
-    }
-
-    const variantIds = variantsData.map((v: any) => v.id);
-    const { data: imagesData } = await supabase
-      .from("variant_images")
-      .select("*")
-      .in("variant_id", variantIds)
-      .order("display_order", { ascending: true });
-
-    if (imagesData) {
-      const imagesByVariant: Record<string, string[]> = {};
-      imagesData.forEach((img: any) => {
-        if (!imagesByVariant[img.variant_id]) {
-          imagesByVariant[img.variant_id] = [];
-        }
-        imagesByVariant[img.variant_id].push(img.image_url);
-      });
-      return {
-        products: formattedProducts,
-        variantsMap: variantsByProduct,
-        variantImagesMap: imagesByVariant,
-      };
-    }
-  }
+  });
 
   return {
     products: formattedProducts,
     variantsMap: variantsByProduct,
-    variantImagesMap: {},
+    variantImagesMap,
   };
 }
 
@@ -289,7 +245,6 @@ function VariantThumbnails({
               title={variant.attribute_value}
             >
               {variantImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img src={variantImage} alt={variant.attribute_value} />
               ) : (
                 <span className="fp-variant-text">
@@ -330,7 +285,7 @@ function LoadingSpinner({ size = 18 }: { size?: number }) {
   );
 }
 
-// Single Product Card Component with Currency Support
+// Single Product Card Component - INSTANT ADD TO CART
 function ProductCard({
   product,
   variants,
@@ -352,7 +307,6 @@ function ProductCard({
     variantImagesMap: VariantImagesMap
   ) => void;
 }) {
-  const [mounted, setMounted] = useState(false);
   const { currency, formatPrice } = useCurrency();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
@@ -365,16 +319,9 @@ function ProductCard({
     }
     return [];
   });
-
-  // Loading states for buttons
   const [quickViewLoading, setQuickViewLoading] = useState(false);
   const [addToCartLoading, setAddToCartLoading] = useState(false);
-
   const { addToCart } = useCartStore();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const colorVariants = variants.filter((v) => v.attribute_type === "color");
   const sizeVariants = variants.filter((v) => v.attribute_type === "size");
@@ -433,7 +380,6 @@ function ProductCard({
     selectedVariant?.stock || 0,
     selectedVariant?.low_stock_threshold
   );
-
   const isLowStock = stockStatus === "low_stock";
   const isOutOfStock = stockStatus === "out_of_stock";
   const currentStock = selectedVariant?.stock || 0;
@@ -450,7 +396,8 @@ function ProductCard({
     return "in";
   };
 
-  const handleAddToCart = async (e: React.MouseEvent) => {
+  // 🔥 INSTANT ADD TO CART - FIXED TypeScript error
+  const handleAddToCart = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -458,16 +405,12 @@ function ProductCard({
       alert("Please select a variant first");
       return;
     }
-
     if (stockStatus === "out_of_stock") {
       alert("This product is out of stock");
       return;
     }
 
     setAddToCartLoading(true);
-
-    // Small delay to show loader
-    await new Promise((resolve) => setTimeout(resolve, 300));
 
     const productToAdd = {
       id: product.id,
@@ -489,19 +432,28 @@ function ProductCard({
       updated_at: new Date().toISOString(),
     };
 
-    addToCart(productToAdd, selectedVariant, 1, 1);
+    // Add to cart instantly
+    await addToCart(productToAdd, selectedVariant, 1, 1);
+
     setAddToCartLoading(false);
+
+    // Visual feedback - Type-safe way (casting to HTMLButtonElement)
+    const btn = e.currentTarget as HTMLButtonElement;
+    if (btn) {
+      btn.style.transform = "scale(0.95)";
+      setTimeout(() => {
+        btn.style.transform = "";
+      }, 200);
+    }
   };
 
-  const handleQuickViewClick = async (e: React.MouseEvent) => {
+  const handleQuickViewClick = async (
+    e: React.MouseEvent<HTMLButtonElement>
+  ) => {
     e.preventDefault();
     e.stopPropagation();
-
     setQuickViewLoading(true);
-
-    // Small delay to show loader
-    await new Promise((resolve) => setTimeout(resolve, 200));
-
+    await new Promise((resolve) => setTimeout(resolve, 100));
     onQuickView(
       product,
       variants,
@@ -513,22 +465,15 @@ function ProductCard({
       selectedVariant?.low_stock_threshold,
       variantImagesMap
     );
-
     setQuickViewLoading(false);
   };
 
-  // Display prices in user's currency using formatPrice
   const displaySalePrice = selectedVariant
     ? formatPrice(selectedVariant.price)
     : formatPrice(0);
   const displayOriginalPrice = selectedVariant?.original_price
     ? formatPrice(selectedVariant.original_price)
     : null;
-
-  // Don't render until mounted to avoid hydration mismatch
-  if (!mounted) {
-    return <ProductCardSkeleton />;
-  }
 
   return (
     <Link href={`/product/${product.id}`} className="fp-card">
@@ -538,8 +483,7 @@ function ProductCard({
         onMouseLeave={handleMouseLeave}
       >
         {displayImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={displayImage} alt={product.name} loading="lazy" />
+          <img src={displayImage} alt={product.name} loading="eager" />
         ) : (
           <div className="fp-card-placeholder">
             <svg
@@ -554,7 +498,6 @@ function ProductCard({
             </svg>
           </div>
         )}
-
         <div className="fp-card-badges">
           {product.is_featured && (
             <span className="fp-badge fp-badge--feat">Featured</span>
@@ -569,7 +512,6 @@ function ProductCard({
             <span className="fp-badge fp-badge--low">Low Stock</span>
           )}
         </div>
-
         <div className="fp-icon-buttons">
           <button
             className="fp-icon-btn fp-icon-btn--view"
@@ -614,11 +556,9 @@ function ProductCard({
           </button>
         </div>
       </div>
-
       <div className="fp-card-body">
         {product.brand && <p className="fp-card-brand">{product.brand}</p>}
         <h3 className="fp-card-name">{product.name}</h3>
-
         <div className="fp-card-price-row">
           <span className="fp-card-price">{displaySalePrice}</span>
           {displayOriginalPrice && (
@@ -628,7 +568,6 @@ function ProductCard({
             <span className="fp-card-discount">-{discount}%</span>
           )}
         </div>
-
         {colorVariants.length > 0 && (
           <VariantThumbnails
             variants={colorVariants}
@@ -639,7 +578,6 @@ function ProductCard({
             getVariantImage={getVariantImage}
           />
         )}
-
         {sizeVariants.length > 0 && (
           <VariantThumbnails
             variants={sizeVariants}
@@ -650,7 +588,6 @@ function ProductCard({
             getVariantImage={getVariantImage}
           />
         )}
-
         {materialVariants.length > 0 && (
           <VariantThumbnails
             variants={materialVariants}
@@ -661,7 +598,6 @@ function ProductCard({
             getVariantImage={getVariantImage}
           />
         )}
-
         {capacityVariants.length > 0 && (
           <VariantThumbnails
             variants={capacityVariants}
@@ -672,15 +608,11 @@ function ProductCard({
             getVariantImage={getVariantImage}
           />
         )}
-
         <div className={`fp-card-stock ${getStockClass()}`}>
           {getStockLabel()}
         </div>
       </div>
-
       <div className="fp-card-line" />
-
-      {/* Add spinner animation styles */}
       <style jsx>{`
         @keyframes fp-spin {
           0% {
@@ -695,25 +627,18 @@ function ProductCard({
   );
 }
 
-// FeaturedProducts Component
-export default function FeaturedProducts({
-  initialData,
-}: {
-  initialData?: { [tab: string]: FeaturedTabData };
-}) {
+// FeaturedProducts Component - INSTANT LOAD
+export default function FeaturedProducts() {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("Accessories");
-  const [products, setProducts] = useState<FeaturedProduct[]>(
-    initialData?.["Accessories"]?.products || []
-  );
+  const [products, setProducts] = useState<FeaturedProduct[]>([]);
   const [variantsMap, setVariantsMap] = useState<
     Record<string, ProductVariant[]>
-  >(initialData?.["Accessories"]?.variantsMap || {});
+  >({});
   const [variantImagesMap, setVariantImagesMap] = useState<
     Record<string, string[]>
-  >(initialData?.["Accessories"]?.variantImagesMap || {});
-  const [loading, setLoading] = useState(!initialData?.["Accessories"]);
-
+  >({});
+  const [loading, setLoading] = useState(true);
   const [quickViewProduct, setQuickViewProduct] =
     useState<QuickViewProduct | null>(null);
   const [quickViewVariants, setQuickViewVariants] = useState<ProductVariant[]>(
@@ -730,70 +655,72 @@ export default function FeaturedProducts({
   const swiperRef = useRef<SwiperType | null>(null);
   const { currency } = useCurrency();
 
-  const dataCache = useRef<{
-    [tab: string]: FeaturedTabData;
-  }>(initialData || {});
+  // Cache for data
+  const dataCache = useRef<Record<string, any>>({});
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const loadDataForTab = useCallback(
-    async (tab: string, isInitialLoad: boolean = false) => {
-      if (dataCache.current[tab]) {
-        setProducts(dataCache.current[tab].products);
-        setVariantsMap(dataCache.current[tab].variantsMap);
-        setVariantImagesMap(dataCache.current[tab].variantImagesMap);
-        if (isInitialLoad) setLoading(false);
-        return;
-      }
-
-      if (isInitialLoad) {
-        setLoading(true);
-      }
-
-      try {
-        const tabData = await fetchFeaturedTabData(tab);
-        dataCache.current[tab] = tabData;
-        setProducts(tabData.products);
-        setVariantsMap(tabData.variantsMap);
-        setVariantImagesMap(tabData.variantImagesMap);
-        if (isInitialLoad) setLoading(false);
-      } catch (error) {
-        console.error("Error loading products:", error);
-        if (isInitialLoad) setLoading(false);
-      }
-    },
-    []
-  );
-
+  // LOAD DATA INSTANTLY - No skeleton delay
   useEffect(() => {
-    const categories = ["Accessories", "Watches", "Automotive", "Home Decor"];
+    async function loadInitialData() {
+      setLoading(true);
+      try {
+        const categories = [
+          "Accessories",
+          "Watches",
+          "Automotive",
+          "Home Decor",
+        ];
 
-    if (!initialData?.["Accessories"]) {
-      loadDataForTab("Accessories", true);
+        const promises = categories.map((cat) => fetchFeaturedTabDataFast(cat));
+        const results = await Promise.all(promises);
+
+        categories.forEach((cat, idx) => {
+          dataCache.current[cat] = results[idx];
+        });
+
+        const initialData = dataCache.current["Accessories"];
+        setProducts(initialData.products);
+        setVariantsMap(initialData.variantsMap);
+        setVariantImagesMap(initialData.variantImagesMap);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error loading featured products:", error);
+        setLoading(false);
+      }
     }
 
-    categories.forEach((category) => {
-      if (category !== "Accessories" && !initialData?.[category]) {
-        setTimeout(() => loadDataForTab(category, false), 100);
-      }
-    });
-  }, [initialData, loadDataForTab]);
+    loadInitialData();
+  }, []);
 
-  const handleTabChange = useCallback(
-    (tab: string) => {
-      setActiveTab(tab);
-      loadDataForTab(tab, false);
-    },
-    [loadDataForTab]
-  );
+  const handleTabChange = useCallback(async (tab: string) => {
+    setActiveTab(tab);
+
+    if (dataCache.current[tab]) {
+      const tabData = dataCache.current[tab];
+      setProducts(tabData.products);
+      setVariantsMap(tabData.variantsMap);
+      setVariantImagesMap(tabData.variantImagesMap);
+    } else {
+      setLoading(true);
+      const tabData = await fetchFeaturedTabDataFast(tab);
+      dataCache.current[tab] = tabData;
+      setProducts(tabData.products);
+      setVariantsMap(tabData.variantsMap);
+      setVariantImagesMap(tabData.variantImagesMap);
+      setLoading(false);
+    }
+
+    setTimeout(() => {
+      swiperRef.current?.update();
+    }, 50);
+  }, []);
 
   useEffect(() => {
     if (swiperRef.current && !loading && products.length > 0 && mounted) {
-      setTimeout(() => {
-        swiperRef.current?.update();
-      }, 50);
+      setTimeout(() => swiperRef.current?.update(), 50);
     }
   }, [products, loading, mounted]);
 
@@ -825,7 +752,6 @@ export default function FeaturedProducts({
       stockStatus: stockStatus,
       lowStockThreshold: lowStockThreshold,
     };
-
     setQuickViewProduct(quickViewProductData);
     setQuickViewVariants(variants);
     setQuickViewSelectedVariant(selectedVariant);
@@ -840,16 +766,13 @@ export default function FeaturedProducts({
     { key: "Home Decor", label: "Home Decor", href: "/home-decor" },
   ].find((t) => t.key === activeTab);
 
-  const skeletonCount = 8;
-
   const getCurrencyText = () => {
     if (!mounted) return "";
     if (currency.code === "PKR") return "PKR (₨)";
     return `${currency.code} (${currency.symbol})`;
   };
 
-  // Don't render until mounted to avoid hydration mismatch
-  if (!mounted) {
+  if (!mounted || (loading && products.length === 0)) {
     return (
       <section className="fp-section">
         <div className="fp-header">
@@ -865,8 +788,15 @@ export default function FeaturedProducts({
           </div>
         </div>
         <div className="fp-container">
-          <div className="fp-skeleton-grid">
-            {[...Array(4)].map((_, i) => (
+          <div
+            className="fp-skeleton-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: "1.5rem",
+            }}
+          >
+            {[...Array(8)].map((_, i) => (
               <ProductCardSkeleton key={i} />
             ))}
           </div>
@@ -894,8 +824,6 @@ export default function FeaturedProducts({
               💱 Prices shown in {currency.code} ({currency.symbol})
             </span>
           </p>
-
-          {/* Featured Banner Image - FULLY RESPONSIVE */}
           <div
             style={{
               width: "100%",
@@ -906,7 +834,6 @@ export default function FeaturedProducts({
               overflow: "hidden",
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/feat.png"
               alt="Featured Banner"
@@ -919,7 +846,6 @@ export default function FeaturedProducts({
               }}
             />
           </div>
-
           <div className="fp-tabs" style={{ marginTop: "2rem" }}>
             {["Accessories", "Watches", "Automotive", "Home Decor"].map(
               (tab) => (
@@ -936,7 +862,6 @@ export default function FeaturedProducts({
             )}
           </div>
         </div>
-
         <div className="fp-container">
           <div className="fp-nav">
             <button ref={prevRef} className="fp-nav-btn" aria-label="Previous">
@@ -960,26 +885,7 @@ export default function FeaturedProducts({
               </svg>
             </button>
           </div>
-
-          {loading && products.length === 0 ? (
-            <Swiper
-              modules={[Pagination, Navigation, A11y]}
-              spaceBetween={1}
-              slidesPerView={1}
-              breakpoints={{
-                480: { slidesPerView: 2, spaceBetween: 1 },
-                768: { slidesPerView: 3, spaceBetween: 1 },
-                1024: { slidesPerView: 4, spaceBetween: 1 },
-              }}
-              className="fp-swiper"
-            >
-              {Array.from({ length: skeletonCount }).map((_, i) => (
-                <SwiperSlide key={`skeleton-${i}`}>
-                  <ProductCardSkeleton />
-                </SwiperSlide>
-              ))}
-            </Swiper>
-          ) : products.length === 0 && !loading ? (
+          {products.length === 0 ? (
             <div className="fp-empty">
               <p>No featured products in this category</p>
             </div>
@@ -1021,7 +927,6 @@ export default function FeaturedProducts({
               ))}
             </Swiper>
           )}
-
           <div className="fp-view-all-wrap">
             <Link href={activeTabData?.href || "/"} className="fp-view-all">
               <span>View All {activeTabData?.label || activeTab}</span>
@@ -1038,7 +943,6 @@ export default function FeaturedProducts({
           </div>
         </div>
       </section>
-
       <QuickView
         isOpen={quickViewOpen}
         onClose={() => setQuickViewOpen(false)}

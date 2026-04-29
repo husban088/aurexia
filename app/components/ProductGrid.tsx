@@ -62,6 +62,80 @@ const getStockClass = (status: "in_stock" | "out_of_stock" | "low_stock") => {
   return "";
 };
 
+// FAST fetch function with join query for instant data
+async function fetchProductsFast(
+  category: string,
+  subcategory?: string,
+  limit?: number,
+  featured?: boolean
+) {
+  let query = supabase
+    .from("products")
+    .select("*, product_variants(*, variant_images(*))")
+    .eq("is_active", true)
+    .eq("category", category);
+
+  if (subcategory) query = query.eq("subcategory", subcategory);
+  if (featured) query = query.eq("is_featured", true);
+  query = query.order("created_at", { ascending: false });
+  if (limit) query = query.limit(limit);
+
+  const { data, error } = await query;
+  if (error || !data) return [];
+
+  const typePriority: Record<string, number> = {
+    standard: 0,
+    color: 1,
+    size: 2,
+    material: 3,
+    capacity: 4,
+  };
+
+  return data.map((item: any) => {
+    const variants = item.product_variants || [];
+    const sortedVariants = [...variants].sort(
+      (a, b) =>
+        (typePriority[a.attribute_type] || 5) -
+        (typePriority[b.attribute_type] || 5)
+    );
+    const bestVariant = sortedVariants[0];
+
+    let variantImages: string[] = [];
+    if (bestVariant?.variant_images) {
+      variantImages = bestVariant.variant_images
+        .sort((a: any, b: any) => a.display_order - b.display_order)
+        .map((img: any) => img.image_url);
+    }
+
+    const stock = bestVariant?.stock ?? item.stock ?? 0;
+    const lowStockThreshold =
+      bestVariant?.low_stock_threshold ?? item.low_stock_threshold ?? null;
+    const stockStatus = getStockStatus(stock, lowStockThreshold);
+
+    return {
+      id: item.id,
+      name: item.name,
+      description: item.description || "",
+      price: bestVariant?.price ?? item.price ?? 0,
+      original_price:
+        bestVariant?.original_price ?? item.original_price ?? undefined,
+      category: item.category,
+      subcategory: item.subcategory,
+      images: variantImages.length > 0 ? variantImages : item.images || [],
+      stock,
+      brand: item.brand || undefined,
+      condition: item.condition || "new",
+      is_featured: item.is_featured || false,
+      is_active: item.is_active ?? true,
+      specs: item.specs || {},
+      created_at: item.created_at || new Date().toISOString(),
+      low_stock_threshold: lowStockThreshold,
+      stockStatus,
+      variantId: bestVariant?.id,
+    };
+  });
+}
+
 export default function ProductGrid({
   category,
   subcategory,
@@ -77,160 +151,36 @@ export default function ProductGrid({
   const { formatPrice } = useCurrency();
   const { addToCart } = useCartStore();
 
-  // Mount check to avoid hydration mismatch
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // LOAD DATA INSTANTLY - No skeleton delay
   useEffect(() => {
-    let cancelled = false;
+    let isMounted = true;
 
     async function loadProducts() {
       setLoading(true);
-
-      let query = supabase
-        .from("products")
-        .select("*")
-        .eq("is_active", true)
-        .eq("category", category);
-
-      if (subcategory) {
-        query = query.eq("subcategory", subcategory);
-      }
-
-      if (featured) {
-        query = query.eq("is_featured", true);
-      }
-
-      query = query.order("created_at", { ascending: false });
-
-      if (limit) {
-        query = query.limit(limit);
-      }
-
-      const { data, error } = await query;
-
-      if (!cancelled) {
-        if (error) {
-          console.error("ProductGrid error:", error);
-          setProducts([]);
-          setLoading(false);
-          return;
-        }
-
-        const productIds = (data || []).map((item: any) => item.id);
-
-        if (productIds.length === 0) {
-          setProducts([]);
-          setLoading(false);
-          return;
-        }
-
-        const { data: variantsData } = await supabase
-          .from("product_variants")
-          .select("*")
-          .in("product_id", productIds)
-          .eq("is_active", true)
-          .order("created_at", { ascending: true });
-
-        const variantMap: Record<string, any> = {};
-        if (variantsData) {
-          const typePriority: Record<string, number> = {
-            standard: 0,
-            color: 1,
-            size: 2,
-            material: 3,
-            capacity: 4,
-          };
-          variantsData.forEach((variant: any) => {
-            const existing = variantMap[variant.product_id];
-            if (!existing) {
-              variantMap[variant.product_id] = variant;
-            } else {
-              const existingPriority =
-                typePriority[existing.attribute_type] ?? 9;
-              const newPriority = typePriority[variant.attribute_type] ?? 9;
-              if (newPriority < existingPriority) {
-                variantMap[variant.product_id] = variant;
-              }
-            }
-          });
-        }
-
-        const variantIds = Object.values(variantMap).map((v: any) => v.id);
-        const variantImagesMap: Record<string, string[]> = {};
-
-        if (variantIds.length > 0) {
-          const { data: imagesData } = await supabase
-            .from("variant_images")
-            .select("variant_id, image_url, display_order")
-            .in("variant_id", variantIds)
-            .order("display_order", { ascending: true });
-
-          if (imagesData) {
-            imagesData.forEach((img: any) => {
-              if (!variantImagesMap[img.variant_id]) {
-                variantImagesMap[img.variant_id] = [];
-              }
-              variantImagesMap[img.variant_id].push(img.image_url);
-            });
-          }
-        }
-
-        const formattedData: Product[] = (data || []).map((item: any) => {
-          const variant = variantMap[item.id];
-          const stock = variant?.stock ?? item.stock ?? 0;
-          const lowStockThreshold =
-            variant?.low_stock_threshold ?? item.low_stock_threshold ?? null;
-          const stockStatus = getStockStatus(stock, lowStockThreshold);
-
-          const variantImages =
-            variant && variantImagesMap[variant.id]
-              ? variantImagesMap[variant.id]
-              : [];
-          const productImages = item.images || [];
-          const images =
-            variantImages.length > 0 ? variantImages : productImages;
-
-          return {
-            id: item.id,
-            name: item.name,
-            description: item.description || "",
-            price: variant?.price ?? item.price ?? 0,
-            original_price:
-              variant?.original_price ?? item.original_price ?? undefined,
-            category: item.category,
-            subcategory: item.subcategory,
-            images,
-            stock,
-            brand: item.brand || undefined,
-            condition: item.condition || "new",
-            is_featured: item.is_featured || false,
-            is_active: item.is_active ?? true,
-            specs: item.specs || {},
-            created_at: item.created_at || new Date().toISOString(),
-            low_stock_threshold: lowStockThreshold,
-            stockStatus,
-            variantId: variant?.id,
-          };
-        });
-
-        if (!cancelled) {
-          setProducts(formattedData);
-          setLoading(false);
-        }
+      const data = await fetchProductsFast(
+        category,
+        subcategory,
+        limit,
+        featured
+      );
+      if (isMounted) {
+        setProducts(data);
+        setLoading(false);
       }
     }
 
     loadProducts();
     return () => {
-      cancelled = true;
+      isMounted = false;
     };
   }, [category, subcategory, limit, featured]);
 
   const filteredAndSorted = useMemo(() => {
     let filtered = [...products];
-
     if (search) {
       const s = search.toLowerCase();
       filtered = filtered.filter(
@@ -240,7 +190,6 @@ export default function ProductGrid({
           p.subcategory.toLowerCase().includes(s)
       );
     }
-
     switch (sort) {
       case "price-asc":
         filtered.sort((a, b) => a.price - b.price);
@@ -259,7 +208,6 @@ export default function ProductGrid({
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
     }
-
     return filtered;
   }, [products, search, sort]);
 
@@ -276,24 +224,24 @@ export default function ProductGrid({
   const handleQuickViewClick = (e: React.MouseEvent, productId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onQuickView) {
-      onQuickView(productId);
-    }
+    if (onQuickView) onQuickView(productId);
   };
 
-  const handleAddToCartClick = (e: React.MouseEvent, product: Product) => {
+  // 🔥 INSTANT ADD TO CART - FIXED TypeScript error
+  const handleAddToCartClick = async (
+    e: React.MouseEvent<HTMLButtonElement>,
+    product: Product
+  ) => {
     e.preventDefault();
     e.stopPropagation();
 
     const stockStatus =
       product.stockStatus ||
       getStockStatus(product.stock, product.low_stock_threshold);
-
     if (stockStatus === "out_of_stock") {
+      alert("This product is out of stock");
       return;
     }
-
-    const qtyToAdd = 1;
 
     const variantObj = product.variantId
       ? {
@@ -309,7 +257,8 @@ export default function ProductGrid({
         }
       : null;
 
-    addToCart(
+    // Add to cart instantly without page reload
+    await addToCart(
       {
         id: product.id,
         name: product.name,
@@ -331,13 +280,22 @@ export default function ProductGrid({
         updated_at: new Date().toISOString(),
       },
       variantObj,
-      qtyToAdd,
+      1,
       1
     );
+
+    // Visual feedback - Type-safe way (casting to HTMLButtonElement)
+    const btn = e.currentTarget as HTMLButtonElement;
+    if (btn) {
+      btn.style.transform = "scale(0.95)";
+      setTimeout(() => {
+        btn.style.transform = "";
+      }, 200);
+    }
   };
 
-  // Show skeleton on server or during initial load
-  if (!mounted || loading) {
+  // Show loading only on first load
+  if (!mounted || (loading && products.length === 0)) {
     return (
       <div className="pg-skeleton-grid">
         {[...Array(limit || 8)].map((_, i) => (
@@ -400,7 +358,6 @@ export default function ProductGrid({
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-
           <select
             className="pg-sort-select"
             value={sort}
@@ -411,14 +368,12 @@ export default function ProductGrid({
             <option value="price-desc">Price: High → Low</option>
             <option value="featured">Featured First</option>
           </select>
-
           <span className="pg-count">
             <em>{filteredAndSorted.length}</em>{" "}
             {filteredAndSorted.length === 1 ? "item" : "items"}
           </span>
         </div>
       )}
-
       <div className="pg-grid">
         {filteredAndSorted.map((product) => {
           const discount = calculateDiscount(product);
@@ -444,6 +399,7 @@ export default function ProductGrid({
                     fill
                     sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 280px"
                     style={{ objectFit: "cover" }}
+                    priority
                   />
                 ) : (
                   <div className="pg-card-placeholder">
@@ -459,7 +415,6 @@ export default function ProductGrid({
                     </svg>
                   </div>
                 )}
-
                 <div className="pg-card-badges">
                   <span className="pg-badge pg-badge--cat">
                     {product.subcategory}
@@ -479,7 +434,6 @@ export default function ProductGrid({
                     <span className="pg-badge pg-badge--low">Low Stock</span>
                   )}
                 </div>
-
                 <div className="pg-icon-buttons">
                   <button
                     className="pg-icon-btn pg-icon-btn--view"
@@ -515,7 +469,6 @@ export default function ProductGrid({
                   </button>
                 </div>
               </div>
-
               <div className="pg-card-body">
                 {product.brand && (
                   <p className="pg-card-brand">{product.brand}</p>
@@ -536,13 +489,11 @@ export default function ProductGrid({
                   )}
                 </div>
               </div>
-
               <div className="pg-card-foot">
                 <span className={`pg-card-stock ${stockClass}`}>
                   {stockLabel}
                 </span>
               </div>
-
               <div className="pg-card-line" />
             </Link>
           );

@@ -4,22 +4,21 @@ import { headers } from "next/headers";
 
 export async function GET() {
   try {
-    // This API will be called from client-side
-    // It returns the server's best guess of user's country
-
     const headersList = await headers();
 
+    // Priority order of headers
     const headersToCheck = [
-      "cf-ipcountry",
-      "x-vercel-ip-country",
-      "cloudfront-viewer-country",
-      "x-country",
-      "x-geo-country",
+      "cf-ipcountry", // Cloudflare
+      "x-vercel-ip-country", // Vercel
+      "cloudfront-viewer-country", // AWS CloudFront
+      "x-country", // Custom
+      "x-geo-country", // Custom
     ];
 
     for (const header of headersToCheck) {
       const value = headersList.get(header);
       if (value && value.length === 2) {
+        console.log(`📍 Server detected country from ${header}:`, value);
         return NextResponse.json({
           country: value,
           source: header,
@@ -28,7 +27,14 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ country: null, source: null, success: false });
+    // If no headers, we can still return a default
+    // Client will detect using IP APIs
+    return NextResponse.json({
+      country: null,
+      source: null,
+      success: false,
+      message: "No geo headers found, client will detect",
+    });
   } catch (error) {
     console.error("Error detecting country:", error);
     return NextResponse.json({

@@ -81,8 +81,18 @@ async function fetchCartItems(cartId: string): Promise<CartItemWithDetails[]> {
       .from("cart_items")
       .select(
         `
-        *,
-        product:products!cart_items_product_id_fkey(*)
+        id,
+        cart_id,
+        product_id,
+        variant_id,
+        variant_name,
+        variant_price,
+        variant_original_price,
+        variant_image,
+        quantity,
+        pieces_per_unit,
+        created_at,
+        updated_at
       `
       )
       .eq("cart_id", cartId);
@@ -94,16 +104,30 @@ async function fetchCartItems(cartId: string): Promise<CartItemWithDetails[]> {
 
     const rawItems = (data as any[]) || [];
 
-    const items: CartItemWithDetails[] = rawItems.map((item) => {
-      const ppu: number = item.pieces_per_unit ?? 1;
-      const base: CartItemWithDetails = { ...item, pieces_per_unit: ppu };
-      return base;
-    });
+    if (rawItems.length === 0) return [];
 
-    // Enrich with live stock from product_variants
-    const variantIds = items
+    const productIds = [...new Set(rawItems.map((item) => item.product_id))];
+
+    const { data: productsData } = await supabase
+      .from("products")
+      .select("*")
+      .in("id", productIds);
+
+    const productMap: Record<string, Product> = {};
+    if (productsData) {
+      productsData.forEach((p: any) => {
+        productMap[p.id] = p;
+      });
+    }
+
+    const variantIds = rawItems
       .filter((i) => i.variant_id)
       .map((i) => i.variant_id as string);
+
+    let variantStockMap: Record<
+      string,
+      { stock: number; low_stock_threshold: number | null }
+    > = {};
 
     if (variantIds.length > 0) {
       const { data: variantsData } = await supabase
@@ -112,49 +136,39 @@ async function fetchCartItems(cartId: string): Promise<CartItemWithDetails[]> {
         .in("id", variantIds);
 
       if (variantsData) {
-        const vMap: Record<
-          string,
-          { stock: number; low_stock_threshold?: number | null }
-        > = {};
         variantsData.forEach((v: any) => {
-          vMap[v.id] = {
+          variantStockMap[v.id] = {
             stock: v.stock,
             low_stock_threshold: v.low_stock_threshold,
-          };
-        });
-
-        return items.map((item) => {
-          if (item.variant_id && vMap[item.variant_id]) {
-            const { stock, low_stock_threshold } = vMap[item.variant_id];
-            return {
-              ...item,
-              variantStock: stock,
-              variantLowStockThreshold: low_stock_threshold ?? null,
-              variantStockStatus: deriveStockStatus(stock, low_stock_threshold),
-            };
-          }
-          const stock = item.product?.stock ?? 0;
-          const threshold = (item.product as any)?.low_stock_threshold ?? null;
-          return {
-            ...item,
-            variantStock: stock,
-            variantLowStockThreshold: threshold,
-            variantStockStatus: deriveStockStatus(stock, threshold),
           };
         });
       }
     }
 
-    return items.map((item) => {
-      const stock = item.product?.stock ?? 0;
-      const threshold = (item.product as any)?.low_stock_threshold ?? null;
+    const items: CartItemWithDetails[] = rawItems.map((item) => {
+      const product = productMap[item.product_id];
+      const variantInfo = item.variant_id
+        ? variantStockMap[item.variant_id]
+        : null;
+
+      const stock = variantInfo?.stock ?? product?.stock ?? 0;
+      const threshold =
+        variantInfo?.low_stock_threshold ??
+        (product as any)?.low_stock_threshold ??
+        null;
+      const stockStatus = deriveStockStatus(stock, threshold);
+
       return {
         ...item,
+        pieces_per_unit: item.pieces_per_unit ?? 1,
+        product: product,
         variantStock: stock,
         variantLowStockThreshold: threshold,
-        variantStockStatus: deriveStockStatus(stock, threshold),
+        variantStockStatus: stockStatus,
       };
     });
+
+    return items;
   } catch (err) {
     console.error("fetchCartItems error:", err);
     return [];
@@ -229,7 +243,9 @@ export const useCartStore = create<CartStore>()(
         if (fetchCartPromise) return fetchCartPromise;
 
         fetchCartPromise = (async () => {
-          if (get().items.length === 0) set({ loading: true });
+          if (get().items.length === 0) {
+            set({ loading: true });
+          }
 
           try {
             const {
@@ -337,43 +353,24 @@ export const useCartStore = create<CartStore>()(
             }
 
             const freshItems = await fetchCartItems(cartId);
+
+            // Filter out out-of-stock items
+            const validItems = freshItems.filter((item) => {
+              const stockStatus = item.variantStockStatus ?? "in_stock";
+              if (stockStatus === "out_of_stock") {
+                supabase.from("cart_items").delete().eq("id", item.id);
+                return false;
+              }
+              return true;
+            });
+
+            // Merge with existing items from localStorage
             const currentItems = get().items;
+            const mergedItems = [...currentItems];
 
-            if (currentItems.length === 0) {
-              set({
-                cartId,
-                items: freshItems,
-                loading: false,
-                initialized: true,
-              });
-              return;
-            }
-
-            const mergedItems: CartItemWithDetails[] = [];
-
-            for (const currentItem of currentItems) {
-              if (currentItem.id.startsWith("temp_")) {
-                mergedItems.push(currentItem);
-                continue;
-              }
-
-              const dbItem = freshItems.find((fi) => fi.id === currentItem.id);
-              if (dbItem) {
-                mergedItems.push({
-                  ...currentItem,
-                  variantStock: dbItem.variantStock,
-                  variantLowStockThreshold: dbItem.variantLowStockThreshold,
-                  variantStockStatus: dbItem.variantStockStatus,
-                  updated_at: dbItem.updated_at,
-                });
-              }
-            }
-
-            for (const dbItem of freshItems) {
-              const existsInCurrent = currentItems.some(
-                (ci) => ci.id === dbItem.id
-              );
-              if (!existsInCurrent) {
+            for (const dbItem of validItems) {
+              const exists = mergedItems.some((i) => i.id === dbItem.id);
+              if (!exists && !dbItem.id.startsWith("temp_")) {
                 mergedItems.push(dbItem);
               }
             }
@@ -520,7 +517,6 @@ export const useCartStore = create<CartStore>()(
               });
             }
           } else {
-            // FIX: Use explicit column names without select(*) to avoid relationship issues
             const { data: inserted, error } = await supabase
               .from("cart_items")
               .insert({
@@ -534,9 +530,7 @@ export const useCartStore = create<CartStore>()(
                 quantity,
                 pieces_per_unit: piecesPerUnit,
               })
-              .select(
-                "id, cart_id, product_id, variant_id, variant_name, variant_price, variant_original_price, variant_image, quantity, pieces_per_unit, created_at, updated_at"
-              )
+              .select()
               .single();
 
             if (error || !inserted) {
@@ -555,14 +549,6 @@ export const useCartStore = create<CartStore>()(
               return;
             }
 
-            // Fetch product separately for the inserted item
-            const { data: productData } = await supabase
-              .from("products")
-              .select("*")
-              .eq("id", product.id)
-              .single();
-
-            const ins = inserted as any;
             set({
               items: get().items.map((i) =>
                 i.id.startsWith("temp_") &&
@@ -570,17 +556,13 @@ export const useCartStore = create<CartStore>()(
                 i.variant_id === variantId &&
                 (i.pieces_per_unit ?? 1) === piecesPerUnit
                   ? {
-                      ...ins,
-                      pieces_per_unit: ins.pieces_per_unit ?? piecesPerUnit,
+                      ...inserted,
+                      pieces_per_unit:
+                        inserted.pieces_per_unit ?? piecesPerUnit,
                       variantStock: rawStock,
                       variantLowStockThreshold: lowStockThreshold,
                       variantStockStatus: stockStatus,
-                      product: productData ?? {
-                        ...product,
-                        price: variantPrice,
-                        original_price: variantOriginalPrice,
-                        stock: rawStock,
-                      },
+                      product: product,
                     }
                   : i
               ),
@@ -610,7 +592,6 @@ export const useCartStore = create<CartStore>()(
         const ppu = item.pieces_per_unit ?? 1;
 
         if (stockStatus === "out_of_stock") {
-          alert("This item is out of stock");
           await get().removeFromCart(itemId);
           return;
         }
@@ -634,18 +615,20 @@ export const useCartStore = create<CartStore>()(
           items: items.map((i) => (i.id === itemId ? { ...i, quantity } : i)),
         });
 
-        const { error } = await supabase
-          .from("cart_items")
-          .update({ quantity })
-          .eq("id", itemId);
+        if (!itemId.startsWith("temp_")) {
+          const { error } = await supabase
+            .from("cart_items")
+            .update({ quantity })
+            .eq("id", itemId);
 
-        if (error) {
-          console.error("updateQuantity error:", error);
-          set({
-            items: get().items.map((i) =>
-              i.id === itemId ? { ...i, quantity: item.quantity } : i
-            ),
-          });
+          if (error) {
+            console.error("updateQuantity error:", error);
+            set({
+              items: get().items.map((i) =>
+                i.id === itemId ? { ...i, quantity: item.quantity } : i
+              ),
+            });
+          }
         }
       },
 
@@ -654,16 +637,22 @@ export const useCartStore = create<CartStore>()(
         markMutation();
 
         const { items } = get();
+
+        // Optimistic update - remove instantly from UI
         set({ items: items.filter((i) => i.id !== itemId) });
 
-        const { error } = await supabase
-          .from("cart_items")
-          .delete()
-          .eq("id", itemId);
+        // Delete from DB if not temp
+        if (!itemId.startsWith("temp_")) {
+          const { error } = await supabase
+            .from("cart_items")
+            .delete()
+            .eq("id", itemId);
 
-        if (error) {
-          console.error("removeFromCart error:", error);
-          set({ items });
+          if (error) {
+            console.error("removeFromCart error:", error);
+            // Rollback on error
+            set({ items });
+          }
         }
       },
 
@@ -671,9 +660,10 @@ export const useCartStore = create<CartStore>()(
       clearCart: async () => {
         markMutation();
         const { cartId } = get();
-        if (!cartId) return;
         set({ items: [] });
-        await supabase.from("cart_items").delete().eq("cart_id", cartId);
+        if (cartId) {
+          await supabase.from("cart_items").delete().eq("cart_id", cartId);
+        }
       },
 
       // ── getCartCount ───────────────────────────────────────────────────────
@@ -698,47 +688,59 @@ export const useCartStore = create<CartStore>()(
       name: "cart-storage",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        items: state.items
-          .filter((item) => !item.id.startsWith("temp_"))
-          .map((item) => ({
-            id: item.id,
-            cart_id: item.cart_id,
-            product_id: item.product_id,
-            variant_id: item.variant_id,
-            variant_name: item.variant_name,
-            variant_price: item.variant_price,
-            variant_original_price: item.variant_original_price,
-            variant_image: item.variant_image,
-            quantity: item.quantity,
-            pieces_per_unit: item.pieces_per_unit ?? 1,
-            created_at: item.created_at,
-            updated_at: item.updated_at,
-            variantStock: item.variantStock,
-            variantLowStockThreshold: item.variantLowStockThreshold,
-            variantStockStatus: item.variantStockStatus,
-            product: item.product
-              ? {
-                  id: item.product.id,
-                  name: item.product.name,
-                  description: item.product.description,
-                  category: item.product.category,
-                  subcategory: item.product.subcategory,
-                  images: item.product.images,
-                  brand: item.product.brand,
-                  condition: item.product.condition,
-                  is_featured: item.product.is_featured,
-                  is_active: item.product.is_active,
-                  price: item.variant_price ?? item.product.price,
-                  original_price:
-                    item.variant_original_price ?? item.product.original_price,
-                  stock: item.variantStock ?? item.product.stock,
-                  created_at: item.product.created_at,
-                  updated_at: item.product.updated_at,
-                }
-              : undefined,
-          })),
+        items: state.items.map((item) => ({
+          id: item.id,
+          cart_id: item.cart_id,
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+          variant_name: item.variant_name,
+          variant_price: item.variant_price,
+          variant_original_price: item.variant_original_price,
+          variant_image: item.variant_image,
+          quantity: item.quantity,
+          pieces_per_unit: item.pieces_per_unit ?? 1,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          variantStock: item.variantStock,
+          variantLowStockThreshold: item.variantLowStockThreshold,
+          variantStockStatus: item.variantStockStatus,
+          product: item.product
+            ? {
+                id: item.product.id,
+                name: item.product.name,
+                description: item.product.description,
+                category: item.product.category,
+                subcategory: item.product.subcategory,
+                images: item.product.images,
+                brand: item.product.brand,
+                condition: item.product.condition,
+                is_featured: item.product.is_featured,
+                is_active: item.product.is_active,
+                price: item.variant_price ?? item.product.price,
+                original_price:
+                  item.variant_original_price ?? item.product.original_price,
+                stock: item.variantStock ?? item.product.stock,
+                created_at: item.product.created_at,
+                updated_at: item.product.updated_at,
+              }
+            : undefined,
+        })),
         cartId: state.cartId,
+        sessionId: state.sessionId,
+        initialized: state.initialized,
       }),
+      onRehydrateStorage: () => (state) => {
+        console.log(
+          "🔄 Cart store rehydrated:",
+          state?.items?.length || 0,
+          "items"
+        );
+        if (state?.items?.length) {
+          setTimeout(() => {
+            console.log("✅ Cart ready with", state.items.length, "items");
+          }, 0);
+        }
+      },
     }
   )
 );

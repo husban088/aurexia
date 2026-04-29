@@ -12,8 +12,12 @@ const nextConfig = {
       },
     ],
   },
-  // Add font optimization
+  // Font optimization
   optimizeFonts: true,
+  // Suppress unused preload warnings for fonts loaded via CSS variables
+  experimental: {
+    optimizePackageImports: ["next/font"],
+  },
 };
 
 module.exports = nextConfig;

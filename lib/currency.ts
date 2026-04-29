@@ -4,7 +4,7 @@ export interface Currency {
   code: string;
   symbol: string;
   name: string;
-  rate: number; // Conversion rate from PKR
+  rate: number;
   flag: string;
   phoneCode: string;
   countryCode: string;
@@ -60,7 +60,7 @@ export const currencies: Currency[] = [
     code: "AED",
     symbol: "د.إ",
     name: "UAE Dirham",
-    rate: 0.013,
+    rate: 0.0132,
     flag: "🇦🇪",
     phoneCode: "+971",
     countryCode: "AE",
@@ -75,6 +75,15 @@ export const currencies: Currency[] = [
     countryCode: "SA",
   },
   {
+    code: "INR",
+    symbol: "₹",
+    name: "Indian Rupee",
+    rate: 0.3,
+    flag: "🇮🇳",
+    phoneCode: "+91",
+    countryCode: "IN",
+  },
+  {
     code: "PKR",
     symbol: "₨",
     name: "Pakistani Rupee",
@@ -85,11 +94,58 @@ export const currencies: Currency[] = [
   },
 ];
 
-export const defaultCurrency = currencies[0];
+// NO DEFAULT - Force detection
+export let defaultCurrency: Currency = currencies[0]; // Temporary, will be overridden
+
+// Comprehensive country to currency mapping
+const countryToCurrency: Record<string, string> = {
+  // Americas
+  US: "USD",
+  CA: "CAD",
+  MX: "USD",
+  // Europe
+  GB: "GBP",
+  DE: "EUR",
+  FR: "EUR",
+  IT: "EUR",
+  ES: "EUR",
+  NL: "EUR",
+  BE: "EUR",
+  PT: "EUR",
+  IE: "EUR",
+  AT: "EUR",
+  CH: "EUR",
+  SE: "SEK",
+  NO: "NOK",
+  DK: "DKK",
+  // Asia Pacific
+  AU: "AUD",
+  NZ: "AUD",
+  JP: "JPY",
+  CN: "CNY",
+  HK: "HKD",
+  SG: "SGD",
+  IN: "INR",
+  PK: "PKR",
+  BD: "BDT",
+  LK: "LKR",
+  NP: "NPR",
+  // Middle East
+  AE: "AED",
+  SA: "SAR",
+  QA: "AED",
+  KW: "AED",
+  OM: "AED",
+  BH: "AED",
+  // Africa
+  ZA: "ZAR",
+  NG: "NGN",
+};
 
 export function getCurrencyByCountry(countryCode: string): Currency {
-  const currency = currencies.find((c) => c.countryCode === countryCode);
-  return currency || defaultCurrency;
+  const currencyCode = countryToCurrency[countryCode] || "USD";
+  const currency = currencies.find((c) => c.code === currencyCode);
+  return currency || currencies[0];
 }
 
 export function convertPrice(
@@ -108,63 +164,70 @@ export function formatPrice(priceInPKR: number, currency: Currency): string {
   return `${currency.symbol}${formatted}`;
 }
 
-// STRONG CLIENT-SIDE IP DETECTION
+// MULTIPLE IP APIs for reliable detection
 export async function detectUserCountry(): Promise<string> {
-  // Try multiple free IP geolocation APIs
+  // Primary APIs in order of reliability
   const apis = [
-    "https://ipapi.co/json/",
-    "https://ip-api.com/json/",
-    "https://api.country.is/",
-    "https://worldtimeapi.org/api/ip",
+    { url: "https://ipapi.co/json/", parser: (data: any) => data.country_code },
+    {
+      url: "https://ip-api.com/json/",
+      parser: (data: any) => data.countryCode,
+    },
+    { url: "https://api.country.is/", parser: (data: any) => data.country },
+    {
+      url: "https://worldtimeapi.org/api/ip",
+      parser: (data: any) => data.client_country,
+    },
+    { url: "https://ipwho.is/", parser: (data: any) => data.country_code },
+    {
+      url: "https://freeipapi.com/api/json/",
+      parser: (data: any) => data.countryCode,
+    },
   ];
 
   for (const api of apis) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      const response = await fetch(api, { signal: controller.signal });
+      const response = await fetch(api.url, { signal: controller.signal });
       clearTimeout(timeoutId);
 
       if (!response.ok) continue;
 
       const data = await response.json();
-      let countryCode = null;
-
-      // Parse different API response formats
-      if (api.includes("ipapi.co")) {
-        countryCode = data.country_code;
-      } else if (api.includes("ip-api.com")) {
-        countryCode = data.countryCode;
-      } else if (api.includes("country.is")) {
-        countryCode = data.country;
-      } else if (api.includes("worldtimeapi")) {
-        countryCode = data.client_country;
-      }
+      let countryCode = api.parser(data);
 
       if (countryCode && countryCode.length === 2) {
-        console.log(`✅ Country detected from ${api}:`, countryCode);
+        console.log(`✅ Country detected from ${api.url}:`, countryCode);
         return countryCode;
       }
     } catch (error) {
-      console.log(`❌ API failed: ${api}`, error);
+      console.log(`❌ API failed: ${api.url}`);
       continue;
     }
   }
 
-  // Last resort: Use browser language
+  // Try browser language as fallback
   if (typeof navigator !== "undefined") {
     const lang = navigator.language;
-    if (lang.includes("AU") || lang === "en-AU") return "AU";
-    if (lang.includes("GB") || lang === "en-GB") return "GB";
-    if (lang.includes("CA")) return "CA";
+    const langMap: Record<string, string> = {
+      "en-US": "US",
+      "en-GB": "GB",
+      "en-AU": "AU",
+      "en-CA": "CA",
+      "ur-PK": "PK",
+      "ar-AE": "AE",
+      "ar-SA": "SA",
+      "hi-IN": "IN",
+      "de-DE": "DE",
+      "fr-FR": "FR",
+      "es-ES": "ES",
+      "it-IT": "IT",
+    };
+    if (langMap[lang]) return langMap[lang];
     if (lang.includes("PK")) return "PK";
-    if (lang.includes("AE") || lang.includes("AR")) return "AE";
-    if (lang.includes("SA")) return "SA";
-    if (lang.includes("DE")) return "DE";
-    if (lang.includes("FR")) return "FR";
-    if (lang.includes("ES")) return "ES";
-    if (lang.includes("IT")) return "IT";
+    if (lang.includes("US")) return "US";
+    if (lang.includes("GB")) return "GB";
   }
 
   console.log("⚠️ No country detected, defaulting to US");
@@ -174,7 +237,7 @@ export async function detectUserCountry(): Promise<string> {
 export function saveCurrencyPreference(currencyCode: string): void {
   if (typeof window !== "undefined") {
     localStorage.setItem("preferredCurrency", currencyCode);
-    document.cookie = `preferredCurrency=${currencyCode}; path=/; max-age=31536000`;
+    document.cookie = `preferredCurrency=${currencyCode}; path=/; max-age=31536000; SameSite=Lax`;
   }
 }
 
@@ -185,23 +248,10 @@ export function loadCurrencyPreference(): string | null {
   return null;
 }
 
-// Server-side detection (for production)
-export function getCountryFromHeaders(headers: Headers): string | null {
-  const headersToCheck = [
-    "cf-ipcountry",
-    "x-vercel-ip-country",
-    "cloudfront-viewer-country",
-    "x-country",
-    "x-geo-country",
-  ];
-
-  for (const header of headersToCheck) {
-    const value = headers.get(header);
-    if (value && value.length === 2) {
-      console.log(`✅ Country from header ${header}:`, value);
-      return value;
-    }
+export function clearCurrencyPreference(): void {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("preferredCurrency");
+    document.cookie =
+      "preferredCurrency=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   }
-
-  return null;
 }

@@ -5,7 +5,7 @@ import {
   BulkPricingTier,
 } from "@/app/components/BulkPricingManager";
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation"; // ← YEH IMPORT ADD KIYA
+import { useRouter } from "next/navigation";
 import PanelNavbar from "@/app/components/PanelNavbar";
 import {
   supabase,
@@ -281,24 +281,6 @@ function StockStatusSelector({
   lowStockThreshold: number | null;
   onThresholdChange: (threshold: number | null) => void;
 }) {
-  const handleInStock = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onChange("in_stock");
-  };
-
-  const handleOutOfStock = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onChange("out_of_stock");
-  };
-
-  const handleLowStock = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onChange("low_stock");
-  };
-
   const uniqueId = useRef(`stock_${Date.now()}_${Math.random()}`).current;
 
   return (
@@ -308,7 +290,11 @@ function StockStatusSelector({
           className={`ap-stock-radio-option ${
             value === "in_stock" ? "active-in-stock" : ""
           }`}
-          onClick={handleInStock}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onChange("in_stock");
+          }}
         >
           <input
             type="radio"
@@ -322,7 +308,11 @@ function StockStatusSelector({
           className={`ap-stock-radio-option ${
             value === "out_of_stock" ? "active-out-stock" : ""
           }`}
-          onClick={handleOutOfStock}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onChange("out_of_stock");
+          }}
         >
           <input
             type="radio"
@@ -336,7 +326,11 @@ function StockStatusSelector({
           className={`ap-stock-radio-option ${
             value === "low_stock" ? "active-low-stock" : ""
           }`}
-          onClick={handleLowStock}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onChange("low_stock");
+          }}
         >
           <input
             type="radio"
@@ -347,22 +341,9 @@ function StockStatusSelector({
           <span>Low Stock Alert</span>
         </div>
       </div>
-
       {value === "low_stock" && (
         <div className="ap-low-stock-threshold">
-          <label>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            Alert when quantity reaches:
-          </label>
+          <label>Alert when quantity reaches:</label>
           <input
             type="number"
             min="1"
@@ -421,7 +402,7 @@ function FAQBuilder({
           >
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          </svg>{" "}
           Add FAQ
         </button>
       </div>
@@ -478,7 +459,7 @@ function FAQBuilder({
         >
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
+        </svg>{" "}
         Add Another FAQ
       </button>
     </div>
@@ -686,7 +667,6 @@ function VariantFormItem({
           </svg>
         </button>
       </div>
-
       {expanded && (
         <div className="ap-variant-form-body">
           <div className="ap-row">
@@ -713,7 +693,6 @@ function VariantFormItem({
               />
             </div>
           </div>
-
           <div className="ap-field">
             <label className="ap-label">Description</label>
             <textarea
@@ -724,7 +703,6 @@ function VariantFormItem({
               rows={2}
             />
           </div>
-
           <div className="ap-field">
             <label className="ap-label">Stock Status</label>
             <StockStatusSelector
@@ -734,7 +712,6 @@ function VariantFormItem({
               onThresholdChange={setLowStockThreshold}
             />
           </div>
-
           <div className="ap-field">
             <label className="ap-label">Images</label>
             <MultiImageUploader
@@ -743,7 +720,6 @@ function VariantFormItem({
               onError={onError}
             />
           </div>
-
           {currentUnitPrice > 0 && (
             <BulkPricingManager
               unitPrice={currentUnitPrice}
@@ -850,7 +826,6 @@ function AttributeSelector({
           </div>
         )}
       </div>
-
       {values.length > 0 && (
         <div className="ap-variant-forms-container">
           {values.map((value, idx) => (
@@ -869,17 +844,17 @@ function AttributeSelector({
   );
 }
 
-// Simple Mode Form - FIXED with safe page reload using router
+// Simple Mode Form - INSTANT ADD (No Page Reload)
 function SimpleModeForm({
   tab,
   onSuccess,
   onError,
-  router, // ← router prop add kiya
+  router,
 }: {
   tab: (typeof TABS)[0];
   onSuccess: () => void;
   onError: (msg: string) => void;
-  router: any; // ← router prop add kiya
+  router: any;
 }) {
   const { currency } = useCurrency();
   const [name, setName] = useState("");
@@ -930,9 +905,8 @@ function SimpleModeForm({
     setUploading(false);
   };
 
-  const handleBulkTiersChange = (tiers: BulkPricingTier[]) => {
+  const handleBulkTiersChange = (tiers: BulkPricingTier[]) =>
     setBulkTiers(tiers);
-  };
 
   const resetForm = () => {
     setName("");
@@ -952,6 +926,10 @@ function SimpleModeForm({
 
     if (!name.trim()) {
       onError("Product name is required");
+      return;
+    }
+    if (!priceDisplay) {
+      onError("Sale price is required");
       return;
     }
 
@@ -976,7 +954,6 @@ function SimpleModeForm({
         ])
         .select()
         .single();
-
       if (productError) throw new Error(productError.message);
 
       const pricePKR = getPriceInPKR(priceDisplay);
@@ -985,6 +962,7 @@ function SimpleModeForm({
         : null;
       const stockVal = getStockValue();
 
+      // Insert variant
       const { data: variantData, error: variantError } = await supabase
         .from("product_variants")
         .insert([
@@ -1006,63 +984,68 @@ function SimpleModeForm({
         ])
         .select()
         .single();
-
       if (variantError) throw new Error(variantError.message);
 
+      // Parallel inserts for speed
+      const promises = [];
       if (images.length > 0) {
-        const imageInserts = images.map((url, idx) => ({
-          variant_id: variantData.id,
-          image_url: url,
-          display_order: idx,
-        }));
-        await supabase.from("variant_images").insert(imageInserts);
+        promises.push(
+          supabase
+            .from("variant_images")
+            .insert(
+              images.map((url, idx) => ({
+                variant_id: variantData.id,
+                image_url: url,
+                display_order: idx,
+              }))
+            )
+        );
       }
-
       if (bulkTiers.length > 0) {
         const validTiers = bulkTiers.filter(
           (t) => t.min_quantity && t.tier_price
         );
         if (validTiers.length > 0) {
-          const bulkInserts = validTiers.map((t) => ({
-            variant_id: variantData.id,
-            min_quantity: t.min_quantity,
-            max_quantity: t.max_quantity,
-            tier_price: convertPriceToPKR(t.tier_price, currency),
-            discount_percentage: t.discount_percentage,
-            discount_price: t.discount_price
-              ? convertPriceToPKR(t.discount_price, currency)
-              : null,
-            currency_code: currency.code,
-            base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
-          }));
-          await supabase.from("bulk_pricing_tiers").insert(bulkInserts);
+          promises.push(
+            supabase.from("bulk_pricing_tiers").insert(
+              validTiers.map((t) => ({
+                variant_id: variantData.id,
+                min_quantity: t.min_quantity,
+                max_quantity: t.max_quantity,
+                tier_price: convertPriceToPKR(t.tier_price, currency),
+                discount_percentage: t.discount_percentage,
+                discount_price: t.discount_price
+                  ? convertPriceToPKR(t.discount_price, currency)
+                  : null,
+                currency_code: currency.code,
+                base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
+              }))
+            )
+          );
         }
       }
-
       if (faqs.length > 0) {
         const validFaqs = faqs.filter((f) => f.question.trim());
         if (validFaqs.length > 0) {
-          const faqInserts = validFaqs.map((f, idx) => ({
-            product_id: productData.id,
-            question: f.question.trim(),
-            answer: f.answer.trim() || null,
-            display_order: idx,
-          }));
-          await supabase.from("product_faqs").insert(faqInserts);
+          promises.push(
+            supabase.from("product_faqs").insert(
+              validFaqs.map((f, idx) => ({
+                product_id: productData.id,
+                question: f.question.trim(),
+                answer: f.answer.trim() || null,
+                display_order: idx,
+              }))
+            )
+          );
         }
       }
+      await Promise.all(promises);
 
-      // Reset form, show success toast, then redirect to panel page
       resetForm();
-      onSuccess(); // This will show the success toast
+      onSuccess();
 
-      // Safe redirect to panel page after delay
-      setTimeout(() => {
-        // Client-side safe navigation
-        if (typeof window !== "undefined") {
-          router.push("/panel");
-        }
-      }, 1500);
+      // INSTANT REDIRECT - NO DELAY
+      router.push("/panel");
     } catch (err) {
       onError(err instanceof Error ? err.message : "Failed to save product");
       setIsSubmitting(false);
@@ -1098,11 +1081,10 @@ function SimpleModeForm({
                   required
                 />
               </div>
-
               <div className="ap-row">
                 <div className="ap-field">
                   <label className="ap-label">
-                    Sale Price ({currency.symbol})
+                    Sale Price ({currency.symbol}) *
                   </label>
                   <input
                     type="number"
@@ -1110,6 +1092,7 @@ function SimpleModeForm({
                     value={priceDisplay}
                     onChange={(e) => setPriceDisplay(e.target.value)}
                     placeholder="0"
+                    required
                   />
                 </div>
                 <div className="ap-field">
@@ -1125,7 +1108,6 @@ function SimpleModeForm({
                   />
                 </div>
               </div>
-
               <div className="ap-field">
                 <label className="ap-label">Description</label>
                 <textarea
@@ -1135,7 +1117,6 @@ function SimpleModeForm({
                   rows={3}
                 />
               </div>
-
               <div className="ap-row">
                 <div className="ap-field">
                   <label className="ap-label">Brand</label>
@@ -1158,7 +1139,6 @@ function SimpleModeForm({
                   </select>
                 </div>
               </div>
-
               <div className="ap-field">
                 <label className="ap-label">Stock Status</label>
                 <StockStatusSelector
@@ -1168,7 +1148,6 @@ function SimpleModeForm({
                   onThresholdChange={setLowStockThreshold}
                 />
               </div>
-
               {parseFloat(priceDisplay) > 0 && (
                 <div className="ap-field">
                   <label className="ap-label">
@@ -1182,7 +1161,6 @@ function SimpleModeForm({
                   />
                 </div>
               )}
-
               <div style={{ display: "flex", gap: "1.5rem" }}>
                 <label className="ap-check-wrap">
                   <input
@@ -1203,7 +1181,6 @@ function SimpleModeForm({
               </div>
             </div>
           </div>
-
           <div className="ap-card">
             <div className="ap-card-header">
               <div className="ap-card-icon">
@@ -1225,7 +1202,6 @@ function SimpleModeForm({
             </div>
           </div>
         </div>
-
         <div>
           <div className="ap-card">
             <div className="ap-card-header">
@@ -1278,7 +1254,6 @@ function SimpleModeForm({
                 </p>
                 <p className="ap-img-upload-sub">JPG, PNG, WEBP</p>
               </div>
-
               {images.length > 0 && (
                 <div className="ap-img-previews">
                   {images.map((url, i) => (
@@ -1307,7 +1282,6 @@ function SimpleModeForm({
               )}
             </div>
           </div>
-
           <div className="ap-card">
             <div className="ap-card-header">
               <div className="ap-card-icon">
@@ -1354,17 +1328,17 @@ function SimpleModeForm({
   );
 }
 
-// Detailed Mode Form - FIXED with safe page reload using router
+// Detailed Mode Form - INSTANT ADD (No Page Reload)
 function DetailedModeForm({
   tab,
   onSuccess,
   onError,
-  router, // ← router prop add kiya
+  router,
 }: {
   tab: (typeof TABS)[0];
   onSuccess: () => void;
   onError: (msg: string) => void;
-  router: any; // ← router prop add kiya
+  router: any;
 }) {
   const { currency } = useCurrency();
   const [name, setName] = useState("");
@@ -1375,12 +1349,10 @@ function DetailedModeForm({
   const [isActive, setIsActive] = useState(true);
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [colors, setColors] = useState<string[]>([]);
   const [sizes, setSizes] = useState<string[]>([]);
   const [materials, setMaterials] = useState<string[]>([]);
   const [capacities, setCapacities] = useState<string[]>([]);
-
   const [colorVariants, setColorVariants] = useState<any[]>([]);
   const [sizeVariants, setSizeVariants] = useState<any[]>([]);
   const [materialVariants, setMaterialVariants] = useState<any[]>([]);
@@ -1421,9 +1393,7 @@ function DetailedModeForm({
       ...capacityVariants,
     ];
     if (allVariants.length === 0) {
-      onError(
-        "Please add at least one attribute (color, size, material, or capacity)"
-      );
+      onError("Please add at least one attribute");
       return;
     }
 
@@ -1447,7 +1417,6 @@ function DetailedModeForm({
         ])
         .select()
         .single();
-
       if (productError) throw new Error(productError.message);
 
       for (const variant of allVariants) {
@@ -1476,38 +1445,38 @@ function DetailedModeForm({
           ])
           .select()
           .single();
-
         if (variantError) throw new Error(variantError.message);
 
         if (variant.images && variant.images.length > 0) {
-          const imageInserts = variant.images.map(
-            (url: string, idx: number) => ({
-              variant_id: variantData.id,
-              image_url: url,
-              display_order: idx,
-            })
-          );
-          await supabase.from("variant_images").insert(imageInserts);
+          await supabase
+            .from("variant_images")
+            .insert(
+              variant.images.map((url: string, idx: number) => ({
+                variant_id: variantData.id,
+                image_url: url,
+                display_order: idx,
+              }))
+            );
         }
-
         if (variant.bulkPricingTiers && variant.bulkPricingTiers.length > 0) {
           const validTiers = variant.bulkPricingTiers.filter(
             (t: BulkPricingTier) => t.min_quantity && t.tier_price
           );
           if (validTiers.length > 0) {
-            const bulkInserts = validTiers.map((t: BulkPricingTier) => ({
-              variant_id: variantData.id,
-              min_quantity: t.min_quantity,
-              max_quantity: t.max_quantity,
-              tier_price: convertPriceToPKR(t.tier_price, currency),
-              discount_percentage: t.discount_percentage,
-              discount_price: t.discount_price
-                ? convertPriceToPKR(t.discount_price, currency)
-                : null,
-              currency_code: currency.code,
-              base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
-            }));
-            await supabase.from("bulk_pricing_tiers").insert(bulkInserts);
+            await supabase.from("bulk_pricing_tiers").insert(
+              validTiers.map((t: BulkPricingTier) => ({
+                variant_id: variantData.id,
+                min_quantity: t.min_quantity,
+                max_quantity: t.max_quantity,
+                tier_price: convertPriceToPKR(t.tier_price, currency),
+                discount_percentage: t.discount_percentage,
+                discount_price: t.discount_price
+                  ? convertPriceToPKR(t.discount_price, currency)
+                  : null,
+                currency_code: currency.code,
+                base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
+              }))
+            );
           }
         }
       }
@@ -1515,27 +1484,22 @@ function DetailedModeForm({
       if (faqs.length > 0) {
         const validFaqs = faqs.filter((f) => f.question.trim());
         if (validFaqs.length > 0) {
-          const faqInserts = validFaqs.map((f, idx) => ({
-            product_id: productData.id,
-            question: f.question.trim(),
-            answer: f.answer.trim() || null,
-            display_order: idx,
-          }));
-          await supabase.from("product_faqs").insert(faqInserts);
+          await supabase.from("product_faqs").insert(
+            validFaqs.map((f, idx) => ({
+              product_id: productData.id,
+              question: f.question.trim(),
+              answer: f.answer.trim() || null,
+              display_order: idx,
+            }))
+          );
         }
       }
 
-      // Reset form, show success toast, then redirect to panel page
       resetForm();
-      onSuccess(); // This will show the success toast
+      onSuccess();
 
-      // Safe redirect to panel page after delay
-      setTimeout(() => {
-        // Client-side safe navigation
-        if (typeof window !== "undefined") {
-          router.push("/panel");
-        }
-      }, 1500);
+      // INSTANT REDIRECT - NO DELAY
+      router.push("/panel");
     } catch (err) {
       onError(err instanceof Error ? err.message : "Failed to save product");
       setIsSubmitting(false);
@@ -1577,7 +1541,6 @@ function DetailedModeForm({
                   required
                 />
               </div>
-
               <div className="ap-field">
                 <label className="ap-label">Description</label>
                 <textarea
@@ -1587,7 +1550,6 @@ function DetailedModeForm({
                   rows={3}
                 />
               </div>
-
               <div className="ap-row">
                 <div className="ap-field">
                   <label className="ap-label">Brand</label>
@@ -1610,7 +1572,6 @@ function DetailedModeForm({
                   </select>
                 </div>
               </div>
-
               <div style={{ display: "flex", gap: "1.5rem" }}>
                 <label className="ap-check-wrap">
                   <input
@@ -1631,7 +1592,6 @@ function DetailedModeForm({
               </div>
             </div>
           </div>
-
           <div className="ap-card">
             <div className="ap-card-header">
               <div className="ap-card-icon">
@@ -1690,7 +1650,6 @@ function DetailedModeForm({
               />
             </div>
           </div>
-
           <div className="ap-card">
             <div className="ap-card-header">
               <div className="ap-card-icon">
@@ -1712,7 +1671,6 @@ function DetailedModeForm({
             </div>
           </div>
         </div>
-
         <div className="ap-detailed-right">
           <div className="ap-card">
             <div className="ap-card-header">
@@ -1812,7 +1770,7 @@ function DetailedModeForm({
 }
 
 export default function AddProductPage() {
-  const router = useRouter(); // ← YEH ADD KIYA
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState(0);
   const [mode, setMode] = useState<Mode>("simple");
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -1834,6 +1792,13 @@ export default function AddProductPage() {
   const removeToast = (id: number) => {
     setToasts((p) => p.map((t) => (t.id === id ? { ...t, exiting: true } : t)));
     setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 350);
+  };
+
+  const handleModeChange = (newMode: Mode) => {
+    if (newMode === mode) return;
+    setToasts([]);
+    setMode(newMode);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   if (currencyLoading) {
@@ -1887,7 +1852,7 @@ export default function AddProductPage() {
           <button
             type="button"
             className={`ap-mode-btn ${mode === "simple" ? "active" : ""}`}
-            onClick={() => setMode("simple")}
+            onClick={() => handleModeChange("simple")}
           >
             <svg
               viewBox="0 0 24 24"
@@ -1906,7 +1871,7 @@ export default function AddProductPage() {
           <button
             type="button"
             className={`ap-mode-btn ${mode === "detailed" ? "active" : ""}`}
-            onClick={() => setMode("detailed")}
+            onClick={() => handleModeChange("detailed")}
           >
             <svg
               viewBox="0 0 24 24"
@@ -1940,31 +1905,31 @@ export default function AddProductPage() {
 
         {mode === "simple" ? (
           <SimpleModeForm
-            key={activeTab}
+            key={`simple-${mode}`}
             tab={TABS[activeTab]}
             onSuccess={() =>
               addToast(
                 "success",
                 "Product Saved",
-                `${TABS[activeTab].sub} added successfully in ${currency.code}! Redirecting...`
+                `${TABS[activeTab].sub} added successfully! Redirecting...`
               )
             }
             onError={(msg) => addToast("error", "Error", msg)}
-            router={router} // ← router prop pass kiya
+            router={router}
           />
         ) : (
           <DetailedModeForm
-            key={activeTab}
+            key={`detailed-${mode}`}
             tab={TABS[activeTab]}
             onSuccess={() =>
               addToast(
                 "success",
                 "Product Saved",
-                `${TABS[activeTab].sub} with variants added successfully in ${currency.code}! Redirecting...`
+                `${TABS[activeTab].sub} with variants added successfully! Redirecting...`
               )
             }
             onError={(msg) => addToast("error", "Error", msg)}
-            router={router} // ← router prop pass kiya
+            router={router}
           />
         )}
       </div>

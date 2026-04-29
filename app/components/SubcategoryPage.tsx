@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import ProductGrid from "./ProductGrid";
 import QuickView from "./QuickView";
@@ -57,6 +57,7 @@ export default function Subcategory({
   description,
   breadcrumb,
 }: SubcategoryPageProps) {
+  const [mounted, setMounted] = useState(false);
   const [quickViewOpen, setQuickViewOpen] = useState(false);
   const [quickViewProduct, setQuickViewProduct] =
     useState<QuickViewProduct | null>(null);
@@ -69,54 +70,22 @@ export default function Subcategory({
     Record<string, string[]>
   >({});
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const handleQuickView = async (productId: string) => {
     try {
-      // Fetch product details
+      // Fetch product with variants and images in ONE query
       const { data: productData, error: productError } = await supabase
         .from("products")
-        .select("*")
+        .select("*, product_variants(*, variant_images(*))")
         .eq("id", productId)
         .single();
 
-      if (productError) {
-        console.error("Error fetching product:", productError);
-        return;
-      }
+      if (productError) throw productError;
 
-      // Fetch variants
-      const { data: variantsData, error: variantsError } = await supabase
-        .from("product_variants")
-        .select("*")
-        .eq("product_id", productId)
-        .eq("is_active", true);
-
-      if (variantsError) {
-        console.error("Error fetching variants:", variantsError);
-        return;
-      }
-
-      // Fetch variant images
-      let imagesByVariant: Record<string, string[]> = {};
-      if (variantsData && variantsData.length > 0) {
-        const variantIds = variantsData.map((v: any) => v.id);
-        const { data: imagesData } = await supabase
-          .from("variant_images")
-          .select("*")
-          .in("variant_id", variantIds)
-          .order("display_order", { ascending: true });
-
-        if (imagesData) {
-          imagesData.forEach((img: any) => {
-            if (!imagesByVariant[img.variant_id]) {
-              imagesByVariant[img.variant_id] = [];
-            }
-            imagesByVariant[img.variant_id].push(img.image_url);
-          });
-        }
-        setVariantImagesMap(imagesByVariant);
-      }
-
-      // Get best variant for price (priority: standard > color > size > material > capacity)
+      const variants = productData.product_variants || [];
       const typePriority: Record<string, number> = {
         standard: 0,
         color: 1,
@@ -124,15 +93,22 @@ export default function Subcategory({
         material: 3,
         capacity: 4,
       };
-      const sortedVariants = [...(variantsData || [])].sort((a, b) => {
-        return (
+      const sortedVariants = [...variants].sort(
+        (a, b) =>
           (typePriority[a.attribute_type] || 5) -
           (typePriority[b.attribute_type] || 5)
-        );
-      });
+      );
       const bestVariant = sortedVariants[0];
 
-      // Get product images from variant
+      const imagesByVariant: Record<string, string[]> = {};
+      variants.forEach((variant: any) => {
+        if (variant.variant_images) {
+          imagesByVariant[variant.id] = variant.variant_images
+            .sort((a: any, b: any) => a.display_order - b.display_order)
+            .map((img: any) => img.image_url);
+        }
+      });
+
       let productImages: string[] = [];
       if (bestVariant && imagesByVariant[bestVariant.id]) {
         productImages = imagesByVariant[bestVariant.id];
@@ -170,13 +146,48 @@ export default function Subcategory({
       };
 
       setQuickViewProduct(quickViewData);
-      setQuickViewVariants(variantsData || []);
+      setQuickViewVariants(variants);
       setQuickViewSelectedVariant(bestVariant || null);
+      setVariantImagesMap(imagesByVariant);
       setQuickViewOpen(true);
     } catch (err) {
       console.error("QuickView error:", err);
     }
   };
+
+  if (!mounted) {
+    return (
+      <div className="sub-root">
+        <div className="sub-ambient" aria-hidden="true" />
+        <div className="sub-grain" aria-hidden="true" />
+        <div className="sub-hero">
+          <div className="sub-hero-inner">
+            <div className="pg-skeleton-grid">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="pg-skeleton-card">
+                  <div className="pg-skeleton-img" />
+                  <div className="pg-skeleton-body">
+                    <div
+                      className="pg-skeleton-line"
+                      style={{ width: "40%" }}
+                    />
+                    <div
+                      className="pg-skeleton-line"
+                      style={{ width: "80%" }}
+                    />
+                    <div
+                      className="pg-skeleton-line"
+                      style={{ width: "55%" }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -205,13 +216,11 @@ export default function Subcategory({
               <span className="sub-breadcrumb-sep">/</span>
               <span className="sub-breadcrumb-current">{subcategory}</span>
             </div>
-
             <h1
               className="sub-title"
               dangerouslySetInnerHTML={{ __html: title }}
             />
             <p className="sub-description">{description}</p>
-
             <div className="sub-deco">
               <div className="sub-deco-line" />
               <div className="sub-deco-diamond" />

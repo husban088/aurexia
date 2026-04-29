@@ -71,6 +71,7 @@ export default function Navbar({
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState("");
   const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const currencyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pathname = usePathname();
 
   const items = useCartStore((state) => state.items);
@@ -141,12 +142,24 @@ export default function Navbar({
     }, 150);
   };
 
-  // Helper: safe navigation with page reload
+  const handleCurrencyMouseEnter = () => {
+    if (currencyTimeoutRef.current) {
+      clearTimeout(currencyTimeoutRef.current);
+      currencyTimeoutRef.current = null;
+    }
+    setCurrencyOpen(true);
+  };
+
+  const handleCurrencyMouseLeave = () => {
+    currencyTimeoutRef.current = setTimeout(() => {
+      setCurrencyOpen(false);
+    }, 200);
+  };
+
   const navigateTo = (href: string) => {
     window.location.href = href;
   };
 
-  // Don't render until mounted (SSR fix)
   if (!mounted || currencyLoading) {
     return (
       <nav className="navbar">
@@ -165,19 +178,19 @@ export default function Navbar({
   return (
     <nav className={`navbar${scrolled ? " scrolled" : ""}`}>
       <div className="navbar-container">
-        {/* LEFT SECTION */}
+        {/* LEFT SECTION - Currency & Search */}
         <div className="navbar-left">
-          <div className="currency-dropdown">
-            <button
-              className="currency-btn"
-              onClick={() => setCurrencyOpen(!currencyOpen)}
-              onBlur={() => setTimeout(() => setCurrencyOpen(false), 200)}
-            >
+          <div
+            className="currency-dropdown"
+            onMouseEnter={handleCurrencyMouseEnter}
+            onMouseLeave={handleCurrencyMouseLeave}
+          >
+            <button className="currency-btn">
               <span className="currency-flag">{currency.flag}</span>
               <span className="currency-symbol">{currency.symbol}</span>
               <span className="currency-code">{currency.code}</span>
               <svg
-                className="currency-arrow"
+                className={`currency-arrow ${currencyOpen ? "open" : ""}`}
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -226,10 +239,11 @@ export default function Navbar({
               <circle cx="11" cy="11" r="7" />
               <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
             </svg>
+            <span className="nav-icon-tooltip">Search</span>
           </button>
         </div>
 
-        {/* CENTER SECTION */}
+        {/* CENTER SECTION - Logo */}
         <div className="navbar-center">
           <a
             href="/"
@@ -241,32 +255,40 @@ export default function Navbar({
           >
             <span className="logo-tech">TECH</span>
             <span className="logo-four">4U</span>
+            <span className="logo-luxury">LUXURY</span>
           </a>
         </div>
 
-        {/* RIGHT SECTION */}
+        {/* RIGHT SECTION - User & Cart (Desktop only) + Menu */}
         <div className="navbar-right">
-          <a
-            href={isSignedIn ? "/profile" : "/signin"}
-            className="nav-icon-btn user-btn"
-            aria-label={isSignedIn ? "My Profile" : "Sign In"}
-            onClick={(e) => {
-              e.preventDefault();
-              navigateTo(isSignedIn ? "/profile" : "/signin");
-            }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
+          {/* User Icon - Desktop Only */}
+          <div className="nav-desktop-only">
+            <a
+              href={isSignedIn ? "/profile" : "/signin"}
+              className="nav-icon-btn user-btn"
+              aria-label={isSignedIn ? "My Profile" : "Sign In"}
+              onClick={(e) => {
+                e.preventDefault();
+                navigateTo(isSignedIn ? "/profile" : "/signin");
+              }}
             >
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            {isSignedIn && <span className="user-active-dot" />}
-          </a>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              {isSignedIn && <span className="user-active-dot" />}
+              <span className="nav-icon-tooltip">
+                {isSignedIn ? "Profile" : "Sign In"}
+              </span>
+            </a>
+          </div>
 
+          {/* Cart Icon */}
           <button
             className="nav-icon-btn cart-btn"
             onClick={(e) => {
@@ -286,10 +308,12 @@ export default function Navbar({
               <path d="M16 10a4 4 0 01-8 0" />
             </svg>
             {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
+            <span className="nav-icon-tooltip">Cart</span>
           </button>
 
+          {/* Menu Button (Hamburger) - Mobile Only */}
           <button
-            className="nav-icon-btn menu-btn"
+            className="nav-icon-btn menu-btn mobile-only"
             onClick={(e) => {
               e.preventDefault();
               onMenuOpen();
@@ -299,12 +323,13 @@ export default function Navbar({
             <span />
             <span />
             <span />
+            <span className="nav-icon-tooltip">Menu</span>
           </button>
         </div>
       </div>
 
-      {/* BOTTOM NAVIGATION */}
-      <div className="navbar-bottom">
+      {/* BOTTOM NAVIGATION - Desktop Only */}
+      <div className="navbar-bottom desktop-only">
         <ul className="nav-links">
           {navLinks.map((link) => {
             const hasDropdown = categorySubcategories[link.href];

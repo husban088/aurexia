@@ -21,16 +21,37 @@ export default function Cart() {
     getCartCount,
   } = useCartStore();
   const { formatPrice, convertPrice } = useCurrency();
+  const [mounted, setMounted] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
 
-  // CRITICAL FIX: fetchCart ko dependency array mein mat rakho
-  // Zustand persist middleware ke saath function references change hote hain
-  // har render pe, jo infinite fetch loop create karta hai.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    fetchCart();
+    setMounted(true);
   }, []);
+
+  // 🔥 CRITICAL: Load from localStorage immediately
+  useEffect(() => {
+    if (mounted && !initialized) {
+      try {
+        const persisted = localStorage.getItem("cart-storage");
+        if (persisted) {
+          const parsed = JSON.parse(persisted);
+          if (parsed.state?.items?.length > 0) {
+            console.log(
+              "📦 Cart Page - Loaded from storage:",
+              parsed.state.items.length
+            );
+          }
+        }
+      } catch (e) {}
+    }
+  }, [mounted, initialized]);
+
+  useEffect(() => {
+    if (mounted) {
+      fetchCart();
+    }
+  }, [fetchCart, mounted]);
 
   const subtotal = getSubtotal();
   const cartCount = getCartCount();
@@ -56,8 +77,8 @@ export default function Cart() {
     }
   };
 
-  // Show spinner only when no items at all (not during background refresh)
-  if (loading && items.length === 0) {
+  // Show spinner only when no items at all
+  if (!mounted || (loading && items.length === 0)) {
     return (
       <div className="cart-root">
         <div className="cart-grain" aria-hidden="true" />
@@ -194,7 +215,6 @@ export default function Cart() {
             <div className="cart-items-col">
               <ul className="cart-list">
                 {items.map((item, i) => {
-                  // NEVER skip items — cartStore always builds a fallback product
                   const product = item.product ?? {
                     id: item.product_id,
                     name: item.variant_name || "Product",
@@ -210,20 +230,14 @@ export default function Cart() {
                     stock: item.variantStock ?? 0,
                   };
 
-                  // pieces_per_unit: physical pieces per cart "unit"
                   const ppu = item.pieces_per_unit ?? 1;
-
-                  // price is per-piece; total = price × ppu × quantity
                   const itemPrice = item.variant_price ?? product.price ?? 0;
                   const itemTotal = itemPrice * ppu * item.quantity;
-
-                  // total physical pieces for display
                   const totalPieces = ppu * item.quantity;
 
                   const displayImage =
                     item.variant_image || product.images?.[0] || null;
 
-                  // name: "Product (2-Piece)" if bulk tier
                   const tierLabel = ppu > 1 ? ` (${ppu}-Piece)` : "";
                   const variantSuffix =
                     item.variant_name && item.variant_name !== "Standard"
@@ -243,7 +257,6 @@ export default function Cart() {
                     return "In Stock";
                   };
 
-                  // max units = floor(stock / ppu); in_stock = unlimited
                   const maxUnits =
                     stockStatus === "in_stock"
                       ? 999999
@@ -252,6 +265,10 @@ export default function Cart() {
                   const canIncrement =
                     !isOutOfStock && item.quantity < maxUnits;
                   const canDecrement = !isOutOfStock && item.quantity > 1;
+
+                  const handleRemoveClick = async () => {
+                    await removeFromCart(item.id);
+                  };
 
                   return (
                     <li
@@ -298,7 +315,6 @@ export default function Cart() {
                           {product.subcategory}
                         </p>
 
-                        {/* Per-piece breakdown for bulk tiers */}
                         {ppu > 1 && (
                           <p
                             style={{
@@ -324,7 +340,6 @@ export default function Cart() {
                           </p>
                         )}
 
-                        {/* Stock Status */}
                         <p
                           className={`cart-item-stock ${
                             isOutOfStock ? "out" : isLowStock ? "low" : "in"
@@ -395,7 +410,7 @@ export default function Cart() {
 
                       <button
                         className="cart-item-remove"
-                        onClick={() => removeFromCart(item.id)}
+                        onClick={handleRemoveClick}
                         aria-label={`Remove ${product.name}`}
                       >
                         <svg
