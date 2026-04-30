@@ -986,22 +986,6 @@ function SimpleModeForm({
     setIsSubmitting(true);
     console.log("🚀 Starting product save...");
 
-    // Helper: wrap any supabase call with a 10s timeout
-    async function withTimeout<T>(
-      promise: Promise<T>,
-      label: string
-    ): Promise<T> {
-      return Promise.race([
-        promise,
-        new Promise<T>((_, reject) =>
-          setTimeout(
-            () => reject(new Error(`${label} timed out after 10s`)),
-            10000
-          )
-        ),
-      ]);
-    }
-
     try {
       // ✅ Check session first
       const { data: sessionData } = await supabase.auth.getSession();
@@ -1027,54 +1011,50 @@ function SimpleModeForm({
 
       // 1. Insert Product
       console.log("📦 Inserting product...");
-      const { data: productData, error: productError } = await withTimeout(
-        supabase
-          .from("products")
-          .insert({
-            name: name.trim(),
-            description: description.trim() || null,
-            category: tab.category,
-            subcategory: tab.sub,
-            brand: brand.trim() || null,
-            condition,
-            is_featured: isFeatured,
-            is_active: isActive,
-          })
-          .select()
-          .single(),
-        "Product insert"
-      );
+      const productRes = await supabase
+        .from("products")
+        .insert({
+          name: name.trim(),
+          description: description.trim() || null,
+          category: tab.category,
+          subcategory: tab.sub,
+          brand: brand.trim() || null,
+          condition,
+          is_featured: isFeatured,
+          is_active: isActive,
+        })
+        .select()
+        .single();
 
-      if (productError)
-        throw new Error(`Product insert failed: ${productError.message}`);
-      if (!productData) throw new Error("No product data returned from DB");
+      if (productRes.error)
+        throw new Error(`Product insert failed: ${productRes.error.message}`);
+      if (!productRes.data) throw new Error("No product data returned from DB");
+      const productData = productRes.data;
       console.log("✅ Product inserted:", productData.id);
 
       // 2. Insert Variant
       console.log("📦 Inserting variant...");
-      const { data: variantData, error: variantError } = await withTimeout(
-        supabase
-          .from("product_variants")
-          .insert({
-            product_id: productData.id,
-            attribute_type: "standard",
-            attribute_value: "Standard",
-            price: pricePKR,
-            original_price: originalPricePKR,
-            description: description.trim() || null,
-            stock: getStockValue(),
-            low_stock_threshold:
-              stockStatus === "low_stock" ? lowStockThreshold : null,
-            is_active: true,
-          })
-          .select()
-          .single(),
-        "Variant insert"
-      );
+      const variantRes = await supabase
+        .from("product_variants")
+        .insert({
+          product_id: productData.id,
+          attribute_type: "standard",
+          attribute_value: "Standard",
+          price: pricePKR,
+          original_price: originalPricePKR,
+          description: description.trim() || null,
+          stock: getStockValue(),
+          low_stock_threshold:
+            stockStatus === "low_stock" ? lowStockThreshold : null,
+          is_active: true,
+        })
+        .select()
+        .single();
 
-      if (variantError)
-        throw new Error(`Variant insert failed: ${variantError.message}`);
-      if (!variantData) throw new Error("No variant data returned from DB");
+      if (variantRes.error)
+        throw new Error(`Variant insert failed: ${variantRes.error.message}`);
+      if (!variantRes.data) throw new Error("No variant data returned from DB");
+      const variantData = variantRes.data;
       console.log("✅ Variant inserted:", variantData.id);
 
       // 3. Insert Images (background - don't block)
@@ -1528,22 +1508,6 @@ function DetailedModeForm({
     setIsSubmitting(true);
     console.log("🚀 Starting detailed product save...");
 
-    // Helper: wrap any supabase call with a 10s timeout
-    async function withTimeout<T>(
-      promise: Promise<T>,
-      label: string
-    ): Promise<T> {
-      return Promise.race([
-        promise,
-        new Promise<T>((_, reject) =>
-          setTimeout(
-            () => reject(new Error(`${label} timed out after 10s`)),
-            10000
-          )
-        ),
-      ]);
-    }
-
     try {
       // ✅ Check session first
       const { data: sessionData } = await supabase.auth.getSession();
@@ -1556,27 +1520,25 @@ function DetailedModeForm({
 
       // 1. Insert Product
       console.log("📦 Inserting product...");
-      const { data: productData, error: productError } = await withTimeout(
-        supabase
-          .from("products")
-          .insert({
-            name: name.trim(),
-            description: description.trim() || null,
-            category: tab.category,
-            subcategory: tab.sub,
-            brand: brand.trim() || null,
-            condition,
-            is_featured: isFeatured,
-            is_active: isActive,
-          })
-          .select()
-          .single(),
-        "Product insert"
-      );
+      const productRes = await supabase
+        .from("products")
+        .insert({
+          name: name.trim(),
+          description: description.trim() || null,
+          category: tab.category,
+          subcategory: tab.sub,
+          brand: brand.trim() || null,
+          condition,
+          is_featured: isFeatured,
+          is_active: isActive,
+        })
+        .select()
+        .single();
 
-      if (productError)
-        throw new Error(`Product insert failed: ${productError.message}`);
-      if (!productData) throw new Error("No product data returned from DB");
+      if (productRes.error)
+        throw new Error(`Product insert failed: ${productRes.error.message}`);
+      if (!productRes.data) throw new Error("No product data returned from DB");
+      const productData = productRes.data;
       console.log("✅ Product inserted:", productData.id);
 
       // 2. Insert each variant
@@ -1601,30 +1563,28 @@ function DetailedModeForm({
         if (pricePKR <= 0) pricePKR = 0.01;
 
         console.log(`📦 Inserting variant: ${variant.attributeValue}...`);
-        const { data: variantData, error: variantError } = await withTimeout(
-          supabase
-            .from("product_variants")
-            .insert({
-              product_id: productData.id,
-              attribute_type: variant.attributeType,
-              attribute_value: variant.attributeValue,
-              price: pricePKR,
-              original_price: originalPricePKR,
-              description: variant.description || description.trim() || null,
-              stock: variant.stock || 999999,
-              low_stock_threshold: variant.lowStockThreshold || null,
-              is_active: true,
-            })
-            .select()
-            .single(),
-          `Variant insert (${variant.attributeValue})`
-        );
+        const variantRes = await supabase
+          .from("product_variants")
+          .insert({
+            product_id: productData.id,
+            attribute_type: variant.attributeType,
+            attribute_value: variant.attributeValue,
+            price: pricePKR,
+            original_price: originalPricePKR,
+            description: variant.description || description.trim() || null,
+            stock: variant.stock || 999999,
+            low_stock_threshold: variant.lowStockThreshold || null,
+            is_active: true,
+          })
+          .select()
+          .single();
 
-        if (variantError) {
-          console.error("Variant error:", variantError);
+        if (variantRes.error) {
+          console.error("Variant error:", variantRes.error);
           continue;
         }
-        if (!variantData) continue;
+        if (!variantRes.data) continue;
+        const variantData = variantRes.data;
         console.log(`✅ Variant inserted: ${variantData.id}`);
 
         // Insert images for this variant (background)
