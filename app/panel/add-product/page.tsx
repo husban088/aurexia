@@ -38,7 +38,6 @@ type FAQ = {
 
 type StockStatus = "in_stock" | "out_of_stock" | "low_stock";
 
-// Pre-defined suggestions
 const COLOR_SUGGESTIONS = [
   "Black",
   "White",
@@ -269,7 +268,6 @@ function ToastContainer({
   );
 }
 
-// Stock Status Selector Component
 function StockStatusSelector({
   value,
   onChange,
@@ -282,7 +280,6 @@ function StockStatusSelector({
   onThresholdChange: (threshold: number | null) => void;
 }) {
   const uniqueId = useRef(`stock_${Date.now()}_${Math.random()}`).current;
-
   return (
     <div>
       <div className="ap-stock-radio-group">
@@ -362,7 +359,6 @@ function StockStatusSelector({
   );
 }
 
-// FAQ Builder Component
 function FAQBuilder({
   faqs,
   setFaqs,
@@ -466,35 +462,50 @@ function FAQBuilder({
   );
 }
 
-// Multi-Image Upload Component
 function MultiImageUploader({
   images,
   onImagesChange,
   onError,
+  maxImages = 20,
 }: {
   images: string[];
   onImagesChange: (imgs: string[]) => void;
   onError: (msg: string) => void;
+  maxImages?: number;
 }) {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleUpload = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      onError("Only image files are allowed");
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    if (images.length + files.length > maxImages) {
+      onError(`Maximum ${maxImages} images allowed`);
+      if (fileRef.current) fileRef.current.value = "";
       return;
     }
+
     setUploading(true);
+    const newUrls: string[] = [];
     try {
-      const url = await uploadToCloudinary(file);
-      onImagesChange([...images, url]);
-    } catch (err) {
-      onError(
-        "Upload failed: " +
-          (err instanceof Error ? err.message : "Unknown error")
-      );
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith("image/")) {
+          onError(`"${file.name}" is not an image file`);
+          continue;
+        }
+        try {
+          const url = await uploadToCloudinary(file);
+          newUrls.push(url);
+        } catch (err) {
+          onError(`Failed to upload ${file.name}`);
+        }
+      }
+      onImagesChange([...images, ...newUrls]);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
     }
-    setUploading(false);
   };
 
   const removeImage = (index: number) =>
@@ -523,52 +534,58 @@ function MultiImageUploader({
             </button>
           </div>
         ))}
-        <button
-          type="button"
-          className="ap-variant-image-add"
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-        >
-          {uploading ? (
-            <div
-              className="ap-spinner"
-              style={{ width: "20px", height: "20px" }}
-            />
-          ) : (
-            "+ Upload Image"
-          )}
-        </button>
+        {images.length < maxImages && (
+          <button
+            type="button"
+            className="ap-variant-image-add"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <div
+                className="ap-spinner"
+                style={{ width: "20px", height: "20px" }}
+              />
+            ) : (
+              <>+ Add Image</>
+            )}
+          </button>
+        )}
         <input
           ref={fileRef}
           type="file"
           accept="image/*"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) handleUpload(f);
-            if (fileRef.current) fileRef.current.value = "";
-          }}
+          multiple
+          onChange={handleFileSelect}
           style={{ display: "none" }}
         />
       </div>
+      {images.length > 0 && (
+        <div className="ap-image-count">
+          {images.length} / {maxImages} images
+        </div>
+      )}
     </div>
   );
 }
 
-// Variant Form Item
 function VariantFormItem({
   attributeType,
   attributeValue,
   onUpdate,
   onRemove,
   onError,
+  currencyRate,
+  currencyCode,
 }: {
   attributeType: string;
   attributeValue: string;
   onUpdate: (data: any) => void;
   onRemove: () => void;
   onError: (msg: string) => void;
+  currencyRate: number;
+  currencyCode: string;
 }) {
-  const { currency } = useCurrency();
   const [priceDisplay, setPriceDisplay] = useState("");
   const [originalPriceDisplay, setOriginalPriceDisplay] = useState("");
   const [description, setDescription] = useState("");
@@ -580,32 +597,35 @@ function VariantFormItem({
   const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>([]);
   const [expanded, setExpanded] = useState(true);
 
+  const onUpdateRef = useRef(onUpdate);
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
   const getStockValue = (): number => {
-    switch (stockStatus) {
-      case "out_of_stock":
-        return 0;
-      case "low_stock":
-        return lowStockThreshold || 5;
-      default:
-        return 999999;
-    }
+    if (stockStatus === "out_of_stock") return 0;
+    if (stockStatus === "low_stock") return lowStockThreshold || 5;
+    return 999999;
   };
 
-  const getPriceInPKR = (displayPrice: string): number => {
+  const getPriceInPKRFast = (displayPrice: string): number => {
     const priceNum = parseFloat(displayPrice) || 0;
-    return convertPriceToPKR(priceNum, currency);
+    if (currencyCode === "PKR") return priceNum;
+    return Math.round((priceNum / currencyRate) * 100) / 100;
   };
 
   useEffect(() => {
-    onUpdate({
+    const pricePKR = getPriceInPKRFast(priceDisplay);
+    const originalPricePKR = originalPriceDisplay
+      ? getPriceInPKRFast(originalPriceDisplay)
+      : null;
+    onUpdateRef.current({
       attributeType,
       attributeValue,
-      pricePKR: getPriceInPKR(priceDisplay),
-      priceDisplay: priceDisplay,
-      originalPricePKR: originalPriceDisplay
-        ? getPriceInPKR(originalPriceDisplay)
-        : null,
-      originalPriceDisplay: originalPriceDisplay,
+      pricePKR,
+      priceDisplay,
+      originalPricePKR,
+      originalPriceDisplay,
       description,
       stock: getStockValue(),
       lowStockThreshold: stockStatus === "low_stock" ? lowStockThreshold : null,
@@ -613,9 +633,12 @@ function VariantFormItem({
       stockStatus,
       bulkPricingTiers: bulkTiers.map((tier) => ({
         ...tier,
-        tier_price: convertPriceToPKR(tier.tier_price, currency),
+        tier_price:
+          currencyCode !== "PKR"
+            ? Math.round((tier.tier_price / currencyRate) * 100) / 100
+            : tier.tier_price,
       })),
-      displayCurrency: currency.code,
+      displayCurrency: currencyCode,
     });
   }, [
     priceDisplay,
@@ -625,10 +648,19 @@ function VariantFormItem({
     lowStockThreshold,
     images,
     bulkTiers,
-    currency,
+    currencyRate,
+    currencyCode,
+    attributeType,
+    attributeValue,
   ]);
 
   const currentUnitPrice = parseFloat(priceDisplay) || 0;
+  const getSymbol = () => {
+    if (currencyCode === "PKR") return "₨";
+    if (currencyCode === "USD") return "$";
+    if (currencyCode === "GBP") return "£";
+    return "€";
+  };
 
   return (
     <div className="ap-variant-form-item">
@@ -671,9 +703,10 @@ function VariantFormItem({
         <div className="ap-variant-form-body">
           <div className="ap-row">
             <div className="ap-field">
-              <label className="ap-label">Sale Price ({currency.symbol})</label>
+              <label className="ap-label">Sale Price ({getSymbol()})</label>
               <input
                 type="number"
+                step="0.01"
                 className="ap-input"
                 value={priceDisplay}
                 onChange={(e) => setPriceDisplay(e.target.value)}
@@ -681,11 +714,10 @@ function VariantFormItem({
               />
             </div>
             <div className="ap-field">
-              <label className="ap-label">
-                Original Price ({currency.symbol})
-              </label>
+              <label className="ap-label">Original Price ({getSymbol()})</label>
               <input
                 type="number"
+                step="0.01"
                 className="ap-input"
                 value={originalPriceDisplay}
                 onChange={(e) => setOriginalPriceDisplay(e.target.value)}
@@ -713,11 +745,12 @@ function VariantFormItem({
             />
           </div>
           <div className="ap-field">
-            <label className="ap-label">Images</label>
+            <label className="ap-label">Images (Max 20)</label>
             <MultiImageUploader
               images={images}
               onImagesChange={setImages}
               onError={onError}
+              maxImages={20}
             />
           </div>
           {currentUnitPrice > 0 && (
@@ -734,7 +767,6 @@ function VariantFormItem({
   );
 }
 
-// Attribute Selector Component
 function AttributeSelector({
   label,
   type,
@@ -744,6 +776,8 @@ function AttributeSelector({
   variants,
   setVariants,
   onError,
+  currencyRate,
+  currencyCode,
 }: {
   label: string;
   type: string;
@@ -751,8 +785,10 @@ function AttributeSelector({
   setValues: (v: string[]) => void;
   suggestions: string[];
   variants: any[];
-  setVariants: (v: any[]) => void;
+  setVariants: (v: any[] | ((prev: any[]) => any[])) => void;
   onError: (msg: string) => void;
+  currencyRate: number;
+  currencyCode: string;
 }) {
   const [inputValue, setInputValue] = useState("");
 
@@ -784,11 +820,17 @@ function AttributeSelector({
     setVariants(variants.filter((v) => v.attributeValue !== valueToRemove));
   };
 
-  const updateVariant = (index: number, data: any) => {
-    const newVariants = [...variants];
-    newVariants[index] = { ...newVariants[index], ...data };
-    setVariants(newVariants);
-  };
+  const updateVariant = useCallback(
+    (index: number, data: any) => {
+      setVariants((prev: any[]) => {
+        const newVariants = [...prev];
+        if (newVariants[index])
+          newVariants[index] = { ...newVariants[index], ...data };
+        return newVariants;
+      });
+    },
+    [setVariants]
+  );
 
   const filteredSuggestions = suggestions.filter(
     (s) =>
@@ -836,6 +878,8 @@ function AttributeSelector({
               onUpdate={(data) => updateVariant(idx, data)}
               onRemove={() => removeValue(value)}
               onError={onError}
+              currencyRate={currencyRate}
+              currencyCode={currencyCode}
             />
           ))}
         </div>
@@ -844,7 +888,9 @@ function AttributeSelector({
   );
 }
 
-// Simple Mode Form - INSTANT ADD (No Page Reload)
+// ============================================================
+// SIMPLE MODE - FIXED
+// ============================================================
 function SimpleModeForm({
   tab,
   onSuccess,
@@ -876,38 +922,40 @@ function SimpleModeForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const handleImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    if (images.length + files.length > 20) {
+      onError("Maximum 20 images allowed");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    setUploading(true);
+    const newUrls: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.type.startsWith("image/")) {
+        onError(`"${file.name}" is not an image file`);
+        continue;
+      }
+      try {
+        const url = await uploadToCloudinary(file);
+        newUrls.push(url);
+      } catch (err) {
+        onError(`Failed to upload ${file.name}`);
+      }
+    }
+    setImages([...images, ...newUrls]);
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const removeImage = (index: number) =>
+    setImages(images.filter((_, i) => i !== index));
   const getStockValue = (): number => {
     if (stockStatus === "out_of_stock") return 0;
     if (stockStatus === "low_stock") return lowStockThreshold || 5;
     return 999999;
   };
-
-  const getPriceInPKR = (displayPrice: string): number => {
-    const priceNum = parseFloat(displayPrice) || 0;
-    return convertPriceToPKR(priceNum, currency);
-  };
-
-  const handleImageUpload = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      onError("Only image files are allowed");
-      return;
-    }
-    setUploading(true);
-    try {
-      const url = await uploadToCloudinary(file);
-      setImages([...images, url]);
-    } catch (err) {
-      onError(
-        "Upload failed: " +
-          (err instanceof Error ? err.message : "Unknown error")
-      );
-    }
-    setUploading(false);
-  };
-
-  const handleBulkTiersChange = (tiers: BulkPricingTier[]) =>
-    setBulkTiers(tiers);
-
   const resetForm = () => {
     setName("");
     setDescription("");
@@ -923,131 +971,186 @@ function SimpleModeForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
 
     if (!name.trim()) {
       onError("Product name is required");
       return;
     }
-    if (!priceDisplay) {
-      onError("Sale price is required");
+    if (!priceDisplay || parseFloat(priceDisplay) <= 0) {
+      onError("Sale price is required and must be greater than 0");
       return;
     }
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
+    console.log("🚀 Starting product save...");
+
+    // Helper: wrap any supabase call with a 10s timeout
+    async function withTimeout<T>(
+      promise: Promise<T>,
+      label: string
+    ): Promise<T> {
+      return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`${label} timed out after 10s`)),
+            10000
+          )
+        ),
+      ]);
+    }
 
     try {
-      // Insert product
-      const { data: productData, error: productError } = await supabase
-        .from("products")
-        .insert([
-          {
+      // ✅ Check session first
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        throw new Error("Not authenticated. Please sign in again.");
+      }
+
+      const currentCurrency = currency;
+      const currentRate = currency.rate;
+      const priceNum = parseFloat(priceDisplay);
+      const originalPriceNum = parseFloat(originalPriceDisplay) || 0;
+
+      let pricePKR = priceNum;
+      let originalPricePKR: number | null =
+        originalPriceNum > 0 ? originalPriceNum : null;
+      if (currentCurrency.code !== "PKR" && currentRate > 0) {
+        pricePKR = Number((priceNum / currentRate).toFixed(2));
+        if (originalPricePKR)
+          originalPricePKR = Number(
+            (originalPriceNum / currentRate).toFixed(2)
+          );
+      }
+
+      // 1. Insert Product
+      console.log("📦 Inserting product...");
+      const { data: productData, error: productError } = await withTimeout(
+        supabase
+          .from("products")
+          .insert({
             name: name.trim(),
-            description: description.trim(),
+            description: description.trim() || null,
             category: tab.category,
             subcategory: tab.sub,
             brand: brand.trim() || null,
             condition,
             is_featured: isFeatured,
             is_active: isActive,
-            currency_code: currency.code,
-          },
-        ])
-        .select()
-        .single();
-      if (productError) throw new Error(productError.message);
+          })
+          .select()
+          .single(),
+        "Product insert"
+      );
 
-      const pricePKR = getPriceInPKR(priceDisplay);
-      const originalPricePKR = originalPriceDisplay
-        ? getPriceInPKR(originalPriceDisplay)
-        : null;
-      const stockVal = getStockValue();
+      if (productError)
+        throw new Error(`Product insert failed: ${productError.message}`);
+      if (!productData) throw new Error("No product data returned from DB");
+      console.log("✅ Product inserted:", productData.id);
 
-      // Insert variant
-      const { data: variantData, error: variantError } = await supabase
-        .from("product_variants")
-        .insert([
-          {
+      // 2. Insert Variant
+      console.log("📦 Inserting variant...");
+      const { data: variantData, error: variantError } = await withTimeout(
+        supabase
+          .from("product_variants")
+          .insert({
             product_id: productData.id,
             attribute_type: "standard",
             attribute_value: "Standard",
             price: pricePKR,
             original_price: originalPricePKR,
-            description: description.trim(),
-            stock: stockVal,
+            description: description.trim() || null,
+            stock: getStockValue(),
             low_stock_threshold:
               stockStatus === "low_stock" ? lowStockThreshold : null,
             is_active: true,
-            currency_code: currency.code,
-            base_price_pkr: pricePKR,
-            base_original_price_pkr: originalPricePKR,
-          },
-        ])
-        .select()
-        .single();
-      if (variantError) throw new Error(variantError.message);
+          })
+          .select()
+          .single(),
+        "Variant insert"
+      );
 
-      // Parallel inserts for speed
-      const promises = [];
+      if (variantError)
+        throw new Error(`Variant insert failed: ${variantError.message}`);
+      if (!variantData) throw new Error("No variant data returned from DB");
+      console.log("✅ Variant inserted:", variantData.id);
+
+      // 3. Insert Images (background - don't block)
       if (images.length > 0) {
-        promises.push(
-          supabase
-            .from("variant_images")
-            .insert(
-              images.map((url, idx) => ({
-                variant_id: variantData.id,
-                image_url: url,
-                display_order: idx,
-              }))
-            )
-        );
+        console.log(`📸 Inserting ${images.length} images...`);
+        supabase
+          .from("variant_images")
+          .insert(
+            images.map((url, idx) => ({
+              variant_id: variantData.id,
+              image_url: url,
+              display_order: idx,
+            }))
+          )
+          .then((res) => {
+            if (res.error) console.error("Image insert error:", res.error);
+          });
       }
-      if (bulkTiers.length > 0) {
-        const validTiers = bulkTiers.filter(
-          (t) => t.min_quantity && t.tier_price
-        );
-        if (validTiers.length > 0) {
-          promises.push(
-            supabase.from("bulk_pricing_tiers").insert(
-              validTiers.map((t) => ({
-                variant_id: variantData.id,
-                min_quantity: t.min_quantity,
-                max_quantity: t.max_quantity,
-                tier_price: convertPriceToPKR(t.tier_price, currency),
-                discount_percentage: t.discount_percentage,
-                discount_price: t.discount_price
-                  ? convertPriceToPKR(t.discount_price, currency)
-                  : null,
-                currency_code: currency.code,
-                base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
-              }))
-            )
-          );
-        }
-      }
-      if (faqs.length > 0) {
-        const validFaqs = faqs.filter((f) => f.question.trim());
-        if (validFaqs.length > 0) {
-          promises.push(
-            supabase.from("product_faqs").insert(
-              validFaqs.map((f, idx) => ({
-                product_id: productData.id,
-                question: f.question.trim(),
-                answer: f.answer.trim() || null,
-                display_order: idx,
-              }))
-            )
-          );
-        }
-      }
-      await Promise.all(promises);
 
+      // 4. Insert Bulk Tiers (background)
+      const validTiers = bulkTiers.filter(
+        (t) => t.min_quantity && t.tier_price > 0
+      );
+      if (validTiers.length > 0) {
+        console.log(`📊 Inserting ${validTiers.length} bulk tiers...`);
+        supabase
+          .from("bulk_pricing_tiers")
+          .insert(
+            validTiers.map((t) => ({
+              variant_id: variantData.id,
+              min_quantity: t.min_quantity,
+              max_quantity: t.max_quantity,
+              tier_price:
+                currentCurrency.code !== "PKR" && currentRate > 0
+                  ? Number((t.tier_price / currentRate).toFixed(2))
+                  : t.tier_price,
+              discount_percentage: t.discount_percentage,
+              discount_price: t.discount_price ?? null,
+            }))
+          )
+          .then((res) => {
+            if (res.error) console.error("Tier insert error:", res.error);
+          });
+      }
+
+      // 5. Insert FAQs (background)
+      const validFaqs = faqs.filter((f) => f.question.trim());
+      if (validFaqs.length > 0) {
+        console.log(`❓ Inserting ${validFaqs.length} FAQs...`);
+        supabase
+          .from("product_faqs")
+          .insert(
+            validFaqs.map((f, idx) => ({
+              product_id: productData.id,
+              question: f.question.trim(),
+              answer: f.answer.trim() || null,
+              display_order: idx,
+            }))
+          )
+          .then((res) => {
+            if (res.error) console.error("FAQ insert error:", res.error);
+          });
+      }
+
+      console.log("✅ Product saved successfully!");
       resetForm();
+      setIsSubmitting(false);
       onSuccess();
-
-      // INSTANT REDIRECT - NO DELAY
-      router.push("/panel");
-    } catch (err) {
-      onError(err instanceof Error ? err.message : "Failed to save product");
+      setTimeout(() => {
+        router.push("/panel");
+      }, 1500);
+    } catch (err: any) {
+      console.error("❌ Submit error:", err);
+      onError(
+        err.message || "Failed to save product. Check console for details."
+      );
       setIsSubmitting(false);
     }
   };
@@ -1088,6 +1191,7 @@ function SimpleModeForm({
                   </label>
                   <input
                     type="number"
+                    step="0.01"
                     className="ap-input"
                     value={priceDisplay}
                     onChange={(e) => setPriceDisplay(e.target.value)}
@@ -1101,6 +1205,7 @@ function SimpleModeForm({
                   </label>
                   <input
                     type="number"
+                    step="0.01"
                     className="ap-input"
                     value={originalPriceDisplay}
                     onChange={(e) => setOriginalPriceDisplay(e.target.value)}
@@ -1156,7 +1261,7 @@ function SimpleModeForm({
                   <BulkPricingManager
                     unitPrice={parseFloat(priceDisplay) || 0}
                     tiers={bulkTiers}
-                    onTiersChange={handleBulkTiersChange}
+                    onTiersChange={setBulkTiers}
                     onError={onError}
                   />
                 </div>
@@ -1217,7 +1322,7 @@ function SimpleModeForm({
                   <polyline points="21 15 16 10 5 21" />
                 </svg>
               </div>
-              <h3 className="ap-card-title">Product Images</h3>
+              <h3 className="ap-card-title">Product Images (Max 20)</h3>
             </div>
             <div className="ap-card-body">
               <div
@@ -1228,9 +1333,8 @@ function SimpleModeForm({
                   ref={fileRef}
                   type="file"
                   accept="image/*"
-                  onChange={(e) =>
-                    e.target.files?.[0] && handleImageUpload(e.target.files[0])
-                  }
+                  multiple
+                  onChange={(e) => handleImageUpload(e.target.files)}
                   style={{ display: "none" }}
                 />
                 <div className="ap-img-upload-icon">
@@ -1252,7 +1356,9 @@ function SimpleModeForm({
                 <p className="ap-img-upload-title">
                   {uploading ? "Uploading..." : "Click to Upload Images"}
                 </p>
-                <p className="ap-img-upload-sub">JPG, PNG, WEBP</p>
+                <p className="ap-img-upload-sub">
+                  JPG, PNG, WEBP (Max 20 images)
+                </p>
               </div>
               {images.length > 0 && (
                 <div className="ap-img-previews">
@@ -1262,9 +1368,7 @@ function SimpleModeForm({
                       <button
                         type="button"
                         className="ap-img-thumb-remove"
-                        onClick={() =>
-                          setImages(images.filter((_, j) => j !== i))
-                        }
+                        onClick={() => removeImage(i)}
                       >
                         <svg
                           viewBox="0 0 24 24"
@@ -1278,6 +1382,9 @@ function SimpleModeForm({
                       </button>
                     </div>
                   ))}
+                  <div className="ap-image-count">
+                    {images.length} / 20 images
+                  </div>
                 </div>
               )}
             </div>
@@ -1301,14 +1408,23 @@ function SimpleModeForm({
                 type="submit"
                 className="ap-submit-btn"
                 disabled={isSubmitting}
+                style={{ opacity: isSubmitting ? 0.7 : 1 }}
               >
                 {isSubmitting ? (
                   <>
-                    <div className="ap-spinner" /> Saving in {currency.code}...
+                    <div
+                      className="ap-spinner"
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        marginRight: "8px",
+                      }}
+                    />{" "}
+                    Saving...
                   </>
                 ) : (
                   <>
-                    Save Product in {currency.code}{" "}
+                    Save Product in {currency.symbol}{" "}
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -1328,7 +1444,9 @@ function SimpleModeForm({
   );
 }
 
-// Detailed Mode Form - INSTANT ADD (No Page Reload)
+// ============================================================
+// DETAILED MODE - FIXED
+// ============================================================
 function DetailedModeForm({
   tab,
   onSuccess,
@@ -1358,11 +1476,6 @@ function DetailedModeForm({
   const [materialVariants, setMaterialVariants] = useState<any[]>([]);
   const [capacityVariants, setCapacityVariants] = useState<any[]>([]);
 
-  const getPriceInPKR = (displayPrice: string): number => {
-    const priceNum = parseFloat(displayPrice) || 0;
-    return convertPriceToPKR(priceNum, currency);
-  };
-
   const resetForm = () => {
     setName("");
     setDescription("");
@@ -1380,6 +1493,7 @@ function DetailedModeForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
 
     if (!name.trim()) {
       onError("Product name is required");
@@ -1397,58 +1511,125 @@ function DetailedModeForm({
       return;
     }
 
+    let hasValidPrice = false;
+    for (const v of allVariants) {
+      const priceVal = parseFloat(v.priceDisplay);
+      if (!isNaN(priceVal) && priceVal > 0) {
+        hasValidPrice = true;
+        break;
+      }
+    }
+    if (!hasValidPrice) {
+      onError("Please set a valid price for at least one variant");
+      return;
+    }
+    if (isSubmitting) return;
+
     setIsSubmitting(true);
+    console.log("🚀 Starting detailed product save...");
+
+    // Helper: wrap any supabase call with a 10s timeout
+    async function withTimeout<T>(
+      promise: Promise<T>,
+      label: string
+    ): Promise<T> {
+      return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`${label} timed out after 10s`)),
+            10000
+          )
+        ),
+      ]);
+    }
 
     try {
-      const { data: productData, error: productError } = await supabase
-        .from("products")
-        .insert([
-          {
+      // ✅ Check session first
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        throw new Error("Not authenticated. Please sign in again.");
+      }
+
+      const currentCurrency = currency;
+      const currentRate = currency.rate;
+
+      // 1. Insert Product
+      console.log("📦 Inserting product...");
+      const { data: productData, error: productError } = await withTimeout(
+        supabase
+          .from("products")
+          .insert({
             name: name.trim(),
-            description: description.trim(),
+            description: description.trim() || null,
             category: tab.category,
             subcategory: tab.sub,
             brand: brand.trim() || null,
             condition,
             is_featured: isFeatured,
             is_active: isActive,
-            currency_code: currency.code,
-          },
-        ])
-        .select()
-        .single();
-      if (productError) throw new Error(productError.message);
+          })
+          .select()
+          .single(),
+        "Product insert"
+      );
 
+      if (productError)
+        throw new Error(`Product insert failed: ${productError.message}`);
+      if (!productData) throw new Error("No product data returned from DB");
+      console.log("✅ Product inserted:", productData.id);
+
+      // 2. Insert each variant
       for (const variant of allVariants) {
-        const pricePKR = getPriceInPKR(variant.priceDisplay || "0");
-        const originalPricePKR = variant.originalPriceDisplay
-          ? getPriceInPKR(variant.originalPriceDisplay)
-          : null;
+        const priceNum = parseFloat(variant.priceDisplay);
+        if (isNaN(priceNum) || priceNum <= 0) continue;
 
-        const { data: variantData, error: variantError } = await supabase
-          .from("product_variants")
-          .insert([
-            {
+        const originalPriceNum = variant.originalPriceDisplay
+          ? parseFloat(variant.originalPriceDisplay)
+          : 0;
+        let pricePKR = priceNum;
+        let originalPricePKR: number | null =
+          originalPriceNum > 0 ? originalPriceNum : null;
+
+        if (currentCurrency.code !== "PKR" && currentRate > 0) {
+          pricePKR = Number((priceNum / currentRate).toFixed(2));
+          if (originalPricePKR)
+            originalPricePKR = Number(
+              (originalPriceNum / currentRate).toFixed(2)
+            );
+        }
+        if (pricePKR <= 0) pricePKR = 0.01;
+
+        console.log(`📦 Inserting variant: ${variant.attributeValue}...`);
+        const { data: variantData, error: variantError } = await withTimeout(
+          supabase
+            .from("product_variants")
+            .insert({
               product_id: productData.id,
               attribute_type: variant.attributeType,
               attribute_value: variant.attributeValue,
               price: pricePKR,
               original_price: originalPricePKR,
-              description: variant.description || "",
+              description: variant.description || description.trim() || null,
               stock: variant.stock || 999999,
-              low_stock_threshold: variant.lowStockThreshold,
+              low_stock_threshold: variant.lowStockThreshold || null,
               is_active: true,
-              currency_code: currency.code,
-              base_price_pkr: pricePKR,
-              base_original_price_pkr: originalPricePKR,
-            },
-          ])
-          .select()
-          .single();
-        if (variantError) throw new Error(variantError.message);
+            })
+            .select()
+            .single(),
+          `Variant insert (${variant.attributeValue})`
+        );
 
+        if (variantError) {
+          console.error("Variant error:", variantError);
+          continue;
+        }
+        if (!variantData) continue;
+        console.log(`✅ Variant inserted: ${variantData.id}`);
+
+        // Insert images for this variant (background)
         if (variant.images && variant.images.length > 0) {
-          await supabase
+          supabase
             .from("variant_images")
             .insert(
               variant.images.map((url: string, idx: number) => ({
@@ -1456,52 +1637,67 @@ function DetailedModeForm({
                 image_url: url,
                 display_order: idx,
               }))
-            );
+            )
+            .then((res) => {
+              if (res.error) console.error("Image error:", res.error);
+            });
         }
+
+        // Insert bulk tiers for this variant (background)
         if (variant.bulkPricingTiers && variant.bulkPricingTiers.length > 0) {
           const validTiers = variant.bulkPricingTiers.filter(
-            (t: BulkPricingTier) => t.min_quantity && t.tier_price
+            (t: any) => t.min_quantity && t.tier_price > 0
           );
           if (validTiers.length > 0) {
-            await supabase.from("bulk_pricing_tiers").insert(
-              validTiers.map((t: BulkPricingTier) => ({
-                variant_id: variantData.id,
-                min_quantity: t.min_quantity,
-                max_quantity: t.max_quantity,
-                tier_price: convertPriceToPKR(t.tier_price, currency),
-                discount_percentage: t.discount_percentage,
-                discount_price: t.discount_price
-                  ? convertPriceToPKR(t.discount_price, currency)
-                  : null,
-                currency_code: currency.code,
-                base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
-              }))
-            );
+            supabase
+              .from("bulk_pricing_tiers")
+              .insert(
+                validTiers.map((t: any) => ({
+                  variant_id: variantData.id,
+                  min_quantity: t.min_quantity,
+                  max_quantity: t.max_quantity,
+                  tier_price: t.tier_price,
+                  discount_percentage: t.discount_percentage ?? null,
+                  discount_price: t.discount_price ?? null,
+                }))
+              )
+              .then((res) => {
+                if (res.error) console.error("Tier error:", res.error);
+              });
           }
         }
       }
 
-      if (faqs.length > 0) {
-        const validFaqs = faqs.filter((f) => f.question.trim());
-        if (validFaqs.length > 0) {
-          await supabase.from("product_faqs").insert(
+      // 3. Insert FAQs (background)
+      const validFaqs = faqs.filter((f) => f.question.trim());
+      if (validFaqs.length > 0) {
+        supabase
+          .from("product_faqs")
+          .insert(
             validFaqs.map((f, idx) => ({
               product_id: productData.id,
               question: f.question.trim(),
               answer: f.answer.trim() || null,
               display_order: idx,
             }))
-          );
-        }
+          )
+          .then((res) => {
+            if (res.error) console.error("FAQ error:", res.error);
+          });
       }
 
+      console.log("✅ Product saved successfully!");
       resetForm();
+      setIsSubmitting(false);
       onSuccess();
-
-      // INSTANT REDIRECT - NO DELAY
-      router.push("/panel");
-    } catch (err) {
-      onError(err instanceof Error ? err.message : "Failed to save product");
+      setTimeout(() => {
+        router.push("/panel");
+      }, 1500);
+    } catch (err: any) {
+      console.error("❌ Submit error:", err);
+      onError(
+        err.message || "Failed to save product. Check console for details."
+      );
       setIsSubmitting(false);
     }
   };
@@ -1617,6 +1813,8 @@ function DetailedModeForm({
                 variants={colorVariants}
                 setVariants={setColorVariants}
                 onError={onError}
+                currencyRate={currency.rate}
+                currencyCode={currency.code}
               />
               <AttributeSelector
                 label="Sizes"
@@ -1627,6 +1825,8 @@ function DetailedModeForm({
                 variants={sizeVariants}
                 setVariants={setSizeVariants}
                 onError={onError}
+                currencyRate={currency.rate}
+                currencyCode={currency.code}
               />
               <AttributeSelector
                 label="Materials"
@@ -1637,6 +1837,8 @@ function DetailedModeForm({
                 variants={materialVariants}
                 setVariants={setMaterialVariants}
                 onError={onError}
+                currencyRate={currency.rate}
+                currencyCode={currency.code}
               />
               <AttributeSelector
                 label="Capacities"
@@ -1647,6 +1849,8 @@ function DetailedModeForm({
                 variants={capacityVariants}
                 setVariants={setCapacityVariants}
                 onError={onError}
+                currencyRate={currency.rate}
+                currencyCode={currency.code}
               />
             </div>
           </div>
@@ -1741,20 +1945,34 @@ function DetailedModeForm({
                 type="submit"
                 className="ap-submit-btn"
                 disabled={isSubmitting}
-                style={{ marginTop: "1rem" }}
+                style={{
+                  marginTop: "1rem",
+                  opacity: isSubmitting ? 0.7 : 1,
+                  width: "100%",
+                }}
               >
                 {isSubmitting ? (
                   <>
-                    <div className="ap-spinner" /> Saving in {currency.code}...
+                    <div
+                      className="ap-spinner"
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        marginRight: "8px",
+                      }}
+                    />{" "}
+                    Saving {totalVariants} variant(s)...
                   </>
                 ) : (
                   <>
-                    Save Product with Variants in {currency.code}{" "}
+                    Save Product with {totalVariants} Variant(s) in{" "}
+                    {currency.symbol}{" "}
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.5"
+                      style={{ width: "14px", height: "14px" }}
                     >
                       <path d="M5 12h14M12 5l7 7-7 7" />
                     </svg>
@@ -1802,25 +2020,8 @@ export default function AddProductPage() {
   };
 
   if (currencyLoading) {
-    return (
-      <div className="ap-root">
-        <div className="ap-ambient" aria-hidden="true" />
-        <div className="ap-grain" aria-hidden="true" />
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: "100vh",
-          }}
-        >
-          <div
-            className="ap-spinner"
-            style={{ width: "40px", height: "40px" }}
-          />
-        </div>
-      </div>
-    );
+    // loading is always false in CurrencyContext — this is a safety fallback only
+    return null;
   }
 
   return (
@@ -1847,7 +2048,6 @@ export default function AddProductPage() {
             </span>
           </p>
         </div>
-
         <div className="ap-mode-buttons">
           <button
             type="button"
@@ -1889,7 +2089,6 @@ export default function AddProductPage() {
             </span>
           </button>
         </div>
-
         <div className="ap-tabs">
           {TABS.map((t, i) => (
             <button
@@ -1902,7 +2101,6 @@ export default function AddProductPage() {
             </button>
           ))}
         </div>
-
         {mode === "simple" ? (
           <SimpleModeForm
             key={`simple-${mode}`}

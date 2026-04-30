@@ -35,8 +35,11 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(
 
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   // ✅ ALL HOOKS MUST BE AT TOP LEVEL - NO CONDITIONS BEFORE HOOKS
-  const [currency, setCurrencyState] = useState<Currency>(currencies[0]); // Initialize with USD
-  const [loading, setLoading] = useState(true);
+  // Start with PKR as default — fastest for panel, no detection delay
+  const [currency, setCurrencyState] = useState<Currency>(
+    currencies.find((c) => c.code === "PKR") || currencies[0]
+  );
+  const [loading, setLoading] = useState(false); // ✅ false = no blocking spinner
   const initializedRef = useRef(false);
   const detectionAttemptedRef = useRef(false);
 
@@ -50,37 +53,47 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     if (detectionAttemptedRef.current) return;
     detectionAttemptedRef.current = true;
 
-    console.log("🔄 Detecting user country and currency...");
+    console.log("🔄 Detecting user country and currency (background)...");
 
+    // ✅ Detection runs in background — never blocks UI
+    // loading stays false, page always renders immediately
     try {
-      // Try server API first
-      const serverResponse = await fetch("/api/detect-country");
-      const serverData = await serverResponse.json();
+      // Try server API first with 3s timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      let serverData: any = { success: false };
+      try {
+        const serverResponse = await fetch("/api/detect-country", {
+          signal: controller.signal,
+        });
+        serverData = await serverResponse.json();
+      } catch {
+        /* timeout or network error — continue */
+      }
+      clearTimeout(timeoutId);
 
       if (serverData.country && serverData.success !== false) {
         const detectedCurrency = getCurrencyByCountry(serverData.country);
         console.log(
           "📍 Server detected:",
           serverData.country,
-          "→ Currency:",
+          "→",
           detectedCurrency.code
         );
         setCurrency(detectedCurrency);
-        setLoading(false);
         return;
       }
 
-      // Client-side detection
+      // Client-side detection (also runs in background)
       const countryCode = await detectUserCountry();
       const detectedCurrency = getCurrencyByCountry(countryCode);
       console.log(
         "📍 Client detected:",
         countryCode,
-        "→ Currency:",
+        "→",
         detectedCurrency.code
       );
       setCurrency(detectedCurrency);
-      setLoading(false);
     } catch (error) {
       console.error("❌ Currency detection failed:", error);
       // Fallback - use browser language
@@ -94,10 +107,8 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
         else if (lang.includes("CA")) setCurrency(getCurrencyByCountry("CA"));
         else if (lang.includes("IN")) setCurrency(getCurrencyByCountry("IN"));
         else setCurrency(getCurrencyByCountry("US"));
-      } else {
-        setCurrency(getCurrencyByCountry("US"));
       }
-      setLoading(false);
+      // ✅ No setLoading(false) needed — loading was never true
     }
   }, [setCurrency]);
 
@@ -113,13 +124,13 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
       if (savedCurrency) {
         console.log("📀 Found saved currency:", savedCurrency.code);
         setCurrencyState(savedCurrency);
-        setLoading(false);
-        // Still refresh in background
+        // Still refresh in background to keep updated
         refreshCurrency();
         return;
       }
     }
 
+    // ✅ Detect in background — never blocks render
     refreshCurrency();
   }, [refreshCurrency]);
 

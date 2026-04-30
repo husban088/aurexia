@@ -1,25 +1,30 @@
 // lib/supabase.ts
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
-export const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Bulk Pricing Tier type
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
+
+// Rest of your types remain same...
 export type BulkPricingTier = {
   id?: string;
   variant_id: string;
   min_quantity: number;
   max_quantity: number;
-  tier_price: number; // Total price for that quantity
-  discount_percentage: number | null; // Discount percentage
-  discount_price: number | null; // Final discounted price
+  tier_price: number;
+  discount_percentage: number | null;
+  discount_price: number | null;
   created_at?: string;
   updated_at?: string;
 };
 
-// Product type (basic info only)
 export type Product = {
   id?: string;
   created_at?: string;
@@ -40,7 +45,6 @@ export type Product = {
   original_price?: number;
 };
 
-// Product Variant type
 export type ProductVariant = {
   id?: string;
   product_id: string;
@@ -57,7 +61,6 @@ export type ProductVariant = {
   bulk_pricing_tiers?: BulkPricingTier[];
 };
 
-// Variant Image type
 export type VariantImage = {
   id?: string;
   variant_id: string;
@@ -66,7 +69,6 @@ export type VariantImage = {
   created_at?: string;
 };
 
-// Product FAQ type
 export type ProductFAQ = {
   id?: string;
   product_id: string;
@@ -77,24 +79,22 @@ export type ProductFAQ = {
   updated_at?: string;
 };
 
-// Cart Item type
 export type CartItemType = {
   id: string;
   cart_id: string;
   product_id: string;
   variant_id?: string;
   variant_name?: string;
-  variant_price?: number; // per-piece price (even for bulk tiers)
+  variant_price?: number;
   variant_original_price?: number;
   variant_image?: string;
-  quantity: number; // number of "units" in cart (each unit = pieces_per_unit pieces)
-  pieces_per_unit: number; // how many physical pieces each "unit" represents (1 for single, 2 for 2-piece tier, etc.)
+  quantity: number;
+  pieces_per_unit: number;
   created_at: string;
   updated_at: string;
   product?: Product;
 };
 
-// Cart type
 export type Cart = {
   id: string;
   user_id: string | null;

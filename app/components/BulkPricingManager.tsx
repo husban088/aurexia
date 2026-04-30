@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import { useCurrency } from "@/app/context/CurrencyContext";
 
 export type BulkPricingTier = {
   id?: string;
@@ -31,6 +32,8 @@ export function BulkPricingManager({
   onTiersChange,
   onError,
 }: BulkPricingManagerProps) {
+  const { currency } = useCurrency();
+  const sym = currency.symbol;
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTierMin, setNewTierMin] = useState(2);
   const [newTierMax, setNewTierMax] = useState(2);
@@ -74,8 +77,7 @@ export function BulkPricingManager({
 
     // Check for overlapping
     const overlapping = tiers.some(
-      (t) =>
-        !(newTierMax < t.min_quantity || newTierMin > t.max_quantity)
+      (t) => !(newTierMax < t.min_quantity || newTierMin > t.max_quantity)
     );
 
     if (overlapping) {
@@ -98,7 +100,9 @@ export function BulkPricingManager({
     };
 
     // Add new tier and sort by min_quantity
-    const updatedTiers = [...tiers, newTier].sort((a, b) => a.min_quantity - b.min_quantity);
+    const updatedTiers = [...tiers, newTier].sort(
+      (a, b) => a.min_quantity - b.min_quantity
+    );
     onTiersChange(updatedTiers);
 
     // Reset form
@@ -119,7 +123,7 @@ export function BulkPricingManager({
     const originalTotal = unitPrice * qty;
     const discountedTotal = originalTotal * (1 - newDiscount / 100);
     const roundedPrice = Math.round(discountedTotal);
-    
+
     updatedTiers[index] = {
       ...updatedTiers[index],
       tier_price: newDiscount > 0 ? roundedPrice : newPrice,
@@ -130,28 +134,30 @@ export function BulkPricingManager({
   };
 
   const getAvailableRanges = () => {
-    const usedRanges = [...tiers].sort((a, b) => a.min_quantity - b.min_quantity);
+    const usedRanges = [...tiers].sort(
+      (a, b) => a.min_quantity - b.min_quantity
+    );
     const available: { min: number; max: number }[] = [];
     let lastMax = 1;
-    
+
     for (const range of usedRanges) {
       if (range.min_quantity > lastMax + 1) {
         available.push({ min: lastMax + 1, max: range.min_quantity - 1 });
       }
       lastMax = Math.max(lastMax, range.max_quantity);
     }
-    
+
     if (lastMax < MAX_QUANTITY) {
       available.push({ min: lastMax + 1, max: MAX_QUANTITY });
     }
-    
+
     return available;
   };
 
   // Quick add multiple tiers at once
   const addMultipleTiers = () => {
     const newTiers: BulkPricingTier[] = [];
-    
+
     // Default tiers: 2,3,4,5,6-10,11-20,21-50,51-100
     const defaultTiers = [
       { min: 2, max: 2, discount: 5 },
@@ -163,7 +169,7 @@ export function BulkPricingManager({
       { min: 21, max: 50, discount: 25 },
       { min: 51, max: 100, discount: 30 },
     ];
-    
+
     for (const preset of defaultTiers) {
       const originalTotal = unitPrice * preset.min;
       const discountedTotal = originalTotal * (1 - preset.discount / 100);
@@ -176,7 +182,7 @@ export function BulkPricingManager({
         discount_price: Math.round(discountedTotal),
       });
     }
-    
+
     onTiersChange(newTiers);
   };
 
@@ -185,23 +191,34 @@ export function BulkPricingManager({
       <div className="ap-bulk-pricing-header">
         <div className="ap-bulk-pricing-header-left">
           <div className="ap-bulk-pricing-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
               <circle cx="12" cy="12" r="3" />
             </svg>
           </div>
           <div>
             <h3 className="ap-bulk-pricing-title">Bulk Pricing</h3>
-            <p className="ap-bulk-pricing-desc">Set quantity-based discounts (2 to 100 pieces)</p>
+            <p className="ap-bulk-pricing-desc">
+              Set quantity-based discounts (2 to 100 pieces)
+            </p>
           </div>
         </div>
         <div className="ap-bulk-pricing-header-right">
-          <button type="button" className="ap-bulk-add-all-btn" onClick={addMultipleTiers}>
+          <button
+            type="button"
+            className="ap-bulk-add-all-btn"
+            onClick={addMultipleTiers}
+          >
             + Add All Tiers (2-100)
           </button>
         </div>
       </div>
-      
+
       <div className="ap-bulk-pricing-body">
         {/* Existing Tiers Table */}
         {tiers.length > 0 && (
@@ -220,29 +237,49 @@ export function BulkPricingManager({
               <tbody>
                 {tiers.map((tier, idx) => {
                   const isRange = tier.min_quantity !== tier.max_quantity;
-                  const qtyText = isRange 
+                  const qtyText = isRange
                     ? `${tier.min_quantity} - ${tier.max_quantity} pcs`
                     : `${tier.min_quantity} pc`;
                   const perPiece = tier.tier_price / tier.min_quantity;
                   const saving = (unitPrice - perPiece).toFixed(0);
-                  const discount = ((unitPrice - perPiece) / unitPrice * 100).toFixed(1);
-                  
+                  const discount = (
+                    ((unitPrice - perPiece) / unitPrice) *
+                    100
+                  ).toFixed(1);
+
                   return (
                     <tr key={idx}>
                       <td className="ap-bulk-tier-qty">{qtyText}</td>
                       <td className="ap-bulk-tier-total-price">
-                        <span className="ap-bulk-cut-price">₨ {(unitPrice * tier.min_quantity).toLocaleString()}</span>
-                        <span className="ap-bulk-sale-price">₨ {tier.tier_price.toLocaleString()}</span>
+                        <span className="ap-bulk-cut-price">
+                          {sym}{" "}
+                          {(unitPrice * tier.min_quantity).toLocaleString()}
+                        </span>
+                        <span className="ap-bulk-sale-price">
+                          {sym} {tier.tier_price.toLocaleString()}
+                        </span>
                       </td>
-                      <td className="ap-bulk-tier-per-piece">₨ {perPiece.toFixed(0)}</td>
-                      <td className="ap-bulk-tier-saving">Save ₨ {parseFloat(saving).toLocaleString()}</td>
+                      <td className="ap-bulk-tier-per-piece">
+                        {sym} {perPiece.toFixed(0)}
+                      </td>
+                      <td className="ap-bulk-tier-saving">
+                        Save {sym} {parseFloat(saving).toLocaleString()}
+                      </td>
                       <td className="ap-bulk-tier-discount">
-                        <span className="ap-bulk-discount-badge">{discount}% OFF</span>
+                        <span className="ap-bulk-discount-badge">
+                          {discount}% OFF
+                        </span>
                         <input
                           type="number"
                           className="ap-bulk-discount-input"
                           value={tier.discount_percentage || 0}
-                          onChange={(e) => editTier(idx, tier.tier_price, parseFloat(e.target.value) || 0)}
+                          onChange={(e) =>
+                            editTier(
+                              idx,
+                              tier.tier_price,
+                              parseFloat(e.target.value) || 0
+                            )
+                          }
                           min="0"
                           max="90"
                           step="1"
@@ -254,7 +291,12 @@ export function BulkPricingManager({
                           className="ap-bulk-tier-remove"
                           onClick={() => removeTier(idx)}
                         >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
                             <line x1="18" y1="6" x2="6" y2="18" />
                             <line x1="6" y1="6" x2="18" y2="18" />
                           </svg>
@@ -275,7 +317,12 @@ export function BulkPricingManager({
             className="ap-bulk-add-tier-btn"
             onClick={() => setShowAddForm(true)}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
@@ -291,7 +338,9 @@ export function BulkPricingManager({
                   min="2"
                   max="100"
                   value={newTierMin}
-                  onChange={(e) => handleMinChange(parseInt(e.target.value) || 2)}
+                  onChange={(e) =>
+                    handleMinChange(parseInt(e.target.value) || 2)
+                  }
                 />
               </div>
               <div className="ap-bulk-form-field">
@@ -301,7 +350,9 @@ export function BulkPricingManager({
                   min={newTierMin}
                   max="100"
                   value={newTierMax}
-                  onChange={(e) => setNewTierMax(parseInt(e.target.value) || newTierMin)}
+                  onChange={(e) =>
+                    setNewTierMax(parseInt(e.target.value) || newTierMin)
+                  }
                 />
               </div>
               <div className="ap-bulk-form-field">
@@ -312,7 +363,9 @@ export function BulkPricingManager({
                   max="90"
                   step="1"
                   value={newDiscountPercent}
-                  onChange={(e) => handleDiscountChange(parseFloat(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleDiscountChange(parseFloat(e.target.value) || 0)
+                  }
                 />
               </div>
               <div className="ap-bulk-form-field">
@@ -320,21 +373,38 @@ export function BulkPricingManager({
                 <input
                   type="number"
                   value={newTierPrice}
-                  onChange={(e) => setNewTierPrice(parseFloat(e.target.value) || 0)}
+                  onChange={(e) =>
+                    setNewTierPrice(parseFloat(e.target.value) || 0)
+                  }
                 />
               </div>
-              <button type="button" className="ap-bulk-add-confirm" onClick={addTier}>
+              <button
+                type="button"
+                className="ap-bulk-add-confirm"
+                onClick={addTier}
+              >
                 Add
               </button>
-              <button type="button" className="ap-bulk-add-cancel" onClick={() => setShowAddForm(false)}>
+              <button
+                type="button"
+                className="ap-bulk-add-cancel"
+                onClick={() => setShowAddForm(false)}
+              >
                 Cancel
               </button>
             </div>
             <div className="ap-bulk-form-preview">
-              <span>Unit price: ₨ {unitPrice}</span>
+              <span>
+                Unit price: {sym} {unitPrice}
+              </span>
               <span>→</span>
-              <span className="ap-bulk-preview-price">Per piece: ₨ {(newTierPrice / newTierMin).toFixed(0)}</span>
-              <span className="ap-bulk-preview-saving">Save: ₨ {(unitPrice - (newTierPrice / newTierMin)).toFixed(0)}/pc</span>
+              <span className="ap-bulk-preview-price">
+                Per piece: {sym} {(newTierPrice / newTierMin).toFixed(0)}
+              </span>
+              <span className="ap-bulk-preview-saving">
+                Save: {sym} {(unitPrice - newTierPrice / newTierMin).toFixed(0)}
+                /pc
+              </span>
             </div>
           </div>
         )}
@@ -369,12 +439,17 @@ export function BulkPricingManager({
                     discount_price: Math.round(discountedTotal),
                   };
                   // Check if tier already exists
-                  const exists = tiers.some(t => 
-                    (t.min_quantity <= preset.qty && t.max_quantity >= preset.qty) ||
-                    (t.min_quantity <= preset.maxQty && t.max_quantity >= preset.maxQty)
+                  const exists = tiers.some(
+                    (t) =>
+                      (t.min_quantity <= preset.qty &&
+                        t.max_quantity >= preset.qty) ||
+                      (t.min_quantity <= preset.maxQty &&
+                        t.max_quantity >= preset.maxQty)
                   );
                   if (!exists) {
-                    const updatedTiers = [...tiers, newTier].sort((a, b) => a.min_quantity - b.min_quantity);
+                    const updatedTiers = [...tiers, newTier].sort(
+                      (a, b) => a.min_quantity - b.min_quantity
+                    );
                     onTiersChange(updatedTiers);
                   } else {
                     onError("Tier already exists for this quantity range");
@@ -612,7 +687,8 @@ export function BulkPricingManager({
           font-family: var(--ap-sans);
           font-size: 0.55rem;
         }
-        .ap-bulk-add-confirm, .ap-bulk-add-cancel {
+        .ap-bulk-add-confirm,
+        .ap-bulk-add-cancel {
           padding: 0.35rem 0.7rem;
           border-radius: 20px;
           font-family: var(--ap-sans);
