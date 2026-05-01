@@ -7,6 +7,7 @@ import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
 import SearchSidebar from "./components/SearchSidebar";
 import CartSidebar from "./components/CartSidebar";
+import WhatsAppWidget from "./components/WhatsAppWidget";
 import { useEffect, useState } from "react";
 
 export default function ClientProviders({
@@ -77,6 +78,8 @@ export default function ClientProviders({
       >
         {children}
       </div>
+      {/* WhatsApp Widget - Only show on non-panel pages */}
+      {!isPanelPage && <WhatsAppWidget />}
     </>
   );
 }

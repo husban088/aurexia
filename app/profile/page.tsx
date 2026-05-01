@@ -1,260 +1,234 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import { signOutUser } from "@/lib/auth";
 import "./profile.css";
 
-export default function Profile() {
-  const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+type ProfileData = {
+  id: string;
+  username: string;
+  email: string;
+  created_at: string;
+  updated_at: string;
+};
 
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+export default function ProfilePage() {
+  const router = useRouter();
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"info" | "security">("info");
 
   // Edit states
-  const [editUsername, setEditUsername] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showCurrentPass, setShowCurrentPass] = useState(false);
-  const [showNewPass, setShowNewPass] = useState(false);
-  const [showConfirmPass, setShowConfirmPass] = useState(false);
-  const [activeTab, setActiveTab] = useState<"info" | "password">("info");
+  const [username, setUsername] = useState("");
   const [focused, setFocused] = useState<string | null>(null);
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [alert, setAlert] = useState<{
+    type: "error" | "success";
+    msg: string;
+  } | null>(null);
 
-  // Optimized fetch user data function with caching
-  const fetchUserData = useCallback(async (skipLoading = false) => {
-    if (!skipLoading) {
-      setLoading(true);
+  // Password states
+  const [currentPass, setCurrentPass] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [passLoading, setPassLoading] = useState(false);
+
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        // Step 1: Get authenticated user
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError || !user) {
+          // Not logged in — redirect to signin
+          router.replace("/signin?redirectTo=/profile");
+          return;
+        }
+
+        // Step 2: Fetch profile from profiles table
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError || !profileData) {
+          // Profile might not exist yet — create it
+          const { data: newProfile, error: insertError } = await supabase
+            .from("profiles")
+            .insert({
+              id: user.id,
+              username:
+                user.user_metadata?.username ||
+                user.email?.split("@")[0] ||
+                "user",
+              email: user.email || "",
+            })
+            .select()
+            .single();
+
+          if (insertError || !newProfile) {
+            // Fall back to user data
+            setProfile({
+              id: user.id,
+              username:
+                user.user_metadata?.username ||
+                user.email?.split("@")[0] ||
+                "user",
+              email: user.email || "",
+              created_at: user.created_at,
+              updated_at: user.updated_at || user.created_at,
+            });
+          } else {
+            setProfile(newProfile);
+            setUsername(newProfile.username);
+          }
+        } else {
+          setProfile(profileData);
+          setUsername(profileData.username);
+        }
+      } catch (err) {
+        console.error("Profile load error:", err);
+        router.replace("/signin?redirectTo=/profile");
+      } finally {
+        setLoading(false);
+      }
     }
 
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    loadProfile();
+  }, [router]);
 
-      if (!session) {
-        router.push("/signin");
+  const getInitials = (name: string) => {
+    return name?.slice(0, 2)?.toUpperCase() || "??";
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    } catch {
+      return "—";
+    }
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile) return;
+    setAlert(null);
+    setSaving(true);
+
+    try {
+      const trimmed = username.trim();
+      if (!trimmed) {
+        setAlert({ type: "error", msg: "Username cannot be empty." });
+        setSaving(false);
         return;
       }
 
-      setUser(session.user);
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", session.user.id)
-        .single();
-
-      if (profileData) {
-        setProfile(profileData);
-        setEditUsername(profileData.username || "");
-        setEditEmail(profileData.email || session.user.email || "");
-      }
-    } catch (err) {
-      console.error("Error fetching user data:", err);
-    } finally {
-      setLoading(false);
-      setInitialLoadDone(true);
-    }
-  }, [router]);
-
-  // Check for cached session first
-  useEffect(() => {
-    // Try to get cached session from localStorage
-    const checkCachedSession = async () => {
-      const cachedSession = localStorage.getItem('supabase_session');
-      if (cachedSession) {
-        try {
-          const session = JSON.parse(cachedSession);
-          if (session && session.user) {
-            setUser(session.user);
-            // Try to get cached profile
-            const cachedProfile = localStorage.getItem(`profile_${session.user.id}`);
-            if (cachedProfile) {
-              const profileData = JSON.parse(cachedProfile);
-              setProfile(profileData);
-              setEditUsername(profileData.username || "");
-              setEditEmail(profileData.email || session.user.email || "");
-              setLoading(false);
-              setInitialLoadDone(true);
-              // Still fetch fresh data in background
-              fetchUserData(true);
-              return;
-            }
-          }
-        } catch (e) {
-          console.error("Error parsing cached session:", e);
-        }
-      }
-      // If no cache, fetch fresh data
-      fetchUserData(false);
-    };
-
-    checkCachedSession();
-
-    // Listen for auth changes
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session) {
-          // Cache the session
-          localStorage.setItem('supabase_session', JSON.stringify(session));
-          
-          if (event === "SIGNED_IN" || event === "USER_UPDATED") {
-            await fetchUserData(true);
-          }
-        } else if (event === "SIGNED_OUT") {
-          localStorage.removeItem('supabase_session');
-          // Clear all profile caches
-          const keys = Object.keys(localStorage);
-          keys.forEach(key => {
-            if (key.startsWith('profile_')) {
-              localStorage.removeItem(key);
-            }
-          });
-          router.push("/signin");
-        }
-      }
-    );
-
-    return () => {
-      listener?.subscription.unsubscribe();
-    };
-  }, [fetchUserData, router]);
-
-  // Cache profile data whenever it changes
-  useEffect(() => {
-    if (profile && profile.id) {
-      localStorage.setItem(`profile_${profile.id}`, JSON.stringify(profile));
-    }
-  }, [profile]);
-
-  const handleSignOut = async () => {
-    localStorage.removeItem('supabase_session');
-    await supabase.auth.signOut();
-    router.push("/signin");
-  };
-
-  const handleSaveInfo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
-    setSaving(true);
-
-    // Check username uniqueness if changed
-    if (editUsername !== profile?.username) {
+      // Check uniqueness (exclude self)
       const { data: existing } = await supabase
         .from("profiles")
         .select("id")
-        .eq("username", editUsername.trim())
+        .eq("username", trimmed)
+        .neq("id", profile.id)
         .maybeSingle();
 
-      if (existing && existing.id !== user?.id) {
-        setError("This username is already taken.");
+      if (existing) {
+        setAlert({ type: "error", msg: "This username is already taken." });
         setSaving(false);
         return;
       }
-    }
 
-    // Update profile
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({ username: editUsername.trim(), email: editEmail.trim() })
-      .eq("id", user.id);
+      const { data: updated, error } = await supabase
+        .from("profiles")
+        .update({ username: trimmed })
+        .eq("id", profile.id)
+        .select()
+        .single();
 
-    if (updateError) {
-      setError(updateError.message);
-      setSaving(false);
-      return;
-    }
+      if (error) throw error;
 
-    // Update email in auth if changed
-    if (editEmail.trim() !== user.email) {
-      const { error: emailError } = await supabase.auth.updateUser({
-        email: editEmail.trim(),
+      setProfile(updated);
+      setUsername(updated.username);
+      setAlert({ type: "success", msg: "Profile updated successfully!" });
+    } catch (err) {
+      console.error(err);
+      setAlert({
+        type: "error",
+        msg: "Failed to update profile. Please try again.",
       });
-      if (emailError) {
-        setError(emailError.message);
-        setSaving(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAlert(null);
+    setPassLoading(true);
+
+    try {
+      if (!newPass || newPass.length < 6) {
+        setAlert({
+          type: "error",
+          msg: "New password must be at least 6 characters.",
+        });
+        setPassLoading(false);
         return;
       }
+      if (newPass !== confirmPass) {
+        setAlert({ type: "error", msg: "Passwords do not match." });
+        setPassLoading(false);
+        return;
+      }
+
+      const { error } = await supabase.auth.updateUser({ password: newPass });
+
+      if (error) throw error;
+
+      setCurrentPass("");
+      setNewPass("");
+      setConfirmPass("");
+      setAlert({ type: "success", msg: "Password changed successfully!" });
+    } catch (err: any) {
+      setAlert({
+        type: "error",
+        msg: err?.message || "Failed to change password.",
+      });
+    } finally {
+      setPassLoading(false);
     }
-
-    // Refresh profile data
-    await fetchUserData(true);
-
-    setSuccess("Profile updated successfully.");
-    setSaving(false);
   };
 
-  const handleSavePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
-
-    if (newPassword !== confirmPassword) {
-      setError("New passwords do not match.");
-      return;
-    }
-    if (newPassword.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
-
-    setSaving(true);
-
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-
-    if (updateError) {
-      setError(updateError.message);
-      setSaving(false);
-      return;
-    }
-
-    setSuccess("Password changed successfully. Please sign in again.");
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setSaving(false);
-
-    setTimeout(async () => {
-      await supabase.auth.signOut();
-      router.push("/signin");
-    }, 2000);
+  const handleSignOut = async () => {
+    await signOutUser();
+    window.location.href = "/signin";
   };
 
-  // Show loading only on first load
-  if (loading && !initialLoadDone) {
+  // ── Loading ──
+  if (loading) {
     return (
       <div className="pf-loading">
-        <div className="pf-loading-ring">
+        <div className="pf-loading-ring" style={{ position: "relative" }}>
           <div className="pf-loading-inner" />
         </div>
-        <p className="pf-loading-text">Loading your profile…</p>
+        <p className="pf-loading-text">Loading Profile...</p>
       </div>
     );
   }
 
-  const initials = profile?.username
-    ? profile.username.slice(0, 2).toUpperCase()
-    : "AU";
-
-  const joinDate = profile?.created_at
-    ? new Date(profile.created_at).toLocaleDateString("en-US", {
-        month: "long",
-        year: "numeric",
-      })
-    : "—";
+  if (!profile) return null;
 
   return (
     <div className="pf-root">
@@ -272,15 +246,17 @@ export default function Profile() {
       <div className="pf-corner pf-corner--br" aria-hidden="true" />
 
       <div className="pf-container">
-        {/* LEFT PANEL */}
+        {/* ── Aside ── */}
         <aside className="pf-aside">
           <div className="pf-avatar-wrap">
+            <div className="pf-avatar-glow" aria-hidden="true" />
             <div className="pf-avatar-ring">
               <div className="pf-avatar">
-                <span className="pf-avatar-initials">{initials}</span>
+                <span className="pf-avatar-initials">
+                  {getInitials(profile.username)}
+                </span>
               </div>
             </div>
-            <div className="pf-avatar-glow" aria-hidden="true" />
           </div>
 
           <div className="pf-aside-info">
@@ -289,21 +265,30 @@ export default function Profile() {
               Member
               <span className="pf-ey-line" />
             </p>
-            <h2 className="pf-aside-name">{profile?.username || "—"}</h2>
-            <p className="pf-aside-email">{profile?.email || user?.email}</p>
-            <div className="pf-aside-divider" />
-            <div className="pf-aside-meta">
-              <div className="pf-meta-item">
-                <span className="pf-meta-label">Member Since</span>
-                <span className="pf-meta-value">{joinDate}</span>
-              </div>
-              <div className="pf-meta-item">
-                <span className="pf-meta-label">Status</span>
-                <span className="pf-meta-value pf-meta-active">
-                  <span className="pf-dot" />
-                  Active
-                </span>
-              </div>
+            <h2 className="pf-aside-name">{profile.username}</h2>
+            <p className="pf-aside-email">{profile.email}</p>
+            <div className="pf-aside-divider" aria-hidden="true" />
+          </div>
+
+          <div className="pf-aside-meta">
+            <div className="pf-meta-item">
+              <span className="pf-meta-label">Status</span>
+              <span className="pf-meta-value">
+                <span className="pf-dot" />
+                <span className="pf-meta-active">Active</span>
+              </span>
+            </div>
+            <div className="pf-meta-item">
+              <span className="pf-meta-label">Joined</span>
+              <span className="pf-meta-value">
+                {formatDate(profile.created_at)}
+              </span>
+            </div>
+            <div className="pf-meta-item">
+              <span className="pf-meta-label">Updated</span>
+              <span className="pf-meta-value">
+                {formatDate(profile.updated_at)}
+              </span>
             </div>
           </div>
 
@@ -322,19 +307,18 @@ export default function Profile() {
           </button>
         </aside>
 
-        {/* RIGHT PANEL */}
-        <div className="pf-main">
+        {/* ── Main ── */}
+        <main className="pf-main">
           <div className="pf-main-header">
             <p className="pf-main-eyebrow">
               <span className="pf-ey-line" />
               Your Account
-              <span className="pf-ey-line" />
             </p>
             <h1 className="pf-main-title">
-              Profile <em>Settings</em>
+              My <em>Profile</em>
             </h1>
             <p className="pf-main-sub">
-              Manage your personal information and security
+              Manage your personal information and security settings
             </p>
           </div>
 
@@ -346,8 +330,7 @@ export default function Profile() {
               }`}
               onClick={() => {
                 setActiveTab("info");
-                setError(null);
-                setSuccess(null);
+                setAlert(null);
               }}
             >
               <svg
@@ -359,16 +342,15 @@ export default function Profile() {
                 <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
-              Personal Info
+              Profile Info
             </button>
             <button
               className={`pf-tab${
-                activeTab === "password" ? " pf-tab--active" : ""
+                activeTab === "security" ? " pf-tab--active" : ""
               }`}
               onClick={() => {
-                setActiveTab("password");
-                setError(null);
-                setSuccess(null);
+                setActiveTab("security");
+                setAlert(null);
               }}
             >
               <svg
@@ -380,13 +362,13 @@ export default function Profile() {
                 <rect x="3" y="11" width="18" height="11" rx="2" />
                 <path d="M7 11V7a5 5 0 0110 0v4" />
               </svg>
-              Password
+              Security
             </button>
           </div>
 
-          {/* Alerts */}
-          {error && (
-            <div className="pf-alert pf-alert--error" role="alert">
+          {/* Alert */}
+          {alert && (
+            <div className={`pf-alert pf-alert--${alert.type}`} role="alert">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -395,37 +377,29 @@ export default function Profile() {
                 width="14"
                 height="14"
               >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
+                {alert.type === "success" ? (
+                  <polyline points="20 6 9 17 4 12" />
+                ) : (
+                  <>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </>
+                )}
               </svg>
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="pf-alert pf-alert--success" role="alert">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                width="14"
-                height="14"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              {success}
+              {alert.msg}
             </div>
           )}
 
-          {/* INFO TAB */}
+          {/* ── Profile Info Tab ── */}
           {activeTab === "info" && (
-            <form className="pf-form" onSubmit={handleSaveInfo}>
+            <form className="pf-form" onSubmit={handleSaveProfile} noValidate>
               <div className="pf-form-grid">
+                {/* Username */}
                 <div
                   className={`pf-field${
                     focused === "un" ? " pf-field--focused" : ""
-                  }${editUsername ? " pf-field--filled" : ""}`}
+                  }${username ? " pf-field--filled" : ""}`}
                 >
                   <label className="pf-label" htmlFor="pf-username">
                     Username
@@ -446,22 +420,19 @@ export default function Profile() {
                       id="pf-username"
                       type="text"
                       className="pf-input"
-                      value={editUsername}
-                      onChange={(e) => setEditUsername(e.target.value)}
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
                       onFocus={() => setFocused("un")}
                       onBlur={() => setFocused(null)}
+                      placeholder="your_username"
                       autoComplete="username"
-                      required
                     />
                   </div>
                   <div className="pf-field-line" aria-hidden="true" />
                 </div>
 
-                <div
-                  className={`pf-field${
-                    focused === "em" ? " pf-field--focused" : ""
-                  }${editEmail ? " pf-field--filled" : ""}`}
-                >
+                {/* Email (read-only) */}
+                <div className="pf-field pf-field--filled">
                   <label className="pf-label" htmlFor="pf-email">
                     Email Address
                   </label>
@@ -481,19 +452,75 @@ export default function Profile() {
                       id="pf-email"
                       type="email"
                       className="pf-input"
-                      value={editEmail}
-                      onChange={(e) => setEditEmail(e.target.value)}
-                      onFocus={() => setFocused("em")}
-                      onBlur={() => setFocused(null)}
-                      autoComplete="email"
-                      required
+                      value={profile.email}
+                      readOnly
+                      style={{ opacity: 0.7, cursor: "not-allowed" }}
+                    />
+                  </div>
+                  <div className="pf-field-line" aria-hidden="true" />
+                </div>
+
+                {/* Member Since (read-only) */}
+                <div className="pf-field pf-field--filled">
+                  <label className="pf-label">Member Since</label>
+                  <div className="pf-input-wrap">
+                    <span className="pf-input-icon" aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                    </span>
+                    <input
+                      type="text"
+                      className="pf-input"
+                      value={formatDate(profile.created_at)}
+                      readOnly
+                      style={{ opacity: 0.7, cursor: "not-allowed" }}
+                    />
+                  </div>
+                  <div className="pf-field-line" aria-hidden="true" />
+                </div>
+
+                {/* User ID (read-only) */}
+                <div className="pf-field pf-field--filled">
+                  <label className="pf-label">User ID</label>
+                  <div className="pf-input-wrap">
+                    <span className="pf-input-icon" aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <rect x="2" y="7" width="20" height="14" rx="2" />
+                        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
+                      </svg>
+                    </span>
+                    <input
+                      type="text"
+                      className="pf-input"
+                      value={profile.id.slice(0, 8) + "••••••••"}
+                      readOnly
+                      style={{
+                        opacity: 0.5,
+                        cursor: "not-allowed",
+                        fontFamily: "monospace",
+                        fontSize: "0.75rem",
+                      }}
                     />
                   </div>
                   <div className="pf-field-line" aria-hidden="true" />
                 </div>
               </div>
 
-              <div className="pf-form-info">
+              <p className="pf-form-info">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -503,10 +530,11 @@ export default function Profile() {
                   height="13"
                 >
                   <circle cx="12" cy="12" r="10" />
-                  <path d="M12 16v-4M12 8h.01" strokeLinecap="round" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
-                Changing your email will require re-verification.
-              </div>
+                Email address cannot be changed. Only username is editable.
+              </p>
 
               <button type="submit" className="pf-save-btn" disabled={saving}>
                 {saving ? (
@@ -532,14 +560,19 @@ export default function Profile() {
             </form>
           )}
 
-          {/* PASSWORD TAB */}
-          {activeTab === "password" && (
-            <form className="pf-form" onSubmit={handleSavePassword}>
+          {/* ── Security Tab ── */}
+          {activeTab === "security" && (
+            <form
+              className="pf-form"
+              onSubmit={handleChangePassword}
+              noValidate
+            >
               <div className="pf-form-grid pf-form-grid--single">
+                {/* New Password */}
                 <div
                   className={`pf-field${
                     focused === "np" ? " pf-field--focused" : ""
-                  }${newPassword ? " pf-field--filled" : ""}`}
+                  }${newPass ? " pf-field--filled" : ""}`}
                 >
                   <label className="pf-label" htmlFor="pf-new-pass">
                     New Password
@@ -558,52 +591,49 @@ export default function Profile() {
                     </span>
                     <input
                       id="pf-new-pass"
-                      type={showNewPass ? "text" : "password"}
+                      type={showNew ? "text" : "password"}
                       className="pf-input"
                       placeholder="••••••••"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
+                      value={newPass}
+                      onChange={(e) => setNewPass(e.target.value)}
                       onFocus={() => setFocused("np")}
                       onBlur={() => setFocused(null)}
-                      required
                       minLength={6}
                     />
                     <button
                       type="button"
                       className="pf-eye-btn"
-                      onClick={() => setShowNewPass(!showNewPass)}
+                      onClick={() => setShowNew(!showNew)}
                     >
-                      {showNewPass ? (
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                        >
-                          <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
-                          <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-                          <line x1="1" y1="1" x2="23" y2="23" />
-                        </svg>
-                      ) : (
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                        >
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      )}
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        {showNew ? (
+                          <>
+                            <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+                            <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+                            <line x1="1" y1="1" x2="23" y2="23" />
+                          </>
+                        ) : (
+                          <>
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </>
+                        )}
+                      </svg>
                     </button>
                   </div>
                   <div className="pf-field-line" aria-hidden="true" />
                 </div>
 
+                {/* Confirm Password */}
                 <div
                   className={`pf-field${
-                    focused === "cfp" ? " pf-field--focused" : ""
-                  }${confirmPassword ? " pf-field--filled" : ""}`}
+                    focused === "cp" ? " pf-field--focused" : ""
+                  }${confirmPass ? " pf-field--filled" : ""}`}
                 >
                   <label className="pf-label" htmlFor="pf-confirm-pass">
                     Confirm New Password
@@ -622,50 +652,67 @@ export default function Profile() {
                     </span>
                     <input
                       id="pf-confirm-pass"
-                      type={showConfirmPass ? "text" : "password"}
+                      type={showConfirm ? "text" : "password"}
                       className="pf-input"
                       placeholder="••••••••"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      onFocus={() => setFocused("cfp")}
+                      value={confirmPass}
+                      onChange={(e) => setConfirmPass(e.target.value)}
+                      onFocus={() => setFocused("cp")}
                       onBlur={() => setFocused(null)}
-                      required
+                      minLength={6}
                     />
                     <button
                       type="button"
                       className="pf-eye-btn"
-                      onClick={() => setShowConfirmPass(!showConfirmPass)}
+                      onClick={() => setShowConfirm(!showConfirm)}
                     >
-                      {showConfirmPass ? (
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                        >
-                          <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
-                          <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-                          <line x1="1" y1="1" x2="23" y2="23" />
-                        </svg>
-                      ) : (
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                        >
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      )}
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        {showConfirm ? (
+                          <>
+                            <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+                            <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+                            <line x1="1" y1="1" x2="23" y2="23" />
+                          </>
+                        ) : (
+                          <>
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </>
+                        )}
+                      </svg>
                     </button>
                   </div>
                   <div className="pf-field-line" aria-hidden="true" />
                 </div>
               </div>
 
-              <button type="submit" className="pf-save-btn" disabled={saving}>
-                {saving ? (
+              <p className="pf-form-info">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  width="13"
+                  height="13"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+                Password must be at least 6 characters long.
+              </p>
+
+              <button
+                type="submit"
+                className="pf-save-btn"
+                disabled={passLoading}
+              >
+                {passLoading ? (
                   <span className="pf-spinner" />
                 ) : (
                   <>
@@ -687,7 +734,7 @@ export default function Profile() {
               </button>
             </form>
           )}
-        </div>
+        </main>
       </div>
     </div>
   );

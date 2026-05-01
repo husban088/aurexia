@@ -143,23 +143,18 @@ export default function ProductGrid({
   featured = false,
   onQuickView,
 }: ProductGridProps) {
-  const [mounted, setMounted] = useState(false);
+  // ✅ FIX: mounted hataya — seedha data fetch hoga, no double delay
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
-  // Track which product button is loading — only that button spins
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
   const { formatPrice } = useCurrency();
   const { addToCart } = useCartStore();
 
+  // ✅ Data first render pe hi fetch hoga — mounted wait nahi
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // LOAD DATA INSTANTLY - No skeleton delay
-  useEffect(() => {
-    let isMounted = true;
+    let active = true;
 
     async function loadProducts() {
       setLoading(true);
@@ -169,7 +164,7 @@ export default function ProductGrid({
         limit,
         featured
       );
-      if (isMounted) {
+      if (active) {
         setProducts(data);
         setLoading(false);
       }
@@ -177,7 +172,7 @@ export default function ProductGrid({
 
     loadProducts();
     return () => {
-      isMounted = false;
+      active = false;
     };
   }, [category, subcategory, limit, featured]);
 
@@ -296,8 +291,8 @@ export default function ProductGrid({
     }
   };
 
-  // Show loading only on first load
-  if (!mounted || (loading && products.length === 0)) {
+  // ✅ Skeleton sirf tab dikhao jab loading ho aur products nahi hain
+  if (loading && products.length === 0) {
     return (
       <div className="pg-skeleton-grid">
         {[...Array(limit || 8)].map((_, i) => (
