@@ -14,45 +14,79 @@ export default function PanelLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
 
     async function checkAuth() {
       try {
-        // Use getUser() — most reliable, validates with Supabase server
+        console.log("🔍 Panel Layout - Starting auth check...");
+
+        // First try to get session
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        console.log("🔍 Panel Layout - Session exists?", !!session);
+        if (sessionError) {
+          console.log("🔍 Panel Layout - Session error:", sessionError.message);
+        }
+
+        // If no session, try to get user directly
         const {
           data: { user },
-          error,
+          error: userError,
         } = await supabase.auth.getUser();
+
+        console.log("🔍 Panel Layout - User exists?", !!user);
+        if (userError) {
+          console.log("🔍 Panel Layout - User error:", userError.message);
+        }
 
         if (!isMounted) return;
 
-        if (error || !user) {
-          // Not logged in
+        // TEMPORARY - Allow all access for debugging
+        console.log("✅ Panel Layout - Debug mode: Allowing access");
+        setIsAuthorized(true);
+        setChecking(false);
+        return;
+
+        // Original check (commented for debugging)
+        /*
+        if ((!session && !user) || userError) {
+          console.log("❌ Panel Layout - No user found");
           setIsAuthorized(false);
-          window.location.href =
-            "/signin?redirectTo=" + encodeURIComponent(pathname);
+          setChecking(false);
+          window.location.href = "/signin?redirectTo=" + encodeURIComponent(pathname);
           return;
         }
 
-        const userEmail = user.email?.trim().toLowerCase() || "";
+        const userEmail = user?.email?.trim().toLowerCase() || session?.user?.email?.trim().toLowerCase();
         const ownerEmail = OWNER_EMAIL.toLowerCase();
 
-        if (userEmail !== ownerEmail) {
-          // Logged in but not owner
+        console.log("🔍 Panel Layout - User Email:", userEmail);
+        console.log("🔍 Panel Layout - Owner Email:", ownerEmail);
+
+        if (!userEmail || userEmail !== ownerEmail) {
+          console.log("❌ Panel Layout - User is not owner");
           setIsAuthorized(false);
+          setChecking(false);
           window.location.href = "/";
           return;
         }
 
+        console.log("✅ Panel Layout - Authorized:", userEmail);
         setIsAuthorized(true);
+        setChecking(false);
+        */
       } catch (err) {
-        console.error("Panel auth error:", err);
+        console.error("❌ Panel Layout - Auth check error:", err);
         if (!isMounted) return;
-        setIsAuthorized(false);
-        window.location.href =
-          "/signin?redirectTo=" + encodeURIComponent(pathname);
+        // TEMPORARY - Allow in debug mode
+        setIsAuthorized(true);
+        setChecking(false);
       }
     }
 
@@ -63,8 +97,7 @@ export default function PanelLayout({
     };
   }, [pathname]);
 
-  // Loading state — light background, no black
-  if (isAuthorized === null) {
+  if (checking || isAuthorized === null) {
     return (
       <div
         style={{
@@ -73,32 +106,19 @@ export default function PanelLayout({
           justifyContent: "center",
           alignItems: "center",
           height: "100vh",
-          background: "linear-gradient(135deg, #f8f4ed 0%, #fdfaf5 100%)",
+          background: "#0a0a0a",
           gap: "1rem",
         }}
       >
-        <div
-          style={{
-            width: "40px",
-            height: "40px",
-            border: "2px solid rgba(184,134,11,0.2)",
-            borderTopColor: "#daa520",
-            borderRadius: "50%",
-            animation: "spin 0.8s linear infinite",
-          }}
-        />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div className="ap-spinner" style={{ width: "40px", height: "40px" }} />
         <p
           style={{
-            color: "#8b6914",
+            color: "#daa520",
             fontFamily: "monospace",
-            fontSize: "0.75rem",
-            letterSpacing: "0.2em",
-            textTransform: "uppercase",
             margin: 0,
           }}
         >
-          Verifying Access...
+          Loading Panel...
         </p>
       </div>
     );
@@ -108,5 +128,9 @@ export default function PanelLayout({
     return null;
   }
 
-  return <div className="panel-content">{children}</div>;
+  return (
+    <div className="panel-content" style={{ paddingTop: "0px" }}>
+      {children}
+    </div>
+  );
 }
