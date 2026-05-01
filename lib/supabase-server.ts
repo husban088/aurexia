@@ -1,6 +1,4 @@
 // lib/supabase-server.ts
-// Use this file in Server Components, API Routes, and Server Actions
-// DO NOT use in client components ("use client")
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -24,6 +22,9 @@ export async function createSupabaseServerClient() {
             // Server Components mein set nahi ho sakta — ignore karo
           }
         },
+      },
+      auth: {
+        flowType: "pkce",
       },
     }
   );

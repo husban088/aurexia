@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { isOwner } from "@/lib/checkOwner";
 import "./panel-navbar.css";
 
 interface PanelNavbarProps {
@@ -90,11 +92,95 @@ export default function PanelNavbar({
 }: PanelNavbarProps) {
   const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   const isActive = (href: string, exact: boolean) => {
     if (exact) return pathname === href;
     return pathname?.startsWith(href) || false;
+  };
+
+  // Check if user is authorized (owner)
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkAuth() {
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+
+        if (!isMounted) return;
+
+        if (error || !user) {
+          console.log("No user found in PanelNavbar");
+          setIsAuthorized(false);
+          // Redirect to signin if not authorized
+          window.location.href = "/signin?redirectTo=/panel";
+          return;
+        }
+
+        const userEmail = user.email;
+        const isUserOwner = isOwner(userEmail);
+
+        if (!isUserOwner) {
+          console.log("User is not owner in PanelNavbar");
+          setIsAuthorized(false);
+          window.location.href = "/";
+          return;
+        }
+
+        setIsAuthorized(true);
+      } catch (err) {
+        console.error("Auth check error in PanelNavbar:", err);
+        setIsAuthorized(false);
+      }
+    }
+
+    checkAuth();
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state change in PanelNavbar:", event);
+      if (event === "SIGNED_OUT" || !session) {
+        setIsAuthorized(false);
+        window.location.href = "/signin?redirectTo=/panel";
+      } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        checkAuth();
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+
+    try {
+      await supabase.auth.signOut();
+      // Clear all storage
+      localStorage.clear();
+      sessionStorage.clear();
+      // Redirect to home
+      window.location.href = "/";
+    } catch (err) {
+      console.error("Sign out error:", err);
+      window.location.href = "/";
+    }
+  };
+
+  const handleBackToSite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    window.location.href = "/";
   };
 
   useEffect(() => {
@@ -104,10 +190,10 @@ export default function PanelNavbar({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleBackToSite = (e: React.MouseEvent) => {
-    e.preventDefault();
-    window.location.href = "/";
-  };
+  // Don't render if not authorized
+  if (!isAuthorized && mounted) {
+    return null;
+  }
 
   // Server-side fallback
   if (!mounted) {
@@ -251,11 +337,18 @@ export default function PanelNavbar({
             <span className="pn-admin-label">Admin</span>
           </div>
 
-          <a
-            href="/"
-            className="pn-icon-btn"
-            title="Back to Site"
-            onClick={handleBackToSite}
+          {/* Sign Out Button */}
+          <button
+            className="pn-icon-btn pn-signout-btn"
+            title="Sign Out"
+            onClick={handleSignOut}
+            disabled={signingOut}
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "inherit",
+            }}
           >
             <svg
               viewBox="0 0 24 24"
@@ -267,7 +360,8 @@ export default function PanelNavbar({
               <polyline points="16 17 21 12 16 7" />
               <line x1="21" y1="12" x2="9" y2="12" />
             </svg>
-          </a>
+            {signingOut && <span className="pn-signout-spinner" />}
+          </button>
         </div>
       </div>
     </nav>

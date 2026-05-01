@@ -889,7 +889,7 @@ function AttributeSelector({
 }
 
 // ============================================================
-// SIMPLE MODE - FIXED
+// SIMPLE MODE - FIXED WITH BACKGROUND OPERATIONS
 // ============================================================
 function SimpleModeForm({
   tab,
@@ -951,11 +951,13 @@ function SimpleModeForm({
 
   const removeImage = (index: number) =>
     setImages(images.filter((_, i) => i !== index));
+
   const getStockValue = (): number => {
     if (stockStatus === "out_of_stock") return 0;
     if (stockStatus === "low_stock") return lowStockThreshold || 5;
     return 999999;
   };
+
   const resetForm = () => {
     setName("");
     setDescription("");
@@ -967,6 +969,48 @@ function SimpleModeForm({
     setBulkTiers([]);
     setLowStockThreshold(null);
     setStockStatus("in_stock");
+  };
+
+  // Direct fetch to Supabase REST API — bypasses client hang issue
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+  const dbInsert = async (table: string, body: object) => {
+    const res = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const errMsg = Array.isArray(data)
+        ? data[0]?.message
+        : data?.message || data?.error || JSON.stringify(data);
+      throw new Error(`${table} insert failed (${res.status}): ${errMsg}`);
+    }
+    return Array.isArray(data) ? data[0] : data;
+  };
+
+  const dbInsertMany = async (table: string, body: object[]) => {
+    const res = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.error(`${table} bulk insert error:`, data);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -981,18 +1025,16 @@ function SimpleModeForm({
       onError("Sale price is required and must be greater than 0");
       return;
     }
-    if (isSubmitting) return;
+
+    if (isSubmitting) {
+      onError("Product is already being saved...");
+      return;
+    }
 
     setIsSubmitting(true);
     console.log("🚀 Starting product save...");
 
     try {
-      // ✅ Check session first
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session) {
-        throw new Error("Not authenticated. Please sign in again.");
-      }
-
       const currentCurrency = currency;
       const currentRate = currency.rate;
       const priceNum = parseFloat(priceDisplay);
@@ -1001,136 +1043,113 @@ function SimpleModeForm({
       let pricePKR = priceNum;
       let originalPricePKR: number | null =
         originalPriceNum > 0 ? originalPriceNum : null;
+
       if (currentCurrency.code !== "PKR" && currentRate > 0) {
         pricePKR = Number((priceNum / currentRate).toFixed(2));
-        if (originalPricePKR)
+        if (originalPricePKR) {
           originalPricePKR = Number(
             (originalPriceNum / currentRate).toFixed(2)
           );
+        }
       }
 
       // 1. Insert Product
       console.log("📦 Inserting product...");
-      const productRes = await supabase
-        .from("products")
-        .insert({
-          name: name.trim(),
-          description: description.trim() || null,
-          category: tab.category,
-          subcategory: tab.sub,
-          brand: brand.trim() || null,
-          condition,
-          is_featured: isFeatured,
-          is_active: isActive,
-        })
-        .select()
-        .single();
-
-      if (productRes.error)
-        throw new Error(`Product insert failed: ${productRes.error.message}`);
-      if (!productRes.data) throw new Error("No product data returned from DB");
-      const productData = productRes.data;
+      const productData = await dbInsert("products", {
+        name: name.trim(),
+        description: description.trim() || null,
+        category: tab.category,
+        subcategory: tab.sub,
+        brand: brand.trim() || null,
+        condition: condition,
+        is_featured: isFeatured,
+        is_active: isActive,
+        price: pricePKR,
+        stock: getStockValue(),
+        images: images,
+        original_price: originalPricePKR,
+      });
       console.log("✅ Product inserted:", productData.id);
 
       // 2. Insert Variant
       console.log("📦 Inserting variant...");
-      const variantRes = await supabase
-        .from("product_variants")
-        .insert({
-          product_id: productData.id,
-          attribute_type: "standard",
-          attribute_value: "Standard",
-          price: pricePKR,
-          original_price: originalPricePKR,
-          description: description.trim() || null,
-          stock: getStockValue(),
-          low_stock_threshold:
-            stockStatus === "low_stock" ? lowStockThreshold : null,
-          is_active: true,
-        })
-        .select()
-        .single();
-
-      if (variantRes.error)
-        throw new Error(`Variant insert failed: ${variantRes.error.message}`);
-      if (!variantRes.data) throw new Error("No variant data returned from DB");
-      const variantData = variantRes.data;
+      const variantData = await dbInsert("product_variants", {
+        product_id: productData.id,
+        attribute_type: "standard",
+        attribute_value: "Standard",
+        price: pricePKR,
+        original_price: originalPricePKR,
+        description: description.trim() || null,
+        stock: getStockValue(),
+        low_stock_threshold:
+          stockStatus === "low_stock" ? lowStockThreshold : null,
+        is_active: true,
+      });
       console.log("✅ Variant inserted:", variantData.id);
 
-      // 3. Insert Images (background - don't block)
+      // ✅ SUCCESS
+      console.log("✅ Product saved successfully!");
+      resetForm();
+      onSuccess();
+
+      // 3. Background: Insert Images
       if (images.length > 0) {
-        console.log(`📸 Inserting ${images.length} images...`);
-        supabase
-          .from("variant_images")
-          .insert(
-            images.map((url, idx) => ({
-              variant_id: variantData.id,
-              image_url: url,
-              display_order: idx,
-            }))
-          )
-          .then((res) => {
-            if (res.error) console.error("Image insert error:", res.error);
-          });
+        dbInsertMany(
+          "variant_images",
+          images.map((url, idx) => ({
+            variant_id: variantData.id,
+            image_url: url,
+            display_order: idx,
+          }))
+        ).catch((err) => console.error("Image insert error:", err));
       }
 
-      // 4. Insert Bulk Tiers (background)
+      // 4. Background: Insert Bulk Tiers
       const validTiers = bulkTiers.filter(
         (t) => t.min_quantity && t.tier_price > 0
       );
       if (validTiers.length > 0) {
-        console.log(`📊 Inserting ${validTiers.length} bulk tiers...`);
-        supabase
-          .from("bulk_pricing_tiers")
-          .insert(
-            validTiers.map((t) => ({
-              variant_id: variantData.id,
-              min_quantity: t.min_quantity,
-              max_quantity: t.max_quantity,
-              tier_price:
-                currentCurrency.code !== "PKR" && currentRate > 0
-                  ? Number((t.tier_price / currentRate).toFixed(2))
-                  : t.tier_price,
-              discount_percentage: t.discount_percentage,
-              discount_price: t.discount_price ?? null,
-            }))
-          )
-          .then((res) => {
-            if (res.error) console.error("Tier insert error:", res.error);
-          });
+        dbInsertMany(
+          "bulk_pricing_tiers",
+          validTiers.map((t) => ({
+            variant_id: variantData.id,
+            min_quantity: t.min_quantity,
+            max_quantity: t.max_quantity,
+            tier_price:
+              currentCurrency.code !== "PKR" && currentRate > 0
+                ? Number((t.tier_price / currentRate).toFixed(2))
+                : t.tier_price,
+            discount_percentage: t.discount_percentage,
+            discount_price: t.discount_price ?? null,
+          }))
+        ).catch((err) => console.error("Tier insert error:", err));
       }
 
-      // 5. Insert FAQs (background)
+      // 5. Background: Insert FAQs
       const validFaqs = faqs.filter((f) => f.question.trim());
       if (validFaqs.length > 0) {
-        console.log(`❓ Inserting ${validFaqs.length} FAQs...`);
-        supabase
-          .from("product_faqs")
-          .insert(
-            validFaqs.map((f, idx) => ({
-              product_id: productData.id,
-              question: f.question.trim(),
-              answer: f.answer.trim() || null,
-              display_order: idx,
-            }))
-          )
-          .then((res) => {
-            if (res.error) console.error("FAQ insert error:", res.error);
-          });
+        dbInsertMany(
+          "product_faqs",
+          validFaqs.map((f, idx) => ({
+            product_id: productData.id,
+            question: f.question.trim(),
+            answer: f.answer.trim() || null,
+            display_order: idx,
+          }))
+        ).catch((err) => console.error("FAQ insert error:", err));
       }
 
-      console.log("✅ Product saved successfully!");
-      resetForm();
-      setIsSubmitting(false);
-      onSuccess();
+      // Redirect
       setTimeout(() => {
-        router.push("/panel");
+        window.location.href = "/panel";
       }, 1500);
     } catch (err: any) {
       console.error("❌ Submit error:", err);
+      console.error("Full error:", JSON.stringify(err, null, 2));
       onError(
         err.message || "Failed to save product. Check console for details."
       );
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -1425,7 +1444,7 @@ function SimpleModeForm({
 }
 
 // ============================================================
-// DETAILED MODE - FIXED
+// DETAILED MODE - FIXED WITH BACKGROUND OPERATIONS
 // ============================================================
 function DetailedModeForm({
   tab,
@@ -1486,6 +1505,7 @@ function DetailedModeForm({
       ...materialVariants,
       ...capacityVariants,
     ];
+
     if (allVariants.length === 0) {
       onError("Please add at least one attribute");
       return;
@@ -1503,42 +1523,73 @@ function DetailedModeForm({
       onError("Please set a valid price for at least one variant");
       return;
     }
-    if (isSubmitting) return;
+
+    if (isSubmitting) {
+      onError("Product is already being saved...");
+      return;
+    }
 
     setIsSubmitting(true);
     console.log("🚀 Starting detailed product save...");
 
-    try {
-      // ✅ Check session first
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session) {
-        throw new Error("Not authenticated. Please sign in again.");
-      }
+    // Direct fetch to Supabase REST API — bypasses client hang issue
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+    const dbInsert = async (table: string, body: object) => {
+      const res = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const errMsg = Array.isArray(data)
+          ? data[0]?.message
+          : data?.message || data?.error || JSON.stringify(data);
+        throw new Error(`${table} insert failed (${res.status}): ${errMsg}`);
+      }
+      return Array.isArray(data) ? data[0] : data;
+    };
+
+    const dbInsertMany = async (table: string, body: object[]) => {
+      const res = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error(`${table} bulk insert error:`, data);
+      }
+    };
+
+    try {
       const currentCurrency = currency;
       const currentRate = currency.rate;
 
       // 1. Insert Product
       console.log("📦 Inserting product...");
-      const productRes = await supabase
-        .from("products")
-        .insert({
-          name: name.trim(),
-          description: description.trim() || null,
-          category: tab.category,
-          subcategory: tab.sub,
-          brand: brand.trim() || null,
-          condition,
-          is_featured: isFeatured,
-          is_active: isActive,
-        })
-        .select()
-        .single();
-
-      if (productRes.error)
-        throw new Error(`Product insert failed: ${productRes.error.message}`);
-      if (!productRes.data) throw new Error("No product data returned from DB");
-      const productData = productRes.data;
+      const productData = await dbInsert("products", {
+        name: name.trim(),
+        description: description.trim() || null,
+        category: tab.category,
+        subcategory: tab.sub,
+        brand: brand.trim() || null,
+        condition: condition,
+        is_featured: isFeatured,
+        is_active: isActive,
+      });
       console.log("✅ Product inserted:", productData.id);
 
       // 2. Insert each variant
@@ -1549,23 +1600,25 @@ function DetailedModeForm({
         const originalPriceNum = variant.originalPriceDisplay
           ? parseFloat(variant.originalPriceDisplay)
           : 0;
+
         let pricePKR = priceNum;
         let originalPricePKR: number | null =
           originalPriceNum > 0 ? originalPriceNum : null;
 
         if (currentCurrency.code !== "PKR" && currentRate > 0) {
           pricePKR = Number((priceNum / currentRate).toFixed(2));
-          if (originalPricePKR)
+          if (originalPricePKR) {
             originalPricePKR = Number(
               (originalPriceNum / currentRate).toFixed(2)
             );
+          }
         }
         if (pricePKR <= 0) pricePKR = 0.01;
 
         console.log(`📦 Inserting variant: ${variant.attributeValue}...`);
-        const variantRes = await supabase
-          .from("product_variants")
-          .insert({
+        let variantData: any;
+        try {
+          variantData = await dbInsert("product_variants", {
             product_id: productData.id,
             attribute_type: variant.attributeType,
             attribute_value: variant.attributeValue,
@@ -1575,89 +1628,75 @@ function DetailedModeForm({
             stock: variant.stock || 999999,
             low_stock_threshold: variant.lowStockThreshold || null,
             is_active: true,
-          })
-          .select()
-          .single();
-
-        if (variantRes.error) {
-          console.error("Variant error:", variantRes.error);
+          });
+          console.log(`✅ Variant inserted: ${variantData.id}`);
+        } catch (varErr: any) {
+          console.error("Variant insert error:", varErr.message);
           continue;
         }
-        if (!variantRes.data) continue;
-        const variantData = variantRes.data;
-        console.log(`✅ Variant inserted: ${variantData.id}`);
 
-        // Insert images for this variant (background)
+        // Background: Insert images
         if (variant.images && variant.images.length > 0) {
-          supabase
-            .from("variant_images")
-            .insert(
-              variant.images.map((url: string, idx: number) => ({
-                variant_id: variantData.id,
-                image_url: url,
-                display_order: idx,
-              }))
-            )
-            .then((res) => {
-              if (res.error) console.error("Image error:", res.error);
-            });
+          dbInsertMany(
+            "variant_images",
+            variant.images.map((url: string, idx: number) => ({
+              variant_id: variantData.id,
+              image_url: url,
+              display_order: idx,
+            }))
+          ).catch((err) => console.error("Image error:", err));
         }
 
-        // Insert bulk tiers for this variant (background)
+        // Background: Insert bulk tiers
         if (variant.bulkPricingTiers && variant.bulkPricingTiers.length > 0) {
           const validTiers = variant.bulkPricingTiers.filter(
             (t: any) => t.min_quantity && t.tier_price > 0
           );
           if (validTiers.length > 0) {
-            supabase
-              .from("bulk_pricing_tiers")
-              .insert(
-                validTiers.map((t: any) => ({
-                  variant_id: variantData.id,
-                  min_quantity: t.min_quantity,
-                  max_quantity: t.max_quantity,
-                  tier_price: t.tier_price,
-                  discount_percentage: t.discount_percentage ?? null,
-                  discount_price: t.discount_price ?? null,
-                }))
-              )
-              .then((res) => {
-                if (res.error) console.error("Tier error:", res.error);
-              });
+            dbInsertMany(
+              "bulk_pricing_tiers",
+              validTiers.map((t: any) => ({
+                variant_id: variantData.id,
+                min_quantity: t.min_quantity,
+                max_quantity: t.max_quantity,
+                tier_price: t.tier_price,
+                discount_percentage: t.discount_percentage ?? null,
+                discount_price: t.discount_price ?? null,
+              }))
+            ).catch((err) => console.error("Tier error:", err));
           }
         }
       }
 
-      // 3. Insert FAQs (background)
-      const validFaqs = faqs.filter((f) => f.question.trim());
-      if (validFaqs.length > 0) {
-        supabase
-          .from("product_faqs")
-          .insert(
-            validFaqs.map((f, idx) => ({
-              product_id: productData.id,
-              question: f.question.trim(),
-              answer: f.answer.trim() || null,
-              display_order: idx,
-            }))
-          )
-          .then((res) => {
-            if (res.error) console.error("FAQ error:", res.error);
-          });
-      }
-
+      // ✅ SUCCESS
       console.log("✅ Product saved successfully!");
       resetForm();
-      setIsSubmitting(false);
       onSuccess();
+
+      // Background: Insert FAQs
+      const validFaqs = faqs.filter((f) => f.question.trim());
+      if (validFaqs.length > 0) {
+        dbInsertMany(
+          "product_faqs",
+          validFaqs.map((f, idx) => ({
+            product_id: productData.id,
+            question: f.question.trim(),
+            answer: f.answer.trim() || null,
+            display_order: idx,
+          }))
+        ).catch((err) => console.error("FAQ error:", err));
+      }
+
+      // Redirect
       setTimeout(() => {
-        router.push("/panel");
+        window.location.href = "/panel";
       }, 1500);
     } catch (err: any) {
       console.error("❌ Submit error:", err);
       onError(
         err.message || "Failed to save product. Check console for details."
       );
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -1980,7 +2019,6 @@ export default function AddProductPage() {
   };
 
   if (currencyLoading) {
-    // loading is always false in CurrencyContext — this is a safety fallback only
     return null;
   }
 

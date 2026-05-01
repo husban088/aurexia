@@ -61,18 +61,6 @@ function deriveStockStatus(
   return "in_stock";
 }
 
-// ─── MUTATION GUARD ───────────────────────────────────────────────────────────
-let lastMutationAt = 0;
-const MUTATION_GUARD_MS = 8000;
-
-function markMutation() {
-  lastMutationAt = Date.now();
-}
-
-function isMutationRecent() {
-  return Date.now() - lastMutationAt < MUTATION_GUARD_MS;
-}
-
 // ─── fetchCartItems ───────────────────────────────────────────────────────────
 
 async function fetchCartItems(cartId: string): Promise<CartItemWithDetails[]> {
@@ -103,7 +91,6 @@ async function fetchCartItems(cartId: string): Promise<CartItemWithDetails[]> {
     }
 
     const rawItems = (data as any[]) || [];
-
     if (rawItems.length === 0) return [];
 
     const productIds = [...new Set(rawItems.map((item) => item.product_id))];
@@ -224,6 +211,9 @@ async function getOrCreateCart(): Promise<{
 // ─── fetchCart lock ───────────────────────────────────────────────────────────
 let fetchCartPromise: Promise<void> | null = null;
 
+// ─── addToCart lock — prevents double-click duplicate inserts ─────────────────
+let addToCartInProgress = false;
+
 // ─── Store ───────────────────────────────────────────────────────────────────
 
 export const useCartStore = create<CartStore>()(
@@ -240,9 +230,11 @@ export const useCartStore = create<CartStore>()(
 
       // ── fetchCart ──────────────────────────────────────────────────────────
       fetchCart: async () => {
+        // Agar already fetch ho raha hai toh wait karo
         if (fetchCartPromise) return fetchCartPromise;
 
         fetchCartPromise = (async () => {
+          // Sirf loading dikhao agar items nahi hain
           if (get().items.length === 0) {
             set({ loading: true });
           }
@@ -264,6 +256,7 @@ export const useCartStore = create<CartStore>()(
                 .maybeSingle();
               cart = userCart;
 
+              // Guest cart merge
               const guestSid = localStorage.getItem("guest_session_id");
               if (guestSid) {
                 const { data: guestCart } = await supabase
@@ -346,15 +339,9 @@ export const useCartStore = create<CartStore>()(
             }
 
             const cartId = cart.id;
-
-            if (isMutationRecent()) {
-              set({ cartId, loading: false, initialized: true });
-              return;
-            }
-
             const freshItems = await fetchCartItems(cartId);
 
-            // Filter out out-of-stock items
+            // Out of stock items filter karo
             const validItems = freshItems.filter((item) => {
               const stockStatus = item.variantStockStatus ?? "in_stock";
               if (stockStatus === "out_of_stock") {
@@ -364,7 +351,7 @@ export const useCartStore = create<CartStore>()(
               return true;
             });
 
-            // Merge with existing items from localStorage
+            // localStorage items ke saath merge karo
             const currentItems = get().items;
             const mergedItems = [...currentItems];
 
@@ -375,9 +362,22 @@ export const useCartStore = create<CartStore>()(
               }
             }
 
+            // temp items replace karo real DB items se
+            const finalItems = mergedItems.map((item) => {
+              if (item.id.startsWith("temp_")) {
+                const realItem = validItems.find(
+                  (db) =>
+                    db.product_id === item.product_id &&
+                    db.variant_id === item.variant_id
+                );
+                return realItem || item;
+              }
+              return item;
+            });
+
             set({
               cartId,
-              items: mergedItems,
+              items: finalItems,
               loading: false,
               initialized: true,
             });
@@ -393,191 +393,207 @@ export const useCartStore = create<CartStore>()(
       },
 
       // ── addToCart ──────────────────────────────────────────────────────────
+      // ✅ FIX:
+      // 1. No extra variant_images DB call - image already available
+      // 2. No MUTATION_GUARD delay - instant
+      // 3. Simple lock to prevent double-click duplicates
       addToCart: async (
         product: Product,
         variant: ProductVariant | null = null,
         quantity: number = 1,
         piecesPerUnit: number = 1
       ) => {
-        markMutation();
+        // Simple lock — ek time pe sirf ek add hoga, no 8s delay
+        if (addToCartInProgress) return;
+        addToCartInProgress = true;
 
-        const { items, cartId: existingCartId, onCartOpen } = get();
+        try {
+          const { items, onCartOpen } = get();
 
-        const variantId = variant?.id;
-        const variantName = variant ? variant.attribute_value : "Standard";
-        const variantPrice = variant?.price ?? product.price ?? 0;
-        const variantOriginalPrice =
-          variant?.original_price ?? product.original_price;
+          const variantId = variant?.id;
+          const variantName = variant ? variant.attribute_value : "Standard";
+          const variantPrice = variant?.price ?? product.price ?? 0;
+          const variantOriginalPrice =
+            variant?.original_price ?? product.original_price;
 
-        const rawStock =
-          variant != null ? variant.stock ?? 999999 : product.stock ?? 999999;
-        const lowStockThreshold =
-          variant != null
-            ? variant.low_stock_threshold ?? null
-            : (product as any).low_stock_threshold ?? null;
+          const rawStock =
+            variant != null ? variant.stock ?? 999999 : product.stock ?? 999999;
+          const lowStockThreshold =
+            variant != null
+              ? variant.low_stock_threshold ?? null
+              : (product as any).low_stock_threshold ?? null;
 
-        const stockStatus = deriveStockStatus(rawStock, lowStockThreshold);
+          const stockStatus = deriveStockStatus(rawStock, lowStockThreshold);
 
-        if (stockStatus === "out_of_stock") {
-          alert("This product is out of stock");
-          return;
-        }
-
-        let variantImage = "";
-        if (variant?.id) {
-          const { data: imgs } = await supabase
-            .from("variant_images")
-            .select("image_url")
-            .eq("variant_id", variant.id)
-            .order("display_order", { ascending: true })
-            .limit(1);
-          if (imgs && imgs.length > 0) variantImage = imgs[0].image_url;
-        }
-        if (!variantImage && product.images?.length)
-          variantImage = product.images[0];
-
-        const existingItem = items.find(
-          (i) =>
-            i.product_id === product.id &&
-            i.variant_id === variantId &&
-            (i.pieces_per_unit ?? 1) === piecesPerUnit
-        );
-
-        const newQuantity = existingItem
-          ? existingItem.quantity + quantity
-          : quantity;
-
-        if (stockStatus !== "in_stock" && rawStock > 0) {
-          const totalPhysical = newQuantity * piecesPerUnit;
-          if (totalPhysical > rawStock) {
-            const maxUnits = Math.floor(rawStock / piecesPerUnit);
-            alert(
-              `Only ${rawStock} items in stock. Max ${maxUnits} unit(s) of ${piecesPerUnit}-piece size.`
-            );
+          if (stockStatus === "out_of_stock") {
+            alert("This product is out of stock");
             return;
           }
-        }
 
-        // Optimistic update
-        if (existingItem) {
-          set({
-            items: get().items.map((i) =>
-              i.id === existingItem.id ? { ...i, quantity: newQuantity } : i
-            ),
-          });
-        } else {
-          const tempId = `temp_${Date.now()}_${Math.random()}`;
-          const tempItem: CartItemWithDetails = {
-            id: tempId,
-            cart_id: existingCartId || "",
-            product_id: product.id!,
-            variant_id: variantId,
-            variant_name: variantName,
-            variant_price: variantPrice,
-            variant_original_price: variantOriginalPrice,
-            variant_image: variantImage,
-            quantity,
-            pieces_per_unit: piecesPerUnit,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            variantStock: rawStock,
-            variantLowStockThreshold: lowStockThreshold,
-            variantStockStatus: stockStatus,
-            product: {
-              ...product,
-              price: variantPrice,
-              original_price: variantOriginalPrice,
-              stock: rawStock,
-            },
-          };
-          set({ items: [...get().items, tempItem] });
-        }
+          // ✅ FIX: Variant image directly se lo — no extra DB call
+          // ProductGrid/FeaturedProducts already images pass kar raha hai
+          let variantImage = "";
+          if (product.images && product.images.length > 0) {
+            variantImage = product.images[0];
+          }
 
-        if (onCartOpen) onCartOpen();
+          const existingItem = items.find(
+            (i) =>
+              i.product_id === product.id &&
+              i.variant_id === variantId &&
+              (i.pieces_per_unit ?? 1) === piecesPerUnit
+          );
 
-        // Sync to DB
-        try {
-          const { cartId } = await getOrCreateCart();
-          if (!get().cartId) set({ cartId });
+          const newQuantity = existingItem
+            ? existingItem.quantity + quantity
+            : quantity;
 
-          if (existingItem) {
-            const { error } = await supabase
-              .from("cart_items")
-              .update({ quantity: newQuantity })
-              .eq("id", existingItem.id);
-
-            if (error) {
-              console.error("addToCart update error:", error);
-              set({
-                items: get().items.map((i) =>
-                  i.id === existingItem.id
-                    ? { ...i, quantity: existingItem.quantity }
-                    : i
-                ),
-              });
-            }
-          } else {
-            const { data: inserted, error } = await supabase
-              .from("cart_items")
-              .insert({
-                cart_id: cartId,
-                product_id: product.id,
-                variant_id: variantId,
-                variant_name: variantName,
-                variant_price: variantPrice,
-                variant_original_price: variantOriginalPrice,
-                variant_image: variantImage,
-                quantity,
-                pieces_per_unit: piecesPerUnit,
-              })
-              .select()
-              .single();
-
-            if (error || !inserted) {
-              console.error("addToCart insert error:", error);
-              set({
-                items: get().items.filter(
-                  (i) =>
-                    !(
-                      i.id.startsWith("temp_") &&
-                      i.product_id === product.id &&
-                      i.variant_id === variantId &&
-                      (i.pieces_per_unit ?? 1) === piecesPerUnit
-                    )
-                ),
-              });
+          if (stockStatus !== "in_stock" && rawStock > 0) {
+            const totalPhysical = newQuantity * piecesPerUnit;
+            if (totalPhysical > rawStock) {
+              const maxUnits = Math.floor(rawStock / piecesPerUnit);
+              alert(
+                `Only ${rawStock} items in stock. Max ${maxUnits} unit(s) of ${piecesPerUnit}-piece size.`
+              );
               return;
             }
+          }
 
+          // ✅ OPTIMISTIC UPDATE — UI foran update hogi, page reload nahi
+          if (existingItem) {
             set({
               items: get().items.map((i) =>
-                i.id.startsWith("temp_") &&
-                i.product_id === product.id &&
-                i.variant_id === variantId &&
-                (i.pieces_per_unit ?? 1) === piecesPerUnit
-                  ? {
-                      ...inserted,
-                      pieces_per_unit:
-                        inserted.pieces_per_unit ?? piecesPerUnit,
-                      variantStock: rawStock,
-                      variantLowStockThreshold: lowStockThreshold,
-                      variantStockStatus: stockStatus,
-                      product: product,
-                    }
-                  : i
+                i.id === existingItem.id ? { ...i, quantity: newQuantity } : i
               ),
-              cartId,
             });
+          } else {
+            const tempId = `temp_${Date.now()}_${Math.random()}`;
+            const tempItem: CartItemWithDetails = {
+              id: tempId,
+              cart_id: get().cartId || "",
+              product_id: product.id!,
+              variant_id: variantId,
+              variant_name: variantName,
+              variant_price: variantPrice,
+              variant_original_price: variantOriginalPrice,
+              variant_image: variantImage,
+              quantity,
+              pieces_per_unit: piecesPerUnit,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              variantStock: rawStock,
+              variantLowStockThreshold: lowStockThreshold,
+              variantStockStatus: stockStatus,
+              product: {
+                ...product,
+                price: variantPrice,
+                original_price: variantOriginalPrice,
+                stock: rawStock,
+              },
+            };
+            set({ items: [...get().items, tempItem] });
           }
-        } catch (err) {
-          console.error("addToCart sync error:", err);
+
+          // ✅ Cart sidebar kholo immediately
+          if (onCartOpen) onCartOpen();
+
+          // ✅ DB me sync karo background me
+          try {
+            // Cart ID already hai toh reuse karo, nahi toh naya banao
+            let cartId = get().cartId;
+            if (!cartId) {
+              const result = await getOrCreateCart();
+              cartId = result.cartId;
+              set({ cartId });
+            }
+
+            if (existingItem) {
+              // Quantity update karo
+              const { error } = await supabase
+                .from("cart_items")
+                .update({ quantity: newQuantity })
+                .eq("id", existingItem.id);
+
+              if (error) {
+                console.error("addToCart update error:", error);
+                // Rollback
+                set({
+                  items: get().items.map((i) =>
+                    i.id === existingItem.id
+                      ? { ...i, quantity: existingItem.quantity }
+                      : i
+                  ),
+                });
+              }
+            } else {
+              // Naya item insert karo
+              const { data: inserted, error } = await supabase
+                .from("cart_items")
+                .insert({
+                  cart_id: cartId,
+                  product_id: product.id,
+                  variant_id: variantId,
+                  variant_name: variantName,
+                  variant_price: variantPrice,
+                  variant_original_price: variantOriginalPrice,
+                  variant_image: variantImage,
+                  quantity,
+                  pieces_per_unit: piecesPerUnit,
+                })
+                .select()
+                .single();
+
+              if (error || !inserted) {
+                console.error("addToCart insert error:", error);
+                // Temp item hatao rollback
+                set({
+                  items: get().items.filter(
+                    (i) =>
+                      !(
+                        i.id.startsWith("temp_") &&
+                        i.product_id === product.id &&
+                        i.variant_id === variantId &&
+                        (i.pieces_per_unit ?? 1) === piecesPerUnit
+                      )
+                  ),
+                });
+                return;
+              }
+
+              // Temp item ko real item se replace karo
+              set({
+                items: get().items.map((i) =>
+                  i.id.startsWith("temp_") &&
+                  i.product_id === product.id &&
+                  i.variant_id === variantId &&
+                  (i.pieces_per_unit ?? 1) === piecesPerUnit
+                    ? {
+                        ...inserted,
+                        pieces_per_unit:
+                          inserted.pieces_per_unit ?? piecesPerUnit,
+                        variantStock: rawStock,
+                        variantLowStockThreshold: lowStockThreshold,
+                        variantStockStatus: stockStatus,
+                        product: product,
+                      }
+                    : i
+                ),
+                cartId,
+              });
+            }
+          } catch (err) {
+            console.error("addToCart DB sync error:", err);
+          }
+        } finally {
+          // Lock release karo — thodi delay ke saath taake double-click safe ho
+          setTimeout(() => {
+            addToCartInProgress = false;
+          }, 500);
         }
       },
 
       // ── updateQuantity ─────────────────────────────────────────────────────
       updateQuantity: async (itemId: string, quantity: number) => {
-        markMutation();
-
         if (quantity <= 0) {
           await get().removeFromCart(itemId);
           return;
@@ -611,6 +627,7 @@ export const useCartStore = create<CartStore>()(
           }
         }
 
+        // Optimistic update
         set({
           items: items.map((i) => (i.id === itemId ? { ...i, quantity } : i)),
         });
@@ -634,14 +651,11 @@ export const useCartStore = create<CartStore>()(
 
       // ── removeFromCart ─────────────────────────────────────────────────────
       removeFromCart: async (itemId: string) => {
-        markMutation();
-
         const { items } = get();
 
-        // Optimistic update - remove instantly from UI
+        // Optimistic remove
         set({ items: items.filter((i) => i.id !== itemId) });
 
-        // Delete from DB if not temp
         if (!itemId.startsWith("temp_")) {
           const { error } = await supabase
             .from("cart_items")
@@ -650,7 +664,6 @@ export const useCartStore = create<CartStore>()(
 
           if (error) {
             console.error("removeFromCart error:", error);
-            // Rollback on error
             set({ items });
           }
         }
@@ -658,7 +671,6 @@ export const useCartStore = create<CartStore>()(
 
       // ── clearCart ──────────────────────────────────────────────────────────
       clearCart: async () => {
-        markMutation();
         const { cartId } = get();
         set({ items: [] });
         if (cartId) {
@@ -730,15 +742,12 @@ export const useCartStore = create<CartStore>()(
         initialized: state.initialized,
       }),
       onRehydrateStorage: () => (state) => {
-        console.log(
-          "🔄 Cart store rehydrated:",
-          state?.items?.length || 0,
-          "items"
-        );
         if (state?.items?.length) {
-          setTimeout(() => {
-            console.log("✅ Cart ready with", state.items.length, "items");
-          }, 0);
+          console.log(
+            "✅ Cart rehydrated:",
+            state.items.length,
+            "items from localStorage"
+          );
         }
       },
     }

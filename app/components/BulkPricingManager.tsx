@@ -1,7 +1,7 @@
-// app/panel/add-product/BulkPricingManager.tsx
+// app/panel/components/BulkPricingManager.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCurrency } from "@/app/context/CurrencyContext";
 
 export type BulkPricingTier = {
@@ -9,16 +9,19 @@ export type BulkPricingTier = {
   variant_id: string;
   min_quantity: number;
   max_quantity: number;
-  tier_price: number;
+  tier_price: number; // This is ALWAYS in PKR in database
   discount_percentage: number | null;
   discount_price: number | null;
   created_at?: string;
   updated_at?: string;
+  // Display fields (not saved to DB)
+  display_price?: number;
+  display_currency?: string;
 };
 
 type BulkPricingManagerProps = {
   variantId?: string;
-  unitPrice: number;
+  unitPrice: number; // Unit price in CURRENT CURRENCY
   tiers: BulkPricingTier[];
   onTiersChange: (tiers: BulkPricingTier[]) => void;
   onError: (msg: string) => void;
@@ -33,35 +36,44 @@ export function BulkPricingManager({
   onError,
 }: BulkPricingManagerProps) {
   const { currency } = useCurrency();
-  const sym = currency.symbol;
+  const symbol = currency.symbol;
+  const currencyCode = currency.code;
+  const currencyRate = currency.rate;
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTierMin, setNewTierMin] = useState(2);
   const [newTierMax, setNewTierMax] = useState(2);
-  const [newTierPrice, setNewTierPrice] = useState(unitPrice * 2);
-  const [newDiscountPercent, setNewDiscountPercent] = useState(0);
+  const [newTierDiscount, setNewTierDiscount] = useState(0);
 
-  const calculatePriceFromDiscount = (qty: number, discountPercent: number) => {
+  // Helper: Convert display price (current currency) to PKR for storage
+  const convertToPKR = (priceInDisplay: number): number => {
+    if (currencyCode === "PKR") return priceInDisplay;
+    return Number((priceInDisplay / currencyRate).toFixed(2));
+  };
+
+  // Helper: Convert PKR to display currency
+  const convertFromPKR = (priceInPKR: number): number => {
+    if (currencyCode === "PKR") return priceInPKR;
+    return Number((priceInPKR * currencyRate).toFixed(2));
+  };
+
+  // Calculate total price in CURRENT CURRENCY based on discount percentage
+  const calculateTotalPrice = (
+    qty: number,
+    discountPercent: number
+  ): number => {
     const originalTotal = unitPrice * qty;
     const discountedTotal = originalTotal * (1 - discountPercent / 100);
-    return Math.round(discountedTotal);
+    return Number(discountedTotal.toFixed(2));
   };
 
-  const handleDiscountChange = (percent: number) => {
-    setNewDiscountPercent(percent);
-    const qty = newTierMin;
-    const newPrice = calculatePriceFromDiscount(qty, percent);
-    setNewTierPrice(newPrice);
-  };
-
-  const handleMinChange = (min: number) => {
-    setNewTierMin(min);
-    if (min > newTierMax) setNewTierMax(min);
-    const newPrice = calculatePriceFromDiscount(min, newDiscountPercent);
-    setNewTierPrice(newPrice);
+  // Get display price for a tier (converted from PKR stored value)
+  const getDisplayPrice = (tier: BulkPricingTier): number => {
+    if (tier.display_price) return tier.display_price;
+    return convertFromPKR(tier.tier_price);
   };
 
   const addTier = () => {
-    // Validate
     if (newTierMin < 2) {
       onError("Minimum quantity must be at least 2");
       return;
@@ -75,7 +87,7 @@ export function BulkPricingManager({
       return;
     }
 
-    // Check for overlapping
+    // Check for overlapping ranges
     const overlapping = tiers.some(
       (t) => !(newTierMax < t.min_quantity || newTierMin > t.max_quantity)
     );
@@ -85,21 +97,26 @@ export function BulkPricingManager({
       return;
     }
 
-    const discountPercent = newDiscountPercent;
-    const discountPrice = newTierPrice;
-    const perPiecePrice = newTierPrice / newTierMin;
-    const savingPerPiece = unitPrice - perPiecePrice;
+    // Calculate total price in CURRENT CURRENCY
+    const totalPriceInDisplay = calculateTotalPrice(
+      newTierMin,
+      newTierDiscount
+    );
+
+    // Convert to PKR for storage
+    const totalPriceInPKR = convertToPKR(totalPriceInDisplay);
 
     const newTier: BulkPricingTier = {
       variant_id: "",
       min_quantity: newTierMin,
       max_quantity: newTierMax,
-      tier_price: newTierPrice,
-      discount_percentage: discountPercent,
-      discount_price: discountPrice,
+      tier_price: totalPriceInPKR,
+      discount_percentage: newTierDiscount,
+      discount_price: totalPriceInPKR,
+      display_price: totalPriceInDisplay,
+      display_currency: currencyCode,
     };
 
-    // Add new tier and sort by min_quantity
     const updatedTiers = [...tiers, newTier].sort(
       (a, b) => a.min_quantity - b.min_quantity
     );
@@ -108,8 +125,7 @@ export function BulkPricingManager({
     // Reset form
     setNewTierMin(2);
     setNewTierMax(2);
-    setNewTierPrice(unitPrice * 2);
-    setNewDiscountPercent(0);
+    setNewTierDiscount(0);
     setShowAddForm(false);
   };
 
@@ -117,48 +133,26 @@ export function BulkPricingManager({
     onTiersChange(tiers.filter((_, i) => i !== index));
   };
 
-  const editTier = (index: number, newPrice: number, newDiscount: number) => {
-    const updatedTiers = [...tiers];
-    const qty = updatedTiers[index].min_quantity;
-    const originalTotal = unitPrice * qty;
-    const discountedTotal = originalTotal * (1 - newDiscount / 100);
-    const roundedPrice = Math.round(discountedTotal);
+  const updateTierDiscount = (index: number, discountPercent: number) => {
+    const tier = tiers[index];
+    const qty = tier.min_quantity;
 
+    // Calculate new total price in CURRENT CURRENCY
+    const newTotalDisplay = calculateTotalPrice(qty, discountPercent);
+    const newTotalPKR = convertToPKR(newTotalDisplay);
+
+    const updatedTiers = [...tiers];
     updatedTiers[index] = {
       ...updatedTiers[index],
-      tier_price: newDiscount > 0 ? roundedPrice : newPrice,
-      discount_percentage: newDiscount,
-      discount_price: newDiscount > 0 ? roundedPrice : newPrice,
+      tier_price: newTotalPKR,
+      discount_percentage: discountPercent,
+      discount_price: newTotalPKR,
+      display_price: newTotalDisplay,
     };
     onTiersChange(updatedTiers);
   };
 
-  const getAvailableRanges = () => {
-    const usedRanges = [...tiers].sort(
-      (a, b) => a.min_quantity - b.min_quantity
-    );
-    const available: { min: number; max: number }[] = [];
-    let lastMax = 1;
-
-    for (const range of usedRanges) {
-      if (range.min_quantity > lastMax + 1) {
-        available.push({ min: lastMax + 1, max: range.min_quantity - 1 });
-      }
-      lastMax = Math.max(lastMax, range.max_quantity);
-    }
-
-    if (lastMax < MAX_QUANTITY) {
-      available.push({ min: lastMax + 1, max: MAX_QUANTITY });
-    }
-
-    return available;
-  };
-
-  // Quick add multiple tiers at once
   const addMultipleTiers = () => {
-    const newTiers: BulkPricingTier[] = [];
-
-    // Default tiers: 2,3,4,5,6-10,11-20,21-50,51-100
     const defaultTiers = [
       { min: 2, max: 2, discount: 5 },
       { min: 3, max: 3, discount: 8 },
@@ -170,20 +164,50 @@ export function BulkPricingManager({
       { min: 51, max: 100, discount: 30 },
     ];
 
+    const newTiers: BulkPricingTier[] = [];
     for (const preset of defaultTiers) {
-      const originalTotal = unitPrice * preset.min;
-      const discountedTotal = originalTotal * (1 - preset.discount / 100);
-      newTiers.push({
-        variant_id: "",
-        min_quantity: preset.min,
-        max_quantity: preset.max,
-        tier_price: Math.round(discountedTotal),
-        discount_percentage: preset.discount,
-        discount_price: Math.round(discountedTotal),
-      });
+      const totalDisplay = calculateTotalPrice(preset.min, preset.discount);
+      const totalPKR = convertToPKR(totalDisplay);
+
+      // Check if tier already exists
+      const exists = tiers.some(
+        (t) => !(preset.max < t.min_quantity || preset.min > t.max_quantity)
+      );
+
+      if (!exists) {
+        newTiers.push({
+          variant_id: "",
+          min_quantity: preset.min,
+          max_quantity: preset.max,
+          tier_price: totalPKR,
+          discount_percentage: preset.discount,
+          discount_price: totalPKR,
+          display_price: totalDisplay,
+          display_currency: currencyCode,
+        });
+      }
     }
 
-    onTiersChange(newTiers);
+    const updatedTiers = [...tiers, ...newTiers].sort(
+      (a, b) => a.min_quantity - b.min_quantity
+    );
+    onTiersChange(updatedTiers);
+  };
+
+  // Helper to format price for display
+  const formatPrice = (priceInPKR: number): string => {
+    const displayPrice = convertFromPKR(priceInPKR);
+    return `${symbol}${displayPrice.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })}`;
+  };
+
+  const formatSmallPrice = (price: number): string => {
+    return `${symbol}${price.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })}`;
   };
 
   return (
@@ -202,9 +226,11 @@ export function BulkPricingManager({
             </svg>
           </div>
           <div>
-            <h3 className="ap-bulk-pricing-title">Bulk Pricing</h3>
+            <h3 className="ap-bulk-pricing-title">
+              Bulk Pricing ({currency.code})
+            </h3>
             <p className="ap-bulk-pricing-desc">
-              Set quantity-based discounts (2 to 100 pieces)
+              Set quantity-based discounts - prices in {currency.code}
             </p>
           </div>
         </div>
@@ -214,20 +240,19 @@ export function BulkPricingManager({
             className="ap-bulk-add-all-btn"
             onClick={addMultipleTiers}
           >
-            + Add All Tiers (2-100)
+            + Add All Tiers
           </button>
         </div>
       </div>
 
       <div className="ap-bulk-pricing-body">
-        {/* Existing Tiers Table */}
         {tiers.length > 0 && (
           <div className="ap-bulk-tiers-table-wrap">
             <table className="ap-bulk-tiers-table">
               <thead>
                 <tr>
                   <th>Quantity</th>
-                  <th>Total Price</th>
+                  <th>Total Price ({currency.code})</th>
                   <th>Per Piece</th>
                   <th>You Save</th>
                   <th>Discount</th>
@@ -240,10 +265,13 @@ export function BulkPricingManager({
                   const qtyText = isRange
                     ? `${tier.min_quantity} - ${tier.max_quantity} pcs`
                     : `${tier.min_quantity} pc`;
-                  const perPiece = tier.tier_price / tier.min_quantity;
-                  const saving = (unitPrice - perPiece).toFixed(0);
+
+                  const totalDisplay = getDisplayPrice(tier);
+                  const perPiece = totalDisplay / tier.min_quantity;
+                  const unitDisplay = unitPrice;
+                  const savingPerPiece = unitDisplay - perPiece;
                   const discount = (
-                    ((unitPrice - perPiece) / unitPrice) *
+                    (savingPerPiece / unitDisplay) *
                     100
                   ).toFixed(1);
 
@@ -252,18 +280,17 @@ export function BulkPricingManager({
                       <td className="ap-bulk-tier-qty">{qtyText}</td>
                       <td className="ap-bulk-tier-total-price">
                         <span className="ap-bulk-cut-price">
-                          {sym}{" "}
-                          {(unitPrice * tier.min_quantity).toLocaleString()}
+                          {formatSmallPrice(unitDisplay * tier.min_quantity)}
                         </span>
                         <span className="ap-bulk-sale-price">
-                          {sym} {tier.tier_price.toLocaleString()}
+                          {formatSmallPrice(totalDisplay)}
                         </span>
                       </td>
                       <td className="ap-bulk-tier-per-piece">
-                        {sym} {perPiece.toFixed(0)}
+                        {formatSmallPrice(perPiece)}
                       </td>
                       <td className="ap-bulk-tier-saving">
-                        Save {sym} {parseFloat(saving).toLocaleString()}
+                        Save {formatSmallPrice(savingPerPiece)}/pc
                       </td>
                       <td className="ap-bulk-tier-discount">
                         <span className="ap-bulk-discount-badge">
@@ -274,9 +301,8 @@ export function BulkPricingManager({
                           className="ap-bulk-discount-input"
                           value={tier.discount_percentage || 0}
                           onChange={(e) =>
-                            editTier(
+                            updateTierDiscount(
                               idx,
-                              tier.tier_price,
                               parseFloat(e.target.value) || 0
                             )
                           }
@@ -310,7 +336,6 @@ export function BulkPricingManager({
           </div>
         )}
 
-        {/* Add New Tier Form - Small Plus Button */}
         {!showAddForm ? (
           <button
             type="button"
@@ -338,9 +363,7 @@ export function BulkPricingManager({
                   min="2"
                   max="100"
                   value={newTierMin}
-                  onChange={(e) =>
-                    handleMinChange(parseInt(e.target.value) || 2)
-                  }
+                  onChange={(e) => setNewTierMin(parseInt(e.target.value) || 2)}
                 />
               </div>
               <div className="ap-bulk-form-field">
@@ -362,19 +385,9 @@ export function BulkPricingManager({
                   min="0"
                   max="90"
                   step="1"
-                  value={newDiscountPercent}
+                  value={newTierDiscount}
                   onChange={(e) =>
-                    handleDiscountChange(parseFloat(e.target.value) || 0)
-                  }
-                />
-              </div>
-              <div className="ap-bulk-form-field">
-                <label>Total Price</label>
-                <input
-                  type="number"
-                  value={newTierPrice}
-                  onChange={(e) =>
-                    setNewTierPrice(parseFloat(e.target.value) || 0)
+                    setNewTierDiscount(parseFloat(e.target.value) || 0)
                   }
                 />
               </div>
@@ -394,22 +407,24 @@ export function BulkPricingManager({
               </button>
             </div>
             <div className="ap-bulk-form-preview">
-              <span>
-                Unit price: {sym} {unitPrice}
-              </span>
+              <span>Unit price: {formatSmallPrice(unitPrice)}</span>
               <span>→</span>
               <span className="ap-bulk-preview-price">
-                Per piece: {sym} {(newTierPrice / newTierMin).toFixed(0)}
+                Total:{" "}
+                {formatSmallPrice(
+                  calculateTotalPrice(newTierMin, newTierDiscount)
+                )}
               </span>
               <span className="ap-bulk-preview-saving">
-                Save: {sym} {(unitPrice - newTierPrice / newTierMin).toFixed(0)}
-                /pc
+                Per piece:{" "}
+                {formatSmallPrice(
+                  calculateTotalPrice(newTierMin, newTierDiscount) / newTierMin
+                )}
               </span>
             </div>
           </div>
         )}
 
-        {/* Quick Presets - Small chips */}
         <div className="ap-bulk-presets-small">
           <span className="ap-bulk-presets-label">Quick add:</span>
           {[
@@ -421,360 +436,52 @@ export function BulkPricingManager({
             { label: "11-20", qty: 11, maxQty: 20, discount: 20 },
             { label: "21-50", qty: 21, maxQty: 50, discount: 25 },
             { label: "51-100", qty: 51, maxQty: 100, discount: 30 },
-          ].map((preset, idx) => {
-            const originalTotal = unitPrice * preset.qty;
-            const discountedTotal = originalTotal * (1 - preset.discount / 100);
-            return (
-              <button
-                key={idx}
-                type="button"
-                className="ap-bulk-preset-chip"
-                onClick={() => {
+          ].map((preset, idx) => (
+            <button
+              key={idx}
+              type="button"
+              className="ap-bulk-preset-chip"
+              onClick={() => {
+                const totalDisplay = calculateTotalPrice(
+                  preset.qty,
+                  preset.discount
+                );
+                const totalPKR = convertToPKR(totalDisplay);
+
+                const exists = tiers.some(
+                  (t) =>
+                    (t.min_quantity <= preset.qty &&
+                      t.max_quantity >= preset.qty) ||
+                    (t.min_quantity <= preset.maxQty &&
+                      t.max_quantity >= preset.maxQty)
+                );
+
+                if (!exists) {
                   const newTier: BulkPricingTier = {
                     variant_id: "",
                     min_quantity: preset.qty,
                     max_quantity: preset.maxQty,
-                    tier_price: Math.round(discountedTotal),
+                    tier_price: totalPKR,
                     discount_percentage: preset.discount,
-                    discount_price: Math.round(discountedTotal),
+                    discount_price: totalPKR,
+                    display_price: totalDisplay,
+                    display_currency: currencyCode,
                   };
-                  // Check if tier already exists
-                  const exists = tiers.some(
-                    (t) =>
-                      (t.min_quantity <= preset.qty &&
-                        t.max_quantity >= preset.qty) ||
-                      (t.min_quantity <= preset.maxQty &&
-                        t.max_quantity >= preset.maxQty)
+                  const updatedTiers = [...tiers, newTier].sort(
+                    (a, b) => a.min_quantity - b.min_quantity
                   );
-                  if (!exists) {
-                    const updatedTiers = [...tiers, newTier].sort(
-                      (a, b) => a.min_quantity - b.min_quantity
-                    );
-                    onTiersChange(updatedTiers);
-                  } else {
-                    onError("Tier already exists for this quantity range");
-                  }
-                }}
-              >
-                {preset.label}
-                <span>{preset.discount}%</span>
-              </button>
-            );
-          })}
+                  onTiersChange(updatedTiers);
+                } else {
+                  onError("Tier already exists for this quantity range");
+                }
+              }}
+            >
+              {preset.label}
+              <span>{preset.discount}%</span>
+            </button>
+          ))}
         </div>
       </div>
-
-      <style jsx>{`
-        .ap-bulk-pricing-section {
-          margin-top: 1rem;
-          background: #ffffff;
-          border: 1px solid rgba(218, 165, 32, 0.12);
-          border-radius: 12px;
-          overflow: hidden;
-        }
-        .ap-bulk-pricing-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0.85rem 1rem;
-          background: rgba(218, 165, 32, 0.04);
-          border-bottom: 1px solid rgba(218, 165, 32, 0.1);
-        }
-        .ap-bulk-pricing-header-left {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-        .ap-bulk-pricing-icon {
-          width: 32px;
-          height: 32px;
-          border: 1px solid rgba(218, 165, 32, 0.15);
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #8b6914;
-          background: rgba(218, 165, 32, 0.06);
-        }
-        .ap-bulk-pricing-icon svg {
-          width: 14px;
-          height: 14px;
-        }
-        .ap-bulk-pricing-title {
-          font-family: var(--ap-serif);
-          font-size: 0.85rem;
-          font-weight: 600;
-          color: #1a1a1a;
-          margin: 0;
-        }
-        .ap-bulk-pricing-desc {
-          font-family: var(--ap-sans);
-          font-size: 0.5rem;
-          color: #666666;
-          margin: 0;
-        }
-        .ap-bulk-add-all-btn {
-          padding: 0.4rem 0.8rem;
-          background: rgba(218, 165, 32, 0.1);
-          border: 1px solid rgba(218, 165, 32, 0.2);
-          border-radius: 20px;
-          font-family: var(--ap-sans);
-          font-size: 0.5rem;
-          font-weight: 600;
-          color: #8b6914;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .ap-bulk-add-all-btn:hover {
-          background: rgba(218, 165, 32, 0.2);
-          border-color: #daa520;
-        }
-        .ap-bulk-pricing-body {
-          padding: 1rem;
-        }
-        .ap-bulk-tiers-table-wrap {
-          overflow-x: auto;
-          margin-bottom: 1rem;
-        }
-        .ap-bulk-tiers-table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 0.6rem;
-        }
-        .ap-bulk-tiers-table th {
-          text-align: left;
-          padding: 0.5rem 0.25rem;
-          font-family: var(--ap-sans);
-          font-size: 0.5rem;
-          font-weight: 600;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          color: #8b6914;
-          border-bottom: 1px solid rgba(218, 165, 32, 0.15);
-        }
-        .ap-bulk-tiers-table td {
-          padding: 0.6rem 0.25rem;
-          font-family: var(--ap-sans);
-          border-bottom: 1px solid rgba(218, 165, 32, 0.08);
-          vertical-align: middle;
-        }
-        .ap-bulk-tier-qty {
-          font-weight: 600;
-          color: #1a1a1a;
-        }
-        .ap-bulk-tier-total-price {
-          display: flex;
-          flex-direction: column;
-          gap: 0.15rem;
-        }
-        .ap-bulk-cut-price {
-          font-size: 0.5rem;
-          color: #999999;
-          text-decoration: line-through;
-        }
-        .ap-bulk-sale-price {
-          font-size: 0.7rem;
-          font-weight: 600;
-          color: #8b6914;
-        }
-        .ap-bulk-tier-per-piece {
-          color: #444444;
-        }
-        .ap-bulk-tier-saving {
-          color: #22c55e;
-          font-weight: 600;
-        }
-        .ap-bulk-tier-discount {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        .ap-bulk-discount-badge {
-          background: rgba(245, 158, 11, 0.1);
-          color: #f59e0b;
-          padding: 0.2rem 0.4rem;
-          border-radius: 12px;
-          font-size: 0.5rem;
-          font-weight: 600;
-          white-space: nowrap;
-        }
-        .ap-bulk-discount-input {
-          width: 50px;
-          padding: 0.2rem 0.3rem;
-          background: #f9f5f0;
-          border: 1px solid rgba(218, 165, 32, 0.2);
-          border-radius: 6px;
-          font-family: var(--ap-sans);
-          font-size: 0.5rem;
-          text-align: center;
-        }
-        .ap-bulk-tier-remove {
-          width: 26px;
-          height: 26px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: transparent;
-          border: 1px solid rgba(239, 68, 68, 0.2);
-          border-radius: 6px;
-          cursor: pointer;
-          color: rgba(239, 68, 68, 0.5);
-          transition: all 0.2s;
-        }
-        .ap-bulk-tier-remove:hover {
-          border-color: #ef4444;
-          color: #ef4444;
-          background: rgba(239, 68, 68, 0.08);
-        }
-        .ap-bulk-tier-remove svg {
-          width: 10px;
-          height: 10px;
-        }
-        .ap-bulk-add-tier-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.3rem;
-          width: 100%;
-          padding: 0.5rem;
-          background: transparent;
-          border: 1px dashed rgba(218, 165, 32, 0.4);
-          border-radius: 8px;
-          cursor: pointer;
-          color: #8b6914;
-          font-family: var(--ap-sans);
-          font-size: 0.55rem;
-          font-weight: 600;
-          transition: all 0.2s;
-        }
-        .ap-bulk-add-tier-btn svg {
-          width: 12px;
-          height: 12px;
-        }
-        .ap-bulk-add-tier-btn:hover {
-          border-color: #daa520;
-          background: rgba(218, 165, 32, 0.08);
-        }
-        .ap-bulk-add-tier-form {
-          padding: 0.75rem;
-          background: rgba(218, 165, 32, 0.04);
-          border-radius: 10px;
-          margin-bottom: 0.75rem;
-        }
-        .ap-bulk-form-row {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        .ap-bulk-form-field {
-          display: flex;
-          flex-direction: column;
-          gap: 0.2rem;
-        }
-        .ap-bulk-form-field label {
-          font-family: var(--ap-sans);
-          font-size: 0.45rem;
-          font-weight: 600;
-          color: #8b6914;
-        }
-        .ap-bulk-form-field input {
-          width: 70px;
-          padding: 0.35rem;
-          background: #ffffff;
-          border: 1px solid rgba(218, 165, 32, 0.2);
-          border-radius: 6px;
-          font-family: var(--ap-sans);
-          font-size: 0.55rem;
-        }
-        .ap-bulk-add-confirm,
-        .ap-bulk-add-cancel {
-          padding: 0.35rem 0.7rem;
-          border-radius: 20px;
-          font-family: var(--ap-sans);
-          font-size: 0.5rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-          margin-top: 1.2rem;
-        }
-        .ap-bulk-add-confirm {
-          background: #daa520;
-          border: none;
-          color: #1a1a1a;
-        }
-        .ap-bulk-add-confirm:hover {
-          background: #f0c040;
-        }
-        .ap-bulk-add-cancel {
-          background: transparent;
-          border: 1px solid rgba(218, 165, 32, 0.3);
-          color: #666666;
-        }
-        .ap-bulk-add-cancel:hover {
-          border-color: #daa520;
-          color: #8b6914;
-        }
-        .ap-bulk-form-preview {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-top: 0.6rem;
-          padding-top: 0.6rem;
-          border-top: 1px solid rgba(218, 165, 32, 0.1);
-          font-family: var(--ap-sans);
-          font-size: 0.5rem;
-          color: #666666;
-        }
-        .ap-bulk-preview-price {
-          color: #8b6914;
-          font-weight: 600;
-        }
-        .ap-bulk-preview-saving {
-          color: #22c55e;
-          font-weight: 600;
-        }
-        .ap-bulk-presets-small {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 0.4rem;
-          margin-top: 0.75rem;
-          padding-top: 0.75rem;
-          border-top: 1px solid rgba(218, 165, 32, 0.1);
-        }
-        .ap-bulk-presets-label {
-          font-family: var(--ap-sans);
-          font-size: 0.5rem;
-          color: #999999;
-        }
-        .ap-bulk-preset-chip {
-          padding: 0.25rem 0.6rem;
-          background: rgba(218, 165, 32, 0.06);
-          border: 1px solid rgba(218, 165, 32, 0.15);
-          border-radius: 16px;
-          font-family: var(--ap-sans);
-          font-size: 0.5rem;
-          font-weight: 600;
-          color: #8b6914;
-          cursor: pointer;
-          transition: all 0.2s;
-          display: flex;
-          align-items: center;
-          gap: 0.25rem;
-        }
-        .ap-bulk-preset-chip span {
-          font-size: 0.4rem;
-          background: #22c55e;
-          color: white;
-          padding: 0.1rem 0.25rem;
-          border-radius: 10px;
-        }
-        .ap-bulk-preset-chip:hover {
-          background: rgba(218, 165, 32, 0.15);
-          border-color: #daa520;
-        }
-      `}</style>
     </div>
   );
 }

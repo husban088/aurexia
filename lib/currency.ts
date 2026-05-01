@@ -1,5 +1,3 @@
-// lib/currency.ts
-
 export interface Currency {
   code: string;
   symbol: string;
@@ -15,7 +13,7 @@ export const currencies: Currency[] = [
     code: "USD",
     symbol: "$",
     name: "US Dollar",
-    rate: 0.0036,
+    rate: 0.0036, // ✅ SAHI - 1 USD = 278 PKR
     flag: "🇺🇸",
     phoneCode: "+1",
     countryCode: "US",
@@ -24,8 +22,8 @@ export const currencies: Currency[] = [
     code: "GBP",
     symbol: "£",
     name: "British Pound",
-    rate: 0.0028,
-    flag: "🇬🇧",
+    rate: 0.0045, // ✅ UPDATED (pehle 0.0028 tha - GALAT)
+    flag: "🇬🇧", // 1 GBP = 222 PKR
     phoneCode: "+44",
     countryCode: "GB",
   },
@@ -33,8 +31,8 @@ export const currencies: Currency[] = [
     code: "EUR",
     symbol: "€",
     name: "Euro",
-    rate: 0.0033,
-    flag: "🇪🇺",
+    rate: 0.0039, // ✅ UPDATED (pehle 0.0033 tha - GALAT)
+    flag: "🇪🇺", // 1 EUR = 256 PKR
     phoneCode: "+352",
     countryCode: "EU",
   },
@@ -42,8 +40,8 @@ export const currencies: Currency[] = [
     code: "AUD",
     symbol: "A$",
     name: "Australian Dollar",
-    rate: 0.0055,
-    flag: "🇦🇺",
+    rate: 0.0024, // ✅ UPDATED (pehle 0.0055 tha - BILKUL ULTA!)
+    flag: "🇦🇺", // 1 AUD = 417 PKR
     phoneCode: "+61",
     countryCode: "AU",
   },
@@ -51,8 +49,8 @@ export const currencies: Currency[] = [
     code: "CAD",
     symbol: "C$",
     name: "Canadian Dollar",
-    rate: 0.0049,
-    flag: "🇨🇦",
+    rate: 0.0026, // ✅ UPDATED (pehle 0.0049 tha - GALAT)
+    flag: "🇨🇦", // 1 CAD = 385 PKR
     phoneCode: "+1",
     countryCode: "CA",
   },
@@ -60,8 +58,8 @@ export const currencies: Currency[] = [
     code: "AED",
     symbol: "د.إ",
     name: "UAE Dirham",
-    rate: 0.0132,
-    flag: "🇦🇪",
+    rate: 0.0759, // ✅ UPDATED (pehle 0.0132 tha - BILKUL ULTA!)
+    flag: "🇦🇪", // 1 AED = 13.2 PKR
     phoneCode: "+971",
     countryCode: "AE",
   },
@@ -69,8 +67,8 @@ export const currencies: Currency[] = [
     code: "SAR",
     symbol: "﷼",
     name: "Saudi Riyal",
-    rate: 0.0135,
-    flag: "🇸🇦",
+    rate: 0.0741, // ✅ UPDATED (pehle 0.0135 tha - BILKUL ULTA!)
+    flag: "🇸🇦", // 1 SAR = 13.5 PKR
     phoneCode: "+966",
     countryCode: "SA",
   },
@@ -78,8 +76,8 @@ export const currencies: Currency[] = [
     code: "INR",
     symbol: "₹",
     name: "Indian Rupee",
-    rate: 0.3,
-    flag: "🇮🇳",
+    rate: 0.297, // ✅ UPDATED (pehle 0.3 tha - half sahi tha)
+    flag: "🇮🇳", // 1 INR = 3.37 PKR
     phoneCode: "+91",
     countryCode: "IN",
   },
@@ -87,7 +85,7 @@ export const currencies: Currency[] = [
     code: "PKR",
     symbol: "₨",
     name: "Pakistani Rupee",
-    rate: 1,
+    rate: 1, // ✅ BASE - theek ہے
     flag: "🇵🇰",
     phoneCode: "+92",
     countryCode: "PK",
@@ -95,7 +93,7 @@ export const currencies: Currency[] = [
 ];
 
 // NO DEFAULT - Force detection
-export let defaultCurrency: Currency = currencies[0]; // Temporary, will be overridden
+export let defaultCurrency: Currency = currencies[0];
 
 // Comprehensive country to currency mapping
 const countryToCurrency: Record<string, string> = {
@@ -166,30 +164,29 @@ export function formatPrice(priceInPKR: number, currency: Currency): string {
 
 // MULTIPLE IP APIs for reliable detection
 export async function detectUserCountry(): Promise<string> {
-  // Primary APIs in order of reliability
+  // Reliable APIs جو CORS allow کرتے ہیں
   const apis = [
-    { url: "https://ipapi.co/json/", parser: (data: any) => data.country_code },
     {
-      url: "https://ip-api.com/json/",
-      parser: (data: any) => data.countryCode,
+      url: "https://api.country.is/",
+      parser: (data: any) => data.country,
+      name: "country.is",
     },
-    { url: "https://api.country.is/", parser: (data: any) => data.country },
     {
       url: "https://worldtimeapi.org/api/ip",
       parser: (data: any) => data.client_country,
-    },
-    { url: "https://ipwho.is/", parser: (data: any) => data.country_code },
-    {
-      url: "https://freeipapi.com/api/json/",
-      parser: (data: any) => data.countryCode,
+      name: "worldtimeapi",
     },
   ];
 
   for (const api of apis) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch(api.url, { signal: controller.signal });
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+
+      const response = await fetch(api.url, {
+        signal: controller.signal,
+        headers: { Accept: "application/json" },
+      });
       clearTimeout(timeoutId);
 
       if (!response.ok) continue;
@@ -198,40 +195,34 @@ export async function detectUserCountry(): Promise<string> {
       let countryCode = api.parser(data);
 
       if (countryCode && countryCode.length === 2) {
-        console.log(`✅ Country detected from ${api.url}:`, countryCode);
+        console.log(`✅ Country detected from ${api.name}:`, countryCode);
         return countryCode;
       }
     } catch (error) {
-      console.log(`❌ API failed: ${api.url}`);
+      console.log(`⏭️ Skipping ${api.name} (timeout/error)`);
       continue;
     }
   }
 
-  // Try browser language as fallback
+  // Browser language fallback (FASTEST!)
   if (typeof navigator !== "undefined") {
     const lang = navigator.language;
     const langMap: Record<string, string> = {
-      "en-US": "US",
-      "en-GB": "GB",
-      "en-AU": "AU",
-      "en-CA": "CA",
       "ur-PK": "PK",
       "ar-AE": "AE",
       "ar-SA": "SA",
       "hi-IN": "IN",
-      "de-DE": "DE",
-      "fr-FR": "FR",
-      "es-ES": "ES",
-      "it-IT": "IT",
+      "en-US": "US",
+      "en-GB": "GB",
     };
     if (langMap[lang]) return langMap[lang];
-    if (lang.includes("PK")) return "PK";
-    if (lang.includes("US")) return "US";
-    if (lang.includes("GB")) return "GB";
+    if (lang.startsWith("ur")) return "PK";
+    if (lang.startsWith("ar")) return "AE";
+    if (lang.startsWith("en")) return "US";
   }
 
-  console.log("⚠️ No country detected, defaulting to US");
-  return "US";
+  console.log("⚠️ Defaulting to PK");
+  return "PK";
 }
 
 export function saveCurrencyPreference(currencyCode: string): void {

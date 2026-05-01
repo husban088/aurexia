@@ -90,22 +90,32 @@ export default function Navbar({
 
   useEffect(() => {
     const initAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser(session.user);
-        setUserEmail(session.user.email ?? null);
-      } else {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session?.user) {
+          setUser(session.user);
+          setUserEmail(session.user.email ?? null);
+          console.log("✅ Navbar - User email:", session.user.email);
+        } else {
+          setUser(null);
+          setUserEmail(null);
+        }
+      } catch (err) {
+        console.error("Navbar auth error:", err);
         setUser(null);
         setUserEmail(null);
       }
     };
+
     initAuth();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Navbar - Auth state change:", event);
       if (event === "SIGNED_OUT" || !session) {
         setUser(null);
         setUserEmail(null);
@@ -122,7 +132,8 @@ export default function Navbar({
     return () => subscription.unsubscribe();
   }, []);
 
-  const showPanel = isOwner(userEmail);
+  // ✅ Yeh line ab instantly update hoga jab userEmail change hoga
+  const showPanel = userEmail === "info@tech4ru.com";
   const authResolved = user !== undefined;
   const isSignedIn = authResolved && user !== null;
 
@@ -156,6 +167,7 @@ export default function Navbar({
     }, 200);
   };
 
+  // ✅ Direct navigation function - yeh instantly page reload karega
   const navigateTo = (href: string) => {
     window.location.href = href;
   };
@@ -391,6 +403,7 @@ export default function Navbar({
               </li>
             );
           })}
+          {/* ✅ Panel Link - Yeh owner ko dikhega jab email match hoga */}
           {showPanel && (
             <li className="nav-item">
               <a
@@ -398,7 +411,9 @@ export default function Navbar({
                 className={currentPath === "/panel" ? "active" : ""}
                 onClick={(e) => {
                   e.preventDefault();
-                  navigateTo("/panel");
+                  console.log("🟢 Panel link clicked - Navigating to /panel");
+                  // Use direct window.location to force full page reload
+                  window.location.href = "/panel";
                 }}
               >
                 Panel

@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { isOwner } from "@/lib/checkOwner";
 import "./signin.css";
 
 export default function SignIn() {
@@ -15,6 +16,7 @@ export default function SignIn() {
   const [focused, setFocused] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     // Clear stale Supabase storage on signin page load
@@ -33,17 +35,25 @@ export default function SignIn() {
     clearStaleAuth();
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("reset") === "success") {
+      setResetSuccess(
+        "Password reset successful! Please sign in with your new password."
+      );
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    // Determine if identifier is email or username
     let emailToUse = identifier.trim();
     const isEmail = identifier.includes("@");
 
     if (!isEmail) {
-      // Look up email from username
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("email")
@@ -58,10 +68,11 @@ export default function SignIn() {
       emailToUse = profile.email;
     }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: emailToUse,
-      password,
-    });
+    const { data: signInData, error: signInError } =
+      await supabase.auth.signInWithPassword({
+        email: emailToUse,
+        password,
+      });
 
     if (signInError) {
       setError(
@@ -71,23 +82,35 @@ export default function SignIn() {
       return;
     }
 
-    router.push("/profile");
-  };
+    // ✅ پہلے session کو verify کریں
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-  // Add this inside the component, after useState declarations
-  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
-
-  // Add this useEffect
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("reset") === "success") {
-      setResetSuccess(
-        "Password reset successful! Please sign in with your new password."
-      );
-      // Clear the URL parameter
-      window.history.replaceState(null, "", window.location.pathname);
+    if (!session) {
+      setError("Session creation failed. Please try again.");
+      setLoading(false);
+      return;
     }
-  }, []);
+
+    // ✅ اب یہ چیک کریں
+    const userEmail = signInData?.user?.email ?? null;
+    const ownerUser = isOwner(userEmail);
+
+    const params = new URLSearchParams(window.location.search);
+    const redirectTo = params.get("redirectTo");
+
+    // ⭐ DELAY دیں تاکہ cookies properly set ہوں
+    setTimeout(() => {
+      if (redirectTo && redirectTo.startsWith("/panel") && ownerUser) {
+        window.location.href = redirectTo;
+      } else if (ownerUser) {
+        window.location.href = "/panel";
+      } else {
+        window.location.href = "/profile";
+      }
+    }, 500);
+  };
 
   return (
     <div className="si-root">
@@ -108,16 +131,6 @@ export default function SignIn() {
         {/* Left panel — brand */}
         <div className="si-brand">
           <div className="si-brand-inner">
-            {/* <div className="si-brand-logo">
-              <Image
-                src="/logo.png"
-                alt="Aurexia"
-                width={52}
-                height={52}
-                className="si-logo-img"
-                priority
-              />
-            </div> */}
             <p className="si-brand-eyebrow">
               <span className="si-ey-line" />
               Welcome Back

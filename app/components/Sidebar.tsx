@@ -576,17 +576,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 </li>
                 <li className="sidebar-nav-item">
                   <a
-                    href="/panel/products"
+                    href="/panel"
                     className={`sidebar-nav-link${
-                      window.location.pathname === "/panel/products"
-                        ? " active"
-                        : ""
+                      window.location.pathname === "/panel" ? " active" : ""
                     }`}
                     onClick={(e) => {
                       e.preventDefault();
                       onClose();
                       setTimeout(() => {
-                        window.location.href = "/panel/products";
+                        window.location.href = "/panel";
                       }, 150);
                     }}
                   >

@@ -396,7 +396,7 @@ function ProductCard({
     return "in";
   };
 
-  // 🔥 INSTANT ADD TO CART - FIXED TypeScript error
+  // ✅ FIXED: try/finally se loading hamesha clear hogi — chahe kuch bhi ho
   const handleAddToCart = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -410,6 +410,9 @@ function ProductCard({
       return;
     }
 
+    // Agar pehle se loading hai toh ignore karo
+    if (addToCartLoading) return;
+
     setAddToCartLoading(true);
 
     const productToAdd = {
@@ -422,7 +425,8 @@ function ProductCard({
       condition: product.condition,
       is_featured: product.is_featured,
       is_active: product.is_active,
-      images: currentImages,
+      // ✅ images pass karo — cartStore me extra DB call nahi hoga
+      images: currentImages.length > 0 ? currentImages : [],
       price: selectedVariant.price,
       original_price: selectedVariant.original_price,
       stock: selectedVariant.stock,
@@ -432,18 +436,11 @@ function ProductCard({
       updated_at: new Date().toISOString(),
     };
 
-    // Add to cart instantly
-    await addToCart(productToAdd, selectedVariant, 1, 1);
-
-    setAddToCartLoading(false);
-
-    // Visual feedback - Type-safe way (casting to HTMLButtonElement)
-    const btn = e.currentTarget as HTMLButtonElement;
-    if (btn) {
-      btn.style.transform = "scale(0.95)";
-      setTimeout(() => {
-        btn.style.transform = "";
-      }, 200);
+    try {
+      await addToCart(productToAdd, selectedVariant, 1, 1);
+    } finally {
+      // Loading hamesha clear — stuck nahi rahegi
+      setAddToCartLoading(false);
     }
   };
 
@@ -476,7 +473,13 @@ function ProductCard({
     : null;
 
   return (
-    <Link href={`/product/${product.id}`} className="fp-card">
+    <div
+      onClick={() => {
+        window.location.href = `/product/${product.id}`;
+      }}
+      className="fp-card"
+      style={{ cursor: "pointer" }}
+    >
       <div
         className="fp-card-img"
         onMouseEnter={handleMouseEnter}
@@ -623,7 +626,7 @@ function ProductCard({
           }
         }
       `}</style>
-    </Link>
+    </div>
   );
 }
 

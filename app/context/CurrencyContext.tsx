@@ -25,8 +25,8 @@ interface CurrencyContextType {
   setCurrency: (currency: Currency) => void;
   convertPrice: (priceInPKR: number) => number;
   formatPrice: (priceInPKR: number) => string;
-  loading: boolean;
   refreshCurrency: () => Promise<void>;
+  loading: boolean;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(
@@ -34,12 +34,11 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(
 );
 
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
-  // ✅ ALL HOOKS MUST BE AT TOP LEVEL - NO CONDITIONS BEFORE HOOKS
   // Start with PKR as default — fastest for panel, no detection delay
   const [currency, setCurrencyState] = useState<Currency>(
     currencies.find((c) => c.code === "PKR") || currencies[0]
   );
-  const [loading, setLoading] = useState(false); // ✅ false = no blocking spinner
+  const [loading, setLoading] = useState(false);
   const initializedRef = useRef(false);
   const detectionAttemptedRef = useRef(false);
 
@@ -55,8 +54,6 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
 
     console.log("🔄 Detecting user country and currency (background)...");
 
-    // ✅ Detection runs in background — never blocks UI
-    // loading stays false, page always renders immediately
     try {
       // Try server API first with 3s timeout
       const controller = new AbortController();
@@ -108,11 +105,10 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
         else if (lang.includes("IN")) setCurrency(getCurrencyByCountry("IN"));
         else setCurrency(getCurrencyByCountry("US"));
       }
-      // ✅ No setLoading(false) needed — loading was never true
     }
   }, [setCurrency]);
 
-  // Refresh on mount - but keep hooks at top level
+  // Refresh on mount
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
@@ -130,11 +126,10 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // ✅ Detect in background — never blocks render
+    // Detect in background — never blocks render
     refreshCurrency();
   }, [refreshCurrency]);
 
-  // ✅ HOOKS ARE ALWAYS CALLED - NO CONDITIONAL RETURNS BEFORE HOOKS
   const convert = useCallback(
     (priceInPKR: number) => convertPrice(priceInPKR, currency),
     [currency]
@@ -145,7 +140,6 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     [currency]
   );
 
-  // ✅ Return JSX after all hooks
   return (
     <CurrencyContext.Provider
       value={{
@@ -153,8 +147,8 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
         setCurrency,
         convertPrice: convert,
         formatPrice: format,
-        loading,
         refreshCurrency,
+        loading,
       }}
     >
       {children}

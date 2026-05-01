@@ -12,14 +12,12 @@ export function useSession() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user || null);
       setLoading(false);
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -39,26 +37,19 @@ export function useSession() {
 ═══════════════════════════════════════════ */
 export async function signOutUser() {
   try {
-    // 1. Sign out from Supabase (this clears the server session)
     const { error } = await supabase.auth.signOut({ scope: "local" });
 
     if (error) {
       console.error("Sign out error:", error);
     }
 
-    // 2. Clear ALL localStorage keys (supabase + sb- prefix)
     clearAuthStorage();
-
-    // 3. Clear ALL sessionStorage keys
     clearSessionStorage();
-
-    // 4. Clear cookies manually (belt + suspenders)
     clearAuthCookies();
 
     return { success: true };
   } catch (err) {
     console.error("Sign out exception:", err);
-    // Still try to clear storage even if signOut throws
     clearAuthStorage();
     clearSessionStorage();
     clearAuthCookies();
@@ -101,11 +92,9 @@ export function clearSessionStorage() {
 
 export function clearAuthCookies() {
   try {
-    // Clear all sb- prefixed cookies
     document.cookie.split(";").forEach((cookie) => {
       const name = cookie.split("=")[0].trim();
       if (name.startsWith("sb-") || name.includes("supabase")) {
-        // Expire cookie on all possible paths/domains
         document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
         document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`;
         document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname}`;
@@ -117,7 +106,7 @@ export function clearAuthCookies() {
 }
 
 /* ═══════════════════════════════════════════
-   GET CURRENT USER (Server-side compatible)
+   GET CURRENT USER
 ═══════════════════════════════════════════ */
 export async function getCurrentUser() {
   try {

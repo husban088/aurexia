@@ -148,6 +148,8 @@ export default function ProductGrid({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
+  // Track which product button is loading — only that button spins
+  const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
   const { formatPrice } = useCurrency();
   const { addToCart } = useCartStore();
 
@@ -227,13 +229,16 @@ export default function ProductGrid({
     if (onQuickView) onQuickView(productId);
   };
 
-  // 🔥 INSTANT ADD TO CART - FIXED TypeScript error
+  // ✅ FIXED: Instant add to cart — no page reload, no stuck loading
   const handleAddToCartClick = async (
     e: React.MouseEvent<HTMLButtonElement>,
     product: Product
   ) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // Agar pehle se loading hai toh ignore karo
+    if (loadingProductId) return;
 
     const stockStatus =
       product.stockStatus ||
@@ -242,6 +247,8 @@ export default function ProductGrid({
       alert("This product is out of stock");
       return;
     }
+
+    setLoadingProductId(product.id);
 
     const variantObj = product.variantId
       ? {
@@ -257,40 +264,35 @@ export default function ProductGrid({
         }
       : null;
 
-    // Add to cart instantly without page reload
-    await addToCart(
-      {
-        id: product.id,
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        original_price: product.original_price,
-        category: product.category,
-        subcategory: product.subcategory,
-        images: product.images,
-        stock: product.stock,
-        brand: product.brand,
-        condition: product.condition,
-        is_featured: product.is_featured,
-        is_active: product.is_active,
-        ...(product.low_stock_threshold != null && {
-          low_stock_threshold: product.low_stock_threshold,
-        }),
-        created_at: product.created_at,
-        updated_at: new Date().toISOString(),
-      },
-      variantObj,
-      1,
-      1
-    );
-
-    // Visual feedback - Type-safe way (casting to HTMLButtonElement)
-    const btn = e.currentTarget as HTMLButtonElement;
-    if (btn) {
-      btn.style.transform = "scale(0.95)";
-      setTimeout(() => {
-        btn.style.transform = "";
-      }, 200);
+    try {
+      await addToCart(
+        {
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          price: product.price,
+          original_price: product.original_price,
+          category: product.category,
+          subcategory: product.subcategory,
+          images: product.images,
+          stock: product.stock,
+          brand: product.brand,
+          condition: product.condition,
+          is_featured: product.is_featured,
+          is_active: product.is_active,
+          ...(product.low_stock_threshold != null && {
+            low_stock_threshold: product.low_stock_threshold,
+          }),
+          created_at: product.created_at,
+          updated_at: new Date().toISOString(),
+        },
+        variantObj,
+        1,
+        1
+      );
+    } finally {
+      // Loading hamesha clear ho — chahe success ho ya error
+      setLoadingProductId(null);
     }
   };
 
@@ -338,6 +340,7 @@ export default function ProductGrid({
 
   return (
     <>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       {!limit && (
         <div className="pg-toolbar">
           <div className="pg-search-wrap">
@@ -386,10 +389,13 @@ export default function ProductGrid({
           const isLowStock = stockStatus === "low_stock";
 
           return (
-            <Link
+            <div
               key={product.id}
-              href={`/product/${product.id}`}
+              onClick={() => {
+                window.location.href = `/product/${product.id}`;
+              }}
               className="pg-card"
+              style={{ cursor: "pointer" }}
             >
               <div className="pg-card-img">
                 {product.images?.[0] ? (
@@ -453,19 +459,33 @@ export default function ProductGrid({
                   <button
                     className="pg-icon-btn pg-icon-btn--cart"
                     onClick={(e) => handleAddToCartClick(e, product)}
-                    disabled={isOutOfStock}
+                    disabled={isOutOfStock || loadingProductId === product.id}
                     aria-label="Add to Cart"
                   >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    >
-                      <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-                      <line x1="3" y1="6" x2="21" y2="6" />
-                      <path d="M16 10a4 4 0 01-8 0" />
-                    </svg>
+                    {loadingProductId === product.id ? (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        style={{
+                          animation: "spin 0.8s linear infinite",
+                        }}
+                      >
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                      </svg>
+                    ) : (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <path d="M16 10a4 4 0 01-8 0" />
+                      </svg>
+                    )}
                   </button>
                 </div>
               </div>
@@ -495,7 +515,7 @@ export default function ProductGrid({
                 </span>
               </div>
               <div className="pg-card-line" />
-            </Link>
+            </div>
           );
         })}
       </div>

@@ -37,13 +37,18 @@ export default function ClientProviders({
     }
   }, [pathname, mounted]);
 
-  // Cart initialization - only on client side
+  // Cart initialization - sirf ek baar, mount ke baad
   useEffect(() => {
     if (!mounted) return;
 
     setOnCartOpen(() => setCartOpen(true));
-    fetchCart();
-  }, [setOnCartOpen, fetchCart, mounted]);
+
+    // Sirf ek baar fetch karo — cartStore ka lock handle karega duplicates
+    const { initialized } = useCartStore.getState();
+    if (!initialized) {
+      fetchCart();
+    }
+  }, [mounted]); // ✅ fetchCart/setOnCartOpen dependency nahi — infinite loop avoid
 
   // Don't render anything on server - prevent hydration mismatch
   if (!mounted) {

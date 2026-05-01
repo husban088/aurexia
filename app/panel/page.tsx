@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase, Product } from "@/lib/supabase";
-import { isOwner } from "@/lib/checkOwner";
 import "./panel.css";
 import PanelNavbar from "../components/PanelNavbar";
 
@@ -86,7 +85,6 @@ function ToastContainer({
   );
 }
 
-// Delete Confirmation Modal Component
 function DeleteConfirmModal({
   isOpen,
   onClose,
@@ -100,13 +98,9 @@ function DeleteConfirmModal({
 }) {
   if (!isOpen) return null;
 
-  const handleModalClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
   return (
     <div className="p-modal-overlay" onClick={onClose}>
-      <div className="p-modal" onClick={handleModalClick}>
+      <div className="p-modal" onClick={(e) => e.stopPropagation()}>
         <button className="p-modal-close" onClick={onClose}>
           <svg
             viewBox="0 0 24 24"
@@ -150,7 +144,6 @@ function DeleteConfirmModal({
   );
 }
 
-// Product Row Component for better performance
 function ProductRow({
   product,
   onEdit,
@@ -160,13 +153,6 @@ function ProductRow({
   onEdit: (id: string) => void;
   onDelete: (id: string, name: string) => void;
 }) {
-  // Handle edit with page reload
-  const handleEditClick = () => {
-    if (product.id) {
-      window.location.href = `/panel/edit-product/${product.id}`;
-    }
-  };
-
   return (
     <tr>
       <td className="p-td-name">{product.name || "Unnamed"}</td>
@@ -187,7 +173,14 @@ function ProductRow({
       </td>
       <td>
         <div className="p-td-actions">
-          <button className="p-td-btn" title="Edit" onClick={handleEditClick}>
+          <button
+            className="p-td-btn"
+            title="Edit"
+            onClick={() =>
+              product.id &&
+              (window.location.href = `/panel/edit-product/${product.id}`)
+            }
+          >
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -223,7 +216,6 @@ function ProductRow({
 
 export default function Panel() {
   const router = useRouter();
-  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -231,16 +223,8 @@ export default function Panel() {
     isOpen: boolean;
     productId: string;
     productName: string;
-  }>({
-    isOpen: false,
-    productId: "",
-    productName: "",
-  });
-  const [stats, setStats] = useState({
-    users: 0,
-    orders: 0,
-    contacts: 0,
-  });
+  }>({ isOpen: false, productId: "", productName: "" });
+  const [stats, setStats] = useState({ users: 0, orders: 0, contacts: 0 });
 
   const addToast = useCallback(
     (type: Toast["type"], title: string, msg: string) => {
@@ -261,32 +245,14 @@ export default function Panel() {
     setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 350);
   }, []);
 
-  // ─── Auth check + initial data fetch ───────────────────────────────────────
+  // Fetch data - layout already verified auth
   useEffect(() => {
     let isMounted = true;
 
-    async function initPanel() {
+    async function fetchData() {
       try {
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser();
+        console.log("📦 Panel - Fetching data...");
 
-        if (!isMounted) return;
-
-        if (error || !user || !isOwner(user.email)) {
-          setIsAuthorized(false);
-          if (!user || error) {
-            router.replace("/signin?redirectTo=/panel");
-          } else {
-            router.replace("/");
-          }
-          return;
-        }
-
-        setIsAuthorized(true);
-
-        // Fetch products + counts in parallel
         const [productsRes, usersRes, ordersRes, contactsRes] =
           await Promise.all([
             supabase
@@ -307,56 +273,49 @@ export default function Panel() {
         if (!isMounted) return;
 
         if (productsRes.data && !productsRes.error) {
-          const safeProducts = productsRes.data.map((p: any) => ({
-            ...p,
-            price: p.price ?? 0,
-            stock: p.stock ?? 0,
-            subcategory: p.subcategory ?? "Uncategorized",
-            is_active: p.is_active ?? true,
-          }));
-          setProducts(safeProducts);
+          setProducts(
+            productsRes.data.map((p: any) => ({
+              ...p,
+              price: p.price ?? 0,
+              stock: p.stock ?? 0,
+              subcategory: p.subcategory ?? "Uncategorized",
+              is_active: p.is_active ?? true,
+            }))
+          );
+        } else if (productsRes.error) {
+          console.error("Products fetch error:", productsRes.error);
         }
 
-        if (usersRes.count !== undefined && !usersRes.error) {
+        if (!usersRes.error)
           setStats((s) => ({ ...s, users: usersRes.count || 0 }));
-        }
-        if (ordersRes.count !== undefined && !ordersRes.error) {
+        if (!ordersRes.error)
           setStats((s) => ({ ...s, orders: ordersRes.count || 0 }));
-        }
-        if (contactsRes.count !== undefined && !contactsRes.error) {
+        if (!contactsRes.error)
           setStats((s) => ({ ...s, contacts: contactsRes.count || 0 }));
-        }
+
+        console.log("✅ Panel - Data fetched successfully");
       } catch (err) {
-        console.error("Panel init error:", err);
-        if (isMounted) {
-          addToast("error", "Load Failed", "Could not fetch data");
-        }
+        console.error("Panel fetch error:", err);
+        if (isMounted) addToast("error", "Load Failed", "Could not fetch data");
       } finally {
-        if (isMounted) {
-          setProductsLoading(false);
-        }
+        if (isMounted) setProductsLoading(false);
       }
     }
 
-    initPanel();
+    fetchData();
     return () => {
       isMounted = false;
     };
-  }, [router, addToast]);
+  }, [addToast]);
 
-  // ─── Realtime subscription for INSTANT updates without page reload ─────────
+  // Realtime subscription
   useEffect(() => {
-    if (isAuthorized !== true) return;
-
-    console.log("Setting up realtime subscription for products...");
-
     const channel = supabase
       .channel("panel-products-realtime")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "products" },
         (payload) => {
-          console.log("New product inserted:", payload.new);
           const newProduct = {
             ...payload.new,
             price: payload.new.price ?? 0,
@@ -364,7 +323,6 @@ export default function Panel() {
             subcategory: payload.new.subcategory ?? "Uncategorized",
             is_active: payload.new.is_active ?? true,
           } as Product;
-          // Add to beginning of array instantly
           setProducts((prev) => [newProduct, ...prev]);
           addToast(
             "success",
@@ -377,7 +335,6 @@ export default function Panel() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "products" },
         (payload) => {
-          console.log("Product updated:", payload.new);
           const updated = {
             ...payload.new,
             price: payload.new.price ?? 0,
@@ -395,7 +352,6 @@ export default function Panel() {
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "products" },
         (payload) => {
-          console.log("Product deleted:", payload.old);
           setProducts((prev) => prev.filter((p) => p.id !== payload.old.id));
           addToast(
             "info",
@@ -404,15 +360,14 @@ export default function Panel() {
           );
         }
       )
-      .subscribe((status) => {
-        console.log("Subscription status:", status);
-      });
+      .subscribe();
 
     return () => {
-      console.log("Cleaning up realtime subscription");
       supabase.removeChannel(channel);
     };
-  }, [isAuthorized, addToast]);
+  }, [addToast]);
+
+  const totalProducts = products.length;
 
   const handleDeleteClick = (id: string, name: string) => {
     setDeleteModal({ isOpen: true, productId: id, productName: name });
@@ -430,23 +385,10 @@ export default function Panel() {
     if (error) {
       addToast("error", "Delete Failed", error.message);
     } else {
-      // Optimistic update - remove instantly (realtime will also handle this)
       setProducts((p) => p.filter((x) => x.id !== productId));
       addToast("success", "Deleted", `${productName} removed from store`);
     }
   };
-
-  const handleDeleteModalClose = () => {
-    setDeleteModal({ isOpen: false, productId: "", productName: "" });
-  };
-
-  // Not authorized - redirecting
-  if (isAuthorized === false) {
-    return null;
-  }
-
-  // products.length se live count
-  const totalProducts = products.length;
 
   return (
     <div className="p-root">
@@ -473,7 +415,6 @@ export default function Panel() {
           <p className="p-page-sub">Manage your store, products from here.</p>
         </div>
 
-        {/* Stats — live count */}
         <div className="p-stats-grid">
           <div className="p-stat-card">
             <div className="p-stat-icon">
@@ -493,9 +434,6 @@ export default function Panel() {
           </div>
         </div>
 
-        {/* ✅ QUICK ACTIONS SECTION - COMPLETELY REMOVED */}
-
-        {/* Recent products table */}
         <div className="p-table-wrap">
           <div className="p-table-header">
             <div className="p-table-header-left">
@@ -572,7 +510,7 @@ export default function Panel() {
                   <ProductRow
                     key={p.id}
                     product={p}
-                    onEdit={() => {}} // Not used, edit handled inside ProductRow
+                    onEdit={() => {}}
                     onDelete={handleDeleteClick}
                   />
                 ))}
@@ -584,7 +522,9 @@ export default function Panel() {
 
       <DeleteConfirmModal
         isOpen={deleteModal.isOpen}
-        onClose={handleDeleteModalClose}
+        onClose={() =>
+          setDeleteModal({ isOpen: false, productId: "", productName: "" })
+        }
         onConfirm={handleDeleteConfirm}
         productName={deleteModal.productName}
       />
