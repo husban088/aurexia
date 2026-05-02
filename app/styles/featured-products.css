@@ -1,7 +1,7 @@
 /* ============================================================
    FEATURED PRODUCTS SECTION  ·  featured-products.css
    Home page — Tech4U Luxury Store
-   High Contrast Theme with Clear Text Visibility
+   FIXED: Images fill completely, no white space, all details visible
    ============================================================ */
 
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
@@ -38,7 +38,6 @@
   overflow: hidden;
 }
 
-/* Ambient top glow */
 .fp-section::before {
   content: "";
   position: absolute;
@@ -193,7 +192,6 @@
   height: auto;
 }
 
-/* Swiper Pagination */
 .fp-swiper .swiper-pagination {
   bottom: 0;
 }
@@ -212,7 +210,6 @@
   background: #daa520;
 }
 
-/* Swiper Navigation Arrows */
 .fp-nav {
   display: flex;
   align-items: center;
@@ -248,7 +245,7 @@
   transform: scale(1.08);
 }
 
-/* ── Product Card - FIXED HEIGHT & CONSISTENT IMAGES ── */
+/* ── Product Card - FIXED: No white space, full image ── */
 .fp-card {
   position: relative;
   background: var(--fp-card);
@@ -261,7 +258,6 @@
   transition: all var(--fp-ease);
   height: 100%;
   min-height: 520px;
-  max-height: 560px;
   text-decoration: none;
   color: inherit;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
@@ -283,7 +279,6 @@
   z-index: 3;
 }
 
-/* Hover effect */
 .fp-card:hover {
   transform: translateY(-8px);
   box-shadow: 0 25px 50px rgba(184, 134, 11, 0.12);
@@ -295,31 +290,36 @@
   opacity: 1;
 }
 
-/* ── Card Image - FIXED ASPECT RATIO & NO STRETCH ── */
+/* ✅ FIXED: Card Image - Full fill, no white space */
 .fp-card-img {
   position: relative;
-  aspect-ratio: 1 / 1;
   width: 100%;
-  background: linear-gradient(135deg, #f0ebe4 0%, #e8e0d8 100%);
+  aspect-ratio: 1 / 1;
+  background: #f8f4ed;
   overflow: hidden;
   flex-shrink: 0;
 }
 
 .fp-card-img img {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
   transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-  background: #f8f4ed;
 }
 
 .fp-card:hover .fp-card-img img {
-  transform: scale(1.05);
+  transform: scale(1.08);
 }
 
 /* Placeholder */
 .fp-card-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   display: flex;
@@ -375,6 +375,12 @@
   color: #dc2626;
 }
 
+.fp-badge--low {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+}
+
 /* Icon Buttons */
 .fp-icon-buttons {
   position: absolute;
@@ -420,14 +426,29 @@
   color: white;
 }
 
-/* ── Card Body - FIXED LAYOUT, NO VARIATION ── */
+.fp-icon-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.fp-icon-btn:disabled:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: none;
+}
+
+.fp-icon-btn:disabled:hover svg {
+  color: #1a1a1a;
+}
+
+/* ✅ FIXED: Card Body - All details visible, no clipping */
 .fp-card-body {
-  padding: 1.2rem 1.2rem 1rem;
+  padding: 1.2rem 1.2rem 1.2rem;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  min-height: 180px;
+  gap: 0.5rem;
+  background: white;
 }
 
 .fp-card-brand {
@@ -438,40 +459,35 @@
   text-transform: uppercase;
   color: #8b6914;
   margin: 0;
-  height: 20px;
-  line-height: 20px;
 }
 
-/* Product Name - TRUNCATED TO 2-3 LINES */
+/* ✅ FIXED: Product Name - Multiple lines allowed */
 .fp-card-name {
   font-family: var(--fp-serif);
   font-size: 1rem;
   font-weight: 600;
   color: #1a1a1a;
   margin: 0;
-  line-height: 1.35;
+  line-height: 1.4;
   transition: color var(--fp-ease);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  word-break: break-word;
-  min-height: 2.7rem;
+  min-height: 2.8rem;
 }
 
 .fp-card:hover .fp-card-name {
   color: #8b6914;
 }
 
-/* Price Row - FIXED ALIGNMENT */
+/* Price Row */
 .fp-card-price-row {
   display: flex;
   align-items: baseline;
   gap: 0.7rem;
   margin: 0.25rem 0 0;
   flex-wrap: wrap;
-  min-height: 2rem;
 }
 
 .fp-card-price {
@@ -497,15 +513,13 @@
   letter-spacing: 0.05em;
 }
 
-/* Variants Section - CONSISTENT HEIGHT */
+/* ✅ FIXED: Variants Section - Always visible */
 .fp-card-variants {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin: 0.25rem 0 0;
   flex-wrap: wrap;
-  font-size: 0.55rem;
-  min-height: 48px;
 }
 
 .fp-variant-label {
@@ -547,12 +561,6 @@
   border-radius: 4px;
 }
 
-.fp-variant-thumb .fp-variant-text {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #666;
-}
-
 .fp-variant-label-text {
   font-size: 0.5rem;
   font-weight: 500;
@@ -591,15 +599,17 @@
   border-radius: 20px;
 }
 
-/* Stock status - CONSISTENT POSITION */
+/* Stock status */
 .fp-card-stock {
   font-family: var(--fp-sans);
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.12em;
-  color: #666666;
   margin: 0.25rem 0 0;
-  min-height: 1.2rem;
+}
+
+.fp-card-stock.in {
+  color: #16a34a;
 }
 
 .fp-card-stock.low {
@@ -693,7 +703,6 @@
 .fp-card--skeleton {
   opacity: 0.6;
   min-height: 520px;
-  max-height: 560px;
 }
 
 .fp-skel-img {
@@ -728,128 +737,6 @@
   color: #666666;
 }
 
-/* Low Stock Badge */
-.fp-badge--low,
-.pg-badge--low {
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #f59e0b;
-}
-
-/* Enhanced Skeleton Loader Styles */
-.fp-card--skeleton {
-  opacity: 1;
-  pointer-events: none;
-  animation: none;
-}
-
-.fp-skel-img {
-  position: relative;
-  background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
-  background-size: 200% 100%;
-  animation: fp-skeleton-wave 1.2s ease-in-out infinite;
-  width: 100%;
-  height: 100%;
-  min-height: 250px;
-}
-
-.fp-skel-img-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.4),
-    transparent
-  );
-  animation: fp-skeleton-shine 1.5s infinite;
-}
-
-.fp-skel-line {
-  background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
-  background-size: 200% 100%;
-  animation: fp-skeleton-wave 1.2s ease-in-out infinite;
-  border-radius: 4px;
-  margin: 6px 0;
-}
-
-@keyframes fp-skeleton-wave {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-@keyframes fp-skeleton-shine {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-/* Faster loading animation for products */
-.fp-card-img img {
-  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Prevent layout shift during loading */
-.fp-swiper {
-  min-height: 450px;
-}
-
-/* Ensure skeleton cards have same dimensions as real cards */
-.fp-card--skeleton .fp-card-img {
-  aspect-ratio: 1 / 1;
-}
-
-.fp-card--skeleton .fp-card-body {
-  padding: 1.2rem 1.2rem 1rem;
-}
-
-/* Responsive skeleton */
-@media (max-width: 768px) {
-  .fp-swiper {
-    min-height: 380px;
-  }
-  .fp-skel-img {
-    min-height: 200px;
-  }
-}
-
-@media (max-width: 640px) {
-  .fp-swiper {
-    min-height: 350px;
-  }
-  .fp-skel-img {
-    min-height: 180px;
-  }
-}
-
-/* Improve loading performance */
-.fp-card-img img {
-  will-change: transform;
-}
-
-/* Optional: Add a subtle fade-in for products */
-@keyframes fp-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.fp-card {
-  animation: fp-fade-in 0.4s ease-out forwards;
-}
-
 /* Spinner Animation */
 @keyframes fp-spin {
   0% {
@@ -870,22 +757,6 @@
   animation: fp-spin 0.8s linear infinite;
 }
 
-/* Disabled button styles */
-.fp-icon-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.fp-icon-btn:disabled:hover {
-  background: rgba(255, 255, 255, 0.95);
-  transform: none;
-}
-
-.fp-icon-btn:disabled:hover svg {
-  color: #1a1a1a;
-}
-
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .fp-section {
@@ -903,12 +774,10 @@
   }
   .fp-card {
     min-height: 480px;
-    max-height: 520px;
   }
   .fp-card-name {
     font-size: 0.9rem;
-    -webkit-line-clamp: 2;
-    min-height: 2.4rem;
+    min-height: 2.5rem;
   }
   .fp-card-price {
     font-size: 1.1rem;
@@ -922,8 +791,7 @@
     height: 16px;
   }
   .fp-card-body {
-    padding: 1rem 1rem 0.8rem;
-    min-height: 160px;
+    padding: 1rem 1rem 1rem;
   }
   .fp-variant-thumb {
     width: 38px;
@@ -965,12 +833,10 @@
   }
   .fp-card {
     min-height: 440px;
-    max-height: 480px;
   }
   .fp-card-name {
     font-size: 0.85rem;
-    -webkit-line-clamp: 2;
-    min-height: 2.2rem;
+    min-height: 2.4rem;
   }
   .fp-card-price {
     font-size: 1rem;
@@ -992,8 +858,7 @@
     height: 14px;
   }
   .fp-card-body {
-    padding: 0.8rem 0.8rem 0.6rem;
-    min-height: 140px;
+    padding: 0.8rem 0.8rem 0.8rem;
   }
   .fp-variant-thumb {
     width: 34px;
@@ -1007,12 +872,12 @@
     font-size: 0.4rem;
     max-width: 34px;
   }
-  .fp-card-variants {
-    min-height: 42px;
-  }
 }
 
 @media (max-width: 480px) {
+  .fp-card {
+    min-height: 420px;
+  }
   .fp-icon-btn {
     width: 32px;
     height: 32px;
@@ -1020,10 +885,6 @@
   .fp-icon-btn svg {
     width: 13px;
     height: 13px;
-  }
-  .fp-card {
-    min-height: 420px;
-    max-height: 460px;
   }
   .fp-variant-thumb {
     width: 30px;

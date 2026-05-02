@@ -302,7 +302,7 @@ function LoadingSpinner({ size = 18 }: { size?: number }) {
   );
 }
 
-// Product Card Component with Variant Support
+// Product Card Component with Variant Support - FIXED HOVER IMAGE
 function ProductCardComponent({
   productData,
   onQuickView,
@@ -319,7 +319,7 @@ function ProductCardComponent({
     maxStock?: number
   ) => Promise<void>;
 }) {
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     productData.variants && productData.variants.length > 0
       ? productData.variants[0]
@@ -378,22 +378,30 @@ function ProductCardComponent({
 
   const handleVariantSelect = (variant: ProductVariant) => {
     setSelectedVariant(variant);
-    setCurrentImages(getVariantImages(variant.id));
-    setCurrentImageIndex(0);
+    const newImages = getVariantImages(variant.id);
+    setCurrentImages(newImages);
+    setIsHovered(false);
   };
 
+  // ✅ FIXED: Hover handlers for image switching
   const handleMouseEnter = () => {
-    if (currentImages.length > 1) {
-      setCurrentImageIndex(1);
-    }
+    setIsHovered(true);
   };
 
   const handleMouseLeave = () => {
-    setCurrentImageIndex(0);
+    setIsHovered(false);
   };
 
-  const displayImage =
-    currentImages.length > 0 ? currentImages[currentImageIndex] : null;
+  // Get current display image - show second image on hover if available
+  const getDisplayImage = () => {
+    if (currentImages.length === 0) return null;
+    if (isHovered && currentImages.length > 1) {
+      return currentImages[1];
+    }
+    return currentImages[0];
+  };
+
+  const displayImage = getDisplayImage();
 
   const discount =
     selectedVariant?.original_price &&

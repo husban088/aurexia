@@ -697,14 +697,6 @@ export default function ProductDetail() {
       </div>
 
       <div className="pd-content">
-        <div className="pd-currency-indicator">
-          <span className="pd-currency-flag">{currency.flag}</span>
-          <span className="pd-currency-code">{currency.code}</span>
-          <span className="pd-currency-rate">
-            1 PKR = {currency.rate} {currency.code}
-          </span>
-        </div>
-
         {/* Breadcrumb */}
         <nav className="pd-breadcrumb">
           <Link href="/">Home</Link>

@@ -291,7 +291,7 @@ function LoadingSpinner({ size = 18 }: { size?: number }) {
   );
 }
 
-// Single Product Card Component - INSTANT ADD TO CART
+// Single Product Card Component - WITH HOVER IMAGE FIXED
 function ProductCard({
   product,
   variants,
@@ -314,6 +314,7 @@ function ProductCard({
   ) => void;
 }) {
   const { currency, formatPrice } = useCurrency();
+  const [isHovered, setIsHovered] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     variants.length > 0 ? variants[0] : null
@@ -355,22 +356,36 @@ function ProductCard({
 
   const handleVariantSelect = (variant: ProductVariant) => {
     setSelectedVariant(variant);
-    setCurrentImages(getVariantImages(variant.id));
+    const newImages = getVariantImages(variant.id);
+    setCurrentImages(newImages);
     setCurrentImageIndex(0);
+    setIsHovered(false);
   };
 
+  // ✅ FIXED: Hover handlers for image switching
   const handleMouseEnter = () => {
+    setIsHovered(true);
     if (currentImages.length > 1) {
       setCurrentImageIndex(1);
     }
   };
 
   const handleMouseLeave = () => {
+    setIsHovered(false);
     setCurrentImageIndex(0);
   };
 
-  const displayImage =
-    currentImages.length > 0 ? currentImages[currentImageIndex] : null;
+  // Get current display image
+  const getDisplayImage = () => {
+    if (currentImages.length === 0) return null;
+    // Show second image on hover if available
+    if (isHovered && currentImages.length > 1) {
+      return currentImages[1];
+    }
+    return currentImages[currentImageIndex];
+  };
+
+  const displayImage = getDisplayImage();
 
   const discount =
     selectedVariant?.original_price &&
@@ -507,12 +522,6 @@ function ProductCard({
           </div>
         )}
         <div className="fp-card-badges">
-          {/* {product.is_featured && (
-            <span className="fp-badge fp-badge--feat">Featured</span>
-          )}
-          {discount && discount > 0 && (
-            <span className="fp-badge fp-badge--sale">-{discount}%</span>
-          )} */}
           {product.condition === "new" && !discount && (
             <span className="fp-badge fp-badge--new">New</span>
           )}

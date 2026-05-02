@@ -390,14 +390,19 @@
 }
 
 /* Card Image */
+/* Card Image - Full fill, no white space */
 .pg-card-img {
   position: relative;
   aspect-ratio: 1;
+  width: 100%;
   background: linear-gradient(135deg, #f0ebe4 0%, #e8e0d8 100%);
   overflow: hidden;
 }
 
 .pg-card-img img {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
