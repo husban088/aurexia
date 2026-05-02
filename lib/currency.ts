@@ -21,7 +21,7 @@ export interface Currency {
 // 1 EUR = 328 PKR   → rate = 1/328  = 0.003049
 // 1 AUD = 200 PKR   → rate = 1/200  = 0.005000
 // 1 CAD = 205 PKR   → rate = 1/205  = 0.004878
-// 1 AED = 76.45 PKR → rate = 1/76.45 = 0.013elegance
+// 1 AED = 76.45 PKR → rate = 1/76.45 = 0.013082
 // 1 SAR = 74.87 PKR → rate = 1/74.87 = 0.013357
 // 1 INR = 3.35 PKR  → rate = 1/3.35  = 0.298507
 // 1 PKR = 1 PKR     → rate = 1

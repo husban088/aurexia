@@ -12,10 +12,8 @@ import {
 import {
   currencies as staticCurrencies,
   Currency,
-  detectUserCountry,
   getCurrencyByCountry,
   saveCurrencyPreference,
-  loadCurrencyPreference,
   convertPrice,
   formatPrice,
   fetchLiveRates,
@@ -24,7 +22,7 @@ import {
 
 interface CurrencyContextType {
   currency: Currency;
-  currencies: Currency[]; // ✅ Live-updated currencies array
+  currencies: Currency[];
   setCurrency: (currency: Currency) => void;
   convertPrice: (priceInPKR: number) => number;
   formatPrice: (priceInPKR: number) => string;
@@ -36,127 +34,165 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(
   undefined
 );
 
+// ─── Fast parallel country detection ──────────────────────────────────────────
+async function detectCountryFast(): Promise<string> {
+  // 1. Try server-side header route first (fastest — uses Cloudflare/Vercel headers)
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 1500);
+    const res = await fetch("/api/detect-country", {
+      signal: ctrl.signal,
+      cache: "no-store",
+    });
+    clearTimeout(t);
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.country?.length === 2) {
+        console.log("🌍 Country from server header:", data.country);
+        return data.country;
+      }
+    }
+  } catch {
+    // Server route failed or timed out — try client APIs
+  }
+
+  // 2. Race multiple free IP detection APIs in parallel (fastest wins)
+  const apis: { url: string; parse: (d: any) => string }[] = [
+    { url: "https://api.country.is/", parse: (d) => d.country },
+    { url: "https://ipapi.co/json/", parse: (d) => d.country_code },
+    { url: "https://freeipapi.com/api/json/", parse: (d) => d.countryCode },
+  ];
+
+  const promises = apis.map(async ({ url, parse }) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 3000);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
+      clearTimeout(t);
+      if (!res.ok) throw new Error("bad response");
+      const data = await res.json();
+      const code = parse(data);
+      if (typeof code === "string" && code.length === 2) return code;
+      throw new Error("invalid country code");
+    } catch {
+      clearTimeout(t);
+      throw new Error("api failed");
+    }
+  });
+
+  try {
+    // Promise.any = first one to succeed wins
+    const country = await Promise.any(promises);
+    console.log("🌍 Country from client API:", country);
+    return country;
+  } catch {
+    // All APIs failed — browser language fallback
+    if (typeof navigator !== "undefined") {
+      const lang = navigator.language || "";
+      if (lang.startsWith("ur") || lang.includes("PK")) return "PK";
+      if (lang.includes("AE") || lang.startsWith("ar-AE")) return "AE";
+      if (lang.includes("SA") || lang.startsWith("ar-SA")) return "SA";
+      if (lang.includes("IN") || lang.startsWith("hi")) return "IN";
+      if (lang.startsWith("en-GB")) return "GB";
+      if (lang.startsWith("en-AU")) return "AU";
+      if (lang.startsWith("en-CA")) return "CA";
+    }
+    return "US";
+  }
+}
+
+// ─── Provider ──────────────────────────────────────────────────────────────────
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
-  // ✅ Live currencies — start with static, update with live rates
   const [liveCurrencies, setLiveCurrencies] =
     useState<Currency[]>(staticCurrencies);
 
-  // ✅ Start with PKR (instant, no flash)
-  const pkrCurrency =
-    staticCurrencies.find((c) => c.code === "PKR") || staticCurrencies[0];
-  const [currency, setCurrencyState] = useState<Currency>(pkrCurrency);
-  const [loading, setLoading] = useState(false);
-
-  const initializedRef = useRef(false);
-  const detectionRef = useRef(false);
-
-  // ✅ Update currency object from live list when liveCurrencies updates
-  const syncCurrencyFromLive = useCallback(
-    (code: string, liveList: Currency[]) => {
-      const updated = liveList.find((c) => c.code === code);
-      if (updated) setCurrencyState(updated);
-    },
-    []
-  );
+  // Start null — will be set immediately after detection
+  const [currency, setCurrencyState] = useState<Currency | null>(null);
+  const [loading, setLoading] = useState(true);
+  const isDetecting = useRef(false);
 
   const setCurrency = useCallback(
     (newCurrency: Currency) => {
-      // Find from live list (has updated rates)
       const liveVersion =
         liveCurrencies.find((c) => c.code === newCurrency.code) || newCurrency;
       setCurrencyState(liveVersion);
+      // Save manual selection so user's explicit choice persists this session
       saveCurrencyPreference(liveVersion.code);
     },
     [liveCurrencies]
   );
 
-  const refreshCurrency = useCallback(async () => {
-    if (detectionRef.current) return;
-    detectionRef.current = true;
+  // ─── Core detection logic ────────────────────────────────────────────────
+  const detectAndSet = useCallback(async () => {
+    if (isDetecting.current) return;
+    isDetecting.current = true;
+    setLoading(true);
 
     try {
-      // ✅ STEP 1: Fetch live exchange rates first (from free API)
-      const liveRates = await fetchLiveRates();
-      let updatedList = staticCurrencies;
+      // Country detection + live rates fetch IN PARALLEL for speed
+      const [countryCode, liveRates] = await Promise.all([
+        detectCountryFast(),
+        fetchLiveRates().catch(() => null),
+      ]);
 
+      // Apply live rates if fetched successfully
+      let updatedList = staticCurrencies;
       if (liveRates) {
         updatedList = applyLiveRates(liveRates);
         setLiveCurrencies(updatedList);
-        // Sync current currency with new rate
-        syncCurrencyFromLive(currency.code, updatedList);
       }
 
-      // ✅ STEP 2: Detect country (server-side header check first)
-      let countryCode = "PK";
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 3000);
-        const res = await fetch("/api/detect-country", {
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        const data = await res.json();
-        if (data?.country) countryCode = data.country;
-      } catch {
-        // Fallback to client-side detection
-        countryCode = await detectUserCountry();
-      }
+      // Match country → currency
+      const baseCurrency = getCurrencyByCountry(countryCode);
+      const liveCurrency =
+        updatedList.find((c) => c.code === baseCurrency.code) || baseCurrency;
 
-      // ✅ STEP 3: Set currency for detected country
-      const detectedBase = getCurrencyByCountry(countryCode);
-      const detectedLive =
-        updatedList.find((c) => c.code === detectedBase.code) || detectedBase;
-
-      setCurrencyState(detectedLive);
-      saveCurrencyPreference(detectedLive.code);
+      setCurrencyState(liveCurrency);
       console.log(
-        `✅ Currency set: ${countryCode} → ${detectedLive.code} (rate: ${detectedLive.rate})`
+        `✅ Currency set: ${countryCode} → ${liveCurrency.code} (rate: ${liveCurrency.rate})`
       );
     } catch (err) {
-      console.error("Currency detection error:", err);
+      console.error("Currency detection failed:", err);
+      // Absolute fallback — USD
+      const usd =
+        staticCurrencies.find((c) => c.code === "USD") || staticCurrencies[0];
+      setCurrencyState(usd);
+    } finally {
+      setLoading(false);
+      isDetecting.current = false;
     }
-  }, [currency.code, syncCurrencyFromLive]);
+  }, []);
+
+  // refreshCurrency — called manually, forces re-detection
+  const refreshCurrency = useCallback(async () => {
+    isDetecting.current = false; // reset guard to allow re-run
+    await detectAndSet();
+  }, [detectAndSet]);
 
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
+    detectAndSet();
+  }, [detectAndSet]);
 
-    // ✅ Check saved preference first (instant)
-    const savedCode = loadCurrencyPreference();
-    if (savedCode) {
-      const saved = staticCurrencies.find((c) => c.code === savedCode);
-      if (saved) {
-        setCurrencyState(saved);
-        // Still fetch live rates in background
-        fetchLiveRates().then((liveRates) => {
-          if (liveRates) {
-            const updatedList = applyLiveRates(liveRates);
-            setLiveCurrencies(updatedList);
-            syncCurrencyFromLive(savedCode, updatedList);
-          }
-        });
-        return;
-      }
-    }
-
-    // No saved preference — detect country + fetch live rates
-    refreshCurrency();
-  }, [refreshCurrency, syncCurrencyFromLive]);
+  // Placeholder while detecting (avoids null crashes)
+  const activeCurrency =
+    currency ||
+    staticCurrencies.find((c) => c.code === "PKR") ||
+    staticCurrencies[0];
 
   const convert = useCallback(
-    (priceInPKR: number) => convertPrice(priceInPKR, currency),
-    [currency]
+    (priceInPKR: number) => convertPrice(priceInPKR, activeCurrency),
+    [activeCurrency]
   );
 
   const format = useCallback(
-    (priceInPKR: number) => formatPrice(priceInPKR, currency),
-    [currency]
+    (priceInPKR: number) => formatPrice(priceInPKR, activeCurrency),
+    [activeCurrency]
   );
 
   return (
     <CurrencyContext.Provider
       value={{
-        currency,
+        currency: activeCurrency,
         currencies: liveCurrencies,
         setCurrency,
         convertPrice: convert,
