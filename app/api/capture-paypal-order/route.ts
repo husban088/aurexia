@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update order in database with PayPal transaction ID
+    // ✅ Update order in Supabase with PayPal transaction ID
     const { error: updateError } = await supabase
       .from("orders")
       .update({

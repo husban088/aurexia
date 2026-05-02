@@ -4,7 +4,7 @@ import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 
 interface PayPalPaymentProps {
   amount: number;
-  currency: string;
+  currency: string; // Already normalized: "USD" | "GBP" | "AUD"
   orderNumber: string;
   formData: any;
   subtotal: number;
@@ -23,8 +23,11 @@ export default function PayPalPayment({
   shipping,
   total,
   onSuccess,
-  onError: onPaymentError, // Renamed to avoid conflict
+  onError: onPaymentError,
 }: PayPalPaymentProps) {
+  // ✅ currency is already "USD" | "GBP" | "AUD" — handled in PaymentSection
+  const finalCurrency = currency.toUpperCase();
+
   const createOrder = async () => {
     try {
       const response = await fetch("/api/create-paypal-order", {
@@ -32,15 +35,21 @@ export default function PayPalPayment({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount,
-          currency,
+          currency: finalCurrency, // ✅ Correct currency sent to API
           orderData: {
             orderNumber,
-            description: `Order ${orderNumber}`,
+            description: `Order ${orderNumber} - Tech4U`,
           },
         }),
       });
 
       const data = await response.json();
+
+      if (!data.orderId) {
+        onPaymentError("Failed to create PayPal order");
+        return;
+      }
+
       return data.orderId;
     } catch (error) {
       console.error("Failed to create PayPal order:", error);
@@ -66,7 +75,7 @@ export default function PayPalPayment({
       const result = await response.json();
 
       if (result.success) {
-        onSuccess();
+        onSuccess(); // ✅ Payment captured — notify parent
       } else {
         onPaymentError(result.error || "Payment capture failed");
       }
@@ -78,14 +87,15 @@ export default function PayPalPayment({
 
   const handlePayPalError = (err: any) => {
     console.error("PayPal error:", err);
-    onPaymentError("PayPal payment failed");
+    onPaymentError("PayPal payment failed. Please try again.");
   };
 
   return (
+    // ✅ PayPalScriptProvider with correct currency
     <PayPalScriptProvider
       options={{
         clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
-        currency: currency.toUpperCase(),
+        currency: finalCurrency, // ✅ "USD" | "GBP" | "AUD"
         intent: "capture",
       }}
     >

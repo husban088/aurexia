@@ -11,7 +11,6 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
-// ✅ FIXED: Added FormData interface to match page.tsx
 interface FormData {
   firstName: string;
   lastName: string;
@@ -35,13 +34,10 @@ interface PaymentSectionProps {
     expiry: string;
     cvv: string;
   };
-  // ✅ FIXED: key type changed to keyof FormData
   setFormField: (
     key: keyof FormData
   ) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
-  // ✅ FIXED: field type changed to keyof FormData
   getFieldError: (field: keyof FormData) => string | undefined;
-  // ✅ FIXED: field type changed to keyof FormData
   handleBlur: (field: keyof FormData) => void;
   focused: string | null;
   setFocused: (field: string | null) => void;
@@ -66,6 +62,40 @@ interface PaymentSectionProps {
   onPaymentMethodChange?: (method: "card" | "paypal") => void;
 }
 
+// ✅ Currency mapping:
+// Stripe doesn't support PKR — convert to USD
+// UK customers → GBP, AU customers → AUD, US customers → USD
+const getStripeCurrency = (currency: string): string => {
+  const map: Record<string, string> = {
+    PKR: "usd", // Pakistan → USD (Stripe doesn't support PKR)
+    USD: "usd", // USA ✅
+    GBP: "gbp", // UK  ✅
+    AUD: "aud", // Australia ✅
+    EUR: "eur",
+    CAD: "cad",
+    AED: "aed",
+    SAR: "sar",
+    INR: "inr",
+  };
+  return map[currency.toUpperCase()] ?? "usd";
+};
+
+// ✅ PayPal currency mapping (same logic)
+const getPayPalCurrency = (currency: string): string => {
+  const map: Record<string, string> = {
+    PKR: "USD", // Pakistan → USD
+    USD: "USD", // USA ✅
+    GBP: "GBP", // UK  ✅
+    AUD: "AUD", // Australia ✅
+    EUR: "EUR",
+    CAD: "CAD",
+    AED: "AED",
+    SAR: "SAR",
+    INR: "INR",
+  };
+  return map[currency.toUpperCase()] ?? "USD";
+};
+
 export default function PaymentSection({
   totalAmount,
   currency,
@@ -84,7 +114,10 @@ export default function PaymentSection({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isLoadingStripe, setIsLoadingStripe] = useState(false);
 
-  // Handle payment method change - notify parent
+  // ✅ Get correct currencies
+  const stripeCurrency = getStripeCurrency(currency);
+  const paypalCurrency = getPayPalCurrency(currency);
+
   const handleMethodChange = (method: "card" | "paypal") => {
     setSelectedPaymentMethod(method);
     if (onPaymentMethodChange) {
@@ -92,7 +125,7 @@ export default function PaymentSection({
     }
   };
 
-  // Create Stripe Payment Intent when card payment is selected
+  // ✅ Create Stripe Payment Intent with correct currency
   useEffect(() => {
     if (selectedPaymentMethod === "card" && totalAmount > 0 && !clientSecret) {
       const createPaymentIntent = async () => {
@@ -103,7 +136,7 @@ export default function PaymentSection({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               amount: totalAmount,
-              currency: currency === "PKR" ? "pkr" : "usd",
+              currency: stripeCurrency, // ✅ "usd" | "gbp" | "aud" — never "pkr"
               metadata: {
                 orderNumber,
                 customerEmail: formData.email,
@@ -113,7 +146,11 @@ export default function PaymentSection({
           });
 
           const data = await response.json();
-          setClientSecret(data.clientSecret);
+          if (data.clientSecret) {
+            setClientSecret(data.clientSecret);
+          } else {
+            onPaymentError("Failed to initialize payment");
+          }
         } catch (error) {
           console.error("Error creating payment intent:", error);
           onPaymentError("Failed to initialize Stripe");
@@ -126,7 +163,7 @@ export default function PaymentSection({
   }, [
     selectedPaymentMethod,
     totalAmount,
-    currency,
+    stripeCurrency,
     orderNumber,
     formData.email,
     formData.firstName,
@@ -194,7 +231,7 @@ export default function PaymentSection({
         </button>
       </div>
 
-      {/* Card Preview - Just for display */}
+      {/* Card Preview */}
       {selectedPaymentMethod === "card" && (
         <div className="ps-card-preview">
           <div className="ps-card-chip" />
@@ -207,7 +244,7 @@ export default function PaymentSection({
         </div>
       )}
 
-      {/* Stripe Card Payment Form - Only Stripe's secure form */}
+      {/* ✅ Stripe Card Payment Form */}
       {selectedPaymentMethod === "card" && (
         <div className="ps-stripe-container">
           {clientSecret ? (
@@ -220,7 +257,7 @@ export default function PaymentSection({
             >
               <StripePayment
                 amount={totalAmount}
-                currency={currency}
+                currency={stripeCurrency} // ✅ Correct currency passed
                 orderNumber={orderNumber}
                 onSuccess={onPaymentSuccess}
                 onError={onPaymentError}
@@ -240,12 +277,12 @@ export default function PaymentSection({
         </div>
       )}
 
-      {/* PayPal Payment */}
+      {/* ✅ PayPal Payment */}
       {selectedPaymentMethod === "paypal" && (
         <div className="ps-paypal-container">
           <PayPalPayment
             amount={totalAmount}
-            currency={currency === "PKR" ? "USD" : currency.toLowerCase()}
+            currency={paypalCurrency} // ✅ "USD" | "GBP" | "AUD" — never "PKR"
             orderNumber={orderNumber}
             formData={formData}
             subtotal={subtotal}

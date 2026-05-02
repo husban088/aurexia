@@ -73,35 +73,6 @@ function useToast() {
 }
 
 /* ═══════════════════════════════════════════
-   SKELETON
-═══════════════════════════════════════════ */
-function Skeleton() {
-  return (
-    <div className="pd-skeleton-root">
-      <div className="pd-skel-grid">
-        <div>
-          <div className="pd-skel-img" />
-          <div className="pd-skel-thumbs">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="pd-skel-thumb" />
-            ))}
-          </div>
-        </div>
-        <div style={{ paddingTop: "1rem" }}>
-          {[70, 45, 100, 55, 80, 60, 90, 40].map((w, i) => (
-            <div
-              key={i}
-              className="pd-skel-line"
-              style={{ width: `${w}%`, height: i === 2 ? "2.5rem" : "1rem" }}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════
    STAR COMPONENT
 ═══════════════════════════════════════════ */
 function StarIcon({
@@ -314,8 +285,7 @@ export default function ProductDetail() {
   );
   const [selectedVariant, setSelectedVariant] =
     useState<VariantWithDetails | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [qty, setQty] = useState(1);
   const [wishlist, setWishlist] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("description");
@@ -336,7 +306,7 @@ export default function ProductDetail() {
 
   const { toasts, show: showToast } = useToast();
   const { addToCart } = useCartStore();
-  const { formatPrice, currency, loading: currencyLoading } = useCurrency();
+  const { formatPrice, currency } = useCurrency();
 
   // Update description and images when selected variant changes
   useEffect(() => {
@@ -396,47 +366,28 @@ export default function ProductDetail() {
     if (!id) return;
 
     async function load() {
-      setLoading(true);
-
-      // Fetch product
+      // Single combined query — product + variants + variant_images in one round trip
       const { data: productData, error: productError } = await supabase
         .from("products")
-        .select("*")
+        .select("*, product_variants(*, variant_images(*))")
         .eq("id", id)
         .eq("is_active", true)
         .single();
 
       if (productError || !productData) {
-        setNotFound(true);
-        setLoading(false);
         return;
       }
 
       setProduct(productData);
       setLiveRating(productData.rating || null);
       setLiveReviewCount(productData.reviews_count || null);
-
-      // Set initial description from product
       setCurrentDescription(productData.description || "");
       setCurrentDescriptionImages(productData.description_images || []);
-
-      // Update browser title
       document.title = `${productData.name} | Tech4U`;
 
-      // Fetch variants with their descriptions and images
-      const { data: variantsData, error: variantsError } = await supabase
-        .from("product_variants")
-        .select(
-          `
-          *,
-          variant_images(*)
-        `
-        )
-        .eq("product_id", id)
-        .eq("is_active", true);
+      const variantsData = productData.product_variants || [];
 
-      if (!variantsError && variantsData && variantsData.length > 0) {
-        // Process variants to include description_images
+      if (variantsData.length > 0) {
         const processedVariants = variantsData.map((v: any) => ({
           ...v,
           description_images: v.description_images || [],
@@ -459,27 +410,17 @@ export default function ProductDetail() {
         setVariants(sortedVariants);
         setSelectedVariant(sortedVariants[0]);
 
-        const variantIds = sortedVariants.map((v: any) => v.id);
-        const { data: imagesData } = await supabase
-          .from("variant_images")
-          .select("*")
-          .in("variant_id", variantIds)
-          .order("display_order", { ascending: true });
-
-        if (imagesData) {
-          const imagesByVariant: VariantImagesMap = {};
-          imagesData.forEach((img: any) => {
-            if (!imagesByVariant[img.variant_id])
-              imagesByVariant[img.variant_id] = [];
-            imagesByVariant[img.variant_id].push(img.image_url);
-          });
-          setVariantImagesMap(imagesByVariant);
-        }
+        const imagesByVariant: VariantImagesMap = {};
+        variantsData.forEach((v: any) => {
+          const imgs = (v.variant_images || [])
+            .sort((a: any, b: any) => a.display_order - b.display_order)
+            .map((img: any) => img.image_url);
+          if (imgs.length > 0) imagesByVariant[v.id] = imgs;
+        });
+        setVariantImagesMap(imagesByVariant);
       } else {
         setSelectedVariant(null);
       }
-
-      setLoading(false);
     }
 
     load();
@@ -632,48 +573,7 @@ export default function ProductDetail() {
 
   const truncatedProductName = product ? product.name : "";
 
-  // Show loading state
-  if (loading || currencyLoading) {
-    return (
-      <div className="pd-root">
-        <div className="pd-ambient" aria-hidden="true" />
-        <div className="pd-grain" aria-hidden="true" />
-        <Skeleton />
-      </div>
-    );
-  }
-
-  if (notFound || !product) {
-    return (
-      <div className="pd-root">
-        <div className="pd-ambient" aria-hidden="true" />
-        <div className="pd-grain" aria-hidden="true" />
-        <div className="pd-notfound">
-          <p className="pd-eyebrow">
-            <span className="pd-ey-line" />
-            Tech4U Store
-            <span className="pd-ey-line" />
-          </p>
-          <h1 className="pd-notfound-title">Product Not Found</h1>
-          <p className="pd-notfound-sub">
-            This item may have been removed or is no longer available
-          </p>
-          <Link href="/" className="pd-back-link">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <polyline points="19 12 5 12" />
-              <polyline points="12 5 5 12 12 19" />
-            </svg>
-            Back to Store
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  if (!product) return null;
 
   const catHref = categoryRoute[product.category] || "/";
   const catLabel = categoryLabel[product.category] || product.category;

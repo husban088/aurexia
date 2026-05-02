@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       webhookSecret
     );
 
-    // Check for duplicate webhook events (idempotency)
+    // ✅ Duplicate webhook check (idempotency)
     const { data: existing } = await supabase
       .from("stripe_webhook_events")
       .select("id")
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true, duplicate: true });
     }
 
-    // Log the webhook event
+    // ✅ Log the webhook event
     await supabase.from("stripe_webhook_events").insert({
       id: event.id,
       type: event.type,
@@ -45,11 +45,11 @@ export async function POST(request: NextRequest) {
       processed_at: new Date().toISOString(),
     });
 
-    // Process the event
+    // ✅ Process the event
     switch (event.type) {
-      case "payment_intent.succeeded":
-        const paymentIntent = event.data.object;
-        const orderNumber = paymentIntent.metadata.orderNumber;
+      case "payment_intent.succeeded": {
+        const paymentIntent = event.data.object as any;
+        const orderNumber = paymentIntent.metadata?.orderNumber;
 
         if (orderNumber) {
           await supabase
@@ -60,13 +60,26 @@ export async function POST(request: NextRequest) {
               payment_id: paymentIntent.id,
             })
             .eq("order_number", orderNumber);
+
+          console.log(`✅ Order ${orderNumber} marked as paid via Stripe`);
         }
         break;
+      }
 
-      case "payment_intent.payment_failed":
-        const failedIntent = event.data.object;
-        console.error("Payment failed:", failedIntent.id);
+      case "payment_intent.payment_failed": {
+        const failedIntent = event.data.object as any;
+        console.error("❌ Payment failed:", failedIntent.id);
+
+        // ✅ Optionally update order status to failed
+        const orderNumber = failedIntent.metadata?.orderNumber;
+        if (orderNumber) {
+          await supabase
+            .from("orders")
+            .update({ payment_status: "failed" })
+            .eq("order_number", orderNumber);
+        }
         break;
+      }
 
       default:
         console.log(`Unhandled event type: ${event.type}`);

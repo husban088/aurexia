@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 const PAYPAL_API_URL =
   process.env.PAYPAL_API_URL || "https://api-m.sandbox.paypal.com";
 
+// ✅ PayPal supported currencies (PKR NOT supported — fallback to USD)
+const PAYPAL_CURRENCY_FALLBACK: Record<string, string> = {
+  PKR: "USD", // Pakistan Rupee → US Dollar
+};
+
 async function getPayPalAccessToken(): Promise<string> {
   const auth = Buffer.from(
     `${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`
@@ -25,6 +30,10 @@ export async function POST(request: NextRequest) {
   try {
     const { amount, currency = "USD", orderData } = await request.json();
 
+    // ✅ Apply currency fallback for unsupported currencies (e.g. PKR → USD)
+    const rawCurrency = currency.toUpperCase();
+    const finalCurrency = PAYPAL_CURRENCY_FALLBACK[rawCurrency] ?? rawCurrency;
+
     const accessToken = await getPayPalAccessToken();
 
     const response = await fetch(`${PAYPAL_API_URL}/v2/checkout/orders`, {
@@ -38,7 +47,7 @@ export async function POST(request: NextRequest) {
         purchase_units: [
           {
             amount: {
-              currency_code: currency,
+              currency_code: finalCurrency, // ✅ "USD" | "GBP" | "AUD" — NOT PKR
               value: amount.toFixed(2),
             },
             description: orderData.description || "Order from Tech4U",
@@ -64,6 +73,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       orderId: data.id,
       approvalUrl,
+      currency: finalCurrency, // ✅ Return final currency used
     });
   } catch (error) {
     console.error("Error creating PayPal order:", error);

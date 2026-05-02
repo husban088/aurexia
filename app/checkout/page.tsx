@@ -54,7 +54,7 @@ const STEPS: { id: Step; label: string; num: string }[] = [
   { id: "review", label: "Review", num: "03" },
 ];
 
-// Country code mapping
+// Country code mapping — covers all currencies in currency.ts
 const COUNTRY_CODES: Record<
   string,
   {
@@ -107,6 +107,27 @@ const COUNTRY_CODES: Record<
     example: "512345678",
     validation: (num) => /^5[0-9]{8}$/.test(num),
   },
+  AUD: {
+    code: "+61",
+    flag: "🇦🇺",
+    pattern: /^[0-9]{9}$/,
+    example: "412345678",
+    validation: (num) => /^4[0-9]{8}$/.test(num),
+  },
+  CAD: {
+    code: "+1",
+    flag: "🇨🇦",
+    pattern: /^[0-9]{10}$/,
+    example: "4161234567",
+    validation: (num) => /^[2-9][0-9]{9}$/.test(num),
+  },
+  INR: {
+    code: "+91",
+    flag: "🇮🇳",
+    pattern: /^[0-9]{10}$/,
+    example: "9876543210",
+    validation: (num) => /^[6-9][0-9]{9}$/.test(num),
+  },
 };
 
 const STORAGE_KEYS = {
@@ -116,7 +137,6 @@ const STORAGE_KEYS = {
 
 export default function Checkout() {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
   const {
     items,
     loading,
@@ -167,8 +187,6 @@ export default function Checkout() {
 
   // Load saved form data from localStorage on mount
   useEffect(() => {
-    setMounted(true);
-
     const savedStep = localStorage.getItem(STORAGE_KEYS.CHECKOUT_STEP);
     if (
       savedStep &&
@@ -192,17 +210,15 @@ export default function Checkout() {
 
   // Save form data to localStorage
   useEffect(() => {
-    if (mounted && form.firstName) {
+    if (form.firstName) {
       localStorage.setItem(STORAGE_KEYS.CHECKOUT_FORM, JSON.stringify(form));
     }
-  }, [form, mounted]);
+  }, [form]);
 
   // Save current step
   useEffect(() => {
-    if (mounted) {
-      localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, step);
-    }
-  }, [step, mounted]);
+    localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, step);
+  }, [step]);
 
   const clearSavedCheckoutData = () => {
     localStorage.removeItem(STORAGE_KEYS.CHECKOUT_FORM);
@@ -211,17 +227,17 @@ export default function Checkout() {
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (mounted && !placed && (form.firstName || form.email)) {
+      if (!placed && (form.firstName || form.email)) {
         localStorage.setItem(STORAGE_KEYS.CHECKOUT_FORM, JSON.stringify(form));
         localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, step);
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [form, step, mounted, placed]);
+  }, [form, step, placed]);
 
   useEffect(() => {
-    if (mounted && !initialized) {
+    if (!initialized) {
       try {
         const persisted = localStorage.getItem("cart-storage");
         if (persisted) {
@@ -235,13 +251,11 @@ export default function Checkout() {
         }
       } catch (e) {}
     }
-  }, [mounted, initialized]);
+  }, [initialized]);
 
   useEffect(() => {
-    if (mounted) {
-      fetchCart();
-    }
-  }, [fetchCart, mounted]);
+    fetchCart();
+  }, [fetchCart]);
 
   // Update country code based on currency
   useEffect(() => {
@@ -400,7 +414,12 @@ export default function Checkout() {
 
   const subtotal = getSubtotal();
   const cartCount = getCartCount();
-  const shipping = subtotal >= 3000 ? 0 : 250;
+  // Free shipping threshold: 3000 PKR converted to current currency
+  const freeShippingThresholdPKR = 3000;
+  const freeShippingThreshold = freeShippingThresholdPKR * currency.rate;
+  const shippingCostPKR = 250;
+  const shippingCost = shippingCostPKR * currency.rate;
+  const shipping = subtotal >= freeShippingThreshold ? 0 : shippingCost;
   const total = subtotal + shipping;
   const currentStepIndex = STEPS.findIndex((s) => s.id === step);
 
@@ -634,7 +653,7 @@ export default function Checkout() {
   };
 
   // Loading state
-  if (!mounted || (loading && items.length === 0)) {
+  if (loading && items.length === 0) {
     return (
       <div className="co-root">
         <div className="co-grain" aria-hidden="true" />

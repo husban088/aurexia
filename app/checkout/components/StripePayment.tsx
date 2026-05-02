@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   PaymentElement,
   useStripe,
@@ -9,7 +9,7 @@ import {
 
 interface StripePaymentProps {
   amount: number;
-  currency: string;
+  currency: string; // Already normalized: "usd" | "gbp" | "aud"
   orderNumber: string;
   onSuccess: () => void;
   onError: (error: string) => void;
@@ -30,43 +30,61 @@ export default function StripePayment({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!stripe || !elements) {
-      return;
-    }
+    if (!stripe || !elements) return;
 
     setIsProcessing(true);
     setPaymentError(null);
 
+    // ✅ Confirm payment — Stripe's PaymentElement handles card details securely
+    // Card data never touches your server — goes directly to Stripe
     const { error } = await stripe.confirmPayment({
       elements,
       confirmParams: {
         return_url: `${window.location.origin}/checkout?payment_success=true`,
-        payment_method_data: {
-          billing_details: {
-            name: document.querySelector<HTMLInputElement>("#cardholder-name")
-              ?.value,
-          },
-        },
       },
-      redirect: "if_required",
+      redirect: "if_required", // ✅ No redirect for card payments — stays on page
     });
 
     if (error) {
-      setPaymentError(error.message || "Payment failed");
-      onError(error.message || "Payment failed");
+      // ✅ Show user-friendly error message
+      const errorMsg = error.message || "Payment failed. Please try again.";
+      setPaymentError(errorMsg);
+      onError(errorMsg);
     } else {
+      // ✅ Payment succeeded — notify parent
       onSuccess();
     }
 
     setIsProcessing(false);
   };
 
+  // ✅ Display currency symbol based on currency code
+  const getCurrencySymbol = (code: string): string => {
+    const symbols: Record<string, string> = {
+      usd: "$",
+      gbp: "£",
+      aud: "A$",
+      eur: "€",
+      cad: "C$",
+      inr: "₹",
+      aed: "د.إ",
+      sar: "﷼",
+    };
+    return symbols[code.toLowerCase()] ?? code.toUpperCase();
+  };
+
   return (
     <form onSubmit={handleSubmit} className="sp-stripe-form">
+      {/* ✅ Stripe's PaymentElement — fully PCI compliant, card data goes to Stripe */}
       <div className="sp-card-element-wrapper">
-        <PaymentElement />
+        <PaymentElement
+          options={{
+            layout: "tabs", // Shows tabs for Card, Google Pay etc
+          }}
+        />
       </div>
 
+      {/* ✅ Error message display */}
       {paymentError && (
         <div className="sp-error-message">
           <span className="sp-error-icon">⚠️</span>
@@ -74,6 +92,7 @@ export default function StripePayment({
         </div>
       )}
 
+      {/* ✅ Pay button with amount + correct currency symbol */}
       <button
         type="submit"
         disabled={!stripe || isProcessing}
@@ -85,7 +104,7 @@ export default function StripePayment({
             Processing...
           </>
         ) : (
-          `Pay ${amount} ${currency.toUpperCase()}`
+          `Pay ${getCurrencySymbol(currency)}${amount.toFixed(2)}`
         )}
       </button>
     </form>
