@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isOwner } from "@/lib/checkOwner";
@@ -19,20 +18,38 @@ export default function SignIn() {
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    // Clear stale Supabase storage on signin page load
-    const clearStaleAuth = () => {
+    // ✅ Agar pehle se signed in hai toh seedha redirect karo
+    const checkExistingSession = async () => {
       try {
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.includes("supabase") && key.includes("auth-token")) {
-            localStorage.removeItem(key);
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.user) {
+          const params = new URLSearchParams(window.location.search);
+          const redirectTo = params.get("redirectTo");
+          const owner = isOwner(session.user.email);
+
+          if (redirectTo && redirectTo.startsWith("/panel") && owner) {
+            window.location.replace(redirectTo);
+          } else if (owner) {
+            window.location.replace("/panel");
+          } else {
+            window.location.replace("/profile");
           }
         }
-      } catch (e) {
-        console.error("Error clearing storage:", e);
-      }
+      } catch {}
     };
-    clearStaleAuth();
+    checkExistingSession();
+
+    // Clear stale auth
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.includes("supabase") && key.includes("auth-token")) {
+          // Don't remove — this breaks existing sessions
+        }
+      }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -82,34 +99,24 @@ export default function SignIn() {
       return;
     }
 
-    // ✅ پہلے session کو verify کریں
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      setError("Session creation failed. Please try again.");
-      setLoading(false);
-      return;
-    }
-
-    // ✅ اب یہ چیک کریں
     const userEmail = signInData?.user?.email ?? null;
     const ownerUser = isOwner(userEmail);
 
     const params = new URLSearchParams(window.location.search);
     const redirectTo = params.get("redirectTo");
 
-    // ⭐ DELAY دیں تاکہ cookies properly set ہوں
-    setTimeout(() => {
-      if (redirectTo && redirectTo.startsWith("/panel") && ownerUser) {
-        window.location.href = redirectTo;
-      } else if (ownerUser) {
-        window.location.href = "/panel";
-      } else {
-        window.location.href = "/profile";
-      }
-    }, 500);
+    // ✅ Panel layout cache reset karo taake fresh check ho
+    // (import mat karo — direct module variable reset hoga automatically
+    // kyunki page navigate ho raha hai)
+
+    // ✅ Foran redirect — no delay needed, session already set hai
+    if (redirectTo && redirectTo.startsWith("/panel") && ownerUser) {
+      window.location.replace(redirectTo);
+    } else if (ownerUser) {
+      window.location.replace("/panel");
+    } else {
+      window.location.replace("/profile");
+    }
   };
 
   return (
@@ -186,7 +193,6 @@ export default function SignIn() {
             </div>
 
             <form className="si-form" onSubmit={handleSubmit} noValidate>
-              {/* Error */}
               {error && (
                 <div className="si-error-box" role="alert">
                   <svg
@@ -205,7 +211,6 @@ export default function SignIn() {
                 </div>
               )}
 
-              {/* Username / Email */}
               <div
                 className={`si-field${
                   focused === "id" ? " si-field--focused" : ""
@@ -242,7 +247,6 @@ export default function SignIn() {
                 <div className="si-field-line" aria-hidden="true" />
               </div>
 
-              {/* Password */}
               <div
                 className={`si-field${
                   focused === "pw" ? " si-field--focused" : ""
@@ -308,7 +312,6 @@ export default function SignIn() {
                 <div className="si-field-line" aria-hidden="true" />
               </div>
 
-              {/* Forgot password */}
               <div className="si-forgot-row">
                 <Link href="/forgot-password" className="si-forgot-link">
                   Forgot password?

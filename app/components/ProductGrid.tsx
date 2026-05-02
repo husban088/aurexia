@@ -551,20 +551,6 @@ function ProductCardComponent({
             </svg>
           </div>
         )}
-        <div className="pg-card-badges">
-          {productData.is_featured && (
-            <span className="pg-badge pg-badge--feat">Featured</span>
-          )}
-          {discount && discount > 0 && (
-            <span className="pg-badge pg-badge--sale">-{discount}%</span>
-          )}
-          {productData.condition === "new" && !discount && (
-            <span className="pg-badge pg-badge--new">New</span>
-          )}
-          {isLowStock && (
-            <span className="pg-badge pg-badge--low">Low Stock</span>
-          )}
-        </div>
         <div className="pg-icon-buttons">
           <button
             className="pg-icon-btn pg-icon-btn--view"

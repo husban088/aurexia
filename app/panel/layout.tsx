@@ -1,103 +1,123 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { isOwner } from "@/lib/checkOwner";
 
-const OWNER_EMAIL = "info@tech4ru.com";
+// ✅ Module-level cache — page navigate karne pe reset nahi hoga
+let authCache: {
+  authorized: boolean;
+  checked: boolean;
+} = { authorized: false, checked: false };
 
 export default function PanelLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
-  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
-  const [checking, setChecking] = useState(true);
+
+  // ✅ Agar already check ho chuka hai toh seedha state set karo — no loading
+  const [isAuthorized, setIsAuthorized] = useState<boolean>(
+    authCache.checked ? authCache.authorized : false
+  );
+  const [checking, setChecking] = useState<boolean>(!authCache.checked);
+  const checkingRef = useRef(false);
 
   useEffect(() => {
-    let isMounted = true;
+    // ✅ Already cached — kuch nahi karna
+    if (authCache.checked) {
+      setIsAuthorized(authCache.authorized);
+      setChecking(false);
+      if (!authCache.authorized) {
+        window.location.replace(
+          "/signin?redirectTo=" + encodeURIComponent(pathname)
+        );
+      }
+      return;
+    }
+
+    // ✅ Prevent double-call
+    if (checkingRef.current) return;
+    checkingRef.current = true;
 
     async function checkAuth() {
       try {
-        console.log("🔍 Panel Layout - Starting auth check...");
-
-        // First try to get session
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
-
-        console.log("🔍 Panel Layout - Session exists?", !!session);
-        if (sessionError) {
-          console.log("🔍 Panel Layout - Session error:", sessionError.message);
-        }
-
-        // If no session, try to get user directly
+        // ✅ getUser() is the most reliable — verifies with Supabase server
         const {
           data: { user },
-          error: userError,
+          error,
         } = await supabase.auth.getUser();
 
-        console.log("🔍 Panel Layout - User exists?", !!user);
-        if (userError) {
-          console.log("🔍 Panel Layout - User error:", userError.message);
-        }
+        if (error || !user) {
+          // Try getSession as fallback
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
 
-        if (!isMounted) return;
+          if (!session?.user) {
+            authCache = { authorized: false, checked: true };
+            setIsAuthorized(false);
+            setChecking(false);
+            window.location.replace(
+              "/signin?redirectTo=" + encodeURIComponent(pathname)
+            );
+            return;
+          }
 
-        // TEMPORARY - Allow all access for debugging
-        console.log("✅ Panel Layout - Debug mode: Allowing access");
-        setIsAuthorized(true);
-        setChecking(false);
-        return;
-
-        // Original check (commented for debugging)
-        /*
-        if ((!session && !user) || userError) {
-          console.log("❌ Panel Layout - No user found");
-          setIsAuthorized(false);
+          // Session found via fallback
+          const authorized = isOwner(session.user.email);
+          authCache = { authorized, checked: true };
+          setIsAuthorized(authorized);
           setChecking(false);
-          window.location.href = "/signin?redirectTo=" + encodeURIComponent(pathname);
+          if (!authorized) window.location.replace("/");
           return;
         }
 
-        const userEmail = user?.email?.trim().toLowerCase() || session?.user?.email?.trim().toLowerCase();
-        const ownerEmail = OWNER_EMAIL.toLowerCase();
-
-        console.log("🔍 Panel Layout - User Email:", userEmail);
-        console.log("🔍 Panel Layout - Owner Email:", ownerEmail);
-
-        if (!userEmail || userEmail !== ownerEmail) {
-          console.log("❌ Panel Layout - User is not owner");
-          setIsAuthorized(false);
-          setChecking(false);
-          window.location.href = "/";
-          return;
-        }
-
-        console.log("✅ Panel Layout - Authorized:", userEmail);
-        setIsAuthorized(true);
+        const authorized = isOwner(user.email);
+        authCache = { authorized, checked: true };
+        setIsAuthorized(authorized);
         setChecking(false);
-        */
+
+        if (!authorized) window.location.replace("/");
       } catch (err) {
-        console.error("❌ Panel Layout - Auth check error:", err);
-        if (!isMounted) return;
-        // TEMPORARY - Allow in debug mode
-        setIsAuthorized(true);
+        console.error("Panel auth error:", err);
+        // On error, try session fallback before giving up
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (session?.user && isOwner(session.user.email)) {
+            authCache = { authorized: true, checked: true };
+            setIsAuthorized(true);
+            setChecking(false);
+            return;
+          }
+        } catch {}
+        authCache = { authorized: false, checked: true };
+        setIsAuthorized(false);
         setChecking(false);
+        window.location.replace(
+          "/signin?redirectTo=" + encodeURIComponent(pathname)
+        );
       }
     }
 
     checkAuth();
+  }, []); // ✅ Sirf mount pe — route changes pe repeat nahi
 
-    return () => {
-      isMounted = false;
-    };
-  }, [pathname]);
+  // ✅ Authorized — seedha content, zero delay
+  if (!checking && isAuthorized) {
+    return (
+      <div className="panel-content" style={{ paddingTop: "0px" }}>
+        {children}
+      </div>
+    );
+  }
 
-  if (checking || isAuthorized === null) {
+  // ✅ Loading — sirf pehli dafa
+  if (checking) {
     return (
       <div
         style={{
@@ -111,26 +131,12 @@ export default function PanelLayout({
         }}
       >
         <div className="ap-spinner" style={{ width: "40px", height: "40px" }} />
-        <p
-          style={{
-            color: "#daa520",
-            fontFamily: "monospace",
-            margin: 0,
-          }}
-        >
-          Loading Panel...
+        <p style={{ color: "#daa520", fontFamily: "monospace", margin: 0 }}>
+          Verifying Access...
         </p>
       </div>
     );
   }
 
-  if (!isAuthorized) {
-    return null;
-  }
-
-  return (
-    <div className="panel-content" style={{ paddingTop: "0px" }}>
-      {children}
-    </div>
-  );
+  return null;
 }

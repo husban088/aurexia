@@ -402,7 +402,7 @@ export default function Navbar({
               </li>
             );
           })}
-          {/* ✅ Panel Link - Yeh owner ko dikhega jab email match hoga */}
+
           {showPanel && (
             <li className="nav-item">
               <a
@@ -411,7 +411,7 @@ export default function Navbar({
                 onClick={(e) => {
                   e.preventDefault();
                   console.log("🟢 Panel link clicked - Navigating to /panel");
-                  // Use direct window.location to force full page reload
+                  // Use direct window.location for full page reload
                   window.location.href = "/panel";
                 }}
               >

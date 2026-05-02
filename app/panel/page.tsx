@@ -245,34 +245,22 @@ export default function Panel() {
     setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 350);
   }, []);
 
-  // Fetch data - layout already verified auth
+  // OPTIMIZED FETCH - Products load first, stats in background
   useEffect(() => {
     let isMounted = true;
 
     async function fetchData() {
       try {
-        console.log("📦 Panel - Fetching data...");
+        console.log("📦 Panel - Fetching data (optimized)...");
 
-        const [productsRes, usersRes, ordersRes, contactsRes] =
-          await Promise.all([
-            supabase
-              .from("products")
-              .select("*")
-              .order("created_at", { ascending: false }),
-            supabase
-              .from("profiles")
-              .select("*", { count: "exact", head: true }),
-            supabase
-              .from("cart_items")
-              .select("*", { count: "exact", head: true }),
-            supabase
-              .from("contacts")
-              .select("*", { count: "exact", head: true }),
-          ]);
+        // Step 1: Products only first (fast)
+        const productsRes = await supabase
+          .from("products")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(50); // Limit to 50 products for speed
 
-        if (!isMounted) return;
-
-        if (productsRes.data && !productsRes.error) {
+        if (isMounted && productsRes.data && !productsRes.error) {
           setProducts(
             productsRes.data.map((p: any) => ({
               ...p,
@@ -282,18 +270,34 @@ export default function Panel() {
               is_active: p.is_active ?? true,
             }))
           );
+          console.log("✅ Panel - Products loaded:", productsRes.data.length);
         } else if (productsRes.error) {
           console.error("Products fetch error:", productsRes.error);
+          if (isMounted)
+            addToast("error", "Load Failed", "Could not fetch products");
         }
 
-        if (!usersRes.error)
-          setStats((s) => ({ ...s, users: usersRes.count || 0 }));
-        if (!ordersRes.error)
-          setStats((s) => ({ ...s, orders: ordersRes.count || 0 }));
-        if (!contactsRes.error)
-          setStats((s) => ({ ...s, contacts: contactsRes.count || 0 }));
-
-        console.log("✅ Panel - Data fetched successfully");
+        // Step 2: Stats in background (don't wait)
+        Promise.all([
+          supabase.from("profiles").select("*", { count: "exact", head: true }),
+          supabase
+            .from("cart_items")
+            .select("*", { count: "exact", head: true }),
+          supabase.from("contacts").select("*", { count: "exact", head: true }),
+        ])
+          .then(([usersRes, ordersRes, contactsRes]) => {
+            if (isMounted) {
+              setStats({
+                users: usersRes.count || 0,
+                orders: ordersRes.count || 0,
+                contacts: contactsRes.count || 0,
+              });
+              console.log("✅ Panel - Stats loaded in background");
+            }
+          })
+          .catch((err) => {
+            console.error("Stats fetch error:", err);
+          });
       } catch (err) {
         console.error("Panel fetch error:", err);
         if (isMounted) addToast("error", "Load Failed", "Could not fetch data");
@@ -463,7 +467,8 @@ export default function Panel() {
             </a>
           </div>
 
-          {productsLoading ? (
+          {/* OPTIMIZED LOADING STATE - Shows only when actually loading with no products */}
+          {productsLoading && products.length === 0 ? (
             <div className="p-empty">
               <div className="p-empty-icon">
                 <svg
@@ -475,7 +480,7 @@ export default function Panel() {
                   <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
                 </svg>
               </div>
-              <p className="p-empty-title">Loading products…</p>
+              <p className="p-empty-title">Loading products...</p>
             </div>
           ) : products.length === 0 ? (
             <div className="p-empty">

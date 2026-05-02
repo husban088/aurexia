@@ -2,8 +2,10 @@
 export const OWNER_EMAIL = "info@tech4ru.com";
 
 export function isOwner(email: string | null | undefined): boolean {
+  console.log("🔍 isOwner called with email:", email);
+
   if (!email) {
-    console.log("🔴 isOwner: No email provided");
+    console.log("🔴 isOwner: No email provided, returning false");
     return false;
   }
 
@@ -11,11 +13,9 @@ export function isOwner(email: string | null | undefined): boolean {
   const normalizedOwner = OWNER_EMAIL.toLowerCase();
   const result = normalizedEmail === normalizedOwner;
 
-  // ✅ Debug log
-  console.log(`🔍 isOwner Check:`);
-  console.log(`   Email: "${normalizedEmail}"`);
-  console.log(`   Owner: "${normalizedOwner}"`);
-  console.log(`   Result: ${result}`);
+  console.log(
+    `🔍 isOwner Result: ${result} (${normalizedEmail} === ${normalizedOwner})`
+  );
 
   return result;
 }

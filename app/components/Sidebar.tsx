@@ -536,6 +536,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </ul>
 
           {/* Admin Section */}
+          {/* Admin Section */}
           {showPanel && (
             <>
               <hr className="sidebar-hr" />
@@ -557,9 +558,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     onClick={(e) => {
                       e.preventDefault();
                       onClose();
-                      setTimeout(() => {
-                        window.location.href = "/panel/add-product";
-                      }, 150);
+                      // ✅ No delay, direct navigation
+                      window.location.href = "/panel/add-product";
                     }}
                   >
                     <span className="sidebar-link-icon">
@@ -583,9 +583,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     onClick={(e) => {
                       e.preventDefault();
                       onClose();
-                      setTimeout(() => {
-                        window.location.href = "/panel";
-                      }, 150);
+                      // ✅ No delay, direct navigation
+                      window.location.href = "/panel";
                     }}
                   >
                     <span className="sidebar-link-icon">
