@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isOwner } from "@/lib/checkOwner";
@@ -35,42 +35,43 @@ function clearCachedAuth() {
   } catch {}
 }
 
-// ✅ MODULE-LEVEL FLAG — React component remount pe bhi persist karta hai
-// Yeh flag tab tak true rahega jab tak page fully reload na ho
-let memoryAuthOk: boolean | null = null;
-
 export default function PanelLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const didRun = useRef(false);
 
-  // ✅ KEY FIX: Auth status synchronously check karo
-  // memoryAuthOk = in-memory (fastest, survives route changes)
-  // getCachedAuth() = sessionStorage (survives component remount)
-  // Dono mein se koi ek true hai toh FORAN children dikhao — no loading, no flicker
-  const isAuthed =
-    memoryAuthOk === true || (typeof window !== "undefined" && getCachedAuth());
+  // ✅ KEY INSIGHT:
+  // Agar cache hai → seedha children show karo (NO loading screen)
+  // Background mein quietly session verify karo
+  // Agar session invalid nikli → tab redirect karo
+  // Agar cache nahi → tab loading show karo (sirf pehli dafa)
+
+  const [showContent, setShowContent] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
+  const didRun = useRef(false);
 
   useEffect(() => {
     if (didRun.current) return;
     didRun.current = true;
 
-    if (isAuthed) {
-      // ✅ Already authed — memory flag set karo for future remounts
-      memoryAuthOk = true;
+    const cached = getCachedAuth();
 
-      // Background mein quietly verify karo (user ko pata nahi chalega)
+    if (cached) {
+      // ✅ Cache hai — FORAN content show karo, loading nahi
+      setShowContent(true);
+
+      // ✅ Background mein quietly verify karo (user ko pata nahi chalega)
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session?.user || !isOwner(session.user.email)) {
-          memoryAuthOk = false;
+          // Session expire ho gayi — silently redirect
           clearCachedAuth();
           window.location.replace(
             "/signin?redirectTo=" + encodeURIComponent(pathname)
           );
         } else {
+          // Session valid — cache refresh karo
           setCachedAuth(true);
         }
       });
@@ -78,7 +79,9 @@ export default function PanelLayout({
       return;
     }
 
-    // ✅ Cache nahi — ek baar check karo
+    // ✅ Cache nahi — loading show karo aur check karo
+    setShowLoading(true);
+
     async function checkAuth() {
       try {
         const {
@@ -86,31 +89,44 @@ export default function PanelLayout({
         } = await supabase.auth.getSession();
 
         if (session?.user && isOwner(session.user.email)) {
-          memoryAuthOk = true;
           setCachedAuth(true);
-          // Force re-render
-          window.dispatchEvent(new Event("panel-auth-ok"));
+          setShowLoading(false);
+          setShowContent(true);
           return;
         }
 
+        // getSession failed — try getUser
         const {
           data: { user },
           error,
         } = await supabase.auth.getUser();
 
         if (!error && user && isOwner(user.email)) {
-          memoryAuthOk = true;
           setCachedAuth(true);
-          window.dispatchEvent(new Event("panel-auth-ok"));
+          setShowLoading(false);
+          setShowContent(true);
           return;
         }
 
+        // Not authenticated
         clearCachedAuth();
-        memoryAuthOk = false;
         window.location.replace(
           "/signin?redirectTo=" + encodeURIComponent(pathname)
         );
       } catch {
+        // Network error — try one more time
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (session?.user && isOwner(session.user.email)) {
+            setCachedAuth(true);
+            setShowLoading(false);
+            setShowContent(true);
+            return;
+          }
+        } catch {}
+
         window.location.replace(
           "/signin?redirectTo=" + encodeURIComponent(pathname)
         );
@@ -120,18 +136,7 @@ export default function PanelLayout({
     checkAuth();
   }, []);
 
-  // ✅ Listen for auth-ok event to trigger re-render (first time only)
-  useEffect(() => {
-    const handler = () => {
-      // Force re-render by updating location — React will re-render
-      window.location.reload();
-    };
-    window.addEventListener("panel-auth-ok", handler);
-    return () => window.removeEventListener("panel-auth-ok", handler);
-  }, []);
-
-  // ✅ INSTANT: Agar authed hai toh seedha content — koi delay nahi
-  if (isAuthed) {
+  if (showContent) {
     return (
       <div className="panel-content" style={{ paddingTop: "0px" }}>
         {children}
@@ -139,24 +144,28 @@ export default function PanelLayout({
     );
   }
 
-  // ✅ Sirf tab loading dikhao jab genuinely pehli baar check ho raha ho
-  // (yani naa cache hai, naa memory flag)
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "100vh",
-        background: "#0a0a0a",
-        gap: "1rem",
-      }}
-    >
-      <div className="ap-spinner" style={{ width: "40px", height: "40px" }} />
-      <p style={{ color: "#daa520", fontFamily: "monospace", margin: 0 }}>
-        Verifying Access...
-      </p>
-    </div>
-  );
+  if (showLoading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+          background: "#0a0a0a",
+          gap: "1rem",
+        }}
+      >
+        <div className="ap-spinner" style={{ width: "40px", height: "40px" }} />
+        <p style={{ color: "#daa520", fontFamily: "monospace", margin: 0 }}>
+          Verifying Access...
+        </p>
+      </div>
+    );
+  }
+
+  // ✅ Na loading na content — blank screen (milliseconds ke liye)
+  // Isse flicker avoid hogi
+  return <div style={{ background: "#0a0a0a", minHeight: "100vh" }} />;
 }

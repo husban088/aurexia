@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isOwner } from "@/lib/checkOwner";
 import { useCartStore } from "@/lib/cartStore";
-import { currencies } from "@/lib/currency";
 import "./navbar.css";
 import { useCurrency } from "../context/CurrencyContext";
 
@@ -72,17 +71,16 @@ export default function Navbar({
   const [currentPath, setCurrentPath] = useState("");
   const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currencyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pathname = usePathname();
 
   const items = useCartStore((state) => state.items);
   const cartCount = items.reduce((total, item) => total + item.quantity, 0);
 
-  const { currency, setCurrency, loading: currencyLoading } = useCurrency();
+  // ✅ Get live currencies from context (auto-updated rates)
+  const { currency, currencies, setCurrency } = useCurrency();
 
   useEffect(() => {
     setMounted(true);
     setCurrentPath(window.location.pathname);
-
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
@@ -94,17 +92,14 @@ export default function Navbar({
         const {
           data: { session },
         } = await supabase.auth.getSession();
-
         if (session?.user) {
           setUser(session.user);
           setUserEmail(session.user.email ?? null);
-          console.log("✅ Navbar - User email:", session.user.email);
         } else {
           setUser(null);
           setUserEmail(null);
         }
-      } catch (err) {
-        console.error("Navbar auth error:", err);
+      } catch {
         setUser(null);
         setUserEmail(null);
       }
@@ -115,15 +110,10 @@ export default function Navbar({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Navbar - Auth state change:", event);
       if (event === "SIGNED_OUT" || !session) {
         setUser(null);
         setUserEmail(null);
-      } else if (
-        event === "SIGNED_IN" ||
-        event === "TOKEN_REFRESHED" ||
-        event === "USER_UPDATED"
-      ) {
+      } else {
         setUser(session.user);
         setUserEmail(session.user.email ?? null);
       }
@@ -132,11 +122,11 @@ export default function Navbar({
     return () => subscription.unsubscribe();
   }, []);
 
-  // ✅ Yeh line ab instantly update hoga jab userEmail change hoga
   const showPanel = userEmail === "info@tech4ru.com";
   const authResolved = user !== undefined;
   const isSignedIn = authResolved && user !== null;
 
+  // ✅ Filter out PKR from dropdown — show all foreign currencies
   const availableCurrencies = currencies.filter((c) => c.code !== "PKR");
 
   const handleDropdownEnter = (href: string) => {
@@ -148,9 +138,7 @@ export default function Navbar({
   };
 
   const handleDropdownLeave = () => {
-    dropdownTimeoutRef.current = setTimeout(() => {
-      setOpenDropdown(null);
-    }, 150);
+    dropdownTimeoutRef.current = setTimeout(() => setOpenDropdown(null), 150);
   };
 
   const handleCurrencyMouseEnter = () => {
@@ -162,17 +150,16 @@ export default function Navbar({
   };
 
   const handleCurrencyMouseLeave = () => {
-    currencyTimeoutRef.current = setTimeout(() => {
-      setCurrencyOpen(false);
-    }, 200);
+    currencyTimeoutRef.current = setTimeout(() => setCurrencyOpen(false), 200);
   };
 
-  // ✅ Direct navigation function - yeh instantly page reload karega
   const navigateTo = (href: string) => {
     window.location.href = href;
   };
 
-  if (!mounted || currencyLoading) {
+  // ✅ REMOVED currencyLoading check — no more navbar delay!
+  // Navbar renders immediately with PKR, then silently updates
+  if (!mounted) {
     return (
       <nav className="navbar">
         <div className="navbar-container">
@@ -190,7 +177,7 @@ export default function Navbar({
   return (
     <nav className={`navbar${scrolled ? " scrolled" : ""}`}>
       <div className="navbar-container">
-        {/* LEFT SECTION - Currency & Search */}
+        {/* LEFT — Currency & Search */}
         <div className="navbar-left">
           <div
             className="currency-dropdown"
@@ -211,6 +198,7 @@ export default function Navbar({
                 <polyline points="6 9 12 15 18 9" />
               </svg>
             </button>
+
             {currencyOpen && (
               <div className="currency-menu">
                 {availableCurrencies.map((cur) => (
@@ -230,6 +218,24 @@ export default function Navbar({
                     <span className="currency-option-name">{cur.name}</span>
                   </button>
                 ))}
+                {/* ✅ Also show PKR option for Pakistan users */}
+                <button
+                  className={`currency-option${
+                    currency.code === "PKR" ? " active" : ""
+                  }`}
+                  onClick={() => {
+                    const pkr = currencies.find((c) => c.code === "PKR");
+                    if (pkr) {
+                      setCurrency(pkr);
+                      setCurrencyOpen(false);
+                    }
+                  }}
+                >
+                  <span className="currency-option-flag">🇵🇰</span>
+                  <span className="currency-option-symbol">₨</span>
+                  <span className="currency-option-code">PKR</span>
+                  <span className="currency-option-name">Pakistani Rupee</span>
+                </button>
               </div>
             )}
           </div>
@@ -255,7 +261,7 @@ export default function Navbar({
           </button>
         </div>
 
-        {/* CENTER SECTION - Logo */}
+        {/* CENTER — Logo */}
         <div className="navbar-center">
           <a
             href="/"
@@ -270,9 +276,8 @@ export default function Navbar({
           </a>
         </div>
 
-        {/* RIGHT SECTION - User & Cart (Desktop only) + Menu */}
+        {/* RIGHT — User & Cart */}
         <div className="navbar-right">
-          {/* User Icon - Desktop Only */}
           <div className="nav-desktop-only">
             <a
               href={isSignedIn ? "/profile" : "/signin"}
@@ -299,7 +304,6 @@ export default function Navbar({
             </a>
           </div>
 
-          {/* Cart Icon */}
           <button
             className="nav-icon-btn cart-btn"
             onClick={(e) => {
@@ -322,7 +326,6 @@ export default function Navbar({
             <span className="nav-icon-tooltip">Cart</span>
           </button>
 
-          {/* Menu Button (Hamburger) - Mobile Only */}
           <button
             className="nav-icon-btn menu-btn mobile-only"
             onClick={(e) => {
@@ -339,12 +342,12 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* BOTTOM NAVIGATION - Desktop Only */}
+      {/* BOTTOM NAV — Desktop */}
       <div className="navbar-bottom desktop-only">
         <ul className="nav-links">
           {navLinks.map((link) => {
             const hasDropdown = categorySubcategories[link.href];
-            const isLinkActive = currentPath === link.href;
+            const isActive = currentPath === link.href;
             return (
               <li
                 key={link.href}
@@ -358,7 +361,7 @@ export default function Navbar({
               >
                 <a
                   href={link.href}
-                  className={isLinkActive ? "active" : ""}
+                  className={isActive ? "active" : ""}
                   onClick={(e) => {
                     e.preventDefault();
                     navigateTo(link.href);
@@ -410,8 +413,6 @@ export default function Navbar({
                 className={currentPath === "/panel" ? "active" : ""}
                 onClick={(e) => {
                   e.preventDefault();
-                  console.log("🟢 Panel link clicked - Navigating to /panel");
-                  // Use direct window.location for full page reload
                   window.location.href = "/panel";
                 }}
               >

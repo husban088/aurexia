@@ -823,43 +823,6 @@ export default function ProductDetail() {
               {stockLabel}
             </div>
 
-            {/* DESCRIPTION BUTTON - Opens Modal with current variant's description */}
-            <div className="pd-desc-dropdown">
-              <div
-                className="pd-desc-header"
-                onClick={() => setIsDescModalOpen(true)}
-              >
-                <div className="pd-desc-title">
-                  <div className="pd-desc-icon">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    >
-                      <path d="M4 6h16M4 12h16M4 18h16" />
-                      <path d="M8 6v12" />
-                      <path d="M16 6v12" />
-                    </svg>
-                  </div>
-                  <div className="pd-desc-label">
-                    Product Description
-                    <span>Click to view full details →</span>
-                  </div>
-                </div>
-                <div className="pd-desc-toggle">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
             <div className="pd-actions">
               {!selectedTier && (
                 <div className="pd-qty-row">
@@ -1006,6 +969,44 @@ export default function ProductDetail() {
                   </p>
                 )}
               </div>
+
+              {/* DESCRIPTION IMAGES GALLERY */}
+              {currentDescriptionImages &&
+                currentDescriptionImages.length > 0 && (
+                  <div className="pd-desc-images-section">
+                    <div className="pd-desc-images-header">
+                      <span className="pd-desc-images-line" />
+                      <span className="pd-desc-images-label">
+                        Product Visuals
+                      </span>
+                      <span className="pd-desc-images-line" />
+                    </div>
+                    <div
+                      className={`pd-desc-images-grid pd-desc-images-grid--${Math.min(
+                        currentDescriptionImages.length,
+                        3
+                      )}`}
+                    >
+                      {currentDescriptionImages.map((imgUrl, idx) => (
+                        <div key={idx} className="pd-desc-img-card">
+                          <div className="pd-desc-img-inner">
+                            <img
+                              src={imgUrl}
+                              alt={`${product.name} detail ${idx + 1}`}
+                              className="pd-desc-img"
+                              loading="lazy"
+                            />
+                            <div className="pd-desc-img-overlay">
+                              <span className="pd-desc-img-num">
+                                0{idx + 1}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
             </div>
           )}
 

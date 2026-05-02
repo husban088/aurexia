@@ -764,3 +764,248 @@
     margin-left: 0;
   }
 }
+
+/* Description Section Styles */
+.qv-desc-section {
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-top: 1px solid rgba(218, 165, 32, 0.15);
+  padding-top: 0.75rem;
+}
+
+.qv-desc-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  transition: all 0.2s ease;
+}
+
+.qv-desc-header:hover {
+  gap: 0.8rem;
+}
+
+.qv-desc-icon {
+  width: 28px;
+  height: 28px;
+  background: rgba(218, 165, 32, 0.08);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.qv-desc-icon svg {
+  width: 14px;
+  height: 14px;
+  color: #daa520;
+}
+
+.qv-desc-label {
+  flex: 1;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #1a1a1a;
+}
+
+.qv-desc-label span {
+  display: block;
+  font-size: 0.55rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-transform: none;
+  color: #daa520;
+  margin-top: 0.15rem;
+}
+
+.qv-desc-toggle svg {
+  width: 14px;
+  height: 14px;
+  color: #daa520;
+}
+
+.qv-desc-preview {
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: #666;
+  margin-top: 0.25rem;
+  padding-left: 2.5rem;
+  border-left: 2px solid rgba(218, 165, 32, 0.3);
+}
+
+/* Description Modal Styles */
+.qv-desc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(8px);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: qvDescFadeIn 0.3s ease;
+}
+
+@keyframes qvDescFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.qv-desc-modal {
+  position: relative;
+  width: 90%;
+  max-width: 800px;
+  max-height: 85vh;
+  background: white;
+  border-radius: 24px;
+  overflow: hidden;
+  animation: qvDescSlideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes qvDescSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.qv-desc-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.3s ease;
+}
+
+.qv-desc-modal-close svg {
+  width: 20px;
+  height: 20px;
+  color: #666;
+}
+
+.qv-desc-modal-close:hover {
+  background: rgba(218, 165, 32, 0.15);
+  transform: rotate(90deg);
+}
+
+.qv-desc-modal-close:hover svg {
+  color: #daa520;
+}
+
+.qv-desc-modal-header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid rgba(218, 165, 32, 0.15);
+  background: #faf8f5;
+}
+
+.qv-desc-modal-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #daa520;
+  margin-bottom: 0.5rem;
+}
+
+.qv-desc-ey-line {
+  width: 30px;
+  height: 1px;
+  background: #daa520;
+}
+
+.qv-desc-modal-title {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.8rem;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.qv-desc-modal-body {
+  padding: 2rem;
+  overflow-y: auto;
+  max-height: calc(85vh - 120px);
+}
+
+.qv-desc-modal-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.qv-desc-modal-images img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 12px;
+  border: 1px solid rgba(218, 165, 32, 0.2);
+}
+
+.qv-desc-modal-content {
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: #444;
+}
+
+.qv-desc-modal-content p {
+  margin-bottom: 1rem;
+}
+
+.qv-desc-modal-content img {
+  max-width: 100%;
+  border-radius: 12px;
+  margin: 1rem 0;
+}
+
+.qv-desc-modal-content ul,
+.qv-desc-modal-content ol {
+  margin: 0.5rem 0 1rem 1.5rem;
+}
+
+.qv-desc-modal-content li {
+  margin-bottom: 0.25rem;
+}
+
+.qv-desc-modal-content h1,
+.qv-desc-modal-content h2,
+.qv-desc-modal-content h3 {
+  font-family: "Cormorant Garamond", serif;
+  margin: 1rem 0 0.5rem;
+  color: #1a1a1a;
+}
+
+@media (max-width: 768px) {
+  .qv-desc-modal-title {
+    font-size: 1.3rem;
+  }
+  .qv-desc-modal-body {
+    padding: 1.2rem;
+  }
+}
