@@ -673,7 +673,7 @@ export default function ProductGrid({
   onQuickView,
 }: ProductGridProps) {
   const [products, setProducts] = useState<ExtendedProduct[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
   const { formatPrice } = useCurrency();
@@ -683,7 +683,6 @@ export default function ProductGrid({
     let active = true;
 
     async function loadProducts() {
-      setLoading(true);
       const data = await fetchProductsWithVariants(
         category,
         subcategory,
@@ -734,26 +733,7 @@ export default function ProductGrid({
     return filtered;
   }, [products, search, sort]);
 
-  if (loading && products.length === 0) {
-    return (
-      <div className="pg-skeleton-grid">
-        {[...Array(limit || 8)].map((_, i) => (
-          <div key={i} className="pg-skeleton-card">
-            <div className="pg-skeleton-img" />
-            <div className="pg-skeleton-body">
-              <div className="pg-skeleton-line" style={{ width: "40%" }} />
-              <div className="pg-skeleton-line" style={{ width: "80%" }} />
-              <div className="pg-skeleton-line" style={{ width: "60%" }} />
-              <div className="pg-skeleton-line" style={{ width: "55%" }} />
-              <div className="pg-skeleton-line" style={{ width: "45%" }} />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (filteredAndSorted.length === 0) {
+  if (filteredAndSorted.length === 0 && products.length > 0) {
     return (
       <div className="pg-empty">
         <div className="pg-empty-icon">

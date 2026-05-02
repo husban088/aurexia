@@ -152,43 +152,6 @@ async function fetchFeaturedTabDataFast(tab: string) {
   };
 }
 
-// Skeleton Loader Component
-function ProductCardSkeleton() {
-  return (
-    <div className="fp-card fp-card--skeleton">
-      <div className="fp-card-img fp-skel-img">
-        <div className="fp-skel-img-overlay"></div>
-      </div>
-      <div className="fp-card-body">
-        <div
-          className="fp-skel-line"
-          style={{ width: "40%", height: "0.65rem" }}
-        ></div>
-        <div
-          className="fp-skel-line"
-          style={{ width: "85%", height: "1.25rem", marginTop: "0.25rem" }}
-        ></div>
-        <div
-          className="fp-skel-line"
-          style={{ width: "60%", height: "1.35rem", marginTop: "0.5rem" }}
-        ></div>
-        <div
-          className="fp-skel-line"
-          style={{ width: "90%", height: "0.55rem", marginTop: "0.5rem" }}
-        ></div>
-        <div
-          className="fp-skel-line"
-          style={{ width: "70%", height: "0.55rem", marginTop: "0.3rem" }}
-        ></div>
-        <div
-          className="fp-skel-line"
-          style={{ width: "45%", height: "0.6rem", marginTop: "0.5rem" }}
-        ></div>
-      </div>
-    </div>
-  );
-}
-
 // Variant selector component
 function VariantThumbnails({
   variants,
@@ -658,7 +621,6 @@ function ProductCard({
 
 // FeaturedProducts Component - INSTANT LOAD
 export default function FeaturedProducts() {
-  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("Accessories");
   const [products, setProducts] = useState<FeaturedProduct[]>([]);
   const [variantsMap, setVariantsMap] = useState<
@@ -667,7 +629,7 @@ export default function FeaturedProducts() {
   const [variantImagesMap, setVariantImagesMap] = useState<
     Record<string, string[]>
   >({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [quickViewProduct, setQuickViewProduct] =
     useState<QuickViewProduct | null>(null);
   const [quickViewVariants, setQuickViewVariants] = useState<ProductVariant[]>(
@@ -687,14 +649,9 @@ export default function FeaturedProducts() {
   // Cache for data
   const dataCache = useRef<Record<string, any>>({});
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   // LOAD DATA INSTANTLY - No skeleton delay
   useEffect(() => {
     async function loadInitialData() {
-      setLoading(true);
       try {
         const categories = [
           "Accessories",
@@ -714,10 +671,8 @@ export default function FeaturedProducts() {
         setProducts(initialData.products);
         setVariantsMap(initialData.variantsMap);
         setVariantImagesMap(initialData.variantImagesMap);
-        setLoading(false);
       } catch (error) {
         console.error("Error loading featured products:", error);
-        setLoading(false);
       }
     }
 
@@ -733,13 +688,11 @@ export default function FeaturedProducts() {
       setVariantsMap(tabData.variantsMap);
       setVariantImagesMap(tabData.variantImagesMap);
     } else {
-      setLoading(true);
       const tabData = await fetchFeaturedTabDataFast(tab);
       dataCache.current[tab] = tabData;
       setProducts(tabData.products);
       setVariantsMap(tabData.variantsMap);
       setVariantImagesMap(tabData.variantImagesMap);
-      setLoading(false);
     }
 
     setTimeout(() => {
@@ -748,10 +701,10 @@ export default function FeaturedProducts() {
   }, []);
 
   useEffect(() => {
-    if (swiperRef.current && !loading && products.length > 0 && mounted) {
+    if (swiperRef.current && products.length > 0) {
       setTimeout(() => swiperRef.current?.update(), 50);
     }
-  }, [products, loading, mounted]);
+  }, [products]);
 
   const handleQuickView = (
     product: FeaturedProduct,
@@ -796,43 +749,9 @@ export default function FeaturedProducts() {
   ].find((t) => t.key === activeTab);
 
   const getCurrencyText = () => {
-    if (!mounted) return "";
     if (currency.code === "PKR") return "PKR (₨)";
     return `${currency.code} (${currency.symbol})`;
   };
-
-  if (!mounted || (loading && products.length === 0)) {
-    return (
-      <section className="fp-section">
-        <div className="fp-header">
-          <div className="fp-skeleton-header">
-            <div
-              className="fp-skel-line"
-              style={{ width: "200px", height: "20px", margin: "0 auto" }}
-            ></div>
-            <div
-              className="fp-skel-line"
-              style={{ width: "300px", height: "40px", margin: "10px auto" }}
-            ></div>
-          </div>
-        </div>
-        <div className="fp-container">
-          <div
-            className="fp-skeleton-grid"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "1.5rem",
-            }}
-          >
-            {[...Array(8)].map((_, i) => (
-              <ProductCardSkeleton key={i} />
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <>
@@ -914,48 +833,42 @@ export default function FeaturedProducts() {
               </svg>
             </button>
           </div>
-          {products.length === 0 ? (
-            <div className="fp-empty">
-              <p>No featured products in this category</p>
-            </div>
-          ) : (
-            <Swiper
-              modules={[Pagination, Navigation, A11y]}
-              onSwiper={(swiper) => {
-                swiperRef.current = swiper;
-                if (
-                  swiper.params.navigation &&
-                  typeof swiper.params.navigation !== "boolean"
-                ) {
-                  swiper.params.navigation.prevEl = prevRef.current;
-                  swiper.params.navigation.nextEl = nextRef.current;
-                  swiper.navigation.init();
-                  swiper.navigation.update();
-                }
-              }}
-              navigation={{ prevEl: prevRef.current, nextEl: nextRef.current }}
-              pagination={{ clickable: true }}
-              spaceBetween={1}
-              slidesPerView={1}
-              breakpoints={{
-                480: { slidesPerView: 2, spaceBetween: 1 },
-                768: { slidesPerView: 3, spaceBetween: 1 },
-                1024: { slidesPerView: 4, spaceBetween: 1 },
-              }}
-              className="fp-swiper"
-            >
-              {products.map((product) => (
-                <SwiperSlide key={product.id}>
-                  <ProductCard
-                    product={product}
-                    variants={variantsMap[product.id] || []}
-                    variantImagesMap={variantImagesMap}
-                    onQuickView={handleQuickView}
-                  />
-                </SwiperSlide>
-              ))}
-            </Swiper>
-          )}
+          <Swiper
+            modules={[Pagination, Navigation, A11y]}
+            onSwiper={(swiper) => {
+              swiperRef.current = swiper;
+              if (
+                swiper.params.navigation &&
+                typeof swiper.params.navigation !== "boolean"
+              ) {
+                swiper.params.navigation.prevEl = prevRef.current;
+                swiper.params.navigation.nextEl = nextRef.current;
+                swiper.navigation.init();
+                swiper.navigation.update();
+              }
+            }}
+            navigation={{ prevEl: prevRef.current, nextEl: nextRef.current }}
+            pagination={{ clickable: true }}
+            spaceBetween={1}
+            slidesPerView={1}
+            breakpoints={{
+              480: { slidesPerView: 2, spaceBetween: 1 },
+              768: { slidesPerView: 3, spaceBetween: 1 },
+              1024: { slidesPerView: 4, spaceBetween: 1 },
+            }}
+            className="fp-swiper"
+          >
+            {products.map((product) => (
+              <SwiperSlide key={product.id}>
+                <ProductCard
+                  product={product}
+                  variants={variantsMap[product.id] || []}
+                  variantImagesMap={variantImagesMap}
+                  onQuickView={handleQuickView}
+                />
+              </SwiperSlide>
+            ))}
+          </Swiper>
           <div className="fp-view-all-wrap">
             <Link href={activeTabData?.href || "/"} className="fp-view-all">
               <span>View All {activeTabData?.label || activeTab}</span>
