@@ -29,6 +29,30 @@ export interface Product {
   variantId?: string;
 }
 
+interface ProductVariant {
+  id: string;
+  product_id: string;
+  attribute_type: "color" | "size" | "material" | "capacity" | "standard";
+  attribute_value: string;
+  price: number;
+  original_price?: number;
+  description?: string;
+  stock: number;
+  low_stock_threshold?: number;
+  images: string[];
+  stockStatus?: "in_stock" | "out_of_stock" | "low_stock";
+}
+
+interface VariantImagesMap {
+  [variantId: string]: string[];
+}
+
+interface ExtendedProduct extends Product {
+  variants?: ProductVariant[];
+  variantImagesMap?: VariantImagesMap;
+  selectedVariantId?: string;
+}
+
 interface ProductGridProps {
   category: string;
   subcategory?: string;
@@ -36,6 +60,11 @@ interface ProductGridProps {
   featured?: boolean;
   onQuickView?: (productId: string) => void;
 }
+
+const truncateProductName = (name: string, maxLength: number = 45): string => {
+  if (name.length <= maxLength) return name;
+  return name.substring(0, maxLength).trim() + "...";
+};
 
 const getStockStatus = (
   stock: number,
@@ -51,19 +80,19 @@ const getStockLabel = (
   status: "in_stock" | "out_of_stock" | "low_stock",
   stock: number
 ) => {
-  if (status === "out_of_stock") return "Out of stock";
+  if (status === "out_of_stock") return "Out of Stock";
   if (status === "low_stock") return `Only ${stock} left`;
-  return "In stock";
+  return "In Stock";
 };
 
 const getStockClass = (status: "in_stock" | "out_of_stock" | "low_stock") => {
   if (status === "out_of_stock") return "out";
   if (status === "low_stock") return "low";
-  return "";
+  return "in";
 };
 
-// FAST fetch function with join query for instant data
-async function fetchProductsFast(
+// FAST fetch function with all variants and images
+async function fetchProductsWithVariants(
   category: string,
   subcategory?: string,
   limit?: number,
@@ -92,7 +121,26 @@ async function fetchProductsFast(
   };
 
   return data.map((item: any) => {
-    const variants = item.product_variants || [];
+    const variants = (item.product_variants || []).map((variant: any) => {
+      const variantImages = (variant.variant_images || [])
+        .sort((a: any, b: any) => a.display_order - b.display_order)
+        .map((img: any) => img.image_url);
+
+      return {
+        id: variant.id,
+        product_id: variant.product_id,
+        attribute_type: variant.attribute_type,
+        attribute_value: variant.attribute_value,
+        price: variant.price,
+        original_price: variant.original_price,
+        description: variant.description,
+        stock: variant.stock,
+        low_stock_threshold: variant.low_stock_threshold,
+        images: variantImages,
+        stockStatus: getStockStatus(variant.stock, variant.low_stock_threshold),
+      };
+    });
+
     const sortedVariants = [...variants].sort(
       (a, b) =>
         (typePriority[a.attribute_type] || 5) -
@@ -100,17 +148,12 @@ async function fetchProductsFast(
     );
     const bestVariant = sortedVariants[0];
 
-    let variantImages: string[] = [];
-    if (bestVariant?.variant_images) {
-      variantImages = bestVariant.variant_images
-        .sort((a: any, b: any) => a.display_order - b.display_order)
-        .map((img: any) => img.image_url);
-    }
-
-    const stock = bestVariant?.stock ?? item.stock ?? 0;
-    const lowStockThreshold =
-      bestVariant?.low_stock_threshold ?? item.low_stock_threshold ?? null;
-    const stockStatus = getStockStatus(stock, lowStockThreshold);
+    const variantImagesMap: VariantImagesMap = {};
+    variants.forEach((variant: ProductVariant) => {
+      if (variant.images && variant.images.length > 0) {
+        variantImagesMap[variant.id] = variant.images;
+      }
+    });
 
     return {
       id: item.id,
@@ -121,19 +164,511 @@ async function fetchProductsFast(
         bestVariant?.original_price ?? item.original_price ?? undefined,
       category: item.category,
       subcategory: item.subcategory,
-      images: variantImages.length > 0 ? variantImages : item.images || [],
-      stock,
+      images:
+        bestVariant?.images?.length > 0
+          ? bestVariant.images
+          : item.images || [],
+      stock: bestVariant?.stock ?? item.stock ?? 0,
       brand: item.brand || undefined,
       condition: item.condition || "new",
       is_featured: item.is_featured || false,
       is_active: item.is_active ?? true,
       specs: item.specs || {},
       created_at: item.created_at || new Date().toISOString(),
-      low_stock_threshold: lowStockThreshold,
-      stockStatus,
+      low_stock_threshold:
+        bestVariant?.low_stock_threshold ?? item.low_stock_threshold ?? null,
+      stockStatus:
+        bestVariant?.stockStatus ||
+        getStockStatus(
+          bestVariant?.stock ?? item.stock ?? 0,
+          bestVariant?.low_stock_threshold ?? item.low_stock_threshold
+        ),
       variantId: bestVariant?.id,
+      variants: sortedVariants,
+      variantImagesMap,
     };
   });
+}
+
+// Variant selector component for product grid
+function VariantThumbnails({
+  variants,
+  type,
+  onSelect,
+  currentValue,
+  variantImagesMap,
+  getVariantImage,
+}: {
+  variants: ProductVariant[];
+  type: string;
+  onSelect: (variant: ProductVariant) => void;
+  currentValue: string;
+  variantImagesMap: VariantImagesMap;
+  getVariantImage: (variantId: string) => string | null;
+}) {
+  if (!variants || variants.length === 0) return null;
+
+  const getIcon = () => {
+    switch (type) {
+      case "color":
+        return "🎨";
+      case "size":
+        return "📏";
+      case "material":
+        return "🔧";
+      case "capacity":
+        return "⚡";
+      default:
+        return "•";
+    }
+  };
+
+  const getTypeLabel = () => {
+    switch (type) {
+      case "color":
+        return "Colors";
+      case "size":
+        return "Sizes";
+      case "material":
+        return "Materials";
+      case "capacity":
+        return "Capacities";
+      default:
+        return type;
+    }
+  };
+
+  const displayVariants = variants.slice(0, 4);
+  const hasMore = variants.length > 4;
+
+  return (
+    <div className="pg-card-variants">
+      <span className="pg-variant-label">
+        {getIcon()} {getTypeLabel()}:
+      </span>
+      <div className="pg-variant-thumbnails">
+        {displayVariants.map((variant) => {
+          const variantImage = getVariantImage(variant.id);
+          const isActive = currentValue === variant.attribute_value;
+          return (
+            <button
+              key={variant.id}
+              className={`pg-variant-thumb ${isActive ? "active" : ""}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSelect(variant);
+              }}
+              title={variant.attribute_value}
+            >
+              {variantImage ? (
+                <img src={variantImage} alt={variant.attribute_value} />
+              ) : (
+                <span className="pg-variant-text">
+                  {variant.attribute_value.charAt(0)}
+                </span>
+              )}
+              <span className="pg-variant-label-text">
+                {variant.attribute_value.length > 10
+                  ? variant.attribute_value.slice(0, 8) + "..."
+                  : variant.attribute_value}
+              </span>
+            </button>
+          );
+        })}
+        {hasMore && (
+          <span className="pg-variant-more">+{variants.length - 4}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Loading Spinner Component
+function LoadingSpinner({ size = 18 }: { size?: number }) {
+  return (
+    <div
+      className="pg-spinner"
+      style={{
+        width: size,
+        height: size,
+        border: "2px solid rgba(218,165,32,0.2)",
+        borderTopColor: "#daa520",
+        borderRadius: "50%",
+        animation: "pg-spin 0.8s linear infinite",
+        display: "inline-block",
+      }}
+    />
+  );
+}
+
+// Product Card Component with Variant Support
+function ProductCardComponent({
+  productData,
+  onQuickView,
+  formatPrice,
+  addToCart,
+}: {
+  productData: ExtendedProduct;
+  onQuickView?: (productId: string) => void;
+  formatPrice: (value: number) => string;
+  addToCart: (
+    product: any,
+    variant: any,
+    quantity: number,
+    maxStock?: number
+  ) => Promise<void>;
+}) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    productData.variants && productData.variants.length > 0
+      ? productData.variants[0]
+      : null
+  );
+  const [currentImages, setCurrentImages] = useState<string[]>(() => {
+    if (
+      productData.variants &&
+      productData.variants.length > 0 &&
+      productData.variantImagesMap
+    ) {
+      const firstVariant = productData.variants[0];
+      if (firstVariant && productData.variantImagesMap[firstVariant.id]) {
+        return productData.variantImagesMap[firstVariant.id];
+      }
+    }
+    return productData.images || [];
+  });
+  const [addToCartLoading, setAddToCartLoading] = useState(false);
+
+  const colorVariants =
+    productData.variants?.filter((v) => v.attribute_type === "color") || [];
+  const sizeVariants =
+    productData.variants?.filter((v) => v.attribute_type === "size") || [];
+  const materialVariants =
+    productData.variants?.filter((v) => v.attribute_type === "material") || [];
+  const capacityVariants =
+    productData.variants?.filter((v) => v.attribute_type === "capacity") || [];
+
+  const getVariantImage = useCallback(
+    (variantId: string): string | null => {
+      if (
+        productData.variantImagesMap &&
+        productData.variantImagesMap[variantId]
+      ) {
+        const images = productData.variantImagesMap[variantId];
+        return images && images.length > 0 ? images[0] : null;
+      }
+      return null;
+    },
+    [productData.variantImagesMap]
+  );
+
+  const getVariantImages = useCallback(
+    (variantId: string): string[] => {
+      if (
+        productData.variantImagesMap &&
+        productData.variantImagesMap[variantId]
+      ) {
+        return productData.variantImagesMap[variantId];
+      }
+      return [];
+    },
+    [productData.variantImagesMap]
+  );
+
+  const handleVariantSelect = (variant: ProductVariant) => {
+    setSelectedVariant(variant);
+    setCurrentImages(getVariantImages(variant.id));
+    setCurrentImageIndex(0);
+  };
+
+  const handleMouseEnter = () => {
+    if (currentImages.length > 1) {
+      setCurrentImageIndex(1);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setCurrentImageIndex(0);
+  };
+
+  const displayImage =
+    currentImages.length > 0 ? currentImages[currentImageIndex] : null;
+
+  const discount =
+    selectedVariant?.original_price &&
+    selectedVariant.original_price > selectedVariant.price
+      ? Math.round(
+          ((selectedVariant.original_price - selectedVariant.price) /
+            selectedVariant.original_price) *
+            100
+        )
+      : productData.original_price &&
+        productData.original_price > productData.price
+      ? Math.round(
+          ((productData.original_price - productData.price) /
+            productData.original_price) *
+            100
+        )
+      : null;
+
+  const stockStatus = selectedVariant
+    ? getStockStatus(selectedVariant.stock, selectedVariant.low_stock_threshold)
+    : productData.stockStatus ||
+      getStockStatus(productData.stock, productData.low_stock_threshold);
+  const isLowStock = stockStatus === "low_stock";
+  const isOutOfStock = stockStatus === "out_of_stock";
+  const currentStock = selectedVariant?.stock || productData.stock || 0;
+
+  const getStockLabelText = () => {
+    if (isOutOfStock) return "Out of Stock";
+    if (isLowStock) return `Only ${currentStock} left`;
+    return "In Stock";
+  };
+
+  const getStockClassText = () => {
+    if (isOutOfStock) return "out";
+    if (isLowStock) return "low";
+    return "in";
+  };
+
+  const truncatedName = truncateProductName(productData.name, 45);
+
+  const displaySalePrice = selectedVariant
+    ? formatPrice(selectedVariant.price)
+    : formatPrice(productData.price);
+  const displayOriginalPrice = selectedVariant?.original_price
+    ? formatPrice(selectedVariant.original_price)
+    : productData.original_price &&
+      productData.original_price > productData.price
+    ? formatPrice(productData.original_price)
+    : null;
+
+  const handleAddToCartClick = async (
+    e: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!selectedVariant && !productData.variantId) {
+      alert("Please select a variant first");
+      return;
+    }
+    if (isOutOfStock) {
+      alert("This product is out of stock");
+      return;
+    }
+    if (addToCartLoading) return;
+
+    setAddToCartLoading(true);
+
+    const variantToUse =
+      selectedVariant ||
+      (productData.variantId
+        ? {
+            id: productData.variantId,
+            product_id: productData.id,
+            attribute_type: "standard" as const,
+            attribute_value: "Standard",
+            price: productData.price,
+            original_price: productData.original_price,
+            stock: productData.stock,
+            low_stock_threshold: productData.low_stock_threshold ?? undefined,
+            is_active: true,
+          }
+        : null);
+
+    const productToAdd = {
+      id: productData.id,
+      name: productData.name,
+      description:
+        selectedVariant?.description || productData.description || "",
+      category: productData.category,
+      subcategory: productData.subcategory,
+      brand: productData.brand || "",
+      condition: productData.condition,
+      is_featured: productData.is_featured,
+      is_active: productData.is_active,
+      images: currentImages.length > 0 ? currentImages : productData.images,
+      price: selectedVariant?.price || productData.price,
+      original_price:
+        selectedVariant?.original_price || productData.original_price,
+      stock: currentStock,
+      low_stock_threshold:
+        selectedVariant?.low_stock_threshold || productData.low_stock_threshold,
+      stockStatus: stockStatus,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      await addToCart(productToAdd, variantToUse, 1, 1);
+    } finally {
+      setAddToCartLoading(false);
+    }
+  };
+
+  const handleQuickViewClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onQuickView) onQuickView(productData.id);
+  };
+
+  return (
+    <div
+      onClick={() => {
+        window.location.href = `/product/${productData.id}`;
+      }}
+      className="pg-card"
+      style={{ cursor: "pointer" }}
+    >
+      <div
+        className="pg-card-img"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {displayImage ? (
+          <img src={displayImage} alt={productData.name} loading="eager" />
+        ) : (
+          <div className="pg-card-placeholder">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+          </div>
+        )}
+        <div className="pg-card-badges">
+          {productData.is_featured && (
+            <span className="pg-badge pg-badge--feat">Featured</span>
+          )}
+          {discount && discount > 0 && (
+            <span className="pg-badge pg-badge--sale">-{discount}%</span>
+          )}
+          {productData.condition === "new" && !discount && (
+            <span className="pg-badge pg-badge--new">New</span>
+          )}
+          {isLowStock && (
+            <span className="pg-badge pg-badge--low">Low Stock</span>
+          )}
+        </div>
+        <div className="pg-icon-buttons">
+          <button
+            className="pg-icon-btn pg-icon-btn--view"
+            onClick={handleQuickViewClick}
+            aria-label="Quick View"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path d="M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10z" />
+            </svg>
+          </button>
+          <button
+            className="pg-icon-btn pg-icon-btn--cart"
+            onClick={handleAddToCartClick}
+            aria-label="Add to Cart"
+            disabled={isOutOfStock || addToCartLoading}
+          >
+            {addToCartLoading ? (
+              <LoadingSpinner size={18} />
+            ) : (
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <path d="M16 10a4 4 0 01-8 0" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+      <div className="pg-card-body">
+        {productData.brand && (
+          <p className="pg-card-brand">{productData.brand}</p>
+        )}
+        <h3 className="pg-card-name" title={productData.name}>
+          {truncatedName}
+        </h3>
+        <div className="pg-card-price-row">
+          <span className="pg-card-price">{displaySalePrice}</span>
+          {displayOriginalPrice && (
+            <span className="pg-card-orig">{displayOriginalPrice}</span>
+          )}
+          {discount && discount > 0 && (
+            <span className="pg-card-discount">-{discount}%</span>
+          )}
+        </div>
+        {colorVariants.length > 0 && (
+          <VariantThumbnails
+            variants={colorVariants}
+            type="color"
+            onSelect={handleVariantSelect}
+            currentValue={selectedVariant?.attribute_value || ""}
+            variantImagesMap={productData.variantImagesMap || {}}
+            getVariantImage={getVariantImage}
+          />
+        )}
+        {sizeVariants.length > 0 && (
+          <VariantThumbnails
+            variants={sizeVariants}
+            type="size"
+            onSelect={handleVariantSelect}
+            currentValue={selectedVariant?.attribute_value || ""}
+            variantImagesMap={productData.variantImagesMap || {}}
+            getVariantImage={getVariantImage}
+          />
+        )}
+        {materialVariants.length > 0 && (
+          <VariantThumbnails
+            variants={materialVariants}
+            type="material"
+            onSelect={handleVariantSelect}
+            currentValue={selectedVariant?.attribute_value || ""}
+            variantImagesMap={productData.variantImagesMap || {}}
+            getVariantImage={getVariantImage}
+          />
+        )}
+        {capacityVariants.length > 0 && (
+          <VariantThumbnails
+            variants={capacityVariants}
+            type="capacity"
+            onSelect={handleVariantSelect}
+            currentValue={selectedVariant?.attribute_value || ""}
+            variantImagesMap={productData.variantImagesMap || {}}
+            getVariantImage={getVariantImage}
+          />
+        )}
+        <div className={`pg-card-stock ${getStockClassText()}`}>
+          {getStockLabelText()}
+        </div>
+      </div>
+      <div className="pg-card-line" />
+      <style jsx>{`
+        @keyframes pg-spin {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
+    </div>
+  );
 }
 
 export default function ProductGrid({
@@ -143,22 +678,19 @@ export default function ProductGrid({
   featured = false,
   onQuickView,
 }: ProductGridProps) {
-  // ✅ FIX: mounted hataya — seedha data fetch hoga, no double delay
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ExtendedProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
-  const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
   const { formatPrice } = useCurrency();
   const { addToCart } = useCartStore();
 
-  // ✅ Data first render pe hi fetch hoga — mounted wait nahi
   useEffect(() => {
     let active = true;
 
     async function loadProducts() {
       setLoading(true);
-      const data = await fetchProductsFast(
+      const data = await fetchProductsWithVariants(
         category,
         subcategory,
         limit,
@@ -208,90 +740,6 @@ export default function ProductGrid({
     return filtered;
   }, [products, search, sort]);
 
-  const calculateDiscount = useCallback((product: Product) => {
-    if (product.original_price && product.original_price > product.price) {
-      return Math.round(
-        ((product.original_price - product.price) / product.original_price) *
-          100
-      );
-    }
-    return 0;
-  }, []);
-
-  const handleQuickViewClick = (e: React.MouseEvent, productId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onQuickView) onQuickView(productId);
-  };
-
-  // ✅ FIXED: Instant add to cart — no page reload, no stuck loading
-  const handleAddToCartClick = async (
-    e: React.MouseEvent<HTMLButtonElement>,
-    product: Product
-  ) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Agar pehle se loading hai toh ignore karo
-    if (loadingProductId) return;
-
-    const stockStatus =
-      product.stockStatus ||
-      getStockStatus(product.stock, product.low_stock_threshold);
-    if (stockStatus === "out_of_stock") {
-      alert("This product is out of stock");
-      return;
-    }
-
-    setLoadingProductId(product.id);
-
-    const variantObj = product.variantId
-      ? {
-          id: product.variantId,
-          product_id: product.id,
-          attribute_type: "standard" as const,
-          attribute_value: "Standard",
-          price: product.price,
-          original_price: product.original_price,
-          stock: product.stock,
-          low_stock_threshold: product.low_stock_threshold ?? undefined,
-          is_active: true,
-        }
-      : null;
-
-    try {
-      await addToCart(
-        {
-          id: product.id,
-          name: product.name,
-          description: product.description,
-          price: product.price,
-          original_price: product.original_price,
-          category: product.category,
-          subcategory: product.subcategory,
-          images: product.images,
-          stock: product.stock,
-          brand: product.brand,
-          condition: product.condition,
-          is_featured: product.is_featured,
-          is_active: product.is_active,
-          ...(product.low_stock_threshold != null && {
-            low_stock_threshold: product.low_stock_threshold,
-          }),
-          created_at: product.created_at,
-          updated_at: new Date().toISOString(),
-        },
-        variantObj,
-        1,
-        1
-      );
-    } finally {
-      // Loading hamesha clear ho — chahe success ho ya error
-      setLoadingProductId(null);
-    }
-  };
-
-  // ✅ Skeleton sirf tab dikhao jab loading ho aur products nahi hain
   if (loading && products.length === 0) {
     return (
       <div className="pg-skeleton-grid">
@@ -301,7 +749,9 @@ export default function ProductGrid({
             <div className="pg-skeleton-body">
               <div className="pg-skeleton-line" style={{ width: "40%" }} />
               <div className="pg-skeleton-line" style={{ width: "80%" }} />
+              <div className="pg-skeleton-line" style={{ width: "60%" }} />
               <div className="pg-skeleton-line" style={{ width: "55%" }} />
+              <div className="pg-skeleton-line" style={{ width: "45%" }} />
             </div>
           </div>
         ))}
@@ -335,7 +785,7 @@ export default function ProductGrid({
 
   return (
     <>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes pg-spin { to { transform: rotate(360deg); } }`}</style>
       {!limit && (
         <div className="pg-toolbar">
           <div className="pg-search-wrap">
@@ -373,146 +823,15 @@ export default function ProductGrid({
         </div>
       )}
       <div className="pg-grid">
-        {filteredAndSorted.map((product) => {
-          const discount = calculateDiscount(product);
-          const stockStatus =
-            product.stockStatus ||
-            getStockStatus(product.stock, product.low_stock_threshold);
-          const stockLabel = getStockLabel(stockStatus, product.stock);
-          const stockClass = getStockClass(stockStatus);
-          const isOutOfStock = stockStatus === "out_of_stock";
-          const isLowStock = stockStatus === "low_stock";
-
-          return (
-            <div
-              key={product.id}
-              onClick={() => {
-                window.location.href = `/product/${product.id}`;
-              }}
-              className="pg-card"
-              style={{ cursor: "pointer" }}
-            >
-              <div className="pg-card-img">
-                {product.images?.[0] ? (
-                  <Image
-                    src={product.images[0]}
-                    alt={product.name}
-                    fill
-                    sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 280px"
-                    style={{ objectFit: "cover" }}
-                    priority
-                  />
-                ) : (
-                  <div className="pg-card-placeholder">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="0.8"
-                    >
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <polyline points="21 15 16 10 5 21" />
-                    </svg>
-                  </div>
-                )}
-                <div className="pg-card-badges">
-                  <span className="pg-badge pg-badge--cat">
-                    {product.subcategory}
-                  </span>
-                  {product.is_featured && (
-                    <span className="pg-badge pg-badge--feat">Featured</span>
-                  )}
-                  {discount > 0 && (
-                    <span className="pg-badge pg-badge--sale">
-                      -{discount}%
-                    </span>
-                  )}
-                  {product.condition === "new" && !discount && (
-                    <span className="pg-badge pg-badge--new">New</span>
-                  )}
-                  {isLowStock && (
-                    <span className="pg-badge pg-badge--low">Low Stock</span>
-                  )}
-                </div>
-                <div className="pg-icon-buttons">
-                  <button
-                    className="pg-icon-btn pg-icon-btn--view"
-                    aria-label="Quick View"
-                    onClick={(e) => handleQuickViewClick(e, product.id)}
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    >
-                      <circle cx="12" cy="12" r="3" />
-                      <path d="M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10z" />
-                    </svg>
-                  </button>
-                  <button
-                    className="pg-icon-btn pg-icon-btn--cart"
-                    onClick={(e) => handleAddToCartClick(e, product)}
-                    disabled={isOutOfStock || loadingProductId === product.id}
-                    aria-label="Add to Cart"
-                  >
-                    {loadingProductId === product.id ? (
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        style={{
-                          animation: "spin 0.8s linear infinite",
-                        }}
-                      >
-                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-                      </svg>
-                    ) : (
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                      >
-                        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-                        <line x1="3" y1="6" x2="21" y2="6" />
-                        <path d="M16 10a4 4 0 01-8 0" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-              <div className="pg-card-body">
-                {product.brand && (
-                  <p className="pg-card-brand">{product.brand}</p>
-                )}
-                <h3 className="pg-card-name">{product.name}</h3>
-                <div className="pg-card-price-row">
-                  <span className="pg-card-price">
-                    {formatPrice(product.price)}
-                  </span>
-                  {product.original_price &&
-                    product.original_price > product.price && (
-                      <span className="pg-card-orig">
-                        {formatPrice(product.original_price)}
-                      </span>
-                    )}
-                  {discount > 0 && (
-                    <span className="pg-card-discount">-{discount}% OFF</span>
-                  )}
-                </div>
-              </div>
-              <div className="pg-card-foot">
-                <span className={`pg-card-stock ${stockClass}`}>
-                  {stockLabel}
-                </span>
-              </div>
-              <div className="pg-card-line" />
-            </div>
-          );
-        })}
+        {filteredAndSorted.map((product) => (
+          <ProductCardComponent
+            key={product.id}
+            productData={product}
+            onQuickView={onQuickView}
+            formatPrice={formatPrice}
+            addToCart={addToCart}
+          />
+        ))}
       </div>
     </>
   );

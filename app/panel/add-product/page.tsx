@@ -16,6 +16,7 @@ import {
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { useCurrency } from "../../context/CurrencyContext";
 import { convertPriceToPKR, convertPriceFromPKR } from "@/lib/panelCurrency";
+import ProductDescription from "@/app/components/ProductDescription";
 import "../panel.css";
 import "./add-product.css";
 
@@ -484,7 +485,6 @@ function MultiImageUploader({
       if (fileRef.current) fileRef.current.value = "";
       return;
     }
-
     setUploading(true);
     const newUrls: string[] = [];
     try {
@@ -569,6 +569,52 @@ function MultiImageUploader({
   );
 }
 
+// ─── Color Detection Helpers ─────────────────────────────────────────────────
+
+const COLOR_MAP: Record<string, { bg: string; text: string; border: string }> =
+  {
+    black: { bg: "#1a1a1a", text: "#ffffff", border: "#444" },
+    white: { bg: "#f5f5f5", text: "#111111", border: "#ccc" },
+    red: { bg: "#dc2626", text: "#ffffff", border: "#b91c1c" },
+    blue: { bg: "#2563eb", text: "#ffffff", border: "#1d4ed8" },
+    green: { bg: "#16a34a", text: "#ffffff", border: "#15803d" },
+    yellow: { bg: "#eab308", text: "#111111", border: "#ca8a04" },
+    gold: { bg: "#d97706", text: "#ffffff", border: "#b45309" },
+    silver: { bg: "#9ca3af", text: "#111111", border: "#6b7280" },
+    "rose gold": { bg: "#e879a8", text: "#ffffff", border: "#db2777" },
+    pink: { bg: "#ec4899", text: "#ffffff", border: "#db2777" },
+    purple: { bg: "#9333ea", text: "#ffffff", border: "#7e22ce" },
+    orange: { bg: "#f97316", text: "#ffffff", border: "#ea580c" },
+    brown: { bg: "#92400e", text: "#ffffff", border: "#78350f" },
+    grey: { bg: "#6b7280", text: "#ffffff", border: "#4b5563" },
+    gray: { bg: "#6b7280", text: "#ffffff", border: "#4b5563" },
+    "navy blue": { bg: "#1e3a8a", text: "#ffffff", border: "#1e40af" },
+    navy: { bg: "#1e3a8a", text: "#ffffff", border: "#1e40af" },
+    beige: { bg: "#d4b896", text: "#111111", border: "#b8956a" },
+  };
+
+function getColorStyle(colorName: string) {
+  const key = colorName.toLowerCase().trim();
+  return (
+    COLOR_MAP[key] || {
+      bg: "rgba(139,105,20,0.15)",
+      text: "#8b6914",
+      border: "rgba(139,105,20,0.3)",
+    }
+  );
+}
+
+function getAttributeTypeLabel(type: string) {
+  const labels: Record<string, string> = {
+    color: "🎨 Color",
+    size: "📐 Size",
+    material: "🧱 Material",
+    capacity: "⚡ Capacity",
+  };
+  return labels[type] || type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+// VariantFormItem with Rich Text Description
 function VariantFormItem({
   attributeType,
   attributeValue,
@@ -577,6 +623,7 @@ function VariantFormItem({
   onError,
   currencyRate,
   currencyCode,
+  isFirstItem,
 }: {
   attributeType: string;
   attributeValue: string;
@@ -585,17 +632,25 @@ function VariantFormItem({
   onError: (msg: string) => void;
   currencyRate: number;
   currencyCode: string;
+  isFirstItem?: boolean;
 }) {
   const [priceDisplay, setPriceDisplay] = useState("");
   const [originalPriceDisplay, setOriginalPriceDisplay] = useState("");
   const [description, setDescription] = useState("");
+  const [descriptionImages, setDescriptionImages] = useState<string[]>([]);
   const [stockStatus, setStockStatus] = useState<StockStatus>("in_stock");
   const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
     null
   );
   const [images, setImages] = useState<string[]>([]);
   const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>([]);
-  const [expanded, setExpanded] = useState(true);
+  const expandedRef = useRef(isFirstItem !== false);
+  const [, forceUpdate] = useState(0);
+  const expanded = expandedRef.current;
+  const toggleExpanded = () => {
+    expandedRef.current = !expandedRef.current;
+    forceUpdate((n) => n + 1);
+  };
 
   const onUpdateRef = useRef(onUpdate);
   useEffect(() => {
@@ -614,11 +669,45 @@ function VariantFormItem({
     return Math.round((priceNum / currencyRate) * 100) / 100;
   };
 
+  const handleDescriptionChange = (
+    newValue: string,
+    imagesInDesc: string[]
+  ) => {
+    setDescription(newValue);
+    setDescriptionImages(imagesInDesc);
+    // Immediately update parent with both description text and images
+    onUpdateRef.current({
+      attributeType,
+      attributeValue,
+      pricePKR: getPriceInPKRFast(priceDisplay),
+      priceDisplay,
+      originalPricePKR: originalPriceDisplay
+        ? getPriceInPKRFast(originalPriceDisplay)
+        : null,
+      originalPriceDisplay,
+      description: newValue,
+      descriptionImages: imagesInDesc,
+      stock: getStockValue(),
+      lowStockThreshold: stockStatus === "low_stock" ? lowStockThreshold : null,
+      images,
+      stockStatus,
+      bulkPricingTiers: bulkTiers.map((tier) => ({
+        ...tier,
+        tier_price:
+          currencyCode !== "PKR"
+            ? Math.round((tier.tier_price / currencyRate) * 100) / 100
+            : tier.tier_price,
+      })),
+      displayCurrency: currencyCode,
+    });
+  };
+
   useEffect(() => {
     const pricePKR = getPriceInPKRFast(priceDisplay);
     const originalPricePKR = originalPriceDisplay
       ? getPriceInPKRFast(originalPriceDisplay)
       : null;
+
     onUpdateRef.current({
       attributeType,
       attributeValue,
@@ -627,6 +716,7 @@ function VariantFormItem({
       originalPricePKR,
       originalPriceDisplay,
       description,
+      descriptionImages,
       stock: getStockValue(),
       lowStockThreshold: stockStatus === "low_stock" ? lowStockThreshold : null,
       images,
@@ -644,6 +734,7 @@ function VariantFormItem({
     priceDisplay,
     originalPriceDisplay,
     description,
+    descriptionImages,
     stockStatus,
     lowStockThreshold,
     images,
@@ -662,23 +753,132 @@ function VariantFormItem({
     return "€";
   };
 
+  const getStatusLabel = () => {
+    if (stockStatus === "out_of_stock") return "Out of Stock";
+    if (stockStatus === "low_stock")
+      return `Low Stock (Alert: ${lowStockThreshold || 5})`;
+    const stockVal = getStockValue();
+    if (stockVal === 999999) return "In Stock (Unlimited)";
+    return `In Stock (${stockVal} pcs)`;
+  };
+
+  const colorStyle =
+    attributeType === "color" ? getColorStyle(attributeValue) : null;
+
   return (
     <div className="ap-variant-form-item">
-      <div
-        className="ap-variant-form-header"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <span className="ap-variant-form-value">{attributeValue}</span>
-        <span className="ap-variant-form-badge">{attributeType}</span>
+      <div className="ap-variant-form-header" onClick={toggleExpanded}>
+        {/* Attribute Type Label */}
+        <span
+          style={{
+            fontFamily: "var(--ap-sans)",
+            fontSize: "0.6rem",
+            fontWeight: 700,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "#8b6914",
+            background: "rgba(139,105,20,0.12)",
+            border: "1px solid rgba(139,105,20,0.25)",
+            borderRadius: "4px",
+            padding: "2px 7px",
+            flexShrink: 0,
+          }}
+        >
+          {getAttributeTypeLabel(attributeType)}
+        </span>
+
+        {/* Attribute Value — colored swatch for colors, plain badge for others */}
+        {colorStyle ? (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              background: colorStyle.bg,
+              color: colorStyle.text,
+              border: `1.5px solid ${colorStyle.border}`,
+              borderRadius: "6px",
+              padding: "3px 10px 3px 6px",
+              fontFamily: "var(--ap-sans)",
+              fontSize: "0.78rem",
+              fontWeight: 700,
+              letterSpacing: "0.04em",
+              flexShrink: 0,
+            }}
+          >
+            <span
+              style={{
+                width: "12px",
+                height: "12px",
+                borderRadius: "50%",
+                background: colorStyle.bg,
+                border: `2px solid ${colorStyle.text}`,
+                flexShrink: 0,
+                display: "inline-block",
+              }}
+            />
+            {attributeValue}
+          </span>
+        ) : (
+          <span
+            style={{
+              fontFamily: "var(--ap-sans)",
+              fontSize: "0.82rem",
+              fontWeight: 700,
+              color: "#1a1a1a",
+              background: "rgba(0,0,0,0.07)",
+              border: "1.5px solid rgba(0,0,0,0.15)",
+              borderRadius: "6px",
+              padding: "3px 10px",
+              flexShrink: 0,
+            }}
+          >
+            {attributeValue}
+          </span>
+        )}
+
         <span
           className="ap-variant-form-badge"
           style={{ background: "rgba(245,158,11,0.1)", color: "#f59e0b" }}
         >
-          {stockStatus === "out_of_stock"
-            ? "Out of Stock"
-            : stockStatus === "low_stock"
-            ? "Low Stock"
-            : "In Stock"}
+          {getStatusLabel()}
+        </span>
+        {bulkTiers.length > 0 && (
+          <span
+            className="ap-variant-form-badge"
+            style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}
+          >
+            {bulkTiers.length} Bulk Tiers
+          </span>
+        )}
+        {images.length > 0 && (
+          <span
+            className="ap-variant-form-badge"
+            style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}
+          >
+            {images.length} Images
+          </span>
+        )}
+        {descriptionImages.length > 0 && (
+          <span
+            className="ap-variant-form-badge"
+            style={{ background: "rgba(139,105,20,0.1)", color: "#8b6914" }}
+          >
+            📷 {descriptionImages.length} Desc Images
+          </span>
+        )}
+        {/* Expand/collapse arrow */}
+        <span
+          style={{
+            marginLeft: "auto",
+            color: "#8b6914",
+            fontSize: "0.75rem",
+            flexShrink: 0,
+            transition: "transform 0.2s",
+            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        >
+          ▼
         </span>
         <button
           type="button"
@@ -699,70 +899,77 @@ function VariantFormItem({
           </svg>
         </button>
       </div>
-      {expanded && (
-        <div className="ap-variant-form-body">
-          <div className="ap-row">
-            <div className="ap-field">
-              <label className="ap-label">Sale Price ({getSymbol()})</label>
-              <input
-                type="number"
-                step="0.01"
-                className="ap-input"
-                value={priceDisplay}
-                onChange={(e) => setPriceDisplay(e.target.value)}
-                placeholder="0"
-              />
-            </div>
-            <div className="ap-field">
-              <label className="ap-label">Original Price ({getSymbol()})</label>
-              <input
-                type="number"
-                step="0.01"
-                className="ap-input"
-                value={originalPriceDisplay}
-                onChange={(e) => setOriginalPriceDisplay(e.target.value)}
-                placeholder="0"
-              />
-            </div>
-          </div>
+
+      <div
+        className="ap-variant-form-body"
+        style={{ display: expanded ? "flex" : "none" }}
+      >
+        <div className="ap-row">
           <div className="ap-field">
-            <label className="ap-label">Description</label>
-            <textarea
-              className="ap-textarea"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Product description for this variant..."
-              rows={2}
+            <label className="ap-label">Sale Price ({getSymbol()})</label>
+            <input
+              type="number"
+              step="0.01"
+              className="ap-input"
+              value={priceDisplay}
+              onChange={(e) => setPriceDisplay(e.target.value)}
+              placeholder="0"
             />
           </div>
           <div className="ap-field">
-            <label className="ap-label">Stock Status</label>
-            <StockStatusSelector
-              value={stockStatus}
-              onChange={setStockStatus}
-              lowStockThreshold={lowStockThreshold}
-              onThresholdChange={setLowStockThreshold}
+            <label className="ap-label">Original Price ({getSymbol()})</label>
+            <input
+              type="number"
+              step="0.01"
+              className="ap-input"
+              value={originalPriceDisplay}
+              onChange={(e) => setOriginalPriceDisplay(e.target.value)}
+              placeholder="0"
             />
           </div>
-          <div className="ap-field">
-            <label className="ap-label">Images (Max 20)</label>
-            <MultiImageUploader
-              images={images}
-              onImagesChange={setImages}
-              onError={onError}
-              maxImages={20}
-            />
-          </div>
-          {currentUnitPrice > 0 && (
-            <BulkPricingManager
-              unitPrice={currentUnitPrice}
-              tiers={bulkTiers}
-              onTiersChange={setBulkTiers}
-              onError={onError}
-            />
-          )}
         </div>
-      )}
+
+        <div className="ap-field">
+          <label className="ap-label">
+            Description (Rich Text with Images)
+          </label>
+          <ProductDescription
+            value={description}
+            onChange={handleDescriptionChange}
+            existingImages={descriptionImages}
+            maxImages={20}
+          />
+        </div>
+
+        <div className="ap-field">
+          <label className="ap-label">Stock Status</label>
+          <StockStatusSelector
+            value={stockStatus}
+            onChange={setStockStatus}
+            lowStockThreshold={lowStockThreshold}
+            onThresholdChange={setLowStockThreshold}
+          />
+        </div>
+
+        <div className="ap-field">
+          <label className="ap-label">Gallery Images (Max 20)</label>
+          <MultiImageUploader
+            images={images}
+            onImagesChange={setImages}
+            onError={onError}
+            maxImages={20}
+          />
+        </div>
+
+        {currentUnitPrice > 0 && (
+          <BulkPricingManager
+            unitPrice={currentUnitPrice}
+            tiers={bulkTiers}
+            onTiersChange={setBulkTiers}
+            onError={onError}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -796,36 +1003,38 @@ function AttributeSelector({
     const trimmed = value.trim();
     if (trimmed && !values.includes(trimmed)) {
       setValues([...values, trimmed]);
-      setVariants([
-        ...variants,
-        {
-          attributeType: type,
-          attributeValue: trimmed,
-          priceDisplay: "",
-          originalPriceDisplay: "",
-          description: "",
-          stock: 999999,
-          lowStockThreshold: null,
-          images: [],
-          stockStatus: "in_stock",
-          bulkPricingTiers: [],
-        },
-      ]);
+      const newVariant = {
+        attributeType: type,
+        attributeValue: trimmed,
+        priceDisplay: "",
+        originalPriceDisplay: "",
+        description: "",
+        descriptionImages: [],
+        stock: 999999,
+        lowStockThreshold: null,
+        images: [],
+        stockStatus: "in_stock" as StockStatus,
+        bulkPricingTiers: [],
+      };
+      setVariants((prev: any[]) => [...prev, newVariant]);
     }
     setInputValue("");
   };
 
   const removeValue = (valueToRemove: string) => {
     setValues(values.filter((v) => v !== valueToRemove));
-    setVariants(variants.filter((v) => v.attributeValue !== valueToRemove));
+    setVariants((prev: any[]) =>
+      prev.filter((v) => v.attributeValue !== valueToRemove)
+    );
   };
 
   const updateVariant = useCallback(
     (index: number, data: any) => {
       setVariants((prev: any[]) => {
         const newVariants = [...prev];
-        if (newVariants[index])
+        if (newVariants[index]) {
           newVariants[index] = { ...newVariants[index], ...data };
+        }
         return newVariants;
       });
     },
@@ -870,18 +1079,23 @@ function AttributeSelector({
       </div>
       {values.length > 0 && (
         <div className="ap-variant-forms-container">
-          {values.map((value, idx) => (
-            <VariantFormItem
-              key={value}
-              attributeType={type}
-              attributeValue={value}
-              onUpdate={(data) => updateVariant(idx, data)}
-              onRemove={() => removeValue(value)}
-              onError={onError}
-              currencyRate={currencyRate}
-              currencyCode={currencyCode}
-            />
-          ))}
+          {values.map((value, idx) => {
+            const variant = variants.find((v) => v.attributeValue === value);
+            if (!variant) return null;
+            return (
+              <VariantFormItem
+                key={`${type}-${value}`}
+                attributeType={type}
+                attributeValue={value}
+                onUpdate={(data) => updateVariant(idx, data)}
+                onRemove={() => removeValue(value)}
+                onError={onError}
+                currencyRate={currencyRate}
+                currencyCode={currencyCode}
+                isFirstItem={idx === 0}
+              />
+            );
+          })}
         </div>
       )}
     </div>
@@ -889,7 +1103,7 @@ function AttributeSelector({
 }
 
 // ============================================================
-// SIMPLE MODE - FIXED WITH BACKGROUND OPERATIONS
+// SIMPLE MODE - WITH RICH TEXT EDITOR
 // ============================================================
 function SimpleModeForm({
   tab,
@@ -905,6 +1119,7 @@ function SimpleModeForm({
   const { currency } = useCurrency();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [descriptionImages, setDescriptionImages] = useState<string[]>([]);
   const [brand, setBrand] = useState("");
   const [priceDisplay, setPriceDisplay] = useState("");
   const [originalPriceDisplay, setOriginalPriceDisplay] = useState("");
@@ -921,6 +1136,14 @@ function SimpleModeForm({
   const [uploading, setUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleDescriptionChange = (
+    newValue: string,
+    imagesInDesc: string[]
+  ) => {
+    setDescription(newValue);
+    setDescriptionImages(imagesInDesc);
+  };
 
   const handleImageUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -961,6 +1184,7 @@ function SimpleModeForm({
   const resetForm = () => {
     setName("");
     setDescription("");
+    setDescriptionImages([]);
     setBrand("");
     setPriceDisplay("");
     setOriginalPriceDisplay("");
@@ -971,7 +1195,6 @@ function SimpleModeForm({
     setStockStatus("in_stock");
   };
 
-  // Direct fetch to Supabase REST API — bypasses client hang issue
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
@@ -1053,11 +1276,12 @@ function SimpleModeForm({
         }
       }
 
-      // 1. Insert Product
+      // 1. Insert Product with rich text description and images
       console.log("📦 Inserting product...");
       const productData = await dbInsert("products", {
         name: name.trim(),
-        description: description.trim() || null,
+        description: description || null,
+        description_images: descriptionImages,
         category: tab.category,
         subcategory: tab.sub,
         brand: brand.trim() || null,
@@ -1071,7 +1295,7 @@ function SimpleModeForm({
       });
       console.log("✅ Product inserted:", productData.id);
 
-      // 2. Insert Variant
+      // 2. Insert Variant with description images
       console.log("📦 Inserting variant...");
       const variantData = await dbInsert("product_variants", {
         product_id: productData.id,
@@ -1079,7 +1303,9 @@ function SimpleModeForm({
         attribute_value: "Standard",
         price: pricePKR,
         original_price: originalPricePKR,
-        description: description.trim() || null,
+        description_rich: description || null,
+        description_images: descriptionImages,
+        description: description ? description.substring(0, 500) : null,
         stock: getStockValue(),
         low_stock_threshold:
           stockStatus === "low_stock" ? lowStockThreshold : null,
@@ -1087,7 +1313,6 @@ function SimpleModeForm({
       });
       console.log("✅ Variant inserted:", variantData.id);
 
-      // ✅ SUCCESS
       console.log("✅ Product saved successfully!");
       resetForm();
       onSuccess();
@@ -1139,13 +1364,11 @@ function SimpleModeForm({
         ).catch((err) => console.error("FAQ insert error:", err));
       }
 
-      // Redirect
       setTimeout(() => {
         window.location.href = "/panel";
       }, 1500);
     } catch (err: any) {
       console.error("❌ Submit error:", err);
-      console.error("Full error:", JSON.stringify(err, null, 2));
       onError(
         err.message || "Failed to save product. Check console for details."
       );
@@ -1213,12 +1436,11 @@ function SimpleModeForm({
                 </div>
               </div>
               <div className="ap-field">
-                <label className="ap-label">Description</label>
-                <textarea
-                  className="ap-textarea"
+                <ProductDescription
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
+                  onChange={handleDescriptionChange}
+                  existingImages={descriptionImages}
+                  maxImages={20}
                 />
               </div>
               <div className="ap-row">
@@ -1444,7 +1666,7 @@ function SimpleModeForm({
 }
 
 // ============================================================
-// DETAILED MODE - FIXED WITH BACKGROUND OPERATIONS
+// DETAILED MODE - WITH RICH TEXT EDITOR FOR EACH VARIANT
 // ============================================================
 function DetailedModeForm({
   tab,
@@ -1460,6 +1682,7 @@ function DetailedModeForm({
   const { currency } = useCurrency();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [descriptionImages, setDescriptionImages] = useState<string[]>([]);
   const [brand, setBrand] = useState("");
   const [condition, setCondition] = useState("new");
   const [isFeatured, setIsFeatured] = useState(false);
@@ -1475,9 +1698,18 @@ function DetailedModeForm({
   const [materialVariants, setMaterialVariants] = useState<any[]>([]);
   const [capacityVariants, setCapacityVariants] = useState<any[]>([]);
 
+  const handleDescriptionChange = (
+    newValue: string,
+    imagesInDesc: string[]
+  ) => {
+    setDescription(newValue);
+    setDescriptionImages(imagesInDesc);
+  };
+
   const resetForm = () => {
     setName("");
     setDescription("");
+    setDescriptionImages([]);
     setBrand("");
     setColors([]);
     setSizes([]);
@@ -1532,7 +1764,6 @@ function DetailedModeForm({
     setIsSubmitting(true);
     console.log("🚀 Starting detailed product save...");
 
-    // Direct fetch to Supabase REST API — bypasses client hang issue
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
@@ -1578,11 +1809,12 @@ function DetailedModeForm({
       const currentCurrency = currency;
       const currentRate = currency.rate;
 
-      // 1. Insert Product
+      // 1. Insert Product with rich text description and images
       console.log("📦 Inserting product...");
       const productData = await dbInsert("products", {
         name: name.trim(),
-        description: description.trim() || null,
+        description: description || null,
+        description_images: descriptionImages,
         category: tab.category,
         subcategory: tab.sub,
         brand: brand.trim() || null,
@@ -1592,7 +1824,7 @@ function DetailedModeForm({
       });
       console.log("✅ Product inserted:", productData.id);
 
-      // 2. Insert each variant
+      // 2. Insert each variant with rich text description and images
       for (const variant of allVariants) {
         const priceNum = parseFloat(variant.priceDisplay);
         if (isNaN(priceNum) || priceNum <= 0) continue;
@@ -1624,7 +1856,11 @@ function DetailedModeForm({
             attribute_value: variant.attributeValue,
             price: pricePKR,
             original_price: originalPricePKR,
-            description: variant.description || description.trim() || null,
+            description_rich: variant.description || null,
+            description_images: variant.descriptionImages || [],
+            description: variant.description
+              ? variant.description.substring(0, 500)
+              : null,
             stock: variant.stock || 999999,
             low_stock_threshold: variant.lowStockThreshold || null,
             is_active: true,
@@ -1668,7 +1904,6 @@ function DetailedModeForm({
         }
       }
 
-      // ✅ SUCCESS
       console.log("✅ Product saved successfully!");
       resetForm();
       onSuccess();
@@ -1687,7 +1922,6 @@ function DetailedModeForm({
         ).catch((err) => console.error("FAQ error:", err));
       }
 
-      // Redirect
       setTimeout(() => {
         window.location.href = "/panel";
       }, 1500);
@@ -1737,12 +1971,11 @@ function DetailedModeForm({
                 />
               </div>
               <div className="ap-field">
-                <label className="ap-label">Description</label>
-                <textarea
-                  className="ap-textarea"
+                <ProductDescription
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
+                  onChange={handleDescriptionChange}
+                  existingImages={descriptionImages}
+                  maxImages={20}
                 />
               </div>
               <div className="ap-row">
@@ -1800,7 +2033,9 @@ function DetailedModeForm({
                   <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
                 </svg>
               </div>
-              <h3 className="ap-card-title">Product Attributes</h3>
+              <h3 className="ap-card-title">
+                Product Attributes (Each with Rich Text Description)
+              </h3>
             </div>
             <div className="ap-card-body">
               <AttributeSelector

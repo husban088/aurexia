@@ -267,7 +267,6 @@ export default function Navbar({
           >
             <span className="logo-tech">TECH</span>
             <span className="logo-four">4U</span>
-            <span className="logo-luxury">LUXURY</span>
           </a>
         </div>
 

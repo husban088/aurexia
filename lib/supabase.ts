@@ -37,6 +37,7 @@ export type Product = {
   updated_at?: string;
   name: string;
   description: string;
+  description_images?: string[]; // NEW - for storing images from rich text
   category: string;
   subcategory: string;
   brand?: string;

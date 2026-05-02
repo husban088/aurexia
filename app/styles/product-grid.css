@@ -4,7 +4,7 @@
    Matches Featured Products luxury theme
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
 
 :root {
   --pg-gold: #d4af37;
@@ -21,8 +21,8 @@
   --pg-grey: rgba(0, 0, 0, 0.55);
   --pg-text-light: #444444;
   --pg-text-muted: #2a2a2a;
-  --pg-serif: "Goldman", "Cormorant Garamond", Georgia, serif;
-  --pg-sans: "Goldman", "Josefin Sans", sans-serif;
+  --pg-serif: "Poppins", sans-serif;
+  --pg-sans: "Poppins", sans-serif;
   --pg-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -343,7 +343,7 @@
   gap: 1.5rem;
 }
 
-/* ── Product Card - Same as Featured Products ── */
+/* ── Product Card - Complete Styles ── */
 .pg-card {
   position: relative;
   background: white;
@@ -355,6 +355,8 @@
   cursor: pointer;
   transition: all var(--pg-ease);
   height: 100%;
+  min-height: 520px;
+  max-height: 560px;
   text-decoration: none;
   color: inherit;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
@@ -396,6 +398,9 @@
 }
 
 .pg-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -463,6 +468,22 @@
   color: white;
 }
 
+/* Disabled button styles */
+.pg-icon-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pg-icon-btn:disabled:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: none;
+}
+
+.pg-icon-btn:disabled:hover svg {
+  color: #0a0a0a;
+}
+
 /* Badges */
 .pg-card-badges {
   position: absolute;
@@ -510,13 +531,20 @@
   color: #16a34a;
 }
 
-/* Card Body */
+.pg-badge--low {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+}
+
+/* Card Body - Fixed Height */
 .pg-card-body {
-  padding: 1.4rem 1.2rem 1.2rem;
+  padding: 1.2rem 1.2rem 1rem;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.3rem;
+  min-height: 180px;
 }
 
 .pg-card-brand {
@@ -527,40 +555,52 @@
   text-transform: uppercase;
   color: var(--pg-gold);
   margin: 0;
+  height: 20px;
+  line-height: 20px;
 }
 
+/* Product Name - Truncated */
 .pg-card-name {
   font-family: var(--pg-serif);
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
   color: #0a0a0a;
   margin: 0;
   line-height: 1.35;
   transition: color var(--pg-ease);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  min-height: 2.7rem;
 }
 
 .pg-card:hover .pg-card-name {
   color: var(--pg-gold);
 }
 
+/* Price Row - Fixed Alignment */
 .pg-card-price-row {
   display: flex;
   align-items: baseline;
   gap: 0.7rem;
-  margin-top: 0.5rem;
+  margin: 0.25rem 0 0;
   flex-wrap: wrap;
+  min-height: 2rem;
 }
 
 .pg-card-price {
   font-family: var(--pg-serif);
-  font-size: 1.35rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--pg-gold);
 }
 
 .pg-card-orig {
   font-family: var(--pg-sans);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 400;
   color: rgba(0, 0, 0, 0.4);
   text-decoration: line-through;
@@ -574,21 +614,112 @@
   letter-spacing: 0.05em;
 }
 
-/* Card Footer */
-.pg-card-foot {
+/* Variant Styles - Same as Featured Products */
+.pg-card-variants {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0.7rem 1.2rem;
-  border-top: 1px solid rgba(212, 175, 55, 0.08);
+  gap: 0.5rem;
+  margin: 0.25rem 0 0;
+  flex-wrap: wrap;
+  font-size: 0.55rem;
+  min-height: 48px;
 }
 
+.pg-variant-label {
+  font-family: var(--pg-sans);
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: var(--pg-gold);
+  letter-spacing: 0.05em;
+}
+
+.pg-variant-thumbnails {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.pg-variant-thumb {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.pg-variant-thumb img {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.pg-variant-thumb .pg-variant-text {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #666;
+}
+
+.pg-variant-label-text {
+  font-size: 0.5rem;
+  font-weight: 500;
+  color: #8b6914;
+  text-align: center;
+  max-width: 42px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pg-variant-thumb:hover {
+  border-color: var(--pg-gold);
+  transform: translateY(-2px);
+}
+
+.pg-variant-thumb.active {
+  border-color: var(--pg-gold);
+  box-shadow: 0 0 0 1px var(--pg-gold);
+  background: rgba(212, 175, 55, 0.05);
+}
+
+.pg-variant-thumb.active .pg-variant-label-text {
+  color: var(--pg-gold);
+  font-weight: 700;
+}
+
+.pg-variant-more {
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: var(--pg-gold);
+  font-family: var(--pg-sans);
+  margin-left: 0.2rem;
+  background: rgba(212, 175, 55, 0.1);
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+}
+
+/* Stock Status - Consistent Position */
 .pg-card-stock {
   font-family: var(--pg-sans);
   font-size: 0.6rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.12em;
-  color: #888888;
+  margin: 0.25rem 0 0;
+  min-height: 1.2rem;
+}
+
+.pg-card-stock.in {
+  color: #16a34a;
 }
 
 .pg-card-stock.low {
@@ -613,6 +744,26 @@
 
 .pg-card:hover .pg-card-line {
   width: 100%;
+}
+
+/* Spinner Animation */
+@keyframes pg-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.pg-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(218, 165, 32, 0.2);
+  border-top-color: #daa520;
+  border-radius: 50%;
+  animation: pg-spin 0.8s linear infinite;
 }
 
 /* ── Empty State ── */
@@ -700,7 +851,7 @@
   }
 }
 
-/* ── Responsive ── */
+/* ── Responsive Variants ── */
 @media (max-width: 900px) {
   .sub-hero {
     padding: 5rem 1.5rem 2.5rem;
@@ -712,6 +863,10 @@
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 1rem;
   }
+  .pg-card {
+    min-height: 480px;
+    max-height: 520px;
+  }
   .pg-icon-btn {
     width: 38px;
     height: 38px;
@@ -721,10 +876,28 @@
     height: 16px;
   }
   .pg-card-name {
-    font-size: 1.1rem;
+    font-size: 0.9rem;
+    -webkit-line-clamp: 2;
+    min-height: 2.4rem;
   }
   .pg-card-price {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
+  }
+  .pg-card-body {
+    padding: 1rem 1rem 0.8rem;
+    min-height: 160px;
+  }
+  .pg-variant-thumb {
+    width: 38px;
+    height: 38px;
+  }
+  .pg-variant-thumb img {
+    width: 24px;
+    height: 24px;
+  }
+  .pg-variant-label-text {
+    font-size: 0.45rem;
+    max-width: 38px;
   }
 }
 
@@ -743,11 +916,17 @@
     grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
   }
+  .pg-card {
+    min-height: 440px;
+    max-height: 480px;
+  }
   .pg-card-name {
-    font-size: 1rem;
+    font-size: 0.85rem;
+    -webkit-line-clamp: 2;
+    min-height: 2.2rem;
   }
   .pg-card-price {
-    font-size: 1.1rem;
+    font-size: 1rem;
   }
   .pg-card-brand {
     font-size: 0.55rem;
@@ -760,6 +939,25 @@
     width: 14px;
     height: 14px;
   }
+  .pg-card-body {
+    padding: 0.8rem 0.8rem 0.6rem;
+    min-height: 140px;
+  }
+  .pg-variant-thumb {
+    width: 34px;
+    height: 34px;
+  }
+  .pg-variant-thumb img {
+    width: 20px;
+    height: 20px;
+  }
+  .pg-variant-label-text {
+    font-size: 0.4rem;
+    max-width: 34px;
+  }
+  .pg-card-variants {
+    min-height: 42px;
+  }
   .cat-subnav {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
@@ -769,6 +967,10 @@
   .pg-grid {
     grid-template-columns: 1fr;
   }
+  .pg-card {
+    min-height: 420px;
+    max-height: 460px;
+  }
   .pg-icon-btn {
     width: 32px;
     height: 32px;
@@ -776,6 +978,17 @@
   .pg-icon-btn svg {
     width: 13px;
     height: 13px;
+  }
+  .pg-variant-thumb {
+    width: 30px;
+    height: 30px;
+  }
+  .pg-variant-thumb img {
+    width: 18px;
+    height: 18px;
+  }
+  .pg-variant-label-text {
+    display: none;
   }
   .cat-subnav-name {
     font-size: 0.85rem;

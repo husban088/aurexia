@@ -114,7 +114,7 @@
 }
 
 .sidebar-logo-tech {
-  font-family: "Orbitron", monospace;
+  font-family: "Poppins", sans-serif;
   font-size: 1.4rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -125,7 +125,7 @@
 }
 
 .sidebar-logo-four {
-  font-family: "Orbitron", monospace;
+  font-family: "Poppins", sans-serif;
   font-size: 1.4rem;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -133,7 +133,7 @@
 }
 
 .sidebar-logo-luxury {
-  font-family: "Cormorant Garamond", serif;
+  font-family: "Poppins", sans-serif;
   font-size: 0.55rem;
   font-weight: 300;
   letter-spacing: 0.3em;
@@ -204,7 +204,7 @@
 
 /* Section label */
 .sidebar-section-label {
-  font-family: "Jost", sans-serif;
+  font-family: "Poppins", sans-serif;
   font-size: 0.6rem;
   font-weight: 400;
   letter-spacing: 0.35em;
@@ -260,7 +260,7 @@
   align-items: center;
   gap: 1rem;
   padding: 0.85rem 1.75rem;
-  font-family: "Jost", sans-serif;
+  font-family: "Poppins", sans-serif;
   font-size: 0.82rem;
   font-weight: 400;
   letter-spacing: 0.12em;
@@ -399,7 +399,7 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 0.75rem;
-  font-family: "Jost", sans-serif;
+  font-family: "Poppins", sans-serif;
   font-size: 0.6rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -435,7 +435,7 @@
 }
 
 .sidebar-footer-text {
-  font-family: "Jost", sans-serif;
+  font-family: "Poppins", sans-serif;
   font-size: 0.65rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -454,7 +454,7 @@
   align-items: center;
   gap: 1rem;
   padding: 0.85rem 1.75rem;
-  font-family: "Jost", sans-serif;
+  font-family: "Poppins", sans-serif;
   font-size: 0.82rem;
   font-weight: 400;
   letter-spacing: 0.12em;
@@ -552,7 +552,7 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.6rem 0.75rem;
-  font-family: "Jost", sans-serif;
+  font-family: "Poppins", sans-serif;
   font-size: 0.65rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;

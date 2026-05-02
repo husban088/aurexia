@@ -9,95 +9,17 @@ import "@/app/styles/product-detail.css";
 import { useCartStore } from "@/lib/cartStore";
 import { useCurrency } from "@/app/context/CurrencyContext";
 import ProductReviews from "@/app/components/ProductReviews";
-
-/* ═══════════════════════════════════════════
-   DATE UTILITIES FOR ESTIMATED DELIVERY
-═══════════════════════════════════════════ */
-
-function getEstimatedDates(): {
-  readyFrom: Date;
-  readyTo: Date;
-  deliveryFrom: Date;
-  deliveryTo: Date;
-} {
-  const today = new Date();
-  const readyFrom = new Date(today);
-  readyFrom.setDate(today.getDate() + 2);
-  const readyTo = new Date(today);
-  readyTo.setDate(today.getDate() + 3);
-  const deliveryFrom = new Date(today);
-  deliveryFrom.setDate(today.getDate() + 6);
-  const deliveryTo = new Date(today);
-  deliveryTo.setDate(today.getDate() + 11);
-  return { readyFrom, readyTo, deliveryFrom, deliveryTo };
-}
-
-function formatDateRange(start: Date, end: Date): string {
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  if (start.getMonth() === end.getMonth()) {
-    return `${months[start.getMonth()]} ${start.getDate()} - ${end.getDate()}`;
-  }
-  return `${months[start.getMonth()]} ${start.getDate()} - ${
-    months[end.getMonth()]
-  } ${end.getDate()}`;
-}
-
-function getDeliveryStatus(): {
-  text: string;
-  icon: React.ReactNode;
-  color: string;
-} {
-  const hour = new Date().getHours();
-  if (hour >= 22) {
-    return {
-      text: "Order within 2 hours for faster processing",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        >
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
-        </svg>
-      ),
-      color: "#f59e0b",
-    };
-  }
-  return {
-    text: "Express processing available",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      >
-        <path d="M22 12h-4l-3 9-4-18-3 9H2" />
-      </svg>
-    ),
-    color: "#22c55e",
-  };
-}
+// Import components
+import EstimatedDelivery from "@/app/components/EstimatedDelivery";
+import TrustBadges from "@/app/components/TrustBadges";
+import ProductGallery from "@/app/components/ProductGallery";
+import RelatedProducts from "@/app/components/RelatedProducts";
+import DescriptionModal from "@/app/components/DescriptionModal";
 
 /* ═══════════════════════════════════════════
    TYPES
 ═══════════════════════════════════════════ */
-type TabKey = "description" | "specs" | "shipping";
+type TabKey = "description" | "shipping";
 
 interface Toast {
   id: number;
@@ -118,6 +40,12 @@ interface BulkPricingTier {
   tier_price: number;
   discount_percentage: number | null;
   discount_price: number | null;
+}
+
+interface VariantWithDetails extends ProductVariant {
+  description_images?: string[];
+  description_rich?: string;
+  variant_images?: { image_url: string; display_order: number }[];
 }
 
 /* ═══════════════════════════════════════════
@@ -225,6 +153,19 @@ function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
     </div>
   );
 }
+
+// Helper function to render HTML content safely
+const createMarkup = (html: string) => {
+  return { __html: html };
+};
+
+/* ═══════════════════════════════════════════
+   TRUNCATE PRODUCT NAME
+═══════════════════════════════════════════ */
+const truncateProductName = (name: string, maxLength: number = 60): string => {
+  if (name.length <= maxLength) return name;
+  return name.substring(0, maxLength).trim() + "...";
+};
 
 /* ═══════════════════════════════════════════
    BULK PRICING COMPONENT
@@ -367,19 +308,14 @@ export default function ProductDetail() {
   const id = params?.id as string;
 
   const [product, setProduct] = useState<Product | null>(null);
-  const [related, setRelated] = useState<Product[]>([]);
-  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [variants, setVariants] = useState<VariantWithDetails[]>([]);
   const [variantImagesMap, setVariantImagesMap] = useState<VariantImagesMap>(
     {}
   );
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
-    null
-  );
+  const [selectedVariant, setSelectedVariant] =
+    useState<VariantWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [activeImg, setActiveImg] = useState(0);
-  const [imgEntering, setImgEntering] = useState(false);
-  const [lightbox, setLightbox] = useState(false);
   const [qty, setQty] = useState(1);
   const [wishlist, setWishlist] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("description");
@@ -390,21 +326,38 @@ export default function ProductDetail() {
   const [loadingTiers, setLoadingTiers] = useState(false);
   const [liveRating, setLiveRating] = useState<number | null>(null);
   const [liveReviewCount, setLiveReviewCount] = useState<number | null>(null);
-  const [estimatedDates, setEstimatedDates] = useState<{
-    readyFrom: Date;
-    readyTo: Date;
-    deliveryFrom: Date;
-    deliveryTo: Date;
-  } | null>(null);
+  const [isDescModalOpen, setIsDescModalOpen] = useState(false);
+
+  // State for currently selected variant's description and images
+  const [currentDescription, setCurrentDescription] = useState<string>("");
+  const [currentDescriptionImages, setCurrentDescriptionImages] = useState<
+    string[]
+  >([]);
 
   const { toasts, show: showToast } = useToast();
   const { addToCart } = useCartStore();
   const { formatPrice, currency, loading: currencyLoading } = useCurrency();
 
-  // Set estimated dates when product loads
+  // Update description and images when selected variant changes
   useEffect(() => {
-    if (product) setEstimatedDates(getEstimatedDates());
-  }, [product]);
+    if (selectedVariant) {
+      if (selectedVariant.attribute_type !== "standard") {
+        // Detail mode: use variant's own description and images
+        setCurrentDescription(
+          selectedVariant.description_rich || selectedVariant.description || ""
+        );
+        setCurrentDescriptionImages(selectedVariant.description_images || []);
+      } else {
+        // Simple mode: use product description and images
+        setCurrentDescription(product?.description || "");
+        setCurrentDescriptionImages(product?.description_images || []);
+      }
+    } else if (product) {
+      // No variant: fallback to product description
+      setCurrentDescription(product.description || "");
+      setCurrentDescriptionImages(product.description_images || []);
+    }
+  }, [selectedVariant, product]);
 
   // Fetch bulk pricing tiers when variant changes
   useEffect(() => {
@@ -463,19 +416,36 @@ export default function ProductDetail() {
       setLiveRating(productData.rating || null);
       setLiveReviewCount(productData.reviews_count || null);
 
-      // Update browser title and URL meta
+      // Set initial description from product
+      setCurrentDescription(productData.description || "");
+      setCurrentDescriptionImages(productData.description_images || []);
+
+      // Update browser title
       document.title = `${productData.name} | Tech4U`;
 
-      // Fetch variants
+      // Fetch variants with their descriptions and images
       const { data: variantsData, error: variantsError } = await supabase
         .from("product_variants")
-        .select("*")
+        .select(
+          `
+          *,
+          variant_images(*)
+        `
+        )
         .eq("product_id", id)
         .eq("is_active", true);
 
       if (!variantsError && variantsData && variantsData.length > 0) {
-        const sortedVariants = variantsData.sort((a, b) => {
-          const order = {
+        // Process variants to include description_images
+        const processedVariants = variantsData.map((v: any) => ({
+          ...v,
+          description_images: v.description_images || [],
+          description_rich: v.description_rich || v.description || "",
+          variant_images: v.variant_images || [],
+        }));
+
+        const sortedVariants = processedVariants.sort((a: any, b: any) => {
+          const order: Record<string, number> = {
             standard: 0,
             color: 1,
             size: 2,
@@ -483,14 +453,13 @@ export default function ProductDetail() {
             capacity: 4,
           };
           return (
-            (order[a.attribute_type as keyof typeof order] || 5) -
-            (order[b.attribute_type as keyof typeof order] || 5)
+            (order[a.attribute_type] ?? 5) - (order[b.attribute_type] ?? 5)
           );
         });
         setVariants(sortedVariants);
         setSelectedVariant(sortedVariants[0]);
 
-        const variantIds = sortedVariants.map((v) => v.id);
+        const variantIds = sortedVariants.map((v: any) => v.id);
         const { data: imagesData } = await supabase
           .from("variant_images")
           .select("*")
@@ -510,16 +479,6 @@ export default function ProductDetail() {
         setSelectedVariant(null);
       }
 
-      // Fetch related products
-      const { data: rel } = await supabase
-        .from("products")
-        .select("*")
-        .eq("is_active", true)
-        .eq("category", productData.category)
-        .neq("id", id)
-        .limit(4);
-
-      setRelated(rel || []);
       setLoading(false);
     }
 
@@ -603,7 +562,7 @@ export default function ProductDetail() {
       ? `Only ${currentStock} Left`
       : "In Stock";
 
-  const variantsByType: Record<string, ProductVariant[]> = {};
+  const variantsByType: Record<string, VariantWithDetails[]> = {};
   variants.forEach((v) => {
     if (!variantsByType[v.attribute_type])
       variantsByType[v.attribute_type] = [];
@@ -615,20 +574,10 @@ export default function ProductDetail() {
     return imgs && imgs.length > 0 ? imgs[0] : null;
   };
 
-  function handleVariantSelect(variant: ProductVariant) {
+  function handleVariantSelect(variant: VariantWithDetails) {
     setSelectedVariant(variant);
     setSelectedTier(null);
     setQty(1);
-    setActiveImg(0);
-  }
-
-  function switchImg(idx: number) {
-    if (idx === activeImg) return;
-    setImgEntering(true);
-    setTimeout(() => {
-      setActiveImg(idx);
-      setImgEntering(false);
-    }, 80);
   }
 
   function handleAddToCart() {
@@ -669,19 +618,7 @@ export default function ProductDetail() {
   }
 
   useEffect(() => {
-    setActiveImg(0);
-  }, [selectedVariant]);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightbox(false);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  useEffect(() => {
-    const els = document.querySelectorAll(".pd-reveal");
+    const els = document.querySelectorAll(".pd-reveal, .rp-reveal");
     const obs = new IntersectionObserver(
       (entries) =>
         entries.forEach(
@@ -692,6 +629,10 @@ export default function ProductDetail() {
     els.forEach((el) => obs.observe(el));
     return () => obs.disconnect();
   }, [loading, product]);
+
+  const truncatedProductName = product
+    ? truncateProductName(product.name, 60)
+    : "";
 
   // Show loading state
   if (loading || currencyLoading) {
@@ -743,6 +684,8 @@ export default function ProductDetail() {
   const specs = (product as any).specs || {};
   const hasSpecs = Object.keys(specs).length > 0;
 
+  const hasDescription = currentDescription && currentDescription.length > 0;
+
   return (
     <div className="pd-root">
       <div className="pd-ambient" aria-hidden="true" />
@@ -762,7 +705,7 @@ export default function ProductDetail() {
           </span>
         </div>
 
-        {/* Breadcrumb with product name */}
+        {/* Breadcrumb */}
         <nav className="pd-breadcrumb">
           <Link href="/">Home</Link>
           <span className="pd-breadcrumb-sep">›</span>
@@ -777,96 +720,20 @@ export default function ProductDetail() {
               >
                 {product.subcategory}
               </Link>
-              <span className="pd-breadcrumb-sep">›</span>
             </>
           )}
-          <span className="pd-breadcrumb-current">{product.name}</span>
         </nav>
 
         <div className="pd-grid">
           {/* GALLERY */}
-          <div className="pd-gallery">
-            <div
-              className="pd-main-img-wrap"
-              onClick={() => images.length > 0 && setLightbox(true)}
-            >
-              {images.length > 0 ? (
-                <img
-                  src={images[activeImg]}
-                  alt={product.name}
-                  className={imgEntering ? "pd-img-entering" : ""}
-                />
-              ) : (
-                <div className="pd-img-placeholder">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="0.8"
-                  >
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <circle cx="8.5" cy="8.5" r="1.5" />
-                    <polyline points="21 15 16 10 5 21" />
-                  </svg>
-                </div>
-              )}
-              {images.length > 1 && (
-                <div className="pd-img-counter">
-                  {activeImg + 1} / {images.length}
-                </div>
-              )}
-              {images.length > 0 && (
-                <div className="pd-zoom-hint">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    <line x1="11" y1="8" x2="11" y2="14" />
-                    <line x1="8" y1="11" x2="14" y2="11" />
-                  </svg>
-                  Zoom
-                </div>
-              )}
-              <div className="pd-img-badges">
-                {product.is_featured && (
-                  <span className="pd-badge pd-badge--feat">Featured</span>
-                )}
-                {discount > 0 && (
-                  <span className="pd-badge pd-badge--sale">−{discount}%</span>
-                )}
-                {product.condition === "new" && !discount && (
-                  <span className="pd-badge pd-badge--new">New</span>
-                )}
-              </div>
-            </div>
-            {images.length > 1 && (
-              <div className="pd-thumbs">
-                {images.map((src, idx) => (
-                  <button
-                    key={idx}
-                    className={`pd-thumb${activeImg === idx ? " active" : ""}`}
-                    onClick={() => switchImg(idx)}
-                  >
-                    <img src={src} alt="" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <ProductGallery images={images} productName={product.name} />
 
           {/* PRODUCT INFO */}
           <div className="pd-info">
-            <p className="pd-eyebrow">
-              <span className="pd-ey-line" />
-              {product.subcategory || product.category}
-              <span className="pd-ey-line" />
-            </p>
             {product.brand && <p className="pd-brand">{product.brand}</p>}
-            <h1 className="pd-title">{product.name}</h1>
+            <h5 className="pd-title" title={product.name}>
+              {truncatedProductName}
+            </h5>
 
             {liveRating !== null &&
               liveReviewCount !== null &&
@@ -934,7 +801,7 @@ export default function ProductDetail() {
                       }`}
                       onClick={() => handleVariantSelect(variant)}
                     >
-                      {variant.id && getVariantImage(variant.id) && (
+                      {variant.id && getVariantImage(variant.id!) && (
                         <img
                           src={getVariantImage(variant.id!)!}
                           alt={variant.attribute_value}
@@ -963,56 +830,41 @@ export default function ProductDetail() {
               <span className="pd-stock-dot" />
               {stockLabel}
             </div>
-            {product.description && (
-              <p className="pd-description">{product.description}</p>
-            )}
 
-            <div className="pd-features">
-              <div className="pd-feat-pill">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-                Authentic
-              </div>
-              <div className="pd-feat-pill">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-                Free Delivery
-              </div>
-              <div className="pd-feat-pill">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                  <polyline points="17 6 23 6 23 12" />
-                </svg>
-                Easy Returns
-              </div>
-              <div className="pd-feat-pill">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <rect x="1" y="4" width="22" height="16" rx="2" />
-                  <line x1="1" y1="10" x2="23" y2="10" />
-                </svg>
-                Cash on Delivery
+            {/* DESCRIPTION BUTTON - Opens Modal with current variant's description */}
+            <div className="pd-desc-dropdown">
+              <div
+                className="pd-desc-header"
+                onClick={() => setIsDescModalOpen(true)}
+              >
+                <div className="pd-desc-title">
+                  <div className="pd-desc-icon">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path d="M4 6h16M4 12h16M4 18h16" />
+                      <path d="M8 6v12" />
+                      <path d="M16 6v12" />
+                    </svg>
+                  </div>
+                  <div className="pd-desc-label">
+                    Product Description
+                    <span>Click to view full details →</span>
+                  </div>
+                </div>
+                <div className="pd-desc-toggle">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
               </div>
             </div>
 
@@ -1125,360 +977,145 @@ export default function ProductDetail() {
                 </button>
               )}
             </div>
-
-            <div className="pd-meta pd-reveal">
-              <div className="pd-meta-item">
-                <p className="pd-meta-label">Category</p>
-                <p className="pd-meta-value">{catLabel}</p>
-              </div>
-              <div className="pd-meta-item">
-                <p className="pd-meta-label">Subcategory</p>
-                <p className="pd-meta-value">{product.subcategory}</p>
-              </div>
-              {product.brand && (
-                <div className="pd-meta-item">
-                  <p className="pd-meta-label">Brand</p>
-                  <p className="pd-meta-value">{product.brand}</p>
-                </div>
-              )}
-              <div className="pd-meta-item">
-                <p className="pd-meta-label">Condition</p>
-                <span className={`pd-condition-badge ${product.condition}`}>
-                  {product.condition}
-                </span>
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* TABS SECTION */}
+        {/* TABS SECTION - Only Description tab active */}
         <div className="pd-tabs-section pd-reveal">
           <div className="pd-tab-bar">
-            {(
-              [
-                { key: "description", label: "Description" },
-                { key: "specs", label: "Specifications" },
-                { key: "shipping", label: "Shipping & Returns" },
-              ] as const
-            ).map(({ key, label }) => (
+            {[
+              { key: "description", label: "Description" },
+              { key: "shipping", label: "Shipping & Returns" },
+            ].map(({ key, label }) => (
               <button
                 key={key}
                 role="tab"
                 aria-selected={activeTab === key}
                 className={`pd-tab-btn${activeTab === key ? " active" : ""}`}
-                onClick={() => setActiveTab(key)}
+                onClick={() => setActiveTab(key as TabKey)}
               >
                 {label}
               </button>
             ))}
           </div>
+
+          {/* DESCRIPTION TAB PANEL - Rich text HTML rendering */}
           {activeTab === "description" && (
             <div className="pd-tab-panel">
-              <p className="pd-desc-long">
-                {product.description || "No detailed description available."}
-              </p>
+              <div className="pd-description-full">
+                {hasDescription ? (
+                  <div
+                    className="pd-description-rich"
+                    dangerouslySetInnerHTML={createMarkup(currentDescription)}
+                  />
+                ) : (
+                  <p className="pd-no-description">
+                    No detailed description available for this product.
+                  </p>
+                )}
+              </div>
             </div>
           )}
-          {activeTab === "specs" && (
-            <div className="pd-tab-panel">
-              {hasSpecs ? (
-                <div className="pd-specs-grid">
-                  {Object.entries(specs).map(([key, val]) => (
-                    <div className="pd-spec-row" key={key}>
-                      <div className="pd-spec-key">{key}</div>
-                      <div className="pd-spec-val">{val as string}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="pd-no-specs">No specifications available</p>
-              )}
-            </div>
-          )}
+
+          {/* SHIPPING & RETURNS TAB PANEL */}
           {activeTab === "shipping" && (
             <div className="pd-tab-panel">
-              <p className="pd-desc-long">
-                Free shipping on all orders over PKR 3,000. Standard delivery
-                takes 3-5 business days. Easy returns within 30 days of
-                delivery.
-              </p>
+              <div className="pd-shipping-content">
+                <div className="pd-shipping-icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                  </svg>
+                </div>
+                <p className="pd-desc-long">
+                  Free shipping on all orders over PKR 3,000. Standard delivery
+                  takes 3-5 business days. Easy returns within 30 days of
+                  delivery. For international shipping, please contact our
+                  customer support team for rates and delivery estimates.
+                </p>
+                <div className="pd-shipping-features">
+                  <div className="pd-ship-feature">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Free Delivery on Orders over PKR 3,000</span>
+                  </div>
+                  <div className="pd-ship-feature">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <rect x="3" y="4" width="18" height="18" rx="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    <span>30-Day Easy Returns</span>
+                  </div>
+                  <div className="pd-ship-feature">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                    <span>Secure Packaging & Insurance</span>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
         {/* ESTIMATED DELIVERY SECTION */}
-        {estimatedDates && (
-          <section className="pd-delivery-section pd-reveal">
-            <div className="pd-delivery-header">
-              <div className="pd-delivery-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="pd-delivery-title">Estimated Delivery</h3>
-                <p className="pd-delivery-sub">
-                  Order processing & shipping timeline
-                </p>
-              </div>
-            </div>
-            <div className="pd-delivery-timeline">
-              <div className="pd-timeline-node">
-                <div className="pd-timeline-dot" />
-                <span className="pd-timeline-label">Order</span>
-                <span className="pd-timeline-date">Today</span>
-              </div>
-              <div className="pd-timeline-line" />
-              <div className="pd-timeline-node">
-                <div className="pd-timeline-dot" />
-                <span className="pd-timeline-label">Ready</span>
-                <span className="pd-timeline-date">
-                  {formatDateRange(
-                    estimatedDates.readyFrom,
-                    estimatedDates.readyTo
-                  )}
-                </span>
-              </div>
-              <div className="pd-timeline-line" />
-              <div className="pd-timeline-node">
-                <div className="pd-timeline-dot" />
-                <span className="pd-timeline-label">Deliver</span>
-                <span className="pd-timeline-date">
-                  {formatDateRange(
-                    estimatedDates.deliveryFrom,
-                    estimatedDates.deliveryTo
-                  )}
-                </span>
-              </div>
-            </div>
-            <div className="pd-delivery-row">
-              <span className="pd-delivery-row-label">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
-                </svg>
-                Processing Time
-              </span>
-              <span className="pd-delivery-row-value">2-3 business days</span>
-            </div>
-            <div className="pd-delivery-row">
-              <span className="pd-delivery-row-label">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path d="M22 12h-4l-3 9-4-18-3 9H2" />
-                </svg>
-                Shipping Time
-              </span>
-              <span className="pd-delivery-row-value">4-8 business days</span>
-            </div>
-            <div className="pd-delivery-status">
-              <span className="pd-delivery-status-text">
-                {getDeliveryStatus().icon}
-                {getDeliveryStatus().text}
-              </span>
-              <span className="pd-delivery-urgency">
-                Free Shipping over PKR 3,000
-              </span>
-            </div>
-          </section>
-        )}
+        <EstimatedDelivery />
 
         {/* TRUST BADGES SECTION */}
-        <section className="pd-trust-section pd-reveal">
-          <div className="pd-trust-grid">
-            <div className="pd-trust-item">
-              <div className="pd-trust-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0110 0v4" />
-                </svg>
-              </div>
-              <span className="pd-trust-label">Secure Payment</span>
-              <span className="pd-trust-desc">256-bit SSL encryption</span>
-            </div>
-            <div className="pd-trust-item">
-              <div className="pd-trust-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M16 12h-4V8" />
-                </svg>
-              </div>
-              <span className="pd-trust-label">30-Day Returns</span>
-              <span className="pd-trust-desc">Money back guarantee</span>
-            </div>
-            <div className="pd-trust-item">
-              <div className="pd-trust-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <path d="M9 12l2 2 4-4" />
-                </svg>
-              </div>
-              <span className="pd-trust-label">100% Authentic</span>
-              <span className="pd-trust-desc">Verified products only</span>
-            </div>
-            <div className="pd-trust-item">
-              <div className="pd-trust-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
-                </svg>
-              </div>
-              <span className="pd-trust-label">24/7 Support</span>
-              <span className="pd-trust-desc">Live chat & email</span>
-            </div>
-          </div>
-        </section>
+        <TrustBadges />
 
         {/* REVIEWS & RATINGS */}
         {product.id && <ProductReviews productId={product.id} />}
 
         {/* RELATED PRODUCTS */}
-        {related.length > 0 && (
-          <section className="pd-related pd-reveal">
-            <div className="pd-related-header">
-              <p className="pd-section-eyebrow">
-                <span className="pd-section-eye-line" />
-                More from {catLabel}
-                <span className="pd-section-eye-line" />
-              </p>
-              <h2 className="pd-section-title">
-                You May Also <em>Like</em>
-              </h2>
-            </div>
-            <div className="pd-related-grid">
-              {related.map((rel) => {
-                const relPrice = rel.price || 0;
-                const relDisc =
-                  rel.original_price && rel.original_price > relPrice
-                    ? Math.round(
-                        ((rel.original_price - relPrice) / rel.original_price) *
-                          100
-                      )
-                    : 0;
-                return (
-                  <Link
-                    key={rel.id}
-                    href={`/product/${rel.id}`}
-                    className="pd-rel-card"
-                  >
-                    <div className="pd-rel-card-img">
-                      {rel.images?.[0] ? (
-                        <img src={rel.images[0]} alt={rel.name} />
-                      ) : (
-                        <div
-                          className="pd-img-placeholder"
-                          style={{ height: "100%" }}
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                          >
-                            <rect x="3" y="3" width="18" height="18" rx="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <polyline points="21 15 16 10 5 21" />
-                          </svg>
-                        </div>
-                      )}
-                      {relDisc > 0 && (
-                        <div className="pd-img-badges">
-                          <span className="pd-badge pd-badge--sale">
-                            −{relDisc}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="pd-rel-card-body">
-                      {rel.brand && (
-                        <p className="pd-rel-card-brand">{rel.brand}</p>
-                      )}
-                      <h3 className="pd-rel-card-name">{rel.name}</h3>
-                      {rel.rating && rel.reviews_count ? (
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.4rem",
-                            marginBottom: "0.3rem",
-                          }}
-                        >
-                          <StarDisplay rating={rel.rating} size={11} />
-                          <span
-                            style={{
-                              fontFamily: "var(--pd-sans)",
-                              fontSize: "0.58rem",
-                              color: "rgba(245,240,232,0.45)",
-                            }}
-                          >
-                            ({rel.reviews_count})
-                          </span>
-                        </div>
-                      ) : null}
-                      <p className="pd-rel-card-price">
-                        {formatPrice(relPrice)}
-                      </p>
-                    </div>
-                    <div className="pd-rel-card-line" />
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
+        {product.id && (
+          <RelatedProducts
+            productId={product.id}
+            category={product.category}
+            currentProductName={product.name}
+            limit={4}
+          />
         )}
       </div>
 
-      {lightbox && images[activeImg] && (
-        <div className="pd-lightbox" onClick={() => setLightbox(false)}>
-          <img
-            src={images[activeImg]}
-            alt={product.name}
-            onClick={(e) => e.stopPropagation()}
-          />
-          <button
-            className="pd-lightbox-close"
-            onClick={() => setLightbox(false)}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-      )}
+      {/* DESCRIPTION MODAL — description + images pass */}
+      <DescriptionModal
+        isOpen={isDescModalOpen}
+        onClose={() => setIsDescModalOpen(false)}
+        description={
+          currentDescription ||
+          "No detailed description available for this product."
+        }
+        images={currentDescriptionImages}
+        productName={
+          product.name +
+          (selectedVariant && selectedVariant.attribute_type !== "standard"
+            ? ` (${selectedVariant.attribute_value})`
+            : "")
+        }
+      />
 
       <div className="pd-toast-wrap">
         {toasts.map((t) => (

@@ -1,0 +1,694 @@
+/* ============================================================
+   RELATED PRODUCTS STYLES · related-products.css
+   "You May Also Like" section for product detail page
+   Matches ProductGrid and FeaturedProducts
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
+
+:root {
+  --rp-gold: #daa520;
+  --rp-gold-dark: #b8860b;
+  --rp-gold-light: #f0c040;
+  --rp-gold-dim: rgba(218, 165, 32, 0.08);
+  --rp-black: #1a1a1a;
+  --rp-grey: #444444;
+  --rp-grey-dim: #666666;
+  --rp-border: rgba(184, 134, 11, 0.18);
+  --rp-border-hover: rgba(184, 134, 11, 0.35);
+  --rp-light-bg: #ffffff;
+  --rp-surface: #faf8f5;
+  --rp-serif: "Goldman", "Cormorant Garamond", Georgia, serif;
+  --rp-sans: "Goldman", "Josefin Sans", sans-serif;
+  --rp-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  --rp-ease-fast: 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Section Wrapper ── */
+.rp-section {
+  margin-top: 5rem;
+  animation: rp-fade-up 0.7s var(--rp-ease) 0.4s both;
+}
+
+@keyframes rp-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Section Header ── */
+.rp-header {
+  margin-bottom: 2rem;
+}
+
+.rp-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--rp-sans);
+  font-size: 0.52rem;
+  font-weight: 600;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--rp-gold-dark);
+  margin-bottom: 0.5rem;
+}
+
+.rp-eye-line {
+  display: block;
+  width: 20px;
+  height: 1px;
+  background: var(--rp-gold);
+  opacity: 0.5;
+}
+
+.rp-title {
+  font-family: var(--rp-serif);
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 500;
+  color: var(--rp-black);
+  margin: 0;
+}
+
+.rp-title em {
+  font-style: italic;
+  color: var(--rp-gold-dark);
+}
+
+/* ── Related Grid ── */
+.rp-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .rp-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .rp-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .rp-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Related Card - Same as ProductGrid ── */
+.rp-card {
+  position: relative;
+  background: var(--rp-light-bg);
+  border: 1px solid var(--rp-border);
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all var(--rp-ease);
+  height: 100%;
+  min-height: 480px;
+  max-height: 520px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+/* Gold corner accent */
+.rp-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 30px 30px 0;
+  border-color: transparent var(--rp-gold) transparent transparent;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: 3;
+}
+
+.rp-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 25px 50px rgba(218, 165, 32, 0.12);
+  border-color: var(--rp-border-hover);
+  background: #fffaf5;
+}
+
+.rp-card:hover::before {
+  opacity: 1;
+}
+
+/* Card Image */
+.rp-card-img {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: linear-gradient(135deg, #f0ebe4 0%, #e8e0d8 100%);
+  overflow: hidden;
+}
+
+.rp-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.rp-card:hover .rp-card-img img {
+  transform: scale(1.08);
+}
+
+/* Placeholder */
+.rp-img-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0ebe4 0%, #e8e0d8 100%);
+  color: rgba(218, 165, 32, 0.25);
+}
+
+.rp-img-placeholder svg {
+  width: 55px;
+  height: 55px;
+}
+
+/* Badges */
+.rp-card-badges {
+  position: absolute;
+  top: 0.9rem;
+  left: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  z-index: 2;
+}
+
+.rp-badge {
+  display: inline-flex;
+  padding: 0.35rem 1rem;
+  border-radius: 30px;
+  font-family: var(--rp-sans);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  backdrop-filter: blur(4px);
+}
+
+.rp-badge--feat {
+  background: var(--rp-gold);
+  color: white;
+  box-shadow: 0 2px 8px rgba(218, 165, 32, 0.3);
+}
+
+.rp-badge--sale {
+  background: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  color: #dc2626;
+}
+
+.rp-badge--new {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #16a34a;
+}
+
+.rp-badge--low {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+}
+
+/* Icon Buttons */
+.rp-icon-buttons {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 10;
+}
+
+.rp-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(218, 165, 32, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.rp-icon-btn svg {
+  width: 18px;
+  height: 18px;
+  color: #1a1a1a;
+  transition: all 0.3s ease;
+}
+
+.rp-icon-btn:hover {
+  background: var(--rp-gold);
+  border-color: var(--rp-gold);
+  transform: scale(1.08);
+}
+
+.rp-icon-btn:hover svg {
+  color: white;
+}
+
+.rp-icon-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.rp-icon-btn:disabled:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: none;
+}
+
+/* Card Body */
+.rp-card-body {
+  padding: 1.2rem 1.2rem 1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-height: 180px;
+}
+
+.rp-card-brand {
+  font-family: var(--rp-sans);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--rp-gold-dark);
+  margin: 0;
+  height: 20px;
+  line-height: 20px;
+}
+
+.rp-card-name {
+  font-family: var(--rp-serif);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--rp-black);
+  margin: 0;
+  line-height: 1.35;
+  transition: color var(--rp-ease);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  min-height: 2.7rem;
+}
+
+.rp-card:hover .rp-card-name {
+  color: var(--rp-gold-dark);
+}
+
+/* Price Row */
+.rp-card-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  margin: 0.25rem 0 0;
+  flex-wrap: wrap;
+  min-height: 2rem;
+}
+
+.rp-card-price {
+  font-family: var(--rp-serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--rp-gold-dark);
+}
+
+.rp-card-orig {
+  font-family: var(--rp-sans);
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.4);
+  text-decoration: line-through;
+}
+
+.rp-card-discount {
+  font-family: var(--rp-sans);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #dc2626;
+  letter-spacing: 0.05em;
+}
+
+/* Variant Styles */
+.rp-card-variants {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0;
+  flex-wrap: wrap;
+  font-size: 0.55rem;
+  min-height: 48px;
+}
+
+.rp-variant-label {
+  font-family: var(--rp-sans);
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: var(--rp-gold-dark);
+  letter-spacing: 0.05em;
+}
+
+.rp-variant-thumbnails {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.rp-variant-thumb {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  border: 1px solid rgba(218, 165, 32, 0.2);
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.rp-variant-thumb img {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.rp-variant-thumb .rp-variant-text {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #666;
+}
+
+.rp-variant-label-text {
+  font-size: 0.5rem;
+  font-weight: 500;
+  color: #8b6914;
+  text-align: center;
+  max-width: 42px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-variant-thumb:hover {
+  border-color: var(--rp-gold);
+  transform: translateY(-2px);
+}
+
+.rp-variant-thumb.active {
+  border-color: var(--rp-gold);
+  box-shadow: 0 0 0 1px var(--rp-gold);
+  background: rgba(218, 165, 32, 0.05);
+}
+
+.rp-variant-thumb.active .rp-variant-label-text {
+  color: var(--rp-gold);
+  font-weight: 700;
+}
+
+.rp-variant-more {
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: var(--rp-gold);
+  font-family: var(--rp-sans);
+  margin-left: 0.2rem;
+  background: rgba(218, 165, 32, 0.1);
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+}
+
+/* Rating */
+.rp-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.25rem 0 0;
+}
+
+.rp-rating-count {
+  font-family: var(--rp-sans);
+  font-size: 0.58rem;
+  color: var(--rp-grey-dim);
+}
+
+/* Stock Status */
+.rp-card-stock {
+  font-family: var(--rp-sans);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  margin: 0.25rem 0 0;
+  min-height: 1.2rem;
+}
+
+.rp-card-stock.in {
+  color: #16a34a;
+}
+
+.rp-card-stock.low {
+  color: #f59e0b;
+}
+
+.rp-card-stock.out {
+  color: #dc2626;
+}
+
+/* Bottom Gold Line */
+.rp-card-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 0;
+  background: linear-gradient(90deg, var(--rp-gold), var(--rp-gold-light));
+  transition: width 0.55s var(--rp-ease);
+  z-index: 2;
+}
+
+.rp-card:hover .rp-card-line {
+  width: 100%;
+}
+
+/* Spinner */
+@keyframes rp-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.rp-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(218, 165, 32, 0.2);
+  border-top-color: #daa520;
+  border-radius: 50%;
+  animation: rp-spin 0.8s linear infinite;
+}
+
+/* ── Skeleton Loading ── */
+.rp-skeleton-card {
+  background: white;
+  border: 1px solid rgba(218, 165, 32, 0.1);
+  border-radius: 20px;
+  overflow: hidden;
+  min-height: 480px;
+}
+
+.rp-skeleton-img {
+  aspect-ratio: 1;
+  background: linear-gradient(90deg, #f0ebe4 25%, #e8e0d8 50%, #f0ebe4 75%);
+  background-size: 200% 100%;
+  animation: rp-shimmer 1.5s infinite;
+}
+
+.rp-skeleton-body {
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.rp-skeleton-line {
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #f0ebe4 25%, #e8e0d8 50%, #f0ebe4 75%);
+  background-size: 200% 100%;
+  animation: rp-shimmer 1.5s infinite;
+}
+
+@keyframes rp-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Scroll Reveal */
+.rp-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.7s var(--rp-ease), transform 0.7s var(--rp-ease);
+}
+
+.rp-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .rp-card {
+    min-height: 420px;
+    max-height: 460px;
+  }
+  .rp-card-name {
+    font-size: 0.9rem;
+    min-height: 2.4rem;
+  }
+  .rp-card-price {
+    font-size: 1.1rem;
+  }
+  .rp-card-body {
+    padding: 1rem 1rem 0.8rem;
+    min-height: 160px;
+  }
+  .rp-variant-thumb {
+    width: 38px;
+    height: 38px;
+  }
+  .rp-variant-thumb img {
+    width: 24px;
+    height: 24px;
+  }
+  .rp-variant-label-text {
+    font-size: 0.45rem;
+    max-width: 38px;
+  }
+  .rp-icon-btn {
+    width: 38px;
+    height: 38px;
+  }
+  .rp-icon-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .rp-section {
+    margin-top: 3rem;
+  }
+  .rp-card-name {
+    font-size: 0.85rem;
+    min-height: 2.2rem;
+  }
+  .rp-card-price {
+    font-size: 1rem;
+  }
+  .rp-card-brand {
+    font-size: 0.55rem;
+  }
+  .rp-card-body {
+    padding: 0.8rem 0.8rem 0.6rem;
+    min-height: 140px;
+  }
+  .rp-variant-thumb {
+    width: 34px;
+    height: 34px;
+  }
+  .rp-variant-thumb img {
+    width: 20px;
+    height: 20px;
+  }
+  .rp-variant-label-text {
+    font-size: 0.4rem;
+    max-width: 34px;
+  }
+  .rp-card-variants {
+    min-height: 42px;
+  }
+  .rp-icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+  .rp-icon-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .rp-card {
+    min-height: 400px;
+    max-height: 440px;
+  }
+  .rp-card-name {
+    font-size: 0.75rem;
+  }
+  .rp-card-price {
+    font-size: 0.9rem;
+  }
+  .rp-variant-thumb {
+    width: 30px;
+    height: 30px;
+  }
+  .rp-variant-thumb img {
+    width: 18px;
+    height: 18px;
+  }
+  .rp-variant-label-text {
+    display: none;
+  }
+  .rp-icon-btn {
+    width: 32px;
+    height: 32px;
+  }
+  .rp-icon-btn svg {
+    width: 13px;
+    height: 13px;
+  }
+}

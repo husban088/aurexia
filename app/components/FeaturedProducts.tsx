@@ -61,6 +61,12 @@ interface VariantImagesMap {
   [variantId: string]: string[];
 }
 
+// Helper function to truncate product name
+const truncateProductName = (name: string, maxLength: number = 50): string => {
+  if (name.length <= maxLength) return name;
+  return name.substring(0, maxLength).trim() + "...";
+};
+
 const getStockStatus = (
   stock: number,
   threshold?: number | null
@@ -252,8 +258,8 @@ function VariantThumbnails({
                 </span>
               )}
               <span className="fp-variant-label-text">
-                {variant.attribute_value.length > 12
-                  ? variant.attribute_value.slice(0, 10) + "..."
+                {variant.attribute_value.length > 10
+                  ? variant.attribute_value.slice(0, 8) + "..."
                   : variant.attribute_value}
               </span>
             </button>
@@ -396,7 +402,9 @@ function ProductCard({
     return "in";
   };
 
-  // ✅ FIXED: try/finally se loading hamesha clear hogi — chahe kuch bhi ho
+  // Truncate product name for display
+  const truncatedName = truncateProductName(product.name, 45);
+
   const handleAddToCart = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -410,7 +418,6 @@ function ProductCard({
       return;
     }
 
-    // Agar pehle se loading hai toh ignore karo
     if (addToCartLoading) return;
 
     setAddToCartLoading(true);
@@ -425,7 +432,6 @@ function ProductCard({
       condition: product.condition,
       is_featured: product.is_featured,
       is_active: product.is_active,
-      // ✅ images pass karo — cartStore me extra DB call nahi hoga
       images: currentImages.length > 0 ? currentImages : [],
       price: selectedVariant.price,
       original_price: selectedVariant.original_price,
@@ -439,7 +445,6 @@ function ProductCard({
     try {
       await addToCart(productToAdd, selectedVariant, 1, 1);
     } finally {
-      // Loading hamesha clear — stuck nahi rahegi
       setAddToCartLoading(false);
     }
   };
@@ -502,12 +507,12 @@ function ProductCard({
           </div>
         )}
         <div className="fp-card-badges">
-          {product.is_featured && (
+          {/* {product.is_featured && (
             <span className="fp-badge fp-badge--feat">Featured</span>
           )}
           {discount && discount > 0 && (
             <span className="fp-badge fp-badge--sale">-{discount}%</span>
-          )}
+          )} */}
           {product.condition === "new" && !discount && (
             <span className="fp-badge fp-badge--new">New</span>
           )}
@@ -561,7 +566,9 @@ function ProductCard({
       </div>
       <div className="fp-card-body">
         {product.brand && <p className="fp-card-brand">{product.brand}</p>}
-        <h3 className="fp-card-name">{product.name}</h3>
+        <h3 className="fp-card-name" title={product.name}>
+          {truncatedName}
+        </h3>
         <div className="fp-card-price-row">
           <span className="fp-card-price">{displaySalePrice}</span>
           {displayOriginalPrice && (

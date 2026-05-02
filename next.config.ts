@@ -16,8 +16,10 @@ const nextConfig = {
   optimizeFonts: true,
   // Suppress unused preload warnings for fonts loaded via CSS variables
   experimental: {
-    optimizePackageImports: ["next/font"],
+    optimizePackageImports: ["next/font", "@next/font"],
   },
+  // Add transpilePackages if needed
+  transpilePackages: [],
 };
 
 module.exports = nextConfig;

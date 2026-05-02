@@ -3,7 +3,7 @@
    Premium Theme with High Contrast Text
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,600&family=Josefin+Sans:wght@200;300;400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
 
 :root {
   --ab-gold: #daa520;
@@ -22,8 +22,8 @@
   --ab-text-light: #444444;
   --ab-text-grey: #666666;
   --ab-text-gold: #8b6914;
-  --ab-serif: "Cormorant Garamond", Georgia, serif;
-  --ab-sans: "Josefin Sans", sans-serif;
+  --ab-serif: "Poppins", sans-serif;
+  --ab-sans: "Poppins", sans-serif;
   --ab-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 

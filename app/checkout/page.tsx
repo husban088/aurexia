@@ -8,6 +8,12 @@ import { supabase } from "@/lib/supabase";
 import "./checkout.css";
 import { useCurrency } from "../context/CurrencyContext";
 
+// Import components
+import ShippingSection from "@/app/checkout/components//ShippingSection";
+import PaymentSection from "@/app/checkout/components/PaymentSection";
+import ReviewSection from "@/app/checkout/components/ReviewSection";
+import CartSummary from "@/app/checkout/components/CartSummary";
+
 type Step = "shipping" | "payment" | "review";
 
 interface FormData {
@@ -48,47 +54,64 @@ const STEPS: { id: Step; label: string; num: string }[] = [
   { id: "review", label: "Review", num: "03" },
 ];
 
-// Country code mapping with flags
+// Country code mapping
 const COUNTRY_CODES: Record<
   string,
-  { code: string; flag: string; pattern: RegExp; example: string }
+  {
+    code: string;
+    flag: string;
+    pattern: RegExp;
+    example: string;
+    validation: (num: string) => boolean;
+  }
 > = {
   PKR: {
     code: "+92",
     flag: "🇵🇰",
     pattern: /^[0-9]{10}$/,
     example: "3XXXXXXXXX",
+    validation: (num) => /^3[0-9]{9}$/.test(num),
   },
   USD: {
     code: "+1",
     flag: "🇺🇸",
     pattern: /^[0-9]{10}$/,
     example: "2125551234",
+    validation: (num) => /^[2-9][0-9]{9}$/.test(num),
   },
   GBP: {
     code: "+44",
     flag: "🇬🇧",
     pattern: /^[0-9]{10}$/,
     example: "7123456789",
+    validation: (num) => /^[0-9]{10}$/.test(num),
   },
   EUR: {
     code: "+352",
     flag: "🇪🇺",
     pattern: /^[0-9]{9,10}$/,
     example: "661234567",
+    validation: (num) => /^[6][0-9]{8,9}$/.test(num),
   },
   AED: {
     code: "+971",
     flag: "🇦🇪",
     pattern: /^[0-9]{9}$/,
     example: "501234567",
+    validation: (num) => /^5[0-9]{8}$/.test(num),
   },
   SAR: {
     code: "+966",
     flag: "🇸🇦",
     pattern: /^[0-9]{9}$/,
     example: "512345678",
+    validation: (num) => /^5[0-9]{8}$/.test(num),
   },
+};
+
+const STORAGE_KEYS = {
+  CHECKOUT_FORM: "checkout_form_data",
+  CHECKOUT_STEP: "checkout_current_step",
 };
 
 export default function Checkout() {
@@ -113,8 +136,18 @@ export default function Checkout() {
   const [selectedFlag, setSelectedFlag] = useState("🇵🇰");
   const [phonePattern, setPhonePattern] = useState<RegExp>(/^[0-9]{10}$/);
   const [phoneExample, setPhoneExample] = useState("3XXXXXXXXX");
+  const [phoneValidator, setPhoneValidator] = useState<
+    (num: string) => boolean
+  >(() => (num: string) => /^3[0-9]{9}$/.test(num));
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // Payment related states
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
+    "card" | "paypal"
+  >("card");
 
   const [form, setForm] = useState<FormData>({
     firstName: "",
@@ -132,11 +165,61 @@ export default function Checkout() {
     cvv: "",
   });
 
+  // Load saved form data from localStorage on mount
   useEffect(() => {
     setMounted(true);
+
+    const savedStep = localStorage.getItem(STORAGE_KEYS.CHECKOUT_STEP);
+    if (
+      savedStep &&
+      (savedStep === "shipping" ||
+        savedStep === "payment" ||
+        savedStep === "review")
+    ) {
+      setStep(savedStep as Step);
+    }
+
+    const savedForm = localStorage.getItem(STORAGE_KEYS.CHECKOUT_FORM);
+    if (savedForm) {
+      try {
+        const parsed = JSON.parse(savedForm);
+        setForm((prev) => ({ ...prev, ...parsed }));
+      } catch (e) {
+        console.error("Error loading saved form:", e);
+      }
+    }
   }, []);
 
-  // 🔥 CRITICAL: Load from localStorage immediately
+  // Save form data to localStorage
+  useEffect(() => {
+    if (mounted && form.firstName) {
+      localStorage.setItem(STORAGE_KEYS.CHECKOUT_FORM, JSON.stringify(form));
+    }
+  }, [form, mounted]);
+
+  // Save current step
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, step);
+    }
+  }, [step, mounted]);
+
+  const clearSavedCheckoutData = () => {
+    localStorage.removeItem(STORAGE_KEYS.CHECKOUT_FORM);
+    localStorage.removeItem(STORAGE_KEYS.CHECKOUT_STEP);
+  };
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (mounted && !placed && (form.firstName || form.email)) {
+        localStorage.setItem(STORAGE_KEYS.CHECKOUT_FORM, JSON.stringify(form));
+        localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, step);
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [form, step, mounted, placed]);
+
   useEffect(() => {
     if (mounted && !initialized) {
       try {
@@ -167,9 +250,10 @@ export default function Checkout() {
     setSelectedFlag(countryData.flag);
     setPhonePattern(countryData.pattern);
     setPhoneExample(countryData.example);
+    setPhoneValidator(() => countryData.validation);
   }, [currency.code]);
 
-  // Auto-fill email if user is logged in
+  // Auto-fill email if logged in
   useEffect(() => {
     const getUserEmail = async () => {
       const {
@@ -181,6 +265,19 @@ export default function Checkout() {
     };
     getUserEmail();
   }, [form.email]);
+
+  // Generate order number when entering payment section
+  useEffect(() => {
+    if (step === "payment" && !orderNumber) {
+      const newOrderNumber = `AX-${Date.now()
+        .toString(36)
+        .toUpperCase()}-${Math.random()
+        .toString(36)
+        .substring(2, 6)
+        .toUpperCase()}`;
+      setOrderNumber(newOrderNumber);
+    }
+  }, [step, orderNumber]);
 
   const setFormField =
     (key: keyof FormData) =>
@@ -208,6 +305,12 @@ export default function Checkout() {
       if (errors[key as keyof FormErrors]) {
         setErrors((prev) => ({ ...prev, [key]: undefined }));
       }
+      setTimeout(() => {
+        localStorage.setItem(
+          STORAGE_KEYS.CHECKOUT_FORM,
+          JSON.stringify({ ...form, [key]: value })
+        );
+      }, 0);
     };
 
   const handleBlur = (field: keyof FormData) => {
@@ -245,6 +348,8 @@ export default function Checkout() {
         if (!value.trim()) return "Phone number is required";
         if (!phonePattern.test(value))
           return `Please enter a valid ${selectedCountryCode} phone number (e.g., ${phoneExample})`;
+        if (phoneValidator && !phoneValidator(value))
+          return `Please enter a valid ${selectedCountryCode} phone number`;
         return undefined;
       case "address":
         if (!value.trim()) return "Street address is required";
@@ -358,15 +463,22 @@ export default function Checkout() {
     if (step === "shipping") {
       if (!validateShipping()) return;
       setStep("payment");
+      localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, "payment");
     } else if (step === "payment") {
       if (!validatePayment()) return;
       setStep("review");
+      localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, "review");
     }
   };
 
   const prevStep = () => {
-    if (step === "payment") setStep("shipping");
-    else if (step === "review") setStep("payment");
+    if (step === "payment") {
+      setStep("shipping");
+      localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, "shipping");
+    } else if (step === "review") {
+      setStep("payment");
+      localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, "payment");
+    }
   };
 
   const getFieldError = (field: keyof FormData): string | undefined => {
@@ -376,19 +488,44 @@ export default function Checkout() {
     return undefined;
   };
 
+  // Handle payment method change from PaymentSection
+  const handlePaymentMethodChange = (method: "card" | "paypal") => {
+    setSelectedPaymentMethod(method);
+  };
+
+  // Handle payment success from Stripe/PayPal
+  const handlePaymentSuccess = () => {
+    setPaymentCompleted(true);
+    setStep("review");
+    localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, "review");
+  };
+
+  // Handle payment error
+  const handlePaymentError = (error: string) => {
+    setPaymentError(error);
+    console.error("Payment error:", error);
+  };
+
   const placeOrder = async () => {
+    // ✅ Pehle check karo - payment already completed hai?
+    if (!paymentCompleted) {
+      alert("Please complete payment first!");
+      return;
+    }
+
+    // ✅ Agar payment completed hai toh agey badho
     if (validItems.length === 0) {
       alert("Your cart is empty.");
       return;
     }
 
     setSubmitting(true);
-    const orderRef = `AX-${Date.now()
-      .toString(36)
-      .toUpperCase()}-${Math.random()
-      .toString(36)
-      .substring(2, 6)
-      .toUpperCase()}`;
+    const orderRef =
+      orderNumber ||
+      `AX-${Date.now().toString(36).toUpperCase()}-${Math.random()
+        .toString(36)
+        .substring(2, 6)
+        .toUpperCase()}`;
     setOrderNumber(orderRef);
 
     try {
@@ -433,17 +570,20 @@ export default function Checkout() {
         subtotal: subtotal,
         shipping_cost: shipping,
         total_amount: total,
-        status: "pending",
+        status: "processing",
+        payment_status: "paid",
+        payment_method: selectedPaymentMethod === "card" ? "stripe" : "paypal",
         items: orderItems,
       });
 
       if (orderError) {
         console.error("Order save error:", orderError);
-        alert("Failed to save order. Please try again.");
+        alert("Failed to save order. Please contact support.");
         setSubmitting(false);
         return;
       }
 
+      // Send notification (optional - don't block order)
       try {
         const notificationData = {
           orderNumber: orderRef,
@@ -472,9 +612,8 @@ export default function Checkout() {
           shippingAddress: `${form.address}${
             form.apartment ? `, ${form.apartment}` : ""
           }, ${form.city}, ${form.zip}`,
-          paymentMethod: "Card",
+          paymentMethod: selectedPaymentMethod === "card" ? "Stripe" : "PayPal",
         };
-
         await fetch("/api/send-order-notification", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -485,16 +624,16 @@ export default function Checkout() {
       }
 
       await clearCart();
+      clearSavedCheckoutData();
       setPlaced(true);
     } catch (error) {
       console.error("Order placement error:", error);
       alert("There was an error placing your order. Please try again.");
-    } finally {
       setSubmitting(false);
     }
   };
 
-  // Show loading state
+  // Loading state
   if (!mounted || (loading && items.length === 0)) {
     return (
       <div className="co-root">
@@ -645,489 +784,59 @@ export default function Checkout() {
           <div className="co-form-col">
             {/* STEP 1: SHIPPING */}
             {step === "shipping" && (
-              <div className="co-section">
-                <h2 className="co-section-title">
-                  <em>01.</em> Shipping Information
-                </h2>
-                <div className="co-fields-grid">
-                  <div
-                    className={`co-field co-field--half ${
-                      focused === "firstName" ? "co-field--focused" : ""
-                    } ${getFieldError("firstName") ? "co-field--error" : ""}`}
-                  >
-                    <label className="co-label">First Name *</label>
-                    <div className="co-input-wrap">
-                      <input
-                        type="text"
-                        className="co-input"
-                        placeholder="John"
-                        value={form.firstName}
-                        onChange={setFormField("firstName")}
-                        onFocus={() => setFocused("firstName")}
-                        onBlur={() => {
-                          setFocused(null);
-                          handleBlur("firstName");
-                        }}
-                      />
-                    </div>
-                    <div className="co-field-line" />
-                    {getFieldError("firstName") && (
-                      <span className="co-error-text">
-                        {getFieldError("firstName")}
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    className={`co-field co-field--half ${
-                      focused === "lastName" ? "co-field--focused" : ""
-                    } ${getFieldError("lastName") ? "co-field--error" : ""}`}
-                  >
-                    <label className="co-label">Last Name *</label>
-                    <div className="co-input-wrap">
-                      <input
-                        type="text"
-                        className="co-input"
-                        placeholder="Doe"
-                        value={form.lastName}
-                        onChange={setFormField("lastName")}
-                        onFocus={() => setFocused("lastName")}
-                        onBlur={() => {
-                          setFocused(null);
-                          handleBlur("lastName");
-                        }}
-                      />
-                    </div>
-                    <div className="co-field-line" />
-                    {getFieldError("lastName") && (
-                      <span className="co-error-text">
-                        {getFieldError("lastName")}
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    className={`co-field ${
-                      focused === "email" ? "co-field--focused" : ""
-                    } ${getFieldError("email") ? "co-field--error" : ""}`}
-                  >
-                    <label className="co-label">Email Address *</label>
-                    <div className="co-input-wrap">
-                      <input
-                        type="email"
-                        className="co-input"
-                        placeholder="john@example.com"
-                        value={form.email}
-                        onChange={setFormField("email")}
-                        onFocus={() => setFocused("email")}
-                        onBlur={() => {
-                          setFocused(null);
-                          handleBlur("email");
-                        }}
-                      />
-                    </div>
-                    <div className="co-field-line" />
-                    {getFieldError("email") && (
-                      <span className="co-error-text">
-                        {getFieldError("email")}
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    className={`co-field ${
-                      focused === "phone" ? "co-field--focused" : ""
-                    } ${getFieldError("phone") ? "co-field--error" : ""}`}
-                  >
-                    <label className="co-label">Phone Number *</label>
-                    <div className="co-input-wrap">
-                      <div className="co-phone-prefix">
-                        <span className="co-phone-flag">{selectedFlag}</span>
-                        <span className="co-phone-code">
-                          {selectedCountryCode}
-                        </span>
-                      </div>
-                      <input
-                        type="tel"
-                        className="co-input co-input-with-prefix"
-                        placeholder={phoneExample}
-                        value={form.phone}
-                        onChange={setFormField("phone")}
-                        onFocus={() => setFocused("phone")}
-                        onBlur={() => {
-                          setFocused(null);
-                          handleBlur("phone");
-                        }}
-                      />
-                    </div>
-                    <div className="co-field-line" />
-                    {getFieldError("phone") && (
-                      <span className="co-error-text">
-                        {getFieldError("phone")}
-                      </span>
-                    )}
-                    <span className="co-hint-text">
-                      We'll send order updates via SMS to this number
-                    </span>
-                  </div>
-
-                  <div
-                    className={`co-field ${
-                      focused === "address" ? "co-field--focused" : ""
-                    } ${getFieldError("address") ? "co-field--error" : ""}`}
-                  >
-                    <label className="co-label">Street Address *</label>
-                    <div className="co-input-wrap">
-                      <input
-                        type="text"
-                        className="co-input"
-                        placeholder="House number and street name"
-                        value={form.address}
-                        onChange={setFormField("address")}
-                        onFocus={() => setFocused("address")}
-                        onBlur={() => {
-                          setFocused(null);
-                          handleBlur("address");
-                        }}
-                      />
-                    </div>
-                    <div className="co-field-line" />
-                    {getFieldError("address") && (
-                      <span className="co-error-text">
-                        {getFieldError("address")}
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    className={`co-field ${
-                      focused === "apartment" ? "co-field--focused" : ""
-                    }`}
-                  >
-                    <label className="co-label">
-                      Apartment, Suite, etc. (Optional)
-                    </label>
-                    <div className="co-input-wrap">
-                      <input
-                        type="text"
-                        className="co-input"
-                        placeholder="Apt, Suite, Unit, Building"
-                        value={form.apartment}
-                        onChange={setFormField("apartment")}
-                        onFocus={() => setFocused("apartment")}
-                        onBlur={() => setFocused(null)}
-                      />
-                    </div>
-                    <div className="co-field-line" />
-                  </div>
-
-                  <div
-                    className={`co-field co-field--half ${
-                      focused === "city" ? "co-field--focused" : ""
-                    } ${getFieldError("city") ? "co-field--error" : ""}`}
-                  >
-                    <label className="co-label">City *</label>
-                    <div className="co-input-wrap">
-                      <input
-                        type="text"
-                        className="co-input"
-                        placeholder="New York"
-                        value={form.city}
-                        onChange={setFormField("city")}
-                        onFocus={() => setFocused("city")}
-                        onBlur={() => {
-                          setFocused(null);
-                          handleBlur("city");
-                        }}
-                      />
-                    </div>
-                    <div className="co-field-line" />
-                    {getFieldError("city") && (
-                      <span className="co-error-text">
-                        {getFieldError("city")}
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    className={`co-field co-field--half ${
-                      focused === "zip" ? "co-field--focused" : ""
-                    } ${getFieldError("zip") ? "co-field--error" : ""}`}
-                  >
-                    <label className="co-label">ZIP Code *</label>
-                    <div className="co-input-wrap">
-                      <input
-                        type="text"
-                        className="co-input"
-                        placeholder="10001"
-                        value={form.zip}
-                        onChange={setFormField("zip")}
-                        onFocus={() => setFocused("zip")}
-                        onBlur={() => {
-                          setFocused(null);
-                          handleBlur("zip");
-                        }}
-                      />
-                    </div>
-                    <div className="co-field-line" />
-                    {getFieldError("zip") && (
-                      <span className="co-error-text">
-                        {getFieldError("zip")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <ShippingSection
+                form={form}
+                setFormField={setFormField}
+                getFieldError={getFieldError}
+                handleBlur={handleBlur}
+                focused={focused}
+                setFocused={setFocused}
+                selectedFlag={selectedFlag}
+                selectedCountryCode={selectedCountryCode}
+                phoneExample={phoneExample}
+              />
             )}
 
-            {/* STEP 2: PAYMENT */}
+            {/* STEP 2: PAYMENT with Stripe & PayPal */}
             {step === "payment" && (
-              <div className="co-section">
-                <h2 className="co-section-title">
-                  <em>02.</em> Payment Details
-                </h2>
-                <div className="co-card-preview">
-                  <div className="co-card-chip" />
-                  <p className="co-card-num-display">
-                    {form.cardNumber ? form.cardNumber : "•••• •••• •••• ••••"}
-                  </p>
-                  <div className="co-card-meta">
-                    <span className="co-card-name-display">
-                      {form.cardName || "CARDHOLDER NAME"}
-                    </span>
-                    <span className="co-card-exp-display">
-                      {form.expiry || "MM/YY"}
-                    </span>
-                  </div>
-                  <div className="co-card-brand">TECH4U</div>
-                </div>
-                <div className="co-fields-grid">
-                  <div
-                    className={`co-field ${
-                      focused === "cardNumber" ? "co-field--focused" : ""
-                    } ${getFieldError("cardNumber") ? "co-field--error" : ""}`}
-                  >
-                    <label className="co-label">Card Number *</label>
-                    <div className="co-input-wrap">
-                      <input
-                        type="text"
-                        className="co-input"
-                        placeholder="1234 5678 9012 3456"
-                        value={form.cardNumber}
-                        onChange={setFormField("cardNumber")}
-                        onFocus={() => setFocused("cardNumber")}
-                        onBlur={() => {
-                          setFocused(null);
-                          handleBlur("cardNumber");
-                        }}
-                        maxLength={19}
-                      />
-                    </div>
-                    <div className="co-field-line" />
-                    {getFieldError("cardNumber") && (
-                      <span className="co-error-text">
-                        {getFieldError("cardNumber")}
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    className={`co-field ${
-                      focused === "cardName" ? "co-field--focused" : ""
-                    } ${getFieldError("cardName") ? "co-field--error" : ""}`}
-                  >
-                    <label className="co-label">Cardholder Name *</label>
-                    <div className="co-input-wrap">
-                      <input
-                        type="text"
-                        className="co-input"
-                        placeholder="JOHN DOE"
-                        value={form.cardName}
-                        onChange={setFormField("cardName")}
-                        onFocus={() => setFocused("cardName")}
-                        onBlur={() => {
-                          setFocused(null);
-                          handleBlur("cardName");
-                        }}
-                      />
-                    </div>
-                    <div className="co-field-line" />
-                    {getFieldError("cardName") && (
-                      <span className="co-error-text">
-                        {getFieldError("cardName")}
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    className={`co-field co-field--half ${
-                      focused === "expiry" ? "co-field--focused" : ""
-                    } ${getFieldError("expiry") ? "co-field--error" : ""}`}
-                  >
-                    <label className="co-label">Expiry *</label>
-                    <div className="co-input-wrap">
-                      <input
-                        type="text"
-                        className="co-input"
-                        placeholder="MM/YY"
-                        value={form.expiry}
-                        onChange={setFormField("expiry")}
-                        onFocus={() => setFocused("expiry")}
-                        onBlur={() => {
-                          setFocused(null);
-                          handleBlur("expiry");
-                        }}
-                        maxLength={5}
-                      />
-                    </div>
-                    <div className="co-field-line" />
-                    {getFieldError("expiry") && (
-                      <span className="co-error-text">
-                        {getFieldError("expiry")}
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    className={`co-field co-field--half ${
-                      focused === "cvv" ? "co-field--focused" : ""
-                    } ${getFieldError("cvv") ? "co-field--error" : ""}`}
-                  >
-                    <label className="co-label">CVV *</label>
-                    <div className="co-input-wrap">
-                      <input
-                        type="password"
-                        className="co-input"
-                        placeholder="•••"
-                        value={form.cvv}
-                        onChange={setFormField("cvv")}
-                        onFocus={() => setFocused("cvv")}
-                        onBlur={() => {
-                          setFocused(null);
-                          handleBlur("cvv");
-                        }}
-                        maxLength={4}
-                      />
-                    </div>
-                    <div className="co-field-line" />
-                    {getFieldError("cvv") && (
-                      <span className="co-error-text">
-                        {getFieldError("cvv")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="co-secure-note">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    width="16"
-                    height="16"
-                  >
-                    <rect x="3" y="11" width="18" height="11" rx="2" />
-                    <path d="M7 11V7a5 5 0 0110 0v4" />
-                  </svg>
-                  <span>
-                    SSL secured checkout • Your payment info is encrypted
-                  </span>
-                </div>
-              </div>
+              <PaymentSection
+                form={form}
+                setFormField={setFormField}
+                getFieldError={getFieldError}
+                handleBlur={handleBlur}
+                focused={focused}
+                setFocused={setFocused}
+                totalAmount={total}
+                currency={currency.code}
+                orderNumber={orderNumber}
+                formData={{
+                  firstName: form.firstName,
+                  lastName: form.lastName,
+                  email: form.email,
+                  phone: `${selectedCountryCode}${form.phone}`,
+                  address: form.address,
+                  apartment: form.apartment,
+                  city: form.city,
+                  zip: form.zip,
+                }}
+                subtotal={subtotal}
+                shipping={shipping}
+                total={total}
+                onPaymentSuccess={handlePaymentSuccess}
+                onPaymentError={handlePaymentError}
+                onPaymentMethodChange={handlePaymentMethodChange}
+              />
             )}
 
             {/* STEP 3: REVIEW */}
             {step === "review" && (
-              <div className="co-section">
-                <h2 className="co-section-title">
-                  <em>03.</em> Review Your Order
-                </h2>
-                <div className="co-review-blocks">
-                  <div className="co-review-block">
-                    <p className="co-review-block-title">Shipping To</p>
-                    <p className="co-review-block-val">
-                      {form.firstName} {form.lastName}
-                      <br />
-                      {form.address}
-                      {form.apartment ? `, ${form.apartment}` : ""}
-                      <br />
-                      {form.city}, {form.zip}
-                      <br />
-                      📞 {selectedCountryCode} {form.phone}
-                      <br />
-                      📧 {form.email}
-                    </p>
-                  </div>
-                  <div className="co-review-block">
-                    <p className="co-review-block-title">Payment</p>
-                    <p className="co-review-block-val">
-                      Card ending in{" "}
-                      {form.cardNumber
-                        ? form.cardNumber.replace(/\s/g, "").slice(-4)
-                        : "••••"}
-                      <br />
-                      {form.cardName || "—"}
-                      <br />
-                      Expires: {form.expiry || "—"}
-                    </p>
-                  </div>
-                </div>
-                <ul className="co-review-items">
-                  {validItems.map((item) => {
-                    const product = item.product ?? {
-                      id: item.product_id,
-                      name: item.variant_name || "Product",
-                      description: "",
-                      category: "",
-                      subcategory: "",
-                      condition: "new",
-                      is_featured: false,
-                      is_active: true,
-                      price: item.variant_price ?? 0,
-                      images: [],
-                    };
-                    const ppu = item.pieces_per_unit ?? 1;
-                    const pricePerPiecePKR =
-                      item.variant_price ?? product.price ?? 0;
-                    const itemTotalPKR = pricePerPiecePKR * ppu * item.quantity;
-                    const rowPhysicalPieces = ppu * item.quantity;
-                    const displayName =
-                      item.variant_name && item.variant_name !== "Standard"
-                        ? `${product.name} (${item.variant_name})${
-                            ppu > 1 ? ` - ${ppu}-Piece` : ""
-                          }`
-                        : ppu > 1
-                        ? `${product.name} (${ppu}-Piece)`
-                        : product.name;
-                    return (
-                      <li key={item.id} className="co-review-item">
-                        <div className="co-review-item-info">
-                          <p className="co-review-item-name">{displayName}</p>
-                          <p className="co-review-item-variant">
-                            {product.subcategory} × {item.quantity} unit
-                            {item.quantity !== 1 ? "s" : ""}
-                            {ppu > 1 && ` (${rowPhysicalPieces} total pieces)`}
-                          </p>
-                        </div>
-                        <span className="co-review-item-price">
-                          {formatPrice(itemTotalPKR)}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <p className="co-review-terms">
-                  By placing your order, you agree to our{" "}
-                  <Link href="/terms" className="co-review-link">
-                    Terms of Service
-                  </Link>{" "}
-                  and{" "}
-                  <Link href="/privacy" className="co-review-link">
-                    Privacy Policy
-                  </Link>
-                  .
-                </p>
-              </div>
+              <ReviewSection
+                items={validItems}
+                form={form}
+                selectedCountryCode={selectedCountryCode}
+                selectedFlag={selectedFlag}
+                formatPrice={formatPrice}
+              />
             )}
 
             <div className="co-nav-btns">
@@ -1155,7 +864,7 @@ export default function Checkout() {
                     <>Place Order →</>
                   )}
                 </button>
-              ) : (
+              ) : step === "payment" ? null : (
                 <button className="co-next-btn" onClick={nextStep}>
                   Continue →
                 </button>
@@ -1165,115 +874,14 @@ export default function Checkout() {
 
           {/* RIGHT COLUMN - ORDER SUMMARY */}
           <div className="co-summary-col">
-            <div className="co-summary-card">
-              <p className="co-summary-title">
-                <span className="co-ey-line" />
-                Order Summary
-                <span className="co-ey-line" />
-              </p>
-              <ul className="co-summary-items">
-                {validItems.slice(0, 3).map((item) => {
-                  const product = item.product ?? {
-                    id: item.product_id,
-                    name: item.variant_name || "Product",
-                    description: "",
-                    category: "",
-                    subcategory: "",
-                    condition: "new",
-                    is_featured: false,
-                    is_active: true,
-                    price: item.variant_price ?? 0,
-                    images: item.variant_image ? [item.variant_image] : [],
-                  };
-                  const ppu = item.pieces_per_unit ?? 1;
-                  const pricePerPiecePKR =
-                    item.variant_price ?? product.price ?? 0;
-                  const itemTotalPKR = pricePerPiecePKR * ppu * item.quantity;
-                  const displayImage =
-                    item.variant_image || product.images?.[0] || null;
-                  const displayName =
-                    item.variant_name && item.variant_name !== "Standard"
-                      ? `${product.name} (${item.variant_name})`
-                      : product.name;
-                  return (
-                    <li key={item.id} className="co-summary-item">
-                      <div className="co-summary-item-img">
-                        {displayImage ? (
-                          <img
-                            src={displayImage}
-                            alt={product.name}
-                            style={{
-                              objectFit: "cover",
-                              width: "100%",
-                              height: "100%",
-                            }}
-                          />
-                        ) : (
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="0.8"
-                          >
-                            <rect x="3" y="3" width="18" height="18" rx="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <polyline points="21 15 16 10 5 21" />
-                          </svg>
-                        )}
-                      </div>
-                      <div className="co-summary-item-info">
-                        <p className="co-summary-item-name">{displayName}</p>
-                        <p className="co-summary-item-variant">
-                          {ppu > 1 ? `${ppu}-Piece × ` : ""}
-                          {item.quantity}{" "}
-                          {item.quantity === 1 ? "unit" : "units"}
-                        </p>
-                      </div>
-                      <span className="co-summary-item-price">
-                        {formatPrice(itemTotalPKR)}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-              {validItems.length > 3 && (
-                <div className="co-summary-more">
-                  +{validItems.length - 3} more item
-                  {validItems.length - 3 > 1 ? "s" : ""}
-                </div>
-              )}
-              <div className="co-summary-breakdown">
-                <div className="co-summary-row">
-                  <span>
-                    Subtotal ({cartCount} {cartCount === 1 ? "item" : "items"})
-                  </span>
-                  <span>{formatPrice(subtotal)}</span>
-                </div>
-                <div className="co-summary-row">
-                  <span>Shipping</span>
-                  <span>{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
-                </div>
-                <div className="co-summary-divider" />
-                <div className="co-summary-row co-summary-total">
-                  <span>Total</span>
-                  <span>{formatPrice(total)}</span>
-                </div>
-              </div>
-              <div className="co-perks">
-                <div className="co-perk">
-                  <span className="co-perk-icon">🔒</span>
-                  <span className="co-perk-text">Secure Checkout</span>
-                </div>
-                <div className="co-perk">
-                  <span className="co-perk-icon">↩</span>
-                  <span className="co-perk-text">30-Day Easy Returns</span>
-                </div>
-                <div className="co-perk">
-                  <span className="co-perk-icon">✦</span>
-                  <span className="co-perk-text">Luxury Packaging</span>
-                </div>
-              </div>
-            </div>
+            <CartSummary
+              items={validItems}
+              subtotal={subtotal}
+              shipping={shipping}
+              total={total}
+              cartCount={cartCount}
+              formatPrice={formatPrice}
+            />
           </div>
         </div>
       </div>

@@ -1,0 +1,282 @@
+/* ============================================================
+      ESTIMATED DELIVERY SECTION (Light Theme - Luxury)
+      ============================================================ */
+
+.pd-delivery-section {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: var(--pd-light-bg, #ffffff);
+  border: 1px solid var(--pd-border, rgba(184, 134, 11, 0.18));
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pd-delivery-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--pd-gold, #daa520),
+    var(--pd-gold-light, #f0c040),
+    var(--pd-gold, #daa520)
+  );
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.5s ease;
+}
+
+.pd-delivery-section:hover::before {
+  transform: scaleX(1);
+}
+
+.pd-delivery-section:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 35px rgba(218, 165, 32, 0.12);
+  border-color: var(--pd-gold, #daa520);
+}
+
+.pd-delivery-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1.2rem;
+}
+
+.pd-delivery-icon {
+  width: 44px;
+  height: 44px;
+  background: rgba(218, 165, 32, 0.08);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pd-gold-dark, #8b6914);
+  transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pd-delivery-section:hover .pd-delivery-icon {
+  transform: scale(1.08);
+  background: var(--pd-gold, #daa520);
+  color: white;
+}
+
+.pd-delivery-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.pd-delivery-title {
+  font-family: var(--pd-sans, "Goldman", "Josefin Sans", sans-serif);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--pd-black, #1a1a1a);
+  margin: 0;
+}
+
+.pd-delivery-sub {
+  font-family: var(--pd-sans, "Goldman", "Josefin Sans", sans-serif);
+  font-size: 0.55rem;
+  font-weight: 400;
+  color: var(--pd-grey-dim, #666666);
+  margin: 0;
+}
+
+/* Timeline */
+.pd-delivery-timeline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 1.2rem 0;
+  position: relative;
+  padding: 0 0.5rem;
+}
+
+.pd-timeline-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 2;
+  background: var(--pd-light-bg, #ffffff);
+  padding: 0 0.5rem;
+}
+
+.pd-timeline-dot {
+  width: 12px;
+  height: 12px;
+  background: var(--pd-gold, #daa520);
+  border-radius: 50%;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.pd-timeline-dot::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  background: rgba(218, 165, 32, 0.15);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.pd-delivery-section:hover .pd-timeline-dot::before {
+  opacity: 1;
+}
+
+.pd-timeline-label {
+  font-family: var(--pd-sans, "Goldman", "Josefin Sans", sans-serif);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--pd-gold-dark, #8b6914);
+}
+
+.pd-timeline-date {
+  font-family: var(--pd-serif, "Goldman", "Cormorant Garamond", Georgia, serif);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--pd-black, #1a1a1a);
+}
+
+.pd-timeline-line {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--pd-gold, #daa520),
+    rgba(218, 165, 32, 0.15)
+  );
+  margin: 0 0.25rem;
+}
+
+/* Delivery rows */
+.pd-delivery-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0;
+  border-bottom: 1px dashed var(--pd-border, rgba(184, 134, 11, 0.18));
+}
+
+.pd-delivery-row:last-child {
+  border-bottom: none;
+}
+
+.pd-delivery-row-label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--pd-sans, "Goldman", "Josefin Sans", sans-serif);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--pd-grey, #444444);
+}
+
+.pd-delivery-row-label svg {
+  width: 15px;
+  height: 15px;
+  color: var(--pd-gold, #daa520);
+}
+
+.pd-delivery-row-value {
+  font-family: var(--pd-serif, "Goldman", "Cormorant Garamond", Georgia, serif);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--pd-gold-dark, #8b6914);
+}
+
+.pd-delivery-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--pd-border, rgba(184, 134, 11, 0.18));
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.pd-delivery-status-text {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--pd-sans, "Goldman", "Josefin Sans", sans-serif);
+  font-size: 0.58rem;
+  font-weight: 500;
+  color: var(--pd-grey, #444444);
+}
+
+.pd-delivery-status-text svg {
+  width: 14px;
+  height: 14px;
+}
+
+.pd-delivery-urgency {
+  font-family: var(--pd-sans, "Goldman", "Josefin Sans", sans-serif);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.3rem 0.9rem;
+  background: rgba(34, 197, 94, 0.08);
+  border-radius: 30px;
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.15);
+}
+
+/* Skeleton Loading */
+.pd-delivery-skeleton {
+  padding: 1rem;
+}
+
+.pd-skel-delivery-line {
+  background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
+  background-size: 200% 100%;
+  animation: pd-skel-delivery-wave 1.2s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+@keyframes pd-skel-delivery-wave {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pd-delivery-timeline {
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  .pd-timeline-line {
+    width: 2px;
+    height: 20px;
+    min-height: 20px;
+  }
+  .pd-timeline-node {
+    flex-direction: row;
+    gap: 1rem;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .pd-delivery-status {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

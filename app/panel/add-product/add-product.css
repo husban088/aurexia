@@ -1,6 +1,7 @@
 /* ============================================================
    ADD PRODUCT FORMS  ·  add-product.css
    Light/Luxury theme matching Featured Products
+   FIXED: No scroll jump on typing/images
    ============================================================ */
 @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Josefin+Sans:wght@200;300;400;500;600&display=swap");
 
@@ -31,7 +32,7 @@
   color: #1a1a1a;
   padding-top: var(--ap-nav-h);
   position: relative;
-  overflow-x: hidden;
+  overflow-x: visible; /* ✅ FIXED: Changed from hidden to visible */
   isolation: isolate;
 }
 
@@ -213,14 +214,43 @@
   display: grid;
   grid-template-columns: 1fr 380px;
   gap: 1.5rem;
-  align-items: start;
+  align-items: flex-start; /* ✅ FIXED: Changed from start to flex-start */
 }
 
+/* ✅ FIXED: Form Grid Simple - critical for no scroll */
+.ap-form-grid-simple {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 1.5rem;
+  align-items: flex-start; /* ✅ FIXED: Align at top, no height sync */
+}
+
+/* ✅ FIXED: Form Grid Detailed */
+.ap-form-grid-detailed {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 1.5rem;
+  align-items: flex-start; /* ✅ FIXED: Align at top */
+}
+
+.ap-detailed-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.ap-detailed-right {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ✅ FIXED: Card - removed overflow hidden */
 .ap-card {
   background: #ffffff;
   border: 1px solid rgba(218, 165, 32, 0.12);
   border-radius: 16px;
-  overflow: hidden;
+  overflow: visible; /* ✅ FIXED: Changed from hidden to visible */
 }
 
 .ap-card-header {
@@ -763,7 +793,8 @@
 
 /* ── Responsive ── */
 @media (max-width: 900px) {
-  .ap-form-grid {
+  .ap-form-grid-simple,
+  .ap-form-grid-detailed {
     grid-template-columns: 1fr;
   }
 }
@@ -785,8 +816,8 @@
 }
 
 /* ============================================================
-         MULTI-SELECT TAG INPUT STYLES
-         ============================================================ */
+               MULTI-SELECT TAG INPUT STYLES
+               ============================================================ */
 
 .ap-multi-select-wrap {
   width: 100%;
@@ -799,7 +830,6 @@
 .ap-multi-select-wrap:focus-within {
   border-color: #daa520;
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(218, 165, 32, 0.1);
 }
 
 .ap-multi-select-tags {
@@ -875,7 +905,6 @@
   margin-top: 0.25rem;
   max-height: 200px;
   overflow-y: auto;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
 
 .ap-suggestion-item {
@@ -899,8 +928,8 @@
 }
 
 /* ============================================================
-         VARIANT IMAGES SECTION - NEW STYLES
-         ============================================================ */
+               VARIANT IMAGES SECTION - NEW STYLES
+               ============================================================ */
 
 /* Variant Images Grid */
 .ap-variant-grid {
@@ -1240,8 +1269,8 @@
 }
 
 /* ============================================================
-      NEW STYLES FOR UPDATED ADD PRODUCT PAGE
-      ============================================================ */
+            NEW STYLES FOR UPDATED ADD PRODUCT PAGE
+            ============================================================ */
 
 /* Mode Selection Buttons */
 .ap-mode-buttons {
@@ -1286,26 +1315,25 @@
 .ap-mode-btn.active {
   border-color: #daa520;
   background: rgba(218, 165, 32, 0.06);
-  box-shadow: 0 4px 20px rgba(218, 165, 32, 0.15);
 }
 
 .ap-mode-btn.active span {
   color: #8b6914;
 }
 
-/* Form Grid Layouts */
+/* ✅ FIXED: Form Grid Layouts */
 .ap-form-grid-simple {
   display: grid;
   grid-template-columns: 1fr 380px;
   gap: 1.5rem;
-  align-items: start;
+  align-items: flex-start;
 }
 
 .ap-form-grid-detailed {
   display: grid;
   grid-template-columns: 1fr 380px;
   gap: 1.5rem;
-  align-items: start;
+  align-items: flex-start;
 }
 
 .ap-detailed-left {
@@ -1579,8 +1607,8 @@
 }
 
 /* ============================================================
-      IMPROVED FAQ SECTION STYLES
-      ============================================================ */
+            IMPROVED FAQ SECTION STYLES
+            ============================================================ */
 
 /* FAQ Section Main Container */
 .ap-faq-section {
@@ -1604,7 +1632,6 @@
 
 .ap-faq-item:hover {
   border-color: rgba(218, 165, 32, 0.3);
-  box-shadow: 0 2px 8px rgba(218, 165, 32, 0.05);
 }
 
 /* FAQ Header - Question Row */
@@ -1695,7 +1722,6 @@
 .ap-faq-answer-input:focus {
   border-color: #daa520;
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(218, 165, 32, 0.1);
 }
 
 /* Add FAQ Button - Smaller and cleaner */
@@ -1749,8 +1775,8 @@
 }
 
 /* ============================================================
-      STOCK MANAGEMENT SECTION STYLES
-      ============================================================ */
+            STOCK MANAGEMENT SECTION STYLES
+            ============================================================ */
 
 .ap-stock-management {
   display: flex;
@@ -1860,8 +1886,8 @@
 }
 
 /* ============================================================
-      SIMPLIFIED STOCK STATUS OPTIONS
-      ============================================================ */
+            SIMPLIFIED STOCK STATUS OPTIONS
+            ============================================================ */
 
 /* Stock Status Radio Group */
 .ap-stock-radio-group {
@@ -1964,7 +1990,6 @@
 
 .ap-low-stock-threshold input:focus {
   border-color: #f59e0b;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1);
 }
 
 .ap-low-stock-threshold span {
@@ -2001,8 +2026,8 @@
 }
 
 /* ============================================================
-      BULK PRICING SECTION STYLES
-      ============================================================ */
+            BULK PRICING SECTION STYLES
+            ============================================================ */
 
 .ap-bulk-pricing-section {
   margin-top: 1rem;
@@ -2265,8 +2290,8 @@
 }
 
 /* ============================================================
-      UPDATED BULK PRICING SECTION STYLES
-      ============================================================ */
+            UPDATED BULK PRICING SECTION STYLES
+            ============================================================ */
 
 .ap-bulk-pricing-section {
   margin-top: 1rem;
@@ -2680,4 +2705,335 @@
   letter-spacing: 0.05em;
   color: #1a1a1a;
   cursor: pointer;
+}
+
+/* ============================================================
+         RICH TEXT EDITOR STYLES
+         ============================================================ */
+
+.ap-rich-editor {
+  width: 100%;
+  border-radius: 12px;
+  overflow: visible; /* ✅ FIXED: Changed from hidden to visible */
+  transition: all 0.3s ease;
+}
+
+.ap-quill-editor {
+  background: #ffffff;
+  overflow: visible; /* ✅ FIXED: Allow editor expansion without clipping */
+}
+
+.ap-quill-editor :global(.ql-toolbar) {
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  background: rgba(218, 165, 32, 0.04);
+  border-color: rgba(218, 165, 32, 0.15);
+  border-bottom: none;
+}
+
+.ap-quill-editor :global(.ql-container) {
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  border-color: rgba(218, 165, 32, 0.15);
+  font-family: var(--ap-sans);
+  font-size: 0.9rem;
+  min-height: 200px; /* ✅ FIXED: Reduced from 250px to reduce height changes */
+  z-index: -1 !important;
+}
+
+.ap-quill-editor :global(.ql-editor) {
+  min-height: 200px;
+  background: #ffffff;
+  color: #1a1a1a;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.ap-quill-editor :global(.ql-editor h1) {
+  font-family: var(--ap-serif);
+  font-size: 1.8rem;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.ap-quill-editor :global(.ql-editor h2) {
+  font-family: var(--ap-serif);
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.ap-quill-editor :global(.ql-editor h3) {
+  font-family: var(--ap-serif);
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.ap-quill-editor :global(.ql-editor ul),
+.ap-quill-editor :global(.ql-editor ol) {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.ap-quill-editor :global(.ql-editor li) {
+  margin: 0.25rem 0;
+}
+
+.ap-quill-editor :global(.ql-editor blockquote) {
+  border-left: 3px solid #daa520;
+  padding-left: 1rem;
+  margin: 0.5rem 0;
+  color: #444;
+  font-style: italic;
+}
+
+.ap-quill-editor :global(.ql-editor code) {
+  background: rgba(218, 165, 32, 0.1);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.85em;
+}
+
+.ap-quill-editor :global(.ql-editor pre.ql-syntax) {
+  background: #1a1a1a;
+  color: #f0c040;
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.ap-quill-editor :global(.ql-editor img) {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+
+.ap-quill-editor :global(.ql-editor a) {
+  color: #daa520;
+  text-decoration: none;
+}
+
+.ap-quill-editor :global(.ql-editor a:hover) {
+  text-decoration: underline;
+}
+
+.ap-quill-editor :global(.ql-editor .ql-size-small) {
+  font-size: 0.75rem;
+}
+
+.ap-quill-editor :global(.ql-editor .ql-size-large) {
+  font-size: 1.2rem;
+}
+
+.ap-quill-editor :global(.ql-editor .ql-size-huge) {
+  font-size: 1.5rem;
+}
+
+/* Color picker styles */
+.ap-quill-editor :global(.ql-color) {
+  color: #1a1a1a;
+}
+
+.ap-quill-editor :global(.ql-background) {
+  background-color: #1a1a1a;
+}
+
+/* Image limit info */
+.ap-image-limit-info {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background: rgba(218, 165, 32, 0.05);
+  border-radius: 8px;
+  font-family: var(--ap-sans);
+  font-size: 0.55rem;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ap-image-limit-warning {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+/* ============================================================
+         RICH TEXT EDITOR STYLES - FIXED Z-INDEX
+         ============================================================ */
+
+.ap-rich-editor {
+  width: 100%;
+  border-radius: 12px;
+  overflow: visible;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.ap-quill-editor {
+  background: #ffffff;
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+
+/* ✅ FIXED: Toolbar ka z-index high rakha hai */
+.ap-quill-editor :global(.ql-toolbar) {
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  background: rgba(218, 165, 32, 0.04);
+  border-color: rgba(218, 165, 32, 0.15);
+  border-bottom: none;
+  position: relative;
+  z-index: 1000 !important;
+}
+
+/* ✅ FIXED: Picker dropdowns ko uper dikhane ke liye */
+.ap-quill-editor :global(.ql-picker) {
+  position: relative;
+  z-index: 1001 !important;
+}
+
+.ap-quill-editor :global(.ql-picker-options) {
+  z-index: 10000 !important;
+  background: white !important;
+  border: 1px solid rgba(218, 165, 32, 0.2) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+  max-height: 300px !important;
+  overflow-y: auto !important;
+}
+
+.ap-quill-editor :global(.ql-picker-item) {
+  padding: 8px 12px !important;
+  font-family: var(--ap-sans) !important;
+  font-size: 0.85rem !important;
+  transition: all 0.2s !important;
+}
+
+.ap-quill-editor :global(.ql-picker-item:hover) {
+  background: rgba(218, 165, 32, 0.1) !important;
+  color: #8b6914 !important;
+}
+
+/* ✅ FIXED: Color picker dropdown */
+.ap-quill-editor :global(.ql-color-picker .ql-picker-options) {
+  width: 200px !important;
+  padding: 10px !important;
+}
+
+.ap-quill-editor :global(.ql-color-picker .ql-picker-item) {
+  width: 26px !important;
+  height: 26px !important;
+  margin: 3px !important;
+  border-radius: 6px !important;
+}
+
+/* ✅ FIXED: Container ka z-index kam rakha taake dropdown uper aaye */
+.ap-quill-editor :global(.ql-container) {
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  border-color: rgba(218, 165, 32, 0.15);
+  font-family: var(--ap-sans);
+  font-size: 0.9rem;
+  min-height: 200px;
+  position: relative;
+  z-index: 1;
+}
+
+.ap-quill-editor :global(.ql-editor) {
+  min-height: 200px;
+  background: #ffffff;
+  color: #1a1a1a;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  position: relative;
+  z-index: 1;
+}
+
+/* Font styles */
+.ap-quill-editor :global(.ql-editor h1) {
+  font-family: var(--ap-serif);
+  font-size: 1.8rem;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.ap-quill-editor :global(.ql-editor h2) {
+  font-family: var(--ap-serif);
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.ap-quill-editor :global(.ql-editor h3) {
+  font-family: var(--ap-serif);
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.ap-quill-editor :global(.ql-editor ul),
+.ap-quill-editor :global(.ql-editor ol) {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.ap-quill-editor :global(.ql-editor li) {
+  margin: 0.25rem 0;
+}
+
+.ap-quill-editor :global(.ql-editor blockquote) {
+  border-left: 3px solid #daa520;
+  padding-left: 1rem;
+  margin: 0.5rem 0;
+  color: #444;
+  font-style: italic;
+}
+
+.ap-quill-editor :global(.ql-editor code) {
+  background: rgba(218, 165, 32, 0.1);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.85em;
+}
+
+.ap-quill-editor :global(.ql-editor pre.ql-syntax) {
+  background: #1a1a1a;
+  color: #f0c040;
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.ap-quill-editor :global(.ql-editor img) {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+
+.ap-quill-editor :global(.ql-editor a) {
+  color: #daa520;
+  text-decoration: none;
+}
+
+.ap-quill-editor :global(.ql-editor a:hover) {
+  text-decoration: underline;
+}
+
+/* Size styles */
+.ap-quill-editor :global(.ql-editor .ql-size-small) {
+  font-size: 0.75rem;
+}
+
+.ap-quill-editor :global(.ql-editor .ql-size-large) {
+  font-size: 1.2rem;
+}
+
+.ap-quill-editor :global(.ql-editor .ql-size-huge) {
+  font-size: 1.5rem;
 }

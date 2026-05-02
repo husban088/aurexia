@@ -3,7 +3,7 @@
    Premium Theme with High Contrast Text
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
 
 /* ── Variables - High Contrast Theme ── */
 :root {
@@ -23,8 +23,8 @@
   --ea-text-light: #444444;
   --ea-text-gold: #8b6914;
   --ea-text-gold-bright: #9b7b2c;
-  --ea-serif: "Goldman", "Cormorant Garamond", Georgia, serif;
-  --ea-sans: "Goldman", "Josefin Sans", sans-serif;
+  --ea-serif: "Poppins", sans-serif;
+  --ea-sans: "Poppins", sans-serif;
   --ea-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 

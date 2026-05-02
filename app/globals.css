@@ -1,6 +1,6 @@
-/* ── Google Fonts — MUST be first, before any other rules ── */
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
+/* ── Google Fonts — Poppins and fallbacks ── */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&display=swap");
 
 /* ── Tailwind ── */
 @import "tailwindcss";
@@ -8,9 +8,8 @@
 :root {
   --background: #f5f0e8;
   --foreground: #f5f0e8;
-  --font-goldman: "Goldman", "Jost", "Segoe UI", system-ui, -apple-system,
+  --font-poppins: "Poppins", "Segoe UI", system-ui, -apple-system,
     BlinkMacSystemFont, sans-serif;
-  --font-jost: "Jost", sans-serif;
   --font-cormorant: "Cormorant Garamond", serif;
 }
 
@@ -33,10 +32,10 @@ html {
 }
 
 /* ============================================================
-   GOLDMAN FONT - MAIN FONT FOR ENTIRE PROJECT
+   POPPINS FONT - MAIN FONT FOR ENTIRE PROJECT
    ============================================================ */
 
-/* Set Goldman as default font for everything */
+/* Set Poppins as default font for everything */
 body,
 h1,
 h2,
@@ -61,8 +60,15 @@ label,
 .cart-item,
 .checkout-form,
 .panel,
-.admin-panel {
-  font-family: var(--font-goldman);
+.admin-panel,
+.ap-root,
+.ep-root,
+.pd-root,
+.co-root,
+.fp-root,
+.pg-root,
+.rp-root {
+  font-family: var(--font-poppins);
 }
 
 /* Override for specific elements that need different fonts */
@@ -74,12 +80,12 @@ samp,
   font-family: monospace;
 }
 
-/* For headings - keep Goldman but adjust weight */
+/* For headings - Poppins with proper weight */
 h1,
 .h1,
 .page-title,
 .hero-title {
-  font-family: var(--font-goldman);
+  font-family: var(--font-poppins);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -87,7 +93,7 @@ h1,
 h2,
 .h2,
 .section-title {
-  font-family: var(--font-goldman);
+  font-family: var(--font-poppins);
   font-weight: 700;
   letter-spacing: -0.01em;
 }
@@ -95,7 +101,7 @@ h2,
 h3,
 .h3,
 .card-title {
-  font-family: var(--font-goldman);
+  font-family: var(--font-poppins);
   font-weight: 600;
 }
 
@@ -103,7 +109,7 @@ h3,
 button,
 .btn,
 .cta-button {
-  font-family: var(--font-goldman);
+  font-family: var(--font-poppins);
   font-weight: 600;
   letter-spacing: 0.03em;
 }
@@ -112,7 +118,7 @@ button,
 .nav-links a,
 .navbar a,
 .menu-item {
-  font-family: var(--font-goldman);
+  font-family: var(--font-poppins);
   font-weight: 500;
   letter-spacing: 0.05em;
 }
@@ -122,7 +128,7 @@ button,
 .product-title,
 .fp-card-name,
 .pg-card-name {
-  font-family: var(--font-goldman);
+  font-family: var(--font-poppins);
   font-weight: 600;
 }
 
@@ -131,7 +137,7 @@ button,
 .product-price,
 .fp-card-price,
 .pg-card-price {
-  font-family: var(--font-goldman);
+  font-family: var(--font-poppins);
   font-weight: 700;
 }
 
@@ -140,7 +146,7 @@ label,
 input,
 textarea,
 select {
-  font-family: var(--font-goldman);
+  font-family: var(--font-poppins);
 }
 
 /* Small text, meta info */
@@ -149,7 +155,7 @@ select {
 .eyebrow,
 .badge,
 .stock-status {
-  font-family: var(--font-goldman);
+  font-family: var(--font-poppins);
   font-weight: 400;
   letter-spacing: 0.05em;
 }
@@ -157,8 +163,18 @@ select {
 /* Footer text */
 .footer-text,
 .copyright {
-  font-family: var(--font-goldman);
+  font-family: var(--font-poppins);
   font-weight: 400;
+}
+
+/* Remove italic from all elements - Poppins supports italic but we'll remove if needed */
+i,
+em,
+cite,
+address,
+var,
+.italic {
+  font-style: normal !important;
 }
 
 /* ============================================================
@@ -168,7 +184,7 @@ select {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-goldman);
+  font-family: var(--font-poppins);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden !important;
@@ -200,26 +216,52 @@ a {
    ADDITIONAL HELPER CLASSES
    ============================================================ */
 
-/* Goldman font variations */
-.font-goldman {
-  font-family: "Goldman", "Jost", sans-serif;
+/* Poppins font variations */
+.font-poppins {
+  font-family: "Poppins", sans-serif;
 }
 
-.font-goldman-regular {
-  font-family: "Goldman", "Jost", sans-serif;
+.font-poppins-thin {
+  font-family: "Poppins", sans-serif;
+  font-weight: 100;
+}
+
+.font-poppins-light {
+  font-family: "Poppins", sans-serif;
+  font-weight: 300;
+}
+
+.font-poppins-regular {
+  font-family: "Poppins", sans-serif;
   font-weight: 400;
 }
 
-.font-goldman-bold {
-  font-family: "Goldman", "Jost", sans-serif;
+.font-poppins-medium {
+  font-family: "Poppins", sans-serif;
+  font-weight: 500;
+}
+
+.font-poppins-semibold {
+  font-family: "Poppins", sans-serif;
+  font-weight: 600;
+}
+
+.font-poppins-bold {
+  font-family: "Poppins", sans-serif;
   font-weight: 700;
 }
 
-/* Fallback fonts */
-.font-jost {
-  font-family: "Jost", sans-serif;
+.font-poppins-extrabold {
+  font-family: "Poppins", sans-serif;
+  font-weight: 800;
 }
 
+.font-poppins-black {
+  font-family: "Poppins", sans-serif;
+  font-weight: 900;
+}
+
+/* Fallback fonts */
 .font-cormorant {
   font-family: "Cormorant Garamond", serif;
 }
