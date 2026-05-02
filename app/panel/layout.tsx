@@ -1,15 +1,39 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isOwner } from "@/lib/checkOwner";
 
-// ✅ Module-level cache — page navigate karne pe reset nahi hoga
-let authCache: {
-  authorized: boolean;
-  checked: boolean;
-} = { authorized: false, checked: false };
+const CACHE_KEY = "panel_auth_ok";
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+function getCachedAuth(): boolean {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    const { ok, ts } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_TTL) {
+      sessionStorage.removeItem(CACHE_KEY);
+      return false;
+    }
+    return ok === true;
+  } catch {
+    return false;
+  }
+}
+
+function setCachedAuth(ok: boolean) {
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ok, ts: Date.now() }));
+  } catch {}
+}
+
+function clearCachedAuth() {
+  try {
+    sessionStorage.removeItem(CACHE_KEY);
+  } catch {}
+}
 
 export default function PanelLayout({
   children,
@@ -18,86 +42,91 @@ export default function PanelLayout({
 }) {
   const pathname = usePathname();
 
-  // ✅ Agar already check ho chuka hai toh seedha state set karo — no loading
-  const [isAuthorized, setIsAuthorized] = useState<boolean>(
-    authCache.checked ? authCache.authorized : false
-  );
-  const [checking, setChecking] = useState<boolean>(!authCache.checked);
-  const checkingRef = useRef(false);
+  // ✅ KEY INSIGHT:
+  // Agar cache hai → seedha children show karo (NO loading screen)
+  // Background mein quietly session verify karo
+  // Agar session invalid nikli → tab redirect karo
+  // Agar cache nahi → tab loading show karo (sirf pehli dafa)
+
+  const [showContent, setShowContent] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
+  const didRun = useRef(false);
 
   useEffect(() => {
-    // ✅ Already cached — kuch nahi karna
-    if (authCache.checked) {
-      setIsAuthorized(authCache.authorized);
-      setChecking(false);
-      if (!authCache.authorized) {
-        window.location.replace(
-          "/signin?redirectTo=" + encodeURIComponent(pathname)
-        );
-      }
+    if (didRun.current) return;
+    didRun.current = true;
+
+    const cached = getCachedAuth();
+
+    if (cached) {
+      // ✅ Cache hai — FORAN content show karo, loading nahi
+      setShowContent(true);
+
+      // ✅ Background mein quietly verify karo (user ko pata nahi chalega)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session?.user || !isOwner(session.user.email)) {
+          // Session expire ho gayi — silently redirect
+          clearCachedAuth();
+          window.location.replace(
+            "/signin?redirectTo=" + encodeURIComponent(pathname)
+          );
+        } else {
+          // Session valid — cache refresh karo
+          setCachedAuth(true);
+        }
+      });
+
       return;
     }
 
-    // ✅ Prevent double-call
-    if (checkingRef.current) return;
-    checkingRef.current = true;
+    // ✅ Cache nahi — loading show karo aur check karo
+    setShowLoading(true);
 
     async function checkAuth() {
       try {
-        // ✅ getUser() is the most reliable — verifies with Supabase server
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session?.user && isOwner(session.user.email)) {
+          setCachedAuth(true);
+          setShowLoading(false);
+          setShowContent(true);
+          return;
+        }
+
+        // getSession failed — try getUser
         const {
           data: { user },
           error,
         } = await supabase.auth.getUser();
 
-        if (error || !user) {
-          // Try getSession as fallback
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
-
-          if (!session?.user) {
-            authCache = { authorized: false, checked: true };
-            setIsAuthorized(false);
-            setChecking(false);
-            window.location.replace(
-              "/signin?redirectTo=" + encodeURIComponent(pathname)
-            );
-            return;
-          }
-
-          // Session found via fallback
-          const authorized = isOwner(session.user.email);
-          authCache = { authorized, checked: true };
-          setIsAuthorized(authorized);
-          setChecking(false);
-          if (!authorized) window.location.replace("/");
+        if (!error && user && isOwner(user.email)) {
+          setCachedAuth(true);
+          setShowLoading(false);
+          setShowContent(true);
           return;
         }
 
-        const authorized = isOwner(user.email);
-        authCache = { authorized, checked: true };
-        setIsAuthorized(authorized);
-        setChecking(false);
-
-        if (!authorized) window.location.replace("/");
-      } catch (err) {
-        console.error("Panel auth error:", err);
-        // On error, try session fallback before giving up
+        // Not authenticated
+        clearCachedAuth();
+        window.location.replace(
+          "/signin?redirectTo=" + encodeURIComponent(pathname)
+        );
+      } catch {
+        // Network error — try one more time
         try {
           const {
             data: { session },
           } = await supabase.auth.getSession();
           if (session?.user && isOwner(session.user.email)) {
-            authCache = { authorized: true, checked: true };
-            setIsAuthorized(true);
-            setChecking(false);
+            setCachedAuth(true);
+            setShowLoading(false);
+            setShowContent(true);
             return;
           }
         } catch {}
-        authCache = { authorized: false, checked: true };
-        setIsAuthorized(false);
-        setChecking(false);
+
         window.location.replace(
           "/signin?redirectTo=" + encodeURIComponent(pathname)
         );
@@ -105,10 +134,9 @@ export default function PanelLayout({
     }
 
     checkAuth();
-  }, []); // ✅ Sirf mount pe — route changes pe repeat nahi
+  }, []);
 
-  // ✅ Authorized — seedha content, zero delay
-  if (!checking && isAuthorized) {
+  if (showContent) {
     return (
       <div className="panel-content" style={{ paddingTop: "0px" }}>
         {children}
@@ -116,8 +144,7 @@ export default function PanelLayout({
     );
   }
 
-  // ✅ Loading — sirf pehli dafa
-  if (checking) {
+  if (showLoading) {
     return (
       <div
         style={{
@@ -138,5 +165,7 @@ export default function PanelLayout({
     );
   }
 
-  return null;
+  // ✅ Na loading na content — blank screen (milliseconds ke liye)
+  // Isse flicker avoid hogi
+  return <div style={{ background: "#0a0a0a", minHeight: "100vh" }} />;
 }

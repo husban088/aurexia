@@ -2,13 +2,19 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isOwner } from "@/lib/checkOwner";
 import "./signin.css";
 
+// ✅ Same cache helpers as layout.tsx
+const CACHE_KEY = "panel_auth_ok";
+function setCachedAuth(ok: boolean) {
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ok, ts: Date.now() }));
+  } catch {}
+}
+
 export default function SignIn() {
-  const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -18,41 +24,23 @@ export default function SignIn() {
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    // ✅ Agar pehle se signed in hai toh seedha redirect karo
-    const checkExistingSession = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (session?.user) {
-          const params = new URLSearchParams(window.location.search);
-          const redirectTo = params.get("redirectTo");
-          const owner = isOwner(session.user.email);
-
-          if (redirectTo && redirectTo.startsWith("/panel") && owner) {
-            window.location.replace(redirectTo);
-          } else if (owner) {
-            window.location.replace("/panel");
-          } else {
-            window.location.replace("/profile");
-          }
-        }
-      } catch {}
-    };
-    checkExistingSession();
-
-    // Clear stale auth
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.includes("supabase") && key.includes("auth-token")) {
-          // Don't remove — this breaks existing sessions
+    // ✅ Already signed in? Skip form — go directly
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const params = new URLSearchParams(window.location.search);
+        const redirectTo = params.get("redirectTo");
+        const owner = isOwner(session.user.email);
+        if (owner) {
+          setCachedAuth(true);
+          window.location.replace(
+            redirectTo?.startsWith("/panel") ? redirectTo : "/panel"
+          );
+        } else {
+          window.location.replace("/profile");
         }
       }
-    } catch {}
-  }, []);
+    });
 
-  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("reset") === "success") {
       setResetSuccess(
@@ -86,10 +74,7 @@ export default function SignIn() {
     }
 
     const { data: signInData, error: signInError } =
-      await supabase.auth.signInWithPassword({
-        email: emailToUse,
-        password,
-      });
+      await supabase.auth.signInWithPassword({ email: emailToUse, password });
 
     if (signInError) {
       setError(
@@ -102,18 +87,16 @@ export default function SignIn() {
     const userEmail = signInData?.user?.email ?? null;
     const ownerUser = isOwner(userEmail);
 
+    // ✅ Cache set karo BEFORE redirect — layout pe cache milega instantly
+    setCachedAuth(ownerUser);
+
     const params = new URLSearchParams(window.location.search);
     const redirectTo = params.get("redirectTo");
 
-    // ✅ Panel layout cache reset karo taake fresh check ho
-    // (import mat karo — direct module variable reset hoga automatically
-    // kyunki page navigate ho raha hai)
-
-    // ✅ Foran redirect — no delay needed, session already set hai
-    if (redirectTo && redirectTo.startsWith("/panel") && ownerUser) {
-      window.location.replace(redirectTo);
-    } else if (ownerUser) {
-      window.location.replace("/panel");
+    if (ownerUser) {
+      window.location.replace(
+        redirectTo?.startsWith("/panel") ? redirectTo : "/panel"
+      );
     } else {
       window.location.replace("/profile");
     }
@@ -135,7 +118,6 @@ export default function SignIn() {
       <div className="si-corner si-corner--br" aria-hidden="true" />
 
       <div className="si-card">
-        {/* Left panel — brand */}
         <div className="si-brand">
           <div className="si-brand-inner">
             <p className="si-brand-eyebrow">
@@ -175,7 +157,6 @@ export default function SignIn() {
           </div>
         )}
 
-        {/* Right panel — form */}
         <div className="si-form-panel">
           <div className="si-form-wrap">
             <div className="si-form-header">

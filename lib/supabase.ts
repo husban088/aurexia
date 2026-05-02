@@ -4,21 +4,22 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Create a single supabase client for the entire app
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true, // ✅ Session save hogi — signin ke baad logout nahi hoga
-    autoRefreshToken: true, // ✅ Token refresh hoga
-    detectSessionInUrl: true, // ✅ OAuth redirects ke liye
-    storageKey: "sb-auth-token",
-    // ❌ flowType: "pkce" REMOVED — yeh insert hang karta tha
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    // ✅ storageKey HATA DIYA — default Supabase key use hogi
+    // Custom storageKey ki wajah se Vercel pe session cookie aur
+    // localStorage key alag ho jaate the — session lost hoti thi
+    // storageKey: "sb-auth-token",  ← YEH PROBLEM THI
   },
   db: {
     schema: "public",
   },
 });
 
-// Rest of your types remain the same...
+// Types (unchanged)
 export type BulkPricingTier = {
   id?: string;
   variant_id: string;
@@ -37,7 +38,7 @@ export type Product = {
   updated_at?: string;
   name: string;
   description: string;
-  description_images?: string[]; // NEW - for storing images from rich text
+  description_images?: string[];
   category: string;
   subcategory: string;
   brand?: string;
