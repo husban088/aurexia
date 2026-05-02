@@ -48,8 +48,8 @@ interface ProductVariant {
   product_id: string;
   attribute_type: "color" | "size" | "material" | "capacity" | "standard";
   attribute_value: string;
-  price: number;
-  original_price?: number;
+  price: number; // ✅ Always PKR in database
+  original_price?: number; // ✅ Always PKR in database
   description?: string;
   stock: number;
   low_stock_threshold?: number;
@@ -61,7 +61,6 @@ interface VariantImagesMap {
   [variantId: string]: string[];
 }
 
-// Helper function to truncate product name
 const truncateProductName = (name: string, maxLength: number = 50): string => {
   if (name.length <= maxLength) return name;
   return name.substring(0, maxLength).trim() + "...";
@@ -77,10 +76,7 @@ const getStockStatus = (
   return "in_stock";
 };
 
-// FAST fetch function with optimizations
 async function fetchFeaturedTabDataFast(tab: string) {
-  console.log(`🔄 Fetching featured products for category: ${tab}`);
-
   const { data: productsData, error: productsError } = await supabase
     .from("products")
     .select("*, product_variants(*, variant_images(*))")
@@ -88,19 +84,10 @@ async function fetchFeaturedTabDataFast(tab: string) {
     .eq("is_featured", true)
     .eq("category", tab)
     .order("created_at", { ascending: false });
-  // .limit(12) - REMOVED - Now shows ALL featured products
 
-  if (productsError) {
-    console.error("Error fetching products:", productsError);
+  if (productsError || !productsData || productsData.length === 0) {
     return { products: [], variantsMap: {}, variantImagesMap: {} };
   }
-
-  if (!productsData || productsData.length === 0) {
-    console.log(`No featured products found for category: ${tab}`);
-    return { products: [], variantsMap: {}, variantImagesMap: {} };
-  }
-
-  console.log(`✅ Found ${productsData.length} featured products for ${tab}`);
 
   const formattedProducts: FeaturedProduct[] = productsData.map(
     (item: any) => ({
@@ -126,8 +113,8 @@ async function fetchFeaturedTabDataFast(tab: string) {
       product_id: variant.product_id,
       attribute_type: variant.attribute_type,
       attribute_value: variant.attribute_value,
-      price: variant.price,
-      original_price: variant.original_price,
+      price: variant.price, // ✅ Raw PKR from DB
+      original_price: variant.original_price, // ✅ Raw PKR from DB
       description: variant.description,
       stock: variant.stock,
       low_stock_threshold: variant.low_stock_threshold,
@@ -152,7 +139,7 @@ async function fetchFeaturedTabDataFast(tab: string) {
   };
 }
 
-// Variant selector component
+// Variant Thumbnails Component
 function VariantThumbnails({
   variants,
   type,
@@ -246,7 +233,6 @@ function VariantThumbnails({
   );
 }
 
-// Loading Spinner Component
 function LoadingSpinner({ size = 18 }: { size?: number }) {
   return (
     <div
@@ -264,7 +250,7 @@ function LoadingSpinner({ size = 18 }: { size?: number }) {
   );
 }
 
-// Single Product Card Component - WITH HOVER IMAGE FIXED
+// ✅ Product Card — currency conversion fixed here
 function ProductCard({
   product,
   variants,
@@ -286,7 +272,9 @@ function ProductCard({
     variantImagesMap: VariantImagesMap
   ) => void;
 }) {
+  // ✅ Get currency and formatPrice — formatPrice already handles PKR→currency conversion internally
   const { currency, formatPrice } = useCurrency();
+
   const [isHovered, setIsHovered] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
@@ -321,9 +309,7 @@ function ProductCard({
   );
 
   const getVariantImages = useCallback(
-    (variantId: string): string[] => {
-      return variantImagesMap[variantId] || [];
-    },
+    (variantId: string): string[] => variantImagesMap[variantId] || [],
     [variantImagesMap]
   );
 
@@ -335,12 +321,9 @@ function ProductCard({
     setIsHovered(false);
   };
 
-  // ✅ FIXED: Hover handlers for image switching
   const handleMouseEnter = () => {
     setIsHovered(true);
-    if (currentImages.length > 1) {
-      setCurrentImageIndex(1);
-    }
+    if (currentImages.length > 1) setCurrentImageIndex(1);
   };
 
   const handleMouseLeave = () => {
@@ -348,13 +331,9 @@ function ProductCard({
     setCurrentImageIndex(0);
   };
 
-  // Get current display image
   const getDisplayImage = () => {
     if (currentImages.length === 0) return null;
-    // Show second image on hover if available
-    if (isHovered && currentImages.length > 1) {
-      return currentImages[1];
-    }
+    if (isHovered && currentImages.length > 1) return currentImages[1];
     return currentImages[currentImageIndex];
   };
 
@@ -390,13 +369,11 @@ function ProductCard({
     return "in";
   };
 
-  // Truncate product name for display
   const truncatedName = truncateProductName(product.name, 45);
 
   const handleAddToCart = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (!selectedVariant) {
       alert("Please select a variant first");
       return;
@@ -405,11 +382,10 @@ function ProductCard({
       alert("This product is out of stock");
       return;
     }
-
     if (addToCartLoading) return;
-
     setAddToCartLoading(true);
 
+    // ✅ IMPORTANT: Always store PKR price in cart — conversion happens at display time
     const productToAdd = {
       id: product.id,
       name: product.name,
@@ -421,8 +397,8 @@ function ProductCard({
       is_featured: product.is_featured,
       is_active: product.is_active,
       images: currentImages.length > 0 ? currentImages : [],
-      price: selectedVariant.price,
-      original_price: selectedVariant.original_price,
+      price: selectedVariant.price, // ✅ PKR — raw database value
+      original_price: selectedVariant.original_price, // ✅ PKR — raw database value
       stock: selectedVariant.stock,
       low_stock_threshold: selectedVariant.low_stock_threshold,
       stockStatus: stockStatus,
@@ -458,9 +434,12 @@ function ProductCard({
     setQuickViewLoading(false);
   };
 
+  // ✅ formatPrice(pkrValue) internally does: pkrValue * currency.rate → formats with symbol
+  // Example: formatPrice(6516) with USD = "$ 23.35" — no separate convertPrice needed
   const displaySalePrice = selectedVariant
     ? formatPrice(selectedVariant.price)
     : formatPrice(0);
+
   const displayOriginalPrice = selectedVariant?.original_price
     ? formatPrice(selectedVariant.original_price)
     : null;
@@ -546,12 +525,14 @@ function ProductCard({
           </button>
         </div>
       </div>
+
       <div className="fp-card-body">
         {product.brand && <p className="fp-card-brand">{product.brand}</p>}
         <h3 className="fp-card-name" title={product.name}>
           {truncatedName}
         </h3>
         <div className="fp-card-price-row">
+          {/* ✅ Correctly converted price shown */}
           <span className="fp-card-price">{displaySalePrice}</span>
           {displayOriginalPrice && (
             <span className="fp-card-orig">{displayOriginalPrice}</span>
@@ -619,7 +600,7 @@ function ProductCard({
   );
 }
 
-// FeaturedProducts Component - INSTANT LOAD
+// ✅ Main FeaturedProducts Component
 export default function FeaturedProducts() {
   const [activeTab, setActiveTab] = useState("Accessories");
   const [products, setProducts] = useState<FeaturedProduct[]>([]);
@@ -645,11 +626,8 @@ export default function FeaturedProducts() {
   const nextRef = useRef<HTMLButtonElement>(null);
   const swiperRef = useRef<SwiperType | null>(null);
   const { currency } = useCurrency();
-
-  // Cache for data
   const dataCache = useRef<Record<string, any>>({});
 
-  // LOAD DATA INSTANTLY - No skeleton delay
   useEffect(() => {
     async function loadInitialData() {
       try {
@@ -659,14 +637,11 @@ export default function FeaturedProducts() {
           "Automotive",
           "Home Decor",
         ];
-
         const promises = categories.map((cat) => fetchFeaturedTabDataFast(cat));
         const results = await Promise.all(promises);
-
         categories.forEach((cat, idx) => {
           dataCache.current[cat] = results[idx];
         });
-
         const initialData = dataCache.current["Accessories"];
         setProducts(initialData.products);
         setVariantsMap(initialData.variantsMap);
@@ -675,13 +650,11 @@ export default function FeaturedProducts() {
         console.error("Error loading featured products:", error);
       }
     }
-
     loadInitialData();
   }, []);
 
   const handleTabChange = useCallback(async (tab: string) => {
     setActiveTab(tab);
-
     if (dataCache.current[tab]) {
       const tabData = dataCache.current[tab];
       setProducts(tabData.products);
@@ -694,7 +667,6 @@ export default function FeaturedProducts() {
       setVariantsMap(tabData.variantsMap);
       setVariantImagesMap(tabData.variantImagesMap);
     }
-
     setTimeout(() => {
       swiperRef.current?.update();
     }, 50);
@@ -721,7 +693,7 @@ export default function FeaturedProducts() {
       id: product.id,
       name: product.name,
       brand: product.brand,
-      price: productPrice,
+      price: productPrice, // ✅ PKR — QuickView component should also use convertPrice
       original_price: selectedVariant?.original_price,
       category: product.category,
       subcategory: product.subcategory,
@@ -810,6 +782,7 @@ export default function FeaturedProducts() {
             )}
           </div>
         </div>
+
         <div className="fp-container">
           <div className="fp-nav">
             <button ref={prevRef} className="fp-nav-btn" aria-label="Previous">
@@ -833,6 +806,7 @@ export default function FeaturedProducts() {
               </svg>
             </button>
           </div>
+
           <Swiper
             modules={[Pagination, Navigation, A11y]}
             onSwiper={(swiper) => {
@@ -869,6 +843,7 @@ export default function FeaturedProducts() {
               </SwiperSlide>
             ))}
           </Swiper>
+
           <div className="fp-view-all-wrap">
             <Link href={activeTabData?.href || "/"} className="fp-view-all">
               <span>View All {activeTabData?.label || activeTab}</span>
@@ -885,6 +860,7 @@ export default function FeaturedProducts() {
           </div>
         </div>
       </section>
+
       <QuickView
         isOpen={quickViewOpen}
         onClose={() => setQuickViewOpen(false)}

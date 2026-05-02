@@ -412,15 +412,13 @@ export default function Checkout() {
     }
   };
 
-  const subtotal = getSubtotal();
+  const subtotal = getSubtotal(); // Always in PKR (raw from cartStore)
   const cartCount = getCartCount();
-  // Free shipping threshold: 3000 PKR converted to current currency
+  // Free shipping threshold & shipping cost — keep in PKR so formatPrice converts correctly
   const freeShippingThresholdPKR = 3000;
-  const freeShippingThreshold = freeShippingThresholdPKR * currency.rate;
   const shippingCostPKR = 250;
-  const shippingCost = shippingCostPKR * currency.rate;
-  const shipping = subtotal >= freeShippingThreshold ? 0 : shippingCost;
-  const total = subtotal + shipping;
+  const shipping = subtotal >= freeShippingThresholdPKR ? 0 : shippingCostPKR; // PKR
+  const total = subtotal + shipping; // PKR
   const currentStepIndex = STEPS.findIndex((s) => s.id === step);
 
   const validItems = items;

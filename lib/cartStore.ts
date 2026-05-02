@@ -157,7 +157,7 @@ async function fetchCartItems(cartId: string): Promise<CartItemWithDetails[]> {
 
     return items;
   } catch (err) {
-    console.error("fetchCartItems error:", err);
+    console.error("fetchCartItems exception:", err);
     return [];
   }
 }
@@ -230,11 +230,9 @@ export const useCartStore = create<CartStore>()(
 
       // ── fetchCart ──────────────────────────────────────────────────────────
       fetchCart: async () => {
-        // Agar already fetch ho raha hai toh wait karo
         if (fetchCartPromise) return fetchCartPromise;
 
         fetchCartPromise = (async () => {
-          // Sirf loading dikhao agar items nahi hain
           if (get().items.length === 0) {
             set({ loading: true });
           }
@@ -256,7 +254,7 @@ export const useCartStore = create<CartStore>()(
                 .maybeSingle();
               cart = userCart;
 
-              // Guest cart merge
+              // Guest cart merge — login ke baad guest items user cart mein
               const guestSid = localStorage.getItem("guest_session_id");
               if (guestSid) {
                 const { data: guestCart } = await supabase
@@ -266,6 +264,7 @@ export const useCartStore = create<CartStore>()(
                   .maybeSingle();
 
                 if (guestCart && !cart) {
+                  // User ka koi cart nahi — guest cart claim kar lo
                   const { data: claimed } = await supabase
                     .from("carts")
                     .update({ user_id: user.id, session_id: null })
@@ -275,6 +274,7 @@ export const useCartStore = create<CartStore>()(
                   cart = claimed;
                   localStorage.removeItem("guest_session_id");
                 } else if (guestCart && cart) {
+                  // Dono hain — merge karo
                   const guestItems = await fetchCartItems(guestCart.id);
                   const userItems = await fetchCartItems(cart.id);
                   for (const gi of guestItems) {
@@ -341,7 +341,7 @@ export const useCartStore = create<CartStore>()(
             const cartId = cart.id;
             const freshItems = await fetchCartItems(cartId);
 
-            // Out of stock items filter karo
+            // Out of stock items silently hatao
             const validItems = freshItems.filter((item) => {
               const stockStatus = item.variantStockStatus ?? "in_stock";
               if (stockStatus === "out_of_stock") {
@@ -351,33 +351,27 @@ export const useCartStore = create<CartStore>()(
               return true;
             });
 
-            // localStorage items ke saath merge karo
-            const currentItems = get().items;
-            const mergedItems = [...currentItems];
+            // localStorage + DB items merge — duplicates avoid karo
+            const currentItems = get().items.filter(
+              (i) => !i.id.startsWith("temp_")
+            );
+            const mergedMap = new Map<string, CartItemWithDetails>();
 
+            // DB items pehle (authoritative)
             for (const dbItem of validItems) {
-              const exists = mergedItems.some((i) => i.id === dbItem.id);
-              if (!exists && !dbItem.id.startsWith("temp_")) {
-                mergedItems.push(dbItem);
+              mergedMap.set(dbItem.id, dbItem);
+            }
+
+            // localStorage items sirf woh jo DB mein nahi hain
+            for (const localItem of currentItems) {
+              if (!mergedMap.has(localItem.id)) {
+                mergedMap.set(localItem.id, localItem);
               }
             }
 
-            // temp items replace karo real DB items se
-            const finalItems = mergedItems.map((item) => {
-              if (item.id.startsWith("temp_")) {
-                const realItem = validItems.find(
-                  (db) =>
-                    db.product_id === item.product_id &&
-                    db.variant_id === item.variant_id
-                );
-                return realItem || item;
-              }
-              return item;
-            });
-
             set({
               cartId,
-              items: finalItems,
+              items: Array.from(mergedMap.values()),
               loading: false,
               initialized: true,
             });
@@ -393,31 +387,39 @@ export const useCartStore = create<CartStore>()(
       },
 
       // ── addToCart ──────────────────────────────────────────────────────────
-      // ✅ FIX:
-      // 1. No extra variant_images DB call - image already available
-      // 2. No MUTATION_GUARD delay - instant
-      // 3. Simple lock to prevent double-click duplicates
+      // ✅ Prices are always stored in PKR (base currency)
+      // Currency conversion happens only at DISPLAY time in CartSidebar/formatPrice
+      // Never store converted prices — always store raw PKR from database
       addToCart: async (
         product: Product,
         variant: ProductVariant | null = null,
         quantity: number = 1,
         piecesPerUnit: number = 1
       ) => {
-        // Simple lock — ek time pe sirf ek add hoga, no 8s delay
+        // ✅ FIX: Lock released in finally — no matter what path exits
         if (addToCartInProgress) return;
         addToCartInProgress = true;
 
         try {
+          if (!product.id) {
+            console.error("addToCart: product.id is missing");
+            return;
+          }
+
           const { items, onCartOpen } = get();
 
-          const variantId = variant?.id;
+          const variantId = variant?.id ?? undefined;
           const variantName = variant ? variant.attribute_value : "Standard";
+
+          // ✅ PKR prices — always raw from database, NEVER converted
           const variantPrice = variant?.price ?? product.price ?? 0;
           const variantOriginalPrice =
-            variant?.original_price ?? product.original_price;
+            variant?.original_price ?? product.original_price ?? undefined;
 
           const rawStock =
-            variant != null ? variant.stock ?? 999999 : product.stock ?? 999999;
+            variant != null
+              ? variant.stock ?? 999999
+              : (product as any).stock ?? 999999;
           const lowStockThreshold =
             variant != null
               ? variant.low_stock_threshold ?? null
@@ -427,16 +429,16 @@ export const useCartStore = create<CartStore>()(
 
           if (stockStatus === "out_of_stock") {
             alert("This product is out of stock");
-            return;
+            return; // finally will still run — lock released ✅
           }
 
-          // ✅ FIX: Variant image directly se lo — no extra DB call
-          // ProductGrid/FeaturedProducts already images pass kar raha hai
-          let variantImage = "";
-          if (product.images && product.images.length > 0) {
-            variantImage = product.images[0];
-          }
+          // ✅ Variant image — product.images[0] use karo (already passed from card)
+          const variantImage =
+            product.images && product.images.length > 0
+              ? product.images[0]
+              : "";
 
+          // Same product+variant+ppu ki existing item check karo
           const existingItem = items.find(
             (i) =>
               i.product_id === product.id &&
@@ -448,6 +450,7 @@ export const useCartStore = create<CartStore>()(
             ? existingItem.quantity + quantity
             : quantity;
 
+          // Stock limit check
           if (stockStatus !== "in_stock" && rawStock > 0) {
             const totalPhysical = newQuantity * piecesPerUnit;
             if (totalPhysical > rawStock) {
@@ -455,11 +458,11 @@ export const useCartStore = create<CartStore>()(
               alert(
                 `Only ${rawStock} items in stock. Max ${maxUnits} unit(s) of ${piecesPerUnit}-piece size.`
               );
-              return;
+              return; // finally will still run ✅
             }
           }
 
-          // ✅ OPTIMISTIC UPDATE — UI foran update hogi, page reload nahi
+          // ✅ OPTIMISTIC UPDATE — UI instantly update hogi
           if (existingItem) {
             set({
               items: get().items.map((i) =>
@@ -471,11 +474,11 @@ export const useCartStore = create<CartStore>()(
             const tempItem: CartItemWithDetails = {
               id: tempId,
               cart_id: get().cartId || "",
-              product_id: product.id!,
+              product_id: product.id,
               variant_id: variantId,
               variant_name: variantName,
-              variant_price: variantPrice,
-              variant_original_price: variantOriginalPrice,
+              variant_price: variantPrice, // ✅ PKR — raw DB value
+              variant_original_price: variantOriginalPrice, // ✅ PKR — raw DB value
               variant_image: variantImage,
               quantity,
               pieces_per_unit: piecesPerUnit,
@@ -486,20 +489,19 @@ export const useCartStore = create<CartStore>()(
               variantStockStatus: stockStatus,
               product: {
                 ...product,
-                price: variantPrice,
-                original_price: variantOriginalPrice,
+                price: variantPrice, // ✅ PKR
+                original_price: variantOriginalPrice, // ✅ PKR
                 stock: rawStock,
               },
             };
             set({ items: [...get().items, tempItem] });
           }
 
-          // ✅ Cart sidebar kholo immediately
+          // ✅ Cart sidebar immediately kholo
           if (onCartOpen) onCartOpen();
 
-          // ✅ DB me sync karo background me
+          // ✅ Background DB sync
           try {
-            // Cart ID already hai toh reuse karo, nahi toh naya banao
             let cartId = get().cartId;
             if (!cartId) {
               const result = await getOrCreateCart();
@@ -508,10 +510,13 @@ export const useCartStore = create<CartStore>()(
             }
 
             if (existingItem) {
-              // Quantity update karo
+              // ✅ Existing item quantity update
               const { error } = await supabase
                 .from("cart_items")
-                .update({ quantity: newQuantity })
+                .update({
+                  quantity: newQuantity,
+                  updated_at: new Date().toISOString(),
+                })
                 .eq("id", existingItem.id);
 
               if (error) {
@@ -526,16 +531,16 @@ export const useCartStore = create<CartStore>()(
                 });
               }
             } else {
-              // Naya item insert karo
+              // ✅ Naya item insert — prices always PKR
               const { data: inserted, error } = await supabase
                 .from("cart_items")
                 .insert({
                   cart_id: cartId,
                   product_id: product.id,
-                  variant_id: variantId,
+                  variant_id: variantId ?? null,
                   variant_name: variantName,
-                  variant_price: variantPrice,
-                  variant_original_price: variantOriginalPrice,
+                  variant_price: variantPrice, // ✅ PKR stored in DB
+                  variant_original_price: variantOriginalPrice ?? null, // ✅ PKR
                   variant_image: variantImage,
                   quantity,
                   pieces_per_unit: piecesPerUnit,
@@ -545,7 +550,7 @@ export const useCartStore = create<CartStore>()(
 
               if (error || !inserted) {
                 console.error("addToCart insert error:", error);
-                // Temp item hatao rollback
+                // Temp item rollback
                 set({
                   items: get().items.filter(
                     (i) =>
@@ -560,7 +565,7 @@ export const useCartStore = create<CartStore>()(
                 return;
               }
 
-              // Temp item ko real item se replace karo
+              // ✅ Temp item → real DB item replace
               set({
                 items: get().items.map((i) =>
                   i.id.startsWith("temp_") &&
@@ -574,18 +579,23 @@ export const useCartStore = create<CartStore>()(
                         variantStock: rawStock,
                         variantLowStockThreshold: lowStockThreshold,
                         variantStockStatus: stockStatus,
-                        product: product,
+                        product: {
+                          ...product,
+                          price: variantPrice,
+                          original_price: variantOriginalPrice,
+                          stock: rawStock,
+                        },
                       }
                     : i
                 ),
                 cartId,
               });
             }
-          } catch (err) {
-            console.error("addToCart DB sync error:", err);
+          } catch (dbErr) {
+            console.error("addToCart DB sync error:", dbErr);
           }
         } finally {
-          // Lock release karo — thodi delay ke saath taake double-click safe ho
+          // ✅ FIXED: Lock ALWAYS released — even on early return (out_of_stock, stock limit, etc.)
           setTimeout(() => {
             addToCartInProgress = false;
           }, 500);
@@ -635,11 +645,12 @@ export const useCartStore = create<CartStore>()(
         if (!itemId.startsWith("temp_")) {
           const { error } = await supabase
             .from("cart_items")
-            .update({ quantity })
+            .update({ quantity, updated_at: new Date().toISOString() })
             .eq("id", itemId);
 
           if (error) {
             console.error("updateQuantity error:", error);
+            // Rollback
             set({
               items: get().items.map((i) =>
                 i.id === itemId ? { ...i, quantity: item.quantity } : i
@@ -664,6 +675,7 @@ export const useCartStore = create<CartStore>()(
 
           if (error) {
             console.error("removeFromCart error:", error);
+            // Rollback
             set({ items });
           }
         }
@@ -682,6 +694,7 @@ export const useCartStore = create<CartStore>()(
       getCartCount: () => get().items.reduce((t, i) => t + i.quantity, 0),
 
       // ── getSubtotal ────────────────────────────────────────────────────────
+      // ✅ Always returns PKR — display layer (CartSidebar) converts to selected currency
       getSubtotal: () =>
         get().items.reduce((t, i) => {
           const price = i.variant_price ?? i.product?.price ?? 0;
@@ -706,8 +719,8 @@ export const useCartStore = create<CartStore>()(
           product_id: item.product_id,
           variant_id: item.variant_id,
           variant_name: item.variant_name,
-          variant_price: item.variant_price,
-          variant_original_price: item.variant_original_price,
+          variant_price: item.variant_price, // ✅ PKR stored
+          variant_original_price: item.variant_original_price, // ✅ PKR stored
           variant_image: item.variant_image,
           quantity: item.quantity,
           pieces_per_unit: item.pieces_per_unit ?? 1,
@@ -728,9 +741,9 @@ export const useCartStore = create<CartStore>()(
                 condition: item.product.condition,
                 is_featured: item.product.is_featured,
                 is_active: item.product.is_active,
-                price: item.variant_price ?? item.product.price,
+                price: item.variant_price ?? item.product.price, // ✅ PKR
                 original_price:
-                  item.variant_original_price ?? item.product.original_price,
+                  item.variant_original_price ?? item.product.original_price, // ✅ PKR
                 stock: item.variantStock ?? item.product.stock,
                 created_at: item.product.created_at,
                 updated_at: item.product.updated_at,

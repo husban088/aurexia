@@ -6,6 +6,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import StripePayment from "./StripePayment";
 import PayPalPayment from "./PayPalPayment";
 import "./PaymentSection.css";
+import { useCurrency } from "@/app/context/CurrencyContext";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
@@ -114,6 +115,14 @@ export default function PaymentSection({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isLoadingStripe, setIsLoadingStripe] = useState(false);
 
+  // ✅ Currency context — convert PKR → selected currency for Stripe/PayPal
+  const { formatPrice, currency: currencyObj } = useCurrency();
+
+  // ✅ Convert PKR totalAmount → selected currency (e.g. 6766 PKR → $24.24 USD)
+  const convertedTotal = parseFloat(
+    (totalAmount * currencyObj.rate).toFixed(2)
+  );
+
   // ✅ Get correct currencies
   const stripeCurrency = getStripeCurrency(currency);
   const paypalCurrency = getPayPalCurrency(currency);
@@ -127,7 +136,11 @@ export default function PaymentSection({
 
   // ✅ Create Stripe Payment Intent with correct currency
   useEffect(() => {
-    if (selectedPaymentMethod === "card" && totalAmount > 0 && !clientSecret) {
+    if (
+      selectedPaymentMethod === "card" &&
+      convertedTotal > 0 &&
+      !clientSecret
+    ) {
       const createPaymentIntent = async () => {
         setIsLoadingStripe(true);
         try {
@@ -135,7 +148,7 @@ export default function PaymentSection({
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              amount: totalAmount,
+              amount: convertedTotal, // ✅ PKR converted to display currency
               currency: stripeCurrency, // ✅ "usd" | "gbp" | "aud" — never "pkr"
               metadata: {
                 orderNumber,
@@ -231,18 +244,7 @@ export default function PaymentSection({
         </button>
       </div>
 
-      {/* Card Preview */}
-      {selectedPaymentMethod === "card" && (
-        <div className="ps-card-preview">
-          <div className="ps-card-chip" />
-          <p className="ps-card-num-display">•••• •••• •••• ••••</p>
-          <div className="ps-card-meta">
-            <span className="ps-card-name-display">CARDHOLDER NAME</span>
-            <span className="ps-card-exp-display">MM/YY</span>
-          </div>
-          <div className="ps-card-brand">TECH4U</div>
-        </div>
-      )}
+      {/* ✅ Card preview removed — Stripe PaymentElement renders its own secure card UI */}
 
       {/* ✅ Stripe Card Payment Form */}
       {selectedPaymentMethod === "card" && (
@@ -256,11 +258,13 @@ export default function PaymentSection({
               }}
             >
               <StripePayment
-                amount={totalAmount}
-                currency={stripeCurrency} // ✅ Correct currency passed
+                amount={convertedTotal}
+                currency={stripeCurrency}
                 orderNumber={orderNumber}
                 onSuccess={onPaymentSuccess}
                 onError={onPaymentError}
+                formatPrice={formatPrice}
+                totalAmountPKR={totalAmount}
               />
             </Elements>
           ) : isLoadingStripe ? (
@@ -281,13 +285,13 @@ export default function PaymentSection({
       {selectedPaymentMethod === "paypal" && (
         <div className="ps-paypal-container">
           <PayPalPayment
-            amount={totalAmount}
-            currency={paypalCurrency} // ✅ "USD" | "GBP" | "AUD" — never "PKR"
+            amount={convertedTotal}
+            currency={paypalCurrency}
             orderNumber={orderNumber}
             formData={formData}
-            subtotal={subtotal}
-            shipping={shipping}
-            total={total}
+            subtotal={parseFloat((subtotal * currencyObj.rate).toFixed(2))}
+            shipping={parseFloat((shipping * currencyObj.rate).toFixed(2))}
+            total={convertedTotal}
             onSuccess={onPaymentSuccess}
             onError={onPaymentError}
           />

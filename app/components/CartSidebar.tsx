@@ -11,6 +11,7 @@ interface CartSidebarProps {
   onClose: () => void;
 }
 
+// ✅ Base values are always in PKR
 const FREE_SHIPPING_THRESHOLD_PKR = 3000;
 const SHIPPING_COST_PKR = 250;
 
@@ -23,6 +24,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
 
+  // ✅ subtotalPKR — always in PKR (raw database value)
   const subtotalPKR = useCartStore((state) =>
     state.items.reduce((t, i) => {
       const price = i.variant_price ?? i.product?.price ?? 0;
@@ -39,17 +41,16 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     state.items.reduce((t, i) => t + (i.pieces_per_unit ?? 1) * i.quantity, 0)
   );
 
-  const { formatPrice, convertPrice } = useCurrency();
+  // ✅ currency hook — formatPrice(pkrValue) already handles conversion internally
+  const { formatPrice, currency } = useCurrency();
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  // Track which items are being removed to prevent multiple triggers
   const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // 🔥 CRITICAL: Load from localStorage immediately on mount - FIXES PAGE RELOAD DISAPPEAR
   useEffect(() => {
     if (mounted && !initialized) {
       try {
@@ -93,11 +94,13 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     return () => document.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose, mounted]);
 
+  // ✅ All calculations in PKR first, then convert for display
   const shippingPKR =
     subtotalPKR >= FREE_SHIPPING_THRESHOLD_PKR ? 0 : SHIPPING_COST_PKR;
   const totalPKR = subtotalPKR + shippingPKR;
-
   const remainingPKR = Math.max(0, FREE_SHIPPING_THRESHOLD_PKR - subtotalPKR);
+
+  // ✅ Progress bar — based on PKR threshold (no conversion needed for %)
   const shippingProgress = Math.min(
     (subtotalPKR / FREE_SHIPPING_THRESHOLD_PKR) * 100,
     100
@@ -124,12 +127,9 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   // Auto remove out of stock items
   useEffect(() => {
     if (!items.length) return;
-
     items.forEach((item) => {
       const stockStatus = item.variantStockStatus ?? "in_stock";
       const variantStock = item.variantStock ?? 999999;
-
-      // Check if item is out of stock
       if (
         (stockStatus === "out_of_stock" || variantStock === 0) &&
         !removingItems.has(item.id)
@@ -148,10 +148,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
   const showSpinner = loading && items.length === 0;
 
-  // Server-side fallback
-  if (!mounted) {
-    return null;
-  }
+  if (!mounted) return null;
 
   return (
     <>
@@ -212,6 +209,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           </button>
         </div>
 
+        {/* ✅ Shipping progress bar — converted to current currency for display */}
         {cartUnitCount > 0 && (
           <div
             className={`cs-shipping-bar${
@@ -239,8 +237,10 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             ) : (
               <>
                 <p className="cs-shipping-text">
-                  Add <strong>{formatPrice(convertPrice(remainingPKR))}</strong>{" "}
-                  more for free shipping
+                  Add{" "}
+                  {/* ✅ remainingPKR → convertPrice → formatPrice = correct currency */}
+                  <strong>{formatPrice(remainingPKR)}</strong> more for free
+                  shipping
                 </p>
                 <div className="cs-shipping-track">
                   <div
@@ -312,8 +312,12 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 };
 
                 const ppu = item.pieces_per_unit ?? 1;
+
+                // ✅ pricePerPiecePKR — raw PKR from database
                 const pricePerPiecePKR =
                   item.variant_price ?? product.price ?? 0;
+
+                // ✅ itemTotalPKR — total in PKR
                 const itemTotalPKR = pricePerPiecePKR * ppu * item.quantity;
                 const rowPhysicalPieces = ppu * item.quantity;
 
@@ -329,7 +333,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
                 const stockStatus = item.variantStockStatus ?? "in_stock";
                 const variantStock = item.variantStock ?? 999999;
-
                 const isOutOfStock = stockStatus === "out_of_stock";
                 const isLowStock = stockStatus === "low_stock";
 
@@ -348,22 +351,14 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
                 const canIncrement = !isOutOfStock && item.quantity < maxUnits;
                 const canDecrement = item.quantity > 1;
-
-                // Check if item is being removed
                 const isBeingRemoved = removingItems.has(item.id);
 
-                // INSTANT DELETE HANDLER - Immediate UI removal
                 const handleRemoveClick = async (e: React.MouseEvent) => {
                   e.preventDefault();
                   e.stopPropagation();
-
                   if (isBeingRemoved) return;
-
                   setRemovingItems((prev) => new Set(prev).add(item.id));
-
-                  // Optimistic UI update - item will disappear from list
                   await removeFromCart(item.id);
-
                   setRemovingItems((prev) => {
                     const newSet = new Set(prev);
                     newSet.delete(item.id);
@@ -371,10 +366,8 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   });
                 };
 
-                // Handle quantity update with stock check
                 const handleQuantityUpdate = async (newQuantity: number) => {
                   if (isOutOfStock) return;
-
                   const maxAllowed = Math.floor(variantStock / ppu);
                   if (newQuantity > maxAllowed && maxAllowed > 0) {
                     alert(
@@ -382,7 +375,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                     );
                     return;
                   }
-
                   await updateQuantity(item.id, newQuantity);
                 };
 
@@ -429,14 +421,14 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                         <p className="cs-item-brand">{product.brand}</p>
                       )}
                       <p className="cs-item-name">{displayName}</p>
-
                       {product.subcategory && (
                         <p className="cs-item-variant">{product.subcategory}</p>
                       )}
 
+                      {/* ✅ Breakdown: PKR price → convertPrice → formatPrice = correct currency */}
                       <p className="cs-item-breakdown">
-                        {formatPrice(convertPrice(pricePerPiecePKR))} × {ppu}{" "}
-                        pcs × {item.quantity} unit
+                        {formatPrice(pricePerPiecePKR)} × {ppu} pcs ×{" "}
+                        {item.quantity} unit
                         {item.quantity !== 1 ? "s" : ""} = {rowPhysicalPieces}{" "}
                         pcs total
                       </p>
@@ -504,8 +496,9 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                           </button>
                         </div>
 
+                        {/* ✅ Item total: PKR → convertPrice → formatPrice */}
                         <p className="cs-item-price">
-                          {formatPrice(convertPrice(itemTotalPKR))}
+                          {formatPrice(itemTotalPKR)}
                         </p>
                       </div>
                     </div>
@@ -539,6 +532,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           )}
         </div>
 
+        {/* ✅ Footer totals — all PKR → convertPrice → formatPrice */}
         {cartUnitCount > 0 && (
           <div className="cs-footer">
             <div className="cs-summary">
@@ -547,15 +541,13 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   Subtotal ({totalPieces}{" "}
                   {totalPieces === 1 ? "piece" : "pieces"})
                 </span>
-                <span>{formatPrice(convertPrice(subtotalPKR))}</span>
+                <span>{formatPrice(subtotalPKR)}</span>
               </div>
 
               <div className="cs-summary-row">
                 <span>Shipping</span>
                 <span>
-                  {shippingPKR === 0
-                    ? "Free"
-                    : formatPrice(convertPrice(shippingPKR))}
+                  {shippingPKR === 0 ? "Free" : formatPrice(shippingPKR)}
                 </span>
               </div>
 
@@ -563,7 +555,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
               <div className="cs-summary-row cs-summary-total">
                 <span>Total</span>
-                <span>{formatPrice(convertPrice(totalPKR))}</span>
+                <span>{formatPrice(totalPKR)}</span>
               </div>
             </div>
 

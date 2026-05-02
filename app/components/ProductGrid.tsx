@@ -442,6 +442,8 @@ function ProductCardComponent({
 
   const truncatedName = truncateProductName(productData.name, 45);
 
+  // ✅ FIXED: PKR prices from DB → formatPrice = correct currency display
+  // formatPrice internally does pkrValue * rate, no double conversion
   const displaySalePrice = selectedVariant
     ? formatPrice(selectedVariant.price)
     : formatPrice(productData.price);

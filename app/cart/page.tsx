@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useCartStore } from "@/lib/cartStore";
 import "./cart.css";
 import { useCurrency } from "../context/CurrencyContext";
 
-const FREE_SHIPPING_THRESHOLD = 3000; // Base PKR threshold
+// ✅ Threshold always in PKR — conversion happens only at display time
+const FREE_SHIPPING_THRESHOLD_PKR = 3000;
+const SHIPPING_COST_PKR = 250;
 
 export default function Cart() {
   const {
@@ -20,54 +21,46 @@ export default function Cart() {
     getSubtotal,
     getCartCount,
   } = useCartStore();
-  const { formatPrice, convertPrice } = useCurrency();
-  const [mounted, setMounted] = useState(false);
+
+  // ✅ formatPrice: adds currency symbol + already-converted value
+  // ✅ currency: current currency object (code, rate, symbol)
+  // ✅ formatPrice: PKR value in → converted + symbol out (never use convertPrice separately)
+  const { formatPrice } = useCurrency();
+
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
 
+  // ✅ Same pattern as CartSidebar & Checkout — fetchCart on mount, no mounted gate
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    fetchCart();
+  }, [fetchCart]);
 
-  // 🔥 CRITICAL: Load from localStorage immediately
-  useEffect(() => {
-    if (mounted && !initialized) {
-      try {
-        const persisted = localStorage.getItem("cart-storage");
-        if (persisted) {
-          const parsed = JSON.parse(persisted);
-          if (parsed.state?.items?.length > 0) {
-            console.log(
-              "📦 Cart Page - Loaded from storage:",
-              parsed.state.items.length
-            );
-          }
-        }
-      } catch (e) {}
-    }
-  }, [mounted, initialized]);
-
-  useEffect(() => {
-    if (mounted) {
-      fetchCart();
-    }
-  }, [fetchCart, mounted]);
-
-  const subtotal = getSubtotal();
+  // ✅ getSubtotal() returns PKR value from cartStore
+  const subtotalPKR = getSubtotal();
   const cartCount = getCartCount();
-  const discount = promoApplied ? Math.round(subtotal * 0.1) : 0;
-  const shipping = subtotal - discount >= FREE_SHIPPING_THRESHOLD ? 0 : 250;
-  const total = subtotal - discount + shipping;
+
+  // ✅ Discount calculation in PKR
+  const discountPKR = promoApplied ? Math.round(subtotalPKR * 0.1) : 0;
+  const afterDiscountPKR = subtotalPKR - discountPKR;
+
+  // ✅ Shipping in PKR
+  const shippingPKR =
+    afterDiscountPKR >= FREE_SHIPPING_THRESHOLD_PKR ? 0 : SHIPPING_COST_PKR;
+
+  // ✅ Total in PKR
+  const totalPKR = afterDiscountPKR + shippingPKR;
+
+  // ✅ Progress bar — percentage only (no currency)
   const shippingProgress = Math.min(
-    ((subtotal - discount) / FREE_SHIPPING_THRESHOLD) * 100,
+    (afterDiscountPKR / FREE_SHIPPING_THRESHOLD_PKR) * 100,
     100
   );
 
-  const remainingForFreeShipping = convertPrice(
-    FREE_SHIPPING_THRESHOLD - (subtotal - discount)
+  // ✅ Remaining for free shipping — in PKR, then converted for display
+  const remainingPKR = Math.max(
+    0,
+    FREE_SHIPPING_THRESHOLD_PKR - afterDiscountPKR
   );
-  const remainingForFreeShippingPositive =
-    remainingForFreeShipping > 0 ? remainingForFreeShipping : 0;
 
   const handlePromo = () => {
     if (promoCode.trim().toLowerCase() === "tech4u10") {
@@ -77,8 +70,9 @@ export default function Cart() {
     }
   };
 
-  // Show spinner only when no items at all
-  if (!mounted || (loading && items.length === 0)) {
+  // ✅ Show spinner only until cartStore is initialized (loaded from localStorage)
+  // After that, show items immediately — same pattern as CartSidebar & Checkout
+  if (!initialized) {
     return (
       <div className="cart-root">
         <div className="cart-grain" aria-hidden="true" />
@@ -107,7 +101,6 @@ export default function Cart() {
         ))}
       </div>
       <div className="cart-ambient" aria-hidden="true" />
-
       <div className="cart-corner cart-corner--tl" aria-hidden="true" />
       <div className="cart-corner cart-corner--tr" aria-hidden="true" />
 
@@ -130,13 +123,14 @@ export default function Cart() {
           </h1>
         </div>
 
+        {/* ✅ Shipping progress bar */}
         {items.length > 0 && (
           <div
             className={`cart-ship-bar${
-              shipping === 0 ? " cart-ship-bar--done" : ""
+              shippingPKR === 0 ? " cart-ship-bar--done" : ""
             }`}
           >
-            {shipping === 0 ? (
+            {shippingPKR === 0 ? (
               <p className="cart-ship-text cart-ship-text--done">
                 <svg
                   viewBox="0 0 24 24"
@@ -158,10 +152,9 @@ export default function Cart() {
               <>
                 <p className="cart-ship-text">
                   Add{" "}
-                  <strong>
-                    {formatPrice(remainingForFreeShippingPositive)}
-                  </strong>{" "}
-                  more for free shipping
+                  {/* ✅ remainingPKR → formatPrice = correct currency shown */}
+                  <strong>{formatPrice(remainingPKR)}</strong> more for free
+                  shipping
                 </p>
                 <div className="cart-ship-track">
                   <div
@@ -231,8 +224,12 @@ export default function Cart() {
                   };
 
                   const ppu = item.pieces_per_unit ?? 1;
-                  const itemPrice = item.variant_price ?? product.price ?? 0;
-                  const itemTotal = itemPrice * ppu * item.quantity;
+
+                  // ✅ itemPricePKR — raw PKR from database
+                  const itemPricePKR = item.variant_price ?? product.price ?? 0;
+
+                  // ✅ itemTotalPKR — total in PKR (multiply then convert once)
+                  const itemTotalPKR = itemPricePKR * ppu * item.quantity;
                   const totalPieces = ppu * item.quantity;
 
                   const displayImage =
@@ -247,7 +244,6 @@ export default function Cart() {
 
                   const stockStatus = item.variantStockStatus ?? "in_stock";
                   const variantStock = item.variantStock ?? 999999;
-
                   const isOutOfStock = stockStatus === "out_of_stock";
                   const isLowStock = stockStatus === "low_stock";
 
@@ -315,6 +311,7 @@ export default function Cart() {
                           {product.subcategory}
                         </p>
 
+                        {/* ✅ Per-piece price: PKR → formatPrice */}
                         {ppu > 1 && (
                           <p
                             style={{
@@ -323,9 +320,10 @@ export default function Cart() {
                               margin: "0.15rem 0",
                             }}
                           >
-                            {formatPrice(itemPrice)} × {ppu} pcs ×{" "}
-                            {item.quantity} unit{item.quantity !== 1 ? "s" : ""}{" "}
-                            = {totalPieces} pcs total
+                            {formatPrice(itemPricePKR)} × {ppu} pcs ×{" "}
+                            {item.quantity} unit
+                            {item.quantity !== 1 ? "s" : ""} = {totalPieces} pcs
+                            total
                           </p>
                         )}
                         {ppu === 1 && item.quantity > 1 && (
@@ -336,7 +334,7 @@ export default function Cart() {
                               margin: "0.15rem 0",
                             }}
                           >
-                            {formatPrice(itemPrice)} / pc
+                            {formatPrice(itemPricePKR)} / pc
                           </p>
                         )}
 
@@ -402,8 +400,10 @@ export default function Cart() {
                               </svg>
                             </button>
                           </div>
+
+                          {/* ✅ Item total: PKR → formatPrice */}
                           <p className="cart-item-price">
-                            {formatPrice(itemTotal)}
+                            {formatPrice(itemTotalPKR)}
                           </p>
                         </div>
                       </div>
@@ -449,6 +449,7 @@ export default function Cart() {
               </Link>
             </div>
 
+            {/* ✅ Order Summary — all PKR → formatPrice */}
             <div className="cart-summary-col">
               <div className="cart-summary-card">
                 <p className="cart-summary-heading">
@@ -509,24 +510,32 @@ export default function Cart() {
                 <div className="cart-breakdown">
                   <div className="cart-breakdown-row">
                     <span>Subtotal ({cartCount} items)</span>
-                    <span>{formatPrice(subtotal)}</span>
+                    {/* ✅ subtotalPKR → formatPrice */}
+                    <span>{formatPrice(subtotalPKR)}</span>
                   </div>
+
                   {promoApplied && (
                     <div className="cart-breakdown-row cart-breakdown-row--discount">
                       <span>Discount (10%)</span>
-                      <span>-{formatPrice(discount)}</span>
+                      {/* ✅ discountPKR → formatPrice */}
+                      <span>-{formatPrice(discountPKR)}</span>
                     </div>
                   )}
+
                   <div className="cart-breakdown-row">
                     <span>Shipping</span>
+                    {/* ✅ shippingPKR → formatPrice */}
                     <span>
-                      {shipping === 0 ? "Free" : formatPrice(shipping)}
+                      {shippingPKR === 0 ? "Free" : formatPrice(shippingPKR)}
                     </span>
                   </div>
+
                   <div className="cart-breakdown-divider" />
+
                   <div className="cart-breakdown-row cart-breakdown-row--total">
                     <span>Total</span>
-                    <span>{formatPrice(total)}</span>
+                    {/* ✅ totalPKR → formatPrice */}
+                    <span>{formatPrice(totalPKR)}</span>
                   </div>
                 </div>
 
