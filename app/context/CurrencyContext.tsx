@@ -106,9 +106,12 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const [liveCurrencies, setLiveCurrencies] =
     useState<Currency[]>(staticCurrencies);
 
-  // Start null — will be set immediately after detection
-  const [currency, setCurrencyState] = useState<Currency | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Start with PKR as default — page renders immediately, currency updates silently in background
+  const pkrDefault =
+    staticCurrencies.find((c) => c.code === "PKR") || staticCurrencies[0];
+  const [currency, setCurrencyState] = useState<Currency>(pkrDefault);
+  // loading is always false — we never block the page for currency detection
+  const loading = false;
   const isDetecting = useRef(false);
 
   const setCurrency = useCallback(
@@ -126,7 +129,6 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const detectAndSet = useCallback(async () => {
     if (isDetecting.current) return;
     isDetecting.current = true;
-    setLoading(true);
 
     try {
       // Country detection + live rates fetch IN PARALLEL for speed
@@ -158,7 +160,6 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
         staticCurrencies.find((c) => c.code === "USD") || staticCurrencies[0];
       setCurrencyState(usd);
     } finally {
-      setLoading(false);
       isDetecting.current = false;
     }
   }, []);
@@ -173,26 +174,20 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     detectAndSet();
   }, [detectAndSet]);
 
-  // Placeholder while detecting (avoids null crashes)
-  const activeCurrency =
-    currency ||
-    staticCurrencies.find((c) => c.code === "PKR") ||
-    staticCurrencies[0];
-
   const convert = useCallback(
-    (priceInPKR: number) => convertPrice(priceInPKR, activeCurrency),
-    [activeCurrency]
+    (priceInPKR: number) => convertPrice(priceInPKR, currency),
+    [currency]
   );
 
   const format = useCallback(
-    (priceInPKR: number) => formatPrice(priceInPKR, activeCurrency),
-    [activeCurrency]
+    (priceInPKR: number) => formatPrice(priceInPKR, currency),
+    [currency]
   );
 
   return (
     <CurrencyContext.Provider
       value={{
-        currency: activeCurrency,
+        currency,
         currencies: liveCurrencies,
         setCurrency,
         convertPrice: convert,

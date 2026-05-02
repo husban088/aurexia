@@ -630,9 +630,7 @@ export default function ProductDetail() {
     return () => obs.disconnect();
   }, [loading, product]);
 
-  const truncatedProductName = product
-    ? truncateProductName(product.name, 60)
-    : "";
+  const truncatedProductName = product ? product.name : "";
 
   // Show loading state
   if (loading || currencyLoading) {

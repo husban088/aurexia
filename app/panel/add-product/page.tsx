@@ -623,6 +623,7 @@ function VariantFormItem({
   onError,
   currencyRate,
   currencyCode,
+  currencySymbol,
   isFirstItem,
 }: {
   attributeType: string;
@@ -632,6 +633,7 @@ function VariantFormItem({
   onError: (msg: string) => void;
   currencyRate: number;
   currencyCode: string;
+  currencySymbol: string;
   isFirstItem?: boolean;
 }) {
   const [priceDisplay, setPriceDisplay] = useState("");
@@ -746,12 +748,8 @@ function VariantFormItem({
   ]);
 
   const currentUnitPrice = parseFloat(priceDisplay) || 0;
-  const getSymbol = () => {
-    if (currencyCode === "PKR") return "₨";
-    if (currencyCode === "USD") return "$";
-    if (currencyCode === "GBP") return "£";
-    return "€";
-  };
+  // Use the symbol passed from currency prop directly — covers ALL currencies (AED, SAR, CAD, AUD, INR, etc.)
+  const getSymbol = () => currencySymbol || currencyCode;
 
   const getStatusLabel = () => {
     if (stockStatus === "out_of_stock") return "Out of Stock";
@@ -985,6 +983,7 @@ function AttributeSelector({
   onError,
   currencyRate,
   currencyCode,
+  currencySymbol,
 }: {
   label: string;
   type: string;
@@ -996,6 +995,7 @@ function AttributeSelector({
   onError: (msg: string) => void;
   currencyRate: number;
   currencyCode: string;
+  currencySymbol: string;
 }) {
   const [inputValue, setInputValue] = useState("");
 
@@ -1092,6 +1092,7 @@ function AttributeSelector({
                 onError={onError}
                 currencyRate={currencyRate}
                 currencyCode={currencyCode}
+                currencySymbol={currencySymbol}
                 isFirstItem={idx === 0}
               />
             );
@@ -2049,6 +2050,7 @@ function DetailedModeForm({
                 onError={onError}
                 currencyRate={currency.rate}
                 currencyCode={currency.code}
+                currencySymbol={currency.symbol}
               />
               <AttributeSelector
                 label="Sizes"
@@ -2061,6 +2063,7 @@ function DetailedModeForm({
                 onError={onError}
                 currencyRate={currency.rate}
                 currencyCode={currency.code}
+                currencySymbol={currency.symbol}
               />
               <AttributeSelector
                 label="Materials"
@@ -2073,6 +2076,7 @@ function DetailedModeForm({
                 onError={onError}
                 currencyRate={currency.rate}
                 currencyCode={currency.code}
+                currencySymbol={currency.symbol}
               />
               <AttributeSelector
                 label="Capacities"
@@ -2085,6 +2089,7 @@ function DetailedModeForm({
                 onError={onError}
                 currencyRate={currency.rate}
                 currencyCode={currency.code}
+                currencySymbol={currency.symbol}
               />
             </div>
           </div>
@@ -2226,7 +2231,7 @@ export default function AddProductPage() {
   const [activeTab, setActiveTab] = useState(0);
   const [mode, setMode] = useState<Mode>("simple");
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const { currency, loading: currencyLoading } = useCurrency();
+  const { currency } = useCurrency();
 
   const addToast = (type: Toast["type"], title: string, msg: string) => {
     const id = Date.now();
@@ -2252,10 +2257,6 @@ export default function AddProductPage() {
     setMode(newMode);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  if (currencyLoading) {
-    return null;
-  }
 
   return (
     <div className="ap-root">

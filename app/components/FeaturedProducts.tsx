@@ -79,18 +79,28 @@ const getStockStatus = (
 
 // FAST fetch function with optimizations
 async function fetchFeaturedTabDataFast(tab: string) {
+  console.log(`🔄 Fetching featured products for category: ${tab}`);
+
   const { data: productsData, error: productsError } = await supabase
     .from("products")
     .select("*, product_variants(*, variant_images(*))")
     .eq("is_active", true)
     .eq("is_featured", true)
     .eq("category", tab)
-    .order("created_at", { ascending: false })
-    .limit(12);
+    .order("created_at", { ascending: false });
+  // .limit(12) - REMOVED - Now shows ALL featured products
 
-  if (productsError || !productsData || productsData.length === 0) {
+  if (productsError) {
+    console.error("Error fetching products:", productsError);
     return { products: [], variantsMap: {}, variantImagesMap: {} };
   }
+
+  if (!productsData || productsData.length === 0) {
+    console.log(`No featured products found for category: ${tab}`);
+    return { products: [], variantsMap: {}, variantImagesMap: {} };
+  }
+
+  console.log(`✅ Found ${productsData.length} featured products for ${tab}`);
 
   const formattedProducts: FeaturedProduct[] = productsData.map(
     (item: any) => ({
