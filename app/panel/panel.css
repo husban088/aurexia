@@ -2,7 +2,7 @@
    PANEL PAGE  ·  panel.css
    Light/Luxury theme with Larger Fonts
    ============================================================ */
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Josefin+Sans:wght@200;300;400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
 
 :root {
   --p-gold: #daa520;
@@ -18,8 +18,8 @@
   --p-text-secondary: #444444;
   --p-text-muted: #666666;
   --p-text-light: #999999;
-  --p-serif: "Cormorant Garamond", Georgia, serif;
-  --p-sans: "Josefin Sans", sans-serif;
+  --p-serif: "Poppins", sans-serif;
+  --p-sans: "Poppins", sans-serif;
   --p-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
   --p-nav-h: 68px;
 }
@@ -1106,5 +1106,258 @@
 @media (max-width: 640px) {
   .p-stats-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================
+   ENHANCED PRODUCT CARDS WITH IMAGES AND PRICES
+   ============================================================ */
+
+/* Product Grid Layout - Enhanced */
+.p-subcategory-products-enhanced {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.25rem;
+}
+
+/* Enhanced Product Card */
+.p-product-card-enhanced {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid rgba(218, 165, 32, 0.12);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+
+.p-product-card-enhanced:hover {
+  transform: translateY(-4px);
+  border-color: rgba(218, 165, 32, 0.3);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(218, 165, 32, 0.1);
+}
+
+/* Product Image Wrapper */
+.p-product-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  background: rgba(218, 165, 32, 0.04);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.p-product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.p-product-card-enhanced:hover .p-product-image {
+  transform: scale(1.05);
+}
+
+.p-product-image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(218, 165, 32, 0.06);
+  color: rgba(218, 165, 32, 0.4);
+}
+
+.p-product-image-placeholder svg {
+  width: 48px;
+  height: 48px;
+}
+
+/* Product Info Section */
+.p-product-info-enhanced {
+  padding: 1rem 1rem 0.75rem;
+  flex: 1;
+}
+
+.p-product-name-enhanced {
+  font-family: var(--p-serif);
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 0.25rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.p-product-brand-enhanced {
+  font-family: var(--p-sans);
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: #8b6914;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+}
+
+/* Price Section */
+.p-product-prices {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.p-product-sale-price {
+  font-family: var(--p-serif);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #daa520;
+}
+
+.p-product-original-price {
+  font-family: var(--p-sans);
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #999999;
+  text-decoration: line-through;
+}
+
+.p-product-discount-badge {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  font-family: var(--p-sans);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 20px;
+  letter-spacing: 0.04em;
+}
+
+/* Meta Info */
+.p-product-meta-enhanced {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.p-product-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--p-sans);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #22c55e;
+}
+
+.p-product-status.inactive {
+  color: #999999;
+}
+
+.p-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.p-product-subcategory {
+  font-family: var(--p-sans);
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: #666666;
+  background: rgba(218, 165, 32, 0.08);
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+}
+
+/* Action Buttons */
+.p-product-actions-enhanced {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid rgba(218, 165, 32, 0.08);
+  background: rgba(218, 165, 32, 0.02);
+}
+
+.p-product-edit-enhanced,
+.p-product-delete-enhanced {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid rgba(218, 165, 32, 0.15);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.p-product-edit-enhanced {
+  color: #8b6914;
+}
+
+.p-product-edit-enhanced:hover {
+  background: rgba(218, 165, 32, 0.1);
+  border-color: #daa520;
+  transform: scale(1.05);
+}
+
+.p-product-delete-enhanced {
+  color: #ef4444;
+}
+
+.p-product-delete-enhanced:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  transform: scale(1.05);
+}
+
+.p-product-edit-enhanced svg,
+.p-product-delete-enhanced svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .p-subcategory-products-enhanced {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+
+  .p-product-image-wrapper {
+    height: 180px;
+  }
+
+  .p-product-name-enhanced {
+    font-size: 0.9rem;
+  }
+
+  .p-product-sale-price {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .p-subcategory-products-enhanced {
+    grid-template-columns: 1fr;
+  }
+
+  .p-product-image-wrapper {
+    height: 200px;
   }
 }

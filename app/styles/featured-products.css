@@ -4,7 +4,7 @@
    ✅ Perfect image cover, consistent alignment, luxury hover FX
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Jost:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
 @import url("https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css");
 
 /* ── Design Tokens ── */
@@ -24,8 +24,8 @@
   --fp-ink: #111111;
   --fp-ink-soft: #333333;
   --fp-ink-muted: #777777;
-  --fp-serif: "Cormorant Garamond", Georgia, serif;
-  --fp-sans: "Jost", sans-serif;
+  --fp-serif: "Poppins", sans-serif;
+  --fp-sans: "Poppins", sans-serif;
   --fp-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --fp-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   /* ── Card layout constants — prevents any misalignment ── */

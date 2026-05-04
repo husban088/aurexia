@@ -57,6 +57,95 @@ const categorySubcategories: Record<string, { name: string; href: string }[]> =
     ],
   };
 
+// Currency Dropdown Component for Navbar (Owner Only) - USING EXISTING CSS CLASSES
+function NavbarCurrencyDropdown({ isOwnerUser }: { isOwnerUser: boolean }) {
+  const [currencyOpen, setCurrencyOpen] = useState(false);
+  const currencyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { currency, currencies, setCurrency } = useCurrency();
+
+  const availableCurrencies = currencies.filter((c) => c.code !== "PKR");
+
+  // Don't show anything if not owner
+  if (!isOwnerUser) {
+    return null;
+  }
+
+  const handleMouseEnter = () => {
+    if (currencyTimeoutRef.current) {
+      clearTimeout(currencyTimeoutRef.current);
+      currencyTimeoutRef.current = null;
+    }
+    setCurrencyOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    currencyTimeoutRef.current = setTimeout(() => setCurrencyOpen(false), 200);
+  };
+
+  return (
+    <div
+      className="currency-dropdown"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <button className="currency-btn">
+        <span className="currency-flag">{currency.flag}</span>
+        <span className="currency-symbol">{currency.symbol}</span>
+        <span className="currency-code">{currency.code}</span>
+        <svg
+          className={`currency-arrow ${currencyOpen ? "open" : ""}`}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {currencyOpen && (
+        <div className="currency-menu">
+          {availableCurrencies.map((cur) => (
+            <button
+              key={cur.code}
+              className={`currency-option${
+                currency.code === cur.code ? " active" : ""
+              }`}
+              onClick={() => {
+                setCurrency(cur);
+                setCurrencyOpen(false);
+              }}
+            >
+              <span className="currency-option-flag">{cur.flag}</span>
+              <span className="currency-option-symbol">{cur.symbol}</span>
+              <span className="currency-option-code">{cur.code}</span>
+              <span className="currency-option-name">{cur.name}</span>
+            </button>
+          ))}
+          {/* PKR option */}
+          <button
+            className={`currency-option${
+              currency.code === "PKR" ? " active" : ""
+            }`}
+            onClick={() => {
+              const pkr = currencies.find((c) => c.code === "PKR");
+              if (pkr) {
+                setCurrency(pkr);
+                setCurrencyOpen(false);
+              }
+            }}
+          >
+            <span className="currency-option-flag">🇵🇰</span>
+            <span className="currency-option-symbol">₨</span>
+            <span className="currency-option-code">PKR</span>
+            <span className="currency-option-name">Pakistani Rupee</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Navbar({
   onMenuOpen,
   onSearchOpen,
@@ -73,6 +162,12 @@ export default function Navbar({
 
   const items = useCartStore((state) => state.items);
   const cartCount = items.reduce((total, item) => total + item.quantity, 0);
+
+  // Check if current user is owner
+  const isOwnerUser = isOwner(userEmail);
+  const showPanel = isOwnerUser;
+  const authResolved = user !== undefined;
+  const isSignedIn = authResolved && user !== null;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -116,10 +211,6 @@ export default function Navbar({
     return () => subscription.unsubscribe();
   }, []);
 
-  const showPanel = isOwner(userEmail);
-  const authResolved = user !== undefined;
-  const isSignedIn = authResolved && user !== null;
-
   const handleDropdownEnter = (href: string) => {
     if (dropdownTimeoutRef.current) {
       clearTimeout(dropdownTimeoutRef.current);
@@ -135,7 +226,7 @@ export default function Navbar({
   return (
     <nav className={`navbar${scrolled ? " scrolled" : ""}`}>
       <div className="navbar-container">
-        {/* LEFT — Search only (currency removed) */}
+        {/* LEFT — Search and Currency Dropdown (Owner Only) */}
         <div className="navbar-left">
           <button
             className="nav-icon-btn search-btn"
@@ -153,6 +244,9 @@ export default function Navbar({
             </svg>
             <span className="nav-icon-tooltip">Search</span>
           </button>
+
+          {/* Currency Dropdown - Only shows for Owner */}
+          <NavbarCurrencyDropdown isOwnerUser={isOwnerUser} />
         </div>
 
         {/* CENTER — Logo */}

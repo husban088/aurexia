@@ -1,30 +1,18 @@
 "use client";
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ADMIN PANEL PAGE — Module-level cache
-// Back/forward pe Supabase call nahi hogi — data instantly dikhega
-// ═══════════════════════════════════════════════════════════════════════════════
-
-import { useEffect, useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase, Product } from "@/lib/supabase";
+import PanelNavbar from "@/app/components/PanelNavbar";
+import { supabase } from "@/lib/supabase";
+import { isOwner } from "@/lib/checkOwner";
+import { useCurrency } from "@/app/context/CurrencyContext";
+import { convertPriceFromPKR } from "@/lib/panelCurrency";
 import "./panel.css";
-import PanelNavbar from "../components/PanelNavbar";
+import "./panel-dashboard.css";
 
-// ─── MODULE-LEVEL CACHE ───────────────────────────────────────────────────────
-// Yeh Next.js client-side navigation ke baad bhi survive karta hai
-// Component unmount/remount hone par bhi data memory mein rehta hai
-let _cachedProducts: Product[] | null = null;
-let _cachedStats: { users: number; orders: number; contacts: number } | null =
-  null;
-let _fetchPromise: Promise<void> | null = null;
-let _lastFetchTime = 0;
-const CACHE_STALE_MS = 60 * 1000; // 1 minute — stale hone ke baad background refresh
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 
-/* ═══════════════════════════════════════════
-   TYPES
-═══════════════════════════════════════════ */
 type Toast = {
   id: number;
   type: "success" | "error" | "info";
@@ -33,26 +21,74 @@ type Toast = {
   exiting?: boolean;
 };
 
-type CategoryGroup = {
+type StockStatus = "in_stock" | "out_of_stock" | "low_stock";
+
+interface ProductVariantData {
+  id: string;
+  attribute_type: string;
+  attribute_value: string;
+  price: number;
+  original_price?: number | null;
+  stock: number;
+  low_stock_threshold?: number | null;
+  variant_images?: { image_url: string; display_order: number }[];
+}
+
+interface PanelProduct {
+  id: string;
+  name: string;
+  brand?: string;
   category: string;
-  subcategories: {
-    name: string;
-    products: Product[];
-  }[];
+  subcategory: string;
+  condition: string;
+  is_featured: boolean;
+  is_active: boolean;
+  created_at: string;
+  // Derived from variants
+  displayPrice: number;
+  displayOriginalPrice?: number | null;
+  displayImage?: string;
+  stockStatus: StockStatus;
+  stockCount: number;
+  variantCount: number;
+  discount?: number | null;
+}
+
+// ─── Category/Subcategory Structure ──────────────────────────────────────────
+
+const CATEGORY_STRUCTURE: Record<string, string[]> = {
+  Accessories: [
+    "Chargers",
+    "Cables",
+    "Phone Holders",
+    "Tech Gadgets",
+    "Smart Accessories",
+  ],
+  Watches: ["Men Watches", "Women Watches", "Smart Watches", "Luxury Watches"],
+  Automotive: ["Car Accessories", "Car Cleaning Tools", "Interior Accessories"],
+  "Home Decor": [
+    "Wall Decor",
+    "Lighting",
+    "Kitchen Essentials",
+    "Storage & Organizers",
+  ],
 };
 
-type CategoryStats = {
-  category: string;
-  totalProducts: number;
-  subcategoryStats: {
-    name: string;
-    count: number;
-  }[];
-};
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/* ═══════════════════════════════════════════
-   TOAST CONTAINER
-═══════════════════════════════════════════ */
+function getStockStatus(stock: number, threshold?: number | null): StockStatus {
+  if (stock === 0) return "out_of_stock";
+  if (stock >= 999999) return "in_stock";
+  if (threshold && threshold > 0 && stock <= threshold) return "low_stock";
+  return "in_stock";
+}
+
+function truncate(name: string, max = 45) {
+  return name.length <= max ? name : name.substring(0, max).trim() + "…";
+}
+
+// ─── Toast Container ─────────────────────────────────────────────────────────
+
 function ToastContainer({
   toasts,
   onRemove,
@@ -98,7 +134,6 @@ function ToastContainer({
               >
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             )}
           </div>
@@ -123,26 +158,24 @@ function ToastContainer({
   );
 }
 
-/* ═══════════════════════════════════════════
-   DELETE CONFIRM MODAL
-═══════════════════════════════════════════ */
-function DeleteConfirmModal({
-  isOpen,
-  onClose,
-  onConfirm,
-  productName,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  productName: string;
-}) {
-  if (!isOpen) return null;
+// ─── Delete Confirm Modal ─────────────────────────────────────────────────────
 
+function DeleteModal({
+  product,
+  onConfirm,
+  onCancel,
+  isDeleting,
+}: {
+  product: PanelProduct | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isDeleting: boolean;
+}) {
+  if (!product) return null;
   return (
-    <div className="p-modal-overlay" onClick={onClose}>
+    <div className="p-modal-overlay" onClick={onCancel}>
       <div className="p-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="p-modal-close" onClick={onClose}>
+        <button className="p-modal-close" onClick={onCancel}>
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -162,23 +195,29 @@ function DeleteConfirmModal({
           >
             <polyline points="3 6 5 6 21 6" />
             <path d="M19 6l-1 14H6L5 6" />
-            <path d="M10 11v6M14 11v6" />
-            <path d="M9 6V4h6v2" />
+            <path d="M10 11v6M14 11v6M9 6V4h6v2" />
           </svg>
         </div>
-        <h3 className="p-modal-title">Delete Product</h3>
+        <h3 className="p-modal-title">Delete Product?</h3>
         <p className="p-modal-text">
           Are you sure you want to delete{" "}
-          <strong>&quot;{productName}&quot;</strong>?
-          <br />
-          This action cannot be undone.
+          <strong>"{truncate(product.name, 40)}"</strong>? This action cannot be
+          undone.
         </p>
         <div className="p-modal-actions">
-          <button className="p-modal-cancel" onClick={onClose}>
+          <button
+            className="p-modal-cancel"
+            onClick={onCancel}
+            disabled={isDeleting}
+          >
             Cancel
           </button>
-          <button className="p-modal-confirm" onClick={onConfirm}>
-            Delete Product
+          <button
+            className="p-modal-confirm"
+            onClick={onConfirm}
+            disabled={isDeleting}
+          >
+            {isDeleting ? "Deleting…" : "Delete"}
           </button>
         </div>
       </div>
@@ -186,579 +225,685 @@ function DeleteConfirmModal({
   );
 }
 
-/* ═══════════════════════════════════════════
-   CATEGORY STATS CARD
-═══════════════════════════════════════════ */
-function CategoryStatsCard({ stats }: { stats: CategoryStats[] }) {
+// ─── Panel Product Card ───────────────────────────────────────────────────────
+
+function PanelProductCard({
+  product,
+  onDelete,
+  formatPrice,
+}: {
+  product: PanelProduct;
+  onDelete: (product: PanelProduct) => void;
+  formatPrice: (v: number) => string;
+}) {
+  const [imgError, setImgError] = useState(false);
+
+  const stockLabel =
+    product.stockStatus === "out_of_stock"
+      ? "Out of Stock"
+      : product.stockStatus === "low_stock"
+      ? `Low Stock (${product.stockCount})`
+      : product.stockCount >= 999999
+      ? "In Stock"
+      : `In Stock (${product.stockCount})`;
+
+  const stockClass =
+    product.stockStatus === "out_of_stock"
+      ? "out"
+      : product.stockStatus === "low_stock"
+      ? "low"
+      : "in";
+
   return (
-    <div className="p-category-stats-grid">
-      {stats.map((catStat) => (
-        <div key={catStat.category} className="p-category-stats-card">
-          <div className="p-category-stats-header">
-            <h4 className="p-category-stats-title">{catStat.category}</h4>
-            <span className="p-category-stats-total">
-              {catStat.totalProducts} products
+    <div className="pd-card">
+      {/* ── Image ── */}
+      <div className="pd-card-img">
+        {product.displayImage && !imgError ? (
+          <img
+            src={product.displayImage}
+            alt={product.name}
+            loading="lazy"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="pd-card-placeholder">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+          </div>
+        )}
+
+        {/* Badges */}
+        <div className="pd-card-badges">
+          {product.is_featured && (
+            <span className="pd-badge pd-badge--featured">Featured</span>
+          )}
+          {!product.is_active && (
+            <span className="pd-badge pd-badge--inactive">Inactive</span>
+          )}
+          {product.discount && product.discount > 0 && (
+            <span className="pd-badge pd-badge--discount">
+              -{product.discount}%
             </span>
-          </div>
-          <div className="p-category-stats-subcategories">
-            {catStat.subcategoryStats.map((subStat) => (
-              <div key={subStat.name} className="p-subcategory-stats-item">
-                <span className="p-subcategory-stats-name">{subStat.name}</span>
-                <span className="p-subcategory-stats-count">
-                  {subStat.count} item{subStat.count !== 1 ? "s" : ""}
-                </span>
-              </div>
-            ))}
-          </div>
+          )}
         </div>
-      ))}
+
+        {/* ── Delete (top-left icon) ── */}
+        <button
+          className="pd-action-btn pd-action-btn--delete"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDelete(product);
+          }}
+          title="Delete Product"
+          aria-label="Delete Product"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          >
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14H6L5 6" />
+            <path d="M10 11v6M14 11v6M9 6V4h6v2" />
+          </svg>
+        </button>
+
+        {/* ── Edit (top-right icon) ── */}
+        <Link
+          href={`/panel/edit-product/${product.id}`}
+          className="pd-action-btn pd-action-btn--edit"
+          onClick={(e) => e.stopPropagation()}
+          title="Edit Product"
+          aria-label="Edit Product"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          >
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+        </Link>
+      </div>
+
+      {/* ── Body ── */}
+      <div className="pd-card-body">
+        {product.brand && <p className="pd-card-brand">{product.brand}</p>}
+        <h3 className="pd-card-name" title={product.name}>
+          {truncate(product.name, 45)}
+        </h3>
+
+        {/* Price Row */}
+        <div className="pd-card-price-row">
+          <span className="pd-card-price">
+            {formatPrice(product.displayPrice)}
+          </span>
+          {product.displayOriginalPrice &&
+            product.displayOriginalPrice > product.displayPrice && (
+              <span className="pd-card-orig">
+                {formatPrice(product.displayOriginalPrice)}
+              </span>
+            )}
+          {product.discount && product.discount > 0 && (
+            <span className="pd-card-discount-text">-{product.discount}%</span>
+          )}
+        </div>
+
+        {/* Subcategory tag */}
+        <div className="pd-card-tags">
+          <span className="pd-tag">{product.subcategory}</span>
+          {product.variantCount > 1 && (
+            <span className="pd-tag pd-tag--variant">
+              {product.variantCount} variants
+            </span>
+          )}
+        </div>
+
+        {/* Stock */}
+        <div className={`pd-card-stock ${stockClass}`}>{stockLabel}</div>
+      </div>
+
+      {/* Bottom line */}
+      <div className="pd-card-line" />
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════
-   CATEGORY SECTION
-═══════════════════════════════════════════ */
+// ─── Subcategory Block ────────────────────────────────────────────────────────
+
+function SubcategoryBlock({
+  subcategory,
+  products,
+  onDelete,
+  formatPrice,
+  search,
+}: {
+  subcategory: string;
+  products: PanelProduct[];
+  onDelete: (product: PanelProduct) => void;
+  formatPrice: (v: number) => string;
+  search: string;
+}) {
+  const filtered = search
+    ? products.filter(
+        (p) =>
+          p.name.toLowerCase().includes(search.toLowerCase()) ||
+          (p.brand && p.brand.toLowerCase().includes(search.toLowerCase()))
+      )
+    : products;
+
+  if (filtered.length === 0) return null;
+
+  return (
+    <div className="pd-subcategory-block">
+      <div className="pd-subcategory-header">
+        <h3 className="pd-subcategory-title">{subcategory}</h3>
+        <span className="pd-subcategory-count">
+          {filtered.length} {filtered.length === 1 ? "product" : "products"}
+        </span>
+      </div>
+      <div className="pd-products-grid">
+        {filtered.map((product) => (
+          <PanelProductCard
+            key={product.id}
+            product={product}
+            onDelete={onDelete}
+            formatPrice={formatPrice}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Category Section ─────────────────────────────────────────────────────────
+
 function CategorySection({
   category,
   subcategories,
+  productsBySubcategory,
   onDelete,
+  formatPrice,
+  search,
 }: {
   category: string;
-  subcategories: { name: string; products: Product[] }[];
-  onDelete: (id: string, name: string) => void;
+  subcategories: string[];
+  productsBySubcategory: Record<string, PanelProduct[]>;
+  onDelete: (product: PanelProduct) => void;
+  formatPrice: (v: number) => string;
+  search: string;
 }) {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const totalProducts = subcategories.reduce(
-    (sum, sub) => sum + sub.products.length,
+  const [expanded, setExpanded] = useState(true);
+
+  const totalInCategory = subcategories.reduce(
+    (acc, sub) => acc + (productsBySubcategory[sub]?.length || 0),
     0
   );
 
-  if (totalProducts === 0) return null;
+  const filteredTotal = subcategories.reduce((acc, sub) => {
+    const prods = productsBySubcategory[sub] || [];
+    const filtered = search
+      ? prods.filter(
+          (p) =>
+            p.name.toLowerCase().includes(search.toLowerCase()) ||
+            (p.brand && p.brand.toLowerCase().includes(search.toLowerCase()))
+        )
+      : prods;
+    return acc + filtered.length;
+  }, 0);
+
+  if (filteredTotal === 0) return null;
 
   return (
-    <div className="p-category-section">
+    <div className="pd-category-section">
       <div
-        className="p-category-header"
-        onClick={() => setIsExpanded(!isExpanded)}
+        className="pd-category-header"
+        onClick={() => setExpanded((v) => !v)}
       >
-        <div className="p-category-header-left">
-          <span className="p-category-expand">
+        <div className="pd-category-header-left">
+          <span
+            className="pd-category-expand"
+            style={{
+              transform: expanded ? "rotate(0deg)" : "rotate(-90deg)",
+              transition: "transform 0.25s ease",
+              display: "inline-flex",
+            }}
+          >
             <svg
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              style={{
-                transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
-                transition: "transform 0.3s ease",
-              }}
             >
-              <polyline points="9 18 15 12 9 6" />
+              <polyline points="6 9 12 15 18 9" />
             </svg>
           </span>
-          <h3 className="p-category-title">{category}</h3>
-          <span className="p-category-count">{totalProducts} products</span>
+          <h2 className="pd-category-title">{category}</h2>
         </div>
+        <span className="pd-category-count">
+          {filteredTotal} {filteredTotal === 1 ? "product" : "products"}
+        </span>
       </div>
 
-      {isExpanded && (
-        <div className="p-subcategories-container">
-          {subcategories.map((sub) => (
-            <div key={sub.name} className="p-subcategory-block">
-              <div className="p-subcategory-header">
-                <h4 className="p-subcategory-title">{sub.name}</h4>
-                <span className="p-subcategory-count">
-                  {sub.products.length} item
-                  {sub.products.length !== 1 ? "s" : ""}
-                </span>
-              </div>
-              {sub.products.length === 0 ? (
-                <div className="p-subcategory-empty">
-                  No products in this subcategory
-                </div>
-              ) : (
-                <div className="p-subcategory-products">
-                  {sub.products.map((product) => (
-                    <div key={product.id} className="p-product-card">
-                      <div className="p-product-info">
-                        <div className="p-product-name">{product.name}</div>
-                        {product.brand && (
-                          <div className="p-product-brand">{product.brand}</div>
-                        )}
-                        <div className="p-product-meta">
-                          <span
-                            className={`p-product-status ${
-                              !product.is_active ? "inactive" : ""
-                            }`}
-                          >
-                            <span className="p-status-dot" />
-                            {product.is_active ? "Active" : "Inactive"}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="p-product-actions">
-                        <button
-                          className="p-product-edit"
-                          title="Edit Product"
-                          onClick={() =>
-                            (window.location.href = `/panel/edit-product/${product.id}`)
-                          }
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                          >
-                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                        </button>
-                        <button
-                          className="p-product-delete"
-                          title="Delete Product"
-                          onClick={() =>
-                            product.id && onDelete(product.id, product.name)
-                          }
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                          >
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6l-1 14H6L5 6" />
-                            <path d="M10 11v6M14 11v6" />
-                            <path d="M9 6V4h6v2" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+      {expanded && (
+        <div className="pd-subcategories-container">
+          {subcategories.map((sub) => {
+            const prods = productsBySubcategory[sub] || [];
+            if (prods.length === 0 && !search) return null;
+            return (
+              <SubcategoryBlock
+                key={sub}
+                subcategory={sub}
+                products={prods}
+                onDelete={onDelete}
+                formatPrice={formatPrice}
+                search={search}
+              />
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════
-   MAIN PANEL PAGE
-═══════════════════════════════════════════ */
-export default function Panel() {
-  // ── Sync-init from cache — instant render agar already cached hai ──
-  const [products, setProducts] = useState<Product[]>(
-    () => _cachedProducts ?? []
-  );
-  const [productsLoading, setProductsLoading] = useState(
-    () => _cachedProducts === null
-  );
+// ─── Main Panel Dashboard Page ────────────────────────────────────────────────
+
+export default function PanelDashboardPage() {
+  const router = useRouter();
+  const { currency, formatPrice } = useCurrency();
+
+  const [authorized, setAuthorized] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  const [allProducts, setAllProducts] = useState<PanelProduct[]>([]);
+  const [search, setSearch] = useState("");
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [deleteModal, setDeleteModal] = useState<{
-    isOpen: boolean;
-    productId: string;
-    productName: string;
-  }>({ isOpen: false, productId: "", productName: "" });
-  const [stats, setStats] = useState(
-    () => _cachedStats ?? { users: 0, orders: 0, contacts: 0 }
-  );
-  const [searchTerm, setSearchTerm] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<PanelProduct | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const addToast = useCallback(
-    (type: Toast["type"], title: string, msg: string) => {
-      const id = Date.now();
-      setToasts((p) => [...p, { id, type, title, msg }]);
-      setTimeout(() => {
-        setToasts((p) =>
-          p.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+  // ─── Toast helpers ────────────────────────────────────────────────────────
+
+  const addToast = (type: Toast["type"], title: string, msg: string) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, type, title, msg }]);
+    setTimeout(() => {
+      setToasts((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+      );
+    }, 4000);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4500);
+  };
+
+  const removeToast = (id: number) => {
+    setToasts((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+    );
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 350);
+  };
+
+  // ─── Auth ─────────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    let mounted = true;
+    const checkAuth = async () => {
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+        if (error || !user) {
+          router.push("/signin?redirectTo=/panel");
+          return;
+        }
+        if (!isOwner(user.email)) {
+          router.push("/");
+          return;
+        }
+        if (mounted) {
+          setAuthorized(true);
+          setChecking(false);
+        }
+      } catch {
+        router.push("/signin");
+      }
+    };
+    checkAuth();
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
+
+  // ─── Fetch Products ───────────────────────────────────────────────────────
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*, product_variants(*, variant_images(*))")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const processed: PanelProduct[] = (data || []).map((item: any) => {
+        const variants: ProductVariantData[] = item.product_variants || [];
+
+        // Sort variants: standard first, then by price
+        const sorted = [...variants].sort((a, b) => {
+          if (a.attribute_type === "standard") return -1;
+          if (b.attribute_type === "standard") return 1;
+          return a.price - b.price;
+        });
+
+        const best = sorted[0];
+
+        // Get best display image
+        let displayImage: string | undefined;
+        for (const v of sorted) {
+          const imgs = (v.variant_images || []).sort(
+            (a: any, b: any) => a.display_order - b.display_order
+          );
+          if (imgs.length > 0) {
+            displayImage = imgs[0].image_url;
+            break;
+          }
+        }
+
+        const displayPrice = best?.price ?? 0;
+        const displayOriginalPrice = best?.original_price ?? null;
+        const stockCount = best?.stock ?? 0;
+        const stockStatus = getStockStatus(
+          stockCount,
+          best?.low_stock_threshold
         );
-        setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 350);
-      }, 3500);
-    },
-    []
-  );
+        const discount =
+          displayOriginalPrice && displayOriginalPrice > displayPrice
+            ? Math.round(
+                ((displayOriginalPrice - displayPrice) / displayOriginalPrice) *
+                  100
+              )
+            : null;
 
-  const removeToast = useCallback((id: number) => {
-    setToasts((p) => p.map((t) => (t.id === id ? { ...t, exiting: true } : t)));
-    setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 350);
+        return {
+          id: item.id,
+          name: item.name,
+          brand: item.brand || undefined,
+          category: item.category,
+          subcategory: item.subcategory,
+          condition: item.condition || "new",
+          is_featured: item.is_featured || false,
+          is_active: item.is_active !== false,
+          created_at: item.created_at,
+          displayPrice,
+          displayOriginalPrice,
+          displayImage,
+          stockStatus,
+          stockCount,
+          variantCount: variants.length,
+          discount,
+        };
+      });
+
+      setAllProducts(processed);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      addToast("error", "Load Failed", "Could not fetch products");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // ── Core fetch — products + stats ek hi baar mein ──
-  const fetchData = useCallback(
-    async (silent = false) => {
-      // Agar pehle se fetch chal rahi hai toh ussi ka wait karo
-      if (_fetchPromise) {
-        await _fetchPromise;
-        if (_cachedProducts) setProducts(_cachedProducts);
-        if (_cachedStats) setStats(_cachedStats);
-        setProductsLoading(false);
-        return;
-      }
-
-      if (!silent) setProductsLoading(true);
-
-      _fetchPromise = (async () => {
-        try {
-          const [productsRes, usersRes, ordersRes, contactsRes] =
-            await Promise.all([
-              supabase
-                .from("products")
-                .select("*")
-                .order("created_at", { ascending: false }),
-              supabase
-                .from("profiles")
-                .select("*", { count: "exact", head: true }),
-              supabase
-                .from("cart_items")
-                .select("*", { count: "exact", head: true }),
-              supabase
-                .from("contacts")
-                .select("*", { count: "exact", head: true }),
-            ]);
-
-          if (productsRes.data && !productsRes.error) {
-            const mapped = productsRes.data.map((p: any) => ({
-              ...p,
-              price: p.price ?? 0,
-              stock: p.stock ?? 0,
-              subcategory: p.subcategory ?? "Uncategorized",
-              is_active: p.is_active ?? true,
-            })) as Product[];
-
-            _cachedProducts = mapped;
-            _lastFetchTime = Date.now();
-            setProducts(mapped);
-          } else if (productsRes.error) {
-            console.error("Products fetch error:", productsRes.error);
-            if (!silent)
-              addToast("error", "Load Failed", "Could not fetch products");
-          }
-
-          const newStats = {
-            users: usersRes.count || 0,
-            orders: ordersRes.count || 0,
-            contacts: contactsRes.count || 0,
-          };
-          _cachedStats = newStats;
-          setStats(newStats);
-        } catch (err) {
-          console.error("Fetch error:", err);
-          if (!silent) addToast("error", "Load Failed", "Could not fetch data");
-        } finally {
-          _fetchPromise = null;
-          setProductsLoading(false);
-        }
-      })();
-
-      await _fetchPromise;
-    },
-    [addToast]
-  );
-
-  // ── Main fetch effect ──
   useEffect(() => {
-    if (_cachedProducts !== null && _cachedStats !== null) {
-      // Cache available — instantly set karo
-      setProducts(_cachedProducts);
-      setStats(_cachedStats);
-      setProductsLoading(false);
+    if (authorized) fetchProducts();
+  }, [authorized, fetchProducts]);
 
-      // Stale check — agar 1 minute se zyada purana hai toh background refresh
-      const isStale = Date.now() - _lastFetchTime > CACHE_STALE_MS;
-      if (isStale) {
-        fetchData(true); // silent=true — loader nahi dikhega
-      }
-      return;
-    }
-
-    // Cache nahi — fresh fetch karo
-    fetchData(false);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Realtime subscription — live updates ──
-  useEffect(() => {
-    const channel = supabase
-      .channel("panel-products-realtime")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "products" },
-        (payload) => {
-          const newProduct = {
-            ...payload.new,
-            price: payload.new.price ?? 0,
-            stock: payload.new.stock ?? 0,
-            subcategory: payload.new.subcategory ?? "Uncategorized",
-            is_active: payload.new.is_active ?? true,
-          } as Product;
-
-          setProducts((prev) => {
-            const updated = [newProduct, ...prev];
-            _cachedProducts = updated;
-            return updated;
-          });
-
-          addToast(
-            "success",
-            "Product Added",
-            `${newProduct.name} added to store!`
-          );
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "products" },
-        (payload) => {
-          const updated = {
-            ...payload.new,
-            price: payload.new.price ?? 0,
-            stock: payload.new.stock ?? 0,
-            subcategory: payload.new.subcategory ?? "Uncategorized",
-            is_active: payload.new.is_active ?? true,
-          } as Product;
-
-          setProducts((prev) => {
-            const newList = prev.map((p) =>
-              p.id === updated.id ? updated : p
-            );
-            _cachedProducts = newList;
-            return newList;
-          });
-
-          addToast("info", "Product Updated", `${updated.name} updated!`);
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "products" },
-        (payload) => {
-          setProducts((prev) => {
-            const newList = prev.filter((p) => p.id !== payload.old.id);
-            _cachedProducts = newList;
-            return newList;
-          });
-
-          addToast(
-            "info",
-            "Product Deleted",
-            "A product was removed from store"
-          );
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [addToast]);
-
-  // ── Delete handlers ──
-  const handleDeleteClick = (id: string, name: string) => {
-    setDeleteModal({ isOpen: true, productId: id, productName: name });
-  };
+  // ─── Delete ───────────────────────────────────────────────────────────────
 
   const handleDeleteConfirm = async () => {
-    const { productId, productName } = deleteModal;
-    setDeleteModal({ isOpen: false, productId: "", productName: "" });
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      // Delete variant images and bulk pricing
+      const { data: variants } = await supabase
+        .from("product_variants")
+        .select("id")
+        .eq("product_id", deleteTarget.id);
 
-    const { error } = await supabase
-      .from("products")
-      .delete()
-      .eq("id", productId);
+      if (variants && variants.length > 0) {
+        const ids = variants.map((v: any) => v.id);
+        await supabase.from("variant_images").delete().in("variant_id", ids);
+        await supabase
+          .from("bulk_pricing_tiers")
+          .delete()
+          .in("variant_id", ids);
+      }
 
-    if (error) {
-      addToast("error", "Delete Failed", error.message);
-    } else {
-      setProducts((p) => {
-        const newList = p.filter((x) => x.id !== productId);
-        _cachedProducts = newList;
-        return newList;
-      });
-      addToast("success", "Deleted", `${productName} removed from store`);
+      await supabase
+        .from("product_variants")
+        .delete()
+        .eq("product_id", deleteTarget.id);
+      await supabase
+        .from("product_faqs")
+        .delete()
+        .eq("product_id", deleteTarget.id);
+      const { error } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", deleteTarget.id);
+
+      if (error) throw error;
+
+      setAllProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+      addToast(
+        "success",
+        "Deleted",
+        `"${truncate(deleteTarget.name, 30)}" has been removed.`
+      );
+    } catch (err) {
+      console.error("Delete error:", err);
+      addToast("error", "Delete Failed", "Could not delete the product.");
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
-  // ── Group products by category ──
-  const groupProductsByCategory = useCallback((): CategoryGroup[] => {
-    let filteredProducts = products;
+  // ─── Derived Stats ────────────────────────────────────────────────────────
 
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      filteredProducts = products.filter((p) => {
-        const matchName = p.name?.toLowerCase().includes(term) || false;
-        const matchBrand = p.brand?.toLowerCase().includes(term) || false;
-        const matchCategory = p.category?.toLowerCase().includes(term) || false;
-        const matchSubcategory =
-          p.subcategory?.toLowerCase().includes(term) || false;
-        return matchName || matchBrand || matchCategory || matchSubcategory;
-      });
+  const totalProducts = allProducts.length;
+  const totalActive = allProducts.filter((p) => p.is_active).length;
+  const totalFeatured = allProducts.filter((p) => p.is_featured).length;
+  const totalOutOfStock = allProducts.filter(
+    (p) => p.stockStatus === "out_of_stock"
+  ).length;
+
+  // Group by category → subcategory
+  const grouped: Record<string, Record<string, PanelProduct[]>> = {};
+  for (const cat of Object.keys(CATEGORY_STRUCTURE)) {
+    grouped[cat] = {};
+    for (const sub of CATEGORY_STRUCTURE[cat]) {
+      grouped[cat][sub] = allProducts.filter(
+        (p) => p.category === cat && p.subcategory === sub
+      );
     }
+  }
 
-    const groups: {
-      [category: string]: { [subcategory: string]: Product[] };
-    } = {};
+  // ─── Loading / Auth ───────────────────────────────────────────────────────
 
-    filteredProducts.forEach((product) => {
-      const category = product.category || "Uncategorized";
-      const subcategory = product.subcategory || "Uncategorized";
-      if (!groups[category]) groups[category] = {};
-      if (!groups[category][subcategory]) groups[category][subcategory] = [];
-      groups[category][subcategory].push(product);
-    });
-
-    const result: CategoryGroup[] = Object.entries(groups).map(
-      ([category, subcats]) => ({
-        category,
-        subcategories: Object.entries(subcats)
-          .map(([name, products]) => ({ name, products }))
-          .sort((a, b) => a.name.localeCompare(b.name)),
-      })
+  if (checking || !authorized) {
+    return (
+      <div className="p-root">
+        <div className="p-ambient" />
+        <div className="p-grain" />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "100vh",
+            flexDirection: "column",
+            gap: "1rem",
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              border: "3px solid rgba(218,165,32,0.2)",
+              borderTopColor: "#daa520",
+              borderRadius: "50%",
+              animation: "pd-spin 0.8s linear infinite",
+            }}
+          />
+          <p
+            style={{
+              fontFamily: "Josefin Sans, sans-serif",
+              fontSize: "0.8rem",
+              color: "#666",
+            }}
+          >
+            Verifying access…
+          </p>
+        </div>
+        <style>{`@keyframes pd-spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
     );
+  }
 
-    return result.sort((a, b) => a.category.localeCompare(b.category));
-  }, [products, searchTerm]);
-
-  // ── Category stats ──
-  const getCategoryStats = useCallback((): CategoryStats[] => {
-    const statsMap: {
-      [category: string]: { [subcategory: string]: number };
-    } = {};
-
-    products.forEach((product) => {
-      const category = product.category || "Uncategorized";
-      const subcategory = product.subcategory || "Uncategorized";
-      if (!statsMap[category]) statsMap[category] = {};
-      if (!statsMap[category][subcategory]) statsMap[category][subcategory] = 0;
-      statsMap[category][subcategory]++;
-    });
-
-    return Object.entries(statsMap)
-      .map(([category, subcats]) => ({
-        category,
-        totalProducts: Object.values(subcats).reduce(
-          (sum, count) => sum + count,
-          0
-        ),
-        subcategoryStats: Object.entries(subcats)
-          .map(([name, count]) => ({ name, count }))
-          .sort((a, b) => a.name.localeCompare(b.name)),
-      }))
-      .sort((a, b) => a.category.localeCompare(b.category));
-  }, [products]);
-
-  const categoryGroups = groupProductsByCategory();
-  const categoryStats = getCategoryStats();
-  const totalProducts = products.length;
-  const filteredCount = categoryGroups.reduce(
-    (sum, group) =>
-      sum + group.subcategories.reduce((s, sub) => s + sub.products.length, 0),
-    0
-  );
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="p-root">
       <div className="p-ambient" aria-hidden="true" />
       <div className="p-grain" aria-hidden="true" />
-
-      <PanelNavbar
-        productCount={totalProducts}
-        contactCount={stats.contacts}
-        cartCount={stats.orders}
-        signupCount={stats.users}
-      />
+      <PanelNavbar />
 
       <div className="p-content">
         {/* ── Page Header ── */}
         <div className="p-page-header">
           <p className="p-eyebrow">
             <span className="p-ey-line" />
-            Admin Dashboard
+            Inventory Dashboard
             <span className="p-ey-line" />
           </p>
           <h1 className="p-page-title">
-            Welcome to <em>TECH4U</em> Panel
+            Product <em>Management</em>
           </h1>
-          <p className="p-page-sub">Manage your store, products from here.</p>
+          <p className="p-page-sub">
+            All products across every category and subcategory
+          </p>
         </div>
 
-        {/* ── Stats Grid ── */}
+        {/* ── Stats ── */}
         <div className="p-stats-grid">
-          <div className="p-stat-card">
-            <div className="p-stat-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
-                <path d="M16 3H8l-2 4h12l-2-4z" />
-              </svg>
+          {[
+            {
+              icon: (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <rect x="2" y="7" width="20" height="14" rx="2" />
+                  <path d="M16 3h-8l-2 4h12l-2-4z" />
+                </svg>
+              ),
+              value: totalProducts,
+              label: "Total Products",
+            },
+            {
+              icon: (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              ),
+              value: totalActive,
+              label: "Active",
+            },
+            {
+              icon: (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+              ),
+              value: totalFeatured,
+              label: "Featured",
+            },
+            {
+              icon: (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                </svg>
+              ),
+              value: totalOutOfStock,
+              label: "Out of Stock",
+            },
+          ].map((stat, i) => (
+            <div key={i} className="p-stat-card">
+              <div className="p-stat-icon">{stat.icon}</div>
+              <div className="p-stat-value">{stat.value}</div>
+              <div className="p-stat-label">{stat.label}</div>
+              <div className="p-stat-line" />
             </div>
-            <div className="p-stat-value">{totalProducts}</div>
-            <div className="p-stat-label">Total Products</div>
-            <div className="p-stat-line" />
-          </div>
+          ))}
         </div>
 
-        {/* ── Category Stats ── */}
-        {categoryStats.length > 0 && (
-          <div className="p-category-stats-wrapper">
-            <div className="p-section-header">
-              <h2 className="p-section-title">
-                <span className="p-section-icon">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  >
-                    <rect x="3" y="3" width="7" height="7" rx="1" />
-                    <rect x="14" y="3" width="7" height="7" rx="1" />
-                    <rect x="3" y="14" width="7" height="7" rx="1" />
-                    <rect x="14" y="14" width="7" height="7" rx="1" />
-                  </svg>
-                </span>
-                Category & Subcategory Breakdown
-              </h2>
-              <p className="p-section-subtitle">
-                Total products distributed across {categoryStats.length}{" "}
-                categories
-              </p>
-            </div>
-            <CategoryStatsCard stats={categoryStats} />
-          </div>
-        )}
-
-        {/* ── Search ── */}
-        <div className="p-search-section">
-          <div className="p-search-wrap">
+        {/* ── Controls ── */}
+        <div className="pd-controls">
+          <div className="pd-search-wrap">
             <svg
+              className="pd-search-icon"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.5"
-              className="p-search-icon"
             >
               <circle cx="11" cy="11" r="7" />
-              <path d="M21 21l-4.35-4.35" />
+              <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
             </svg>
             <input
               type="text"
-              className="p-search-input"
-              placeholder="Search by product name, brand, category, or subcategory..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pd-search-input"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search products by name or brand…"
             />
-            {searchTerm && (
-              <button
-                className="p-search-clear"
-                onClick={() => setSearchTerm("")}
-              >
+            {search && (
+              <button className="pd-search-clear" onClick={() => setSearch("")}>
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -771,67 +916,35 @@ export default function Panel() {
               </button>
             )}
           </div>
-          {searchTerm && (
-            <div className="p-search-results-info">
-              Found {filteredCount} product{filteredCount !== 1 ? "s" : ""}{" "}
-              matching &quot;{searchTerm}&quot;
-            </div>
-          )}
-        </div>
 
-        {/* ── Add Product Button ── */}
-        <div className="p-add-product-section">
-          <Link href="/panel/add-product" className="p-add-product-btn">
+          <Link href="/panel/add-product" className="pd-add-btn">
             <svg
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.5"
+              strokeWidth="2"
             >
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 8v8M8 12h8" strokeLinecap="round" />
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            Add New Product
+            Add Product
           </Link>
         </div>
 
-        {/* ── Products List Header ── */}
-        <div className="p-products-list-header">
-          <h2 className="p-section-title">
-            <span className="p-section-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
-                <path d="M16 3H8l-2 4h12l-2-4z" />
-              </svg>
-            </span>
-            Products by Category
-          </h2>
-          <p className="p-section-subtitle">
-            Browse and manage products organized by category and subcategory
+        {/* Search info */}
+        {search && (
+          <p className="pd-search-info">
+            Showing results for <em>"{search}"</em>
           </p>
-        </div>
+        )}
 
-        {/* ── Products Content ── */}
-        {productsLoading && products.length === 0 ? (
-          <div className="p-empty">
-            <div className="p-empty-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1"
-              >
-                <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
-              </svg>
-            </div>
-            <p className="p-empty-title">Loading products...</p>
+        {/* ── Products by Category ── */}
+        {loading ? (
+          <div className="pd-loading">
+            <div className="pd-spinner" />
+            <p>Loading products…</p>
           </div>
-        ) : categoryGroups.length === 0 ? (
+        ) : totalProducts === 0 ? (
           <div className="p-empty">
             <div className="p-empty-icon">
               <svg
@@ -840,45 +953,64 @@ export default function Panel() {
                 stroke="currentColor"
                 strokeWidth="1"
               >
-                <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
-                <path d="M16 3H8l-2 4h12l-2-4z" />
+                <rect x="2" y="7" width="20" height="14" rx="2" />
+                <path d="M16 3h-8l-2 4h12l-2-4z" />
               </svg>
             </div>
-            <p className="p-empty-title">
-              {searchTerm ? "No products found" : "No products yet"}
-            </p>
+            <p className="p-empty-title">No Products Yet</p>
             <p className="p-empty-sub">
-              {searchTerm
-                ? "Try a different search term"
-                : "Add your first product to get started"}
+              Start by adding your first product to the store.
             </p>
+            <Link
+              href="/panel/add-product"
+              className="pd-add-btn"
+              style={{ marginTop: "1rem" }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Add First Product
+            </Link>
           </div>
         ) : (
-          <div className="p-categories-container">
-            {categoryGroups.map((group) => (
-              <CategorySection
-                key={group.category}
-                category={group.category}
-                subcategories={group.subcategories}
-                onDelete={handleDeleteClick}
-              />
-            ))}
+          <div className="pd-categories-container">
+            {Object.entries(CATEGORY_STRUCTURE).map(
+              ([category, subcategories]) => (
+                <CategorySection
+                  key={category}
+                  category={category}
+                  subcategories={subcategories}
+                  productsBySubcategory={grouped[category] || {}}
+                  onDelete={setDeleteTarget}
+                  formatPrice={formatPrice}
+                  search={search}
+                />
+              )
+            )}
           </div>
         )}
       </div>
 
       {/* ── Delete Modal ── */}
-      <DeleteConfirmModal
-        isOpen={deleteModal.isOpen}
-        onClose={() =>
-          setDeleteModal({ isOpen: false, productId: "", productName: "" })
-        }
-        onConfirm={handleDeleteConfirm}
-        productName={deleteModal.productName}
-      />
+      {deleteTarget && (
+        <DeleteModal
+          product={deleteTarget}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteTarget(null)}
+          isDeleting={isDeleting}
+        />
+      )}
 
       {/* ── Toasts ── */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+
+      <style>{`@keyframes pd-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

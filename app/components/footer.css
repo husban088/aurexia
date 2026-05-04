@@ -19,9 +19,9 @@
   --footer-bg: #0a0808;
   --footer-bg-lighter: #11100e;
   --footer-border: rgba(218, 165, 32, 0.15);
-  --footer-text: #e8e2d4;
-  --footer-text-muted: rgba(232, 226, 212, 0.55);
-  --footer-text-dim: rgba(232, 226, 212, 0.3);
+  --footer-text: white;
+  --footer-text-muted: white;
+  --footer-text-dim: white;
   --footer-serif: "Cormorant Garamond", Georgia, serif;
   --footer-sans: "Jost", sans-serif;
   --footer-tech: "Orbitron", monospace;

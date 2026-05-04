@@ -2,7 +2,7 @@
 "use client";
 
 import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface PayPalPaymentProps {
   amount: number;
@@ -28,6 +28,11 @@ export default function PayPalPayment({
   onError: onPaymentError,
 }: PayPalPaymentProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isClientReady, setIsClientReady] = useState(false);
+
+  useEffect(() => {
+    setIsClientReady(true);
+  }, []);
 
   // ✅ currency is already "USD" | "GBP" | "AUD" — handled in PaymentSection
   const finalCurrency = currency.toUpperCase();
@@ -38,6 +43,42 @@ export default function PayPalPayment({
     return (
       <div className="ps-paypal-error">
         <p>Unable to process payment. Invalid amount.</p>
+      </div>
+    );
+  }
+
+  // Client ID validation
+  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+  if (!clientId || clientId === "your_paypal_client_id") {
+    return (
+      <div className="ps-paypal-error">
+        <p>
+          ⚠️ PayPal is not configured yet. Please add your PayPal API
+          credentials to .env.local
+        </p>
+        <p style={{ fontSize: "12px", marginTop: "8px" }}>
+          Get your credentials from{" "}
+          <a
+            href="https://developer.paypal.com"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            PayPal Developer Portal
+          </a>
+        </p>
+        <p style={{ fontSize: "12px", marginTop: "8px", color: "#daa520" }}>
+          Steps:
+          <br />
+          1. Go to developer.paypal.com
+          <br />
+          2. Login with your PayPal account
+          <br />
+          3. Go to "Apps & Credentials"
+          <br />
+          4. Create a new "Sandbox" app
+          <br />
+          5. Copy "Client ID" and "Secret" to .env.local
+        </p>
       </div>
     );
   }
@@ -121,25 +162,11 @@ export default function PayPalPayment({
     );
   };
 
-  // Client ID validation
-  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
-  if (!clientId || clientId === "your_paypal_client_id") {
+  if (!isClientReady) {
     return (
-      <div className="ps-paypal-error">
-        <p>
-          ⚠️ PayPal is not configured yet. Please add your PayPal API
-          credentials to .env.local
-        </p>
-        <p style={{ fontSize: "12px", marginTop: "8px" }}>
-          Get your credentials from{" "}
-          <a
-            href="https://developer.paypal.com"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            PayPal Developer Portal
-          </a>
-        </p>
+      <div className="ps-loading">
+        <div className="co-spinner" />
+        <span>Loading PayPal...</span>
       </div>
     );
   }

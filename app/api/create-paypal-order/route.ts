@@ -13,8 +13,10 @@ async function getPayPalAccessToken(): Promise<string> {
   const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
 
-  if (!clientId || !clientSecret) {
-    throw new Error("PayPal credentials not configured");
+  if (!clientId || !clientSecret || clientId === "your_paypal_client_id") {
+    throw new Error(
+      "PayPal credentials not configured. Please add NEXT_PUBLIC_PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET to .env.local"
+    );
   }
 
   const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
@@ -81,8 +83,8 @@ export async function POST(request: NextRequest) {
               currency_code: finalCurrency,
               value: amount.toFixed(2),
             },
-            description: orderData.description || "Order from Tech4U",
-            custom_id: orderData.orderNumber,
+            description: orderData?.description || "Order from Tech4U",
+            custom_id: orderData?.orderNumber,
           },
         ],
         application_context: {

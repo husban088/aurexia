@@ -9,7 +9,7 @@ async function getPayPalAccessToken(): Promise<string> {
   const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
 
-  if (!clientId || !clientSecret) {
+  if (!clientId || !clientSecret || clientId === "your_paypal_client_id") {
     throw new Error("PayPal credentials not configured");
   }
 
@@ -23,6 +23,12 @@ async function getPayPalAccessToken(): Promise<string> {
     },
     body: "grant_type=client_credentials",
   });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error("PayPal token error:", error);
+    throw new Error(`Failed to get PayPal token: ${response.status}`);
+  }
 
   const data = await response.json();
   return data.access_token;
@@ -72,20 +78,23 @@ export async function POST(request: NextRequest) {
     }
 
     // ✅ Update order in Supabase with PayPal transaction ID
-    const { error: updateError } = await supabase
-      .from("orders")
-      .update({
-        payment_status: "paid",
-        payment_method: "paypal",
-        payment_id: captureData.id,
-        status: "processing",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("order_number", orderNumber);
+    try {
+      const { error: updateError } = await supabase
+        .from("orders")
+        .update({
+          payment_status: "paid",
+          payment_method: "paypal",
+          payment_id: captureData.id,
+          status: "processing",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("order_number", orderNumber);
 
-    if (updateError) {
-      console.error("Error updating order:", updateError);
-      // Don't fail the response, just log the error
+      if (updateError) {
+        console.error("Error updating order:", updateError);
+      }
+    } catch (dbError) {
+      console.warn("Database update skipped:", dbError);
     }
 
     return NextResponse.json({
