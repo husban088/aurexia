@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cartStore";
@@ -8,13 +8,10 @@ import { supabase } from "@/lib/supabase";
 import "./checkout.css";
 import { useCurrency } from "../context/CurrencyContext";
 
-// Import components
-import ShippingSection from "@/app/checkout/components//ShippingSection";
-import PaymentSection from "@/app/checkout/components/PaymentSection";
-import ReviewSection from "@/app/checkout/components/ReviewSection";
+import ShippingSection from "@/app/checkout/components/ShippingSection";
 import CartSummary from "@/app/checkout/components/CartSummary";
-
-type Step = "shipping" | "payment" | "review";
+import PaymentSection from "@/app/checkout/components/PaymentSection";
+import OrderSuccess from "@/app/checkout/components/OrderSuccess";
 
 interface FormData {
   firstName: string;
@@ -41,133 +38,87 @@ interface FormErrors {
   apartment?: string;
   city?: string;
   zip?: string;
-  country?: string;
-  cardNumber?: string;
-  cardName?: string;
-  expiry?: string;
-  cvv?: string;
 }
 
-const STEPS: { id: Step; label: string; num: string }[] = [
-  { id: "shipping", label: "Shipping", num: "01" },
-  { id: "payment", label: "Payment", num: "02" },
-  { id: "review", label: "Review", num: "03" },
-];
+const currencyToCountry: Record<string, string> = {
+  PKR: "PK",
+  USD: "US",
+  GBP: "GB",
+  EUR: "DE",
+  AUD: "AU",
+  CAD: "CA",
+  AED: "AE",
+  SAR: "SA",
+  INR: "IN",
+};
 
-// Country code mapping — covers all currencies in currency.ts
-const COUNTRY_CODES: Record<
+const currencyToPhone: Record<
   string,
-  {
-    code: string;
-    flag: string;
-    pattern: RegExp;
-    example: string;
-    validation: (num: string) => boolean;
-  }
+  { code: string; flag: string; example: string; name: string }
 > = {
-  PKR: {
-    code: "+92",
-    flag: "🇵🇰",
-    pattern: /^[0-9]{10}$/,
-    example: "3XXXXXXXXX",
-    validation: (num) => /^3[0-9]{9}$/.test(num),
-  },
-  USD: {
-    code: "+1",
-    flag: "🇺🇸",
-    pattern: /^[0-9]{10}$/,
-    example: "2125551234",
-    validation: (num) => /^[2-9][0-9]{9}$/.test(num),
-  },
+  PKR: { code: "+92", flag: "🇵🇰", example: "3001234567", name: "Pakistan" },
+  USD: { code: "+1", flag: "🇺🇸", example: "2125551234", name: "United States" },
   GBP: {
     code: "+44",
     flag: "🇬🇧",
-    pattern: /^[0-9]{10}$/,
     example: "7123456789",
-    validation: (num) => /^[0-9]{10}$/.test(num),
+    name: "United Kingdom",
   },
-  EUR: {
-    code: "+352",
-    flag: "🇪🇺",
-    pattern: /^[0-9]{9,10}$/,
-    example: "661234567",
-    validation: (num) => /^[6][0-9]{8,9}$/.test(num),
-  },
-  AED: {
-    code: "+971",
-    flag: "🇦🇪",
-    pattern: /^[0-9]{9}$/,
-    example: "501234567",
-    validation: (num) => /^5[0-9]{8}$/.test(num),
-  },
-  SAR: {
-    code: "+966",
-    flag: "🇸🇦",
-    pattern: /^[0-9]{9}$/,
-    example: "512345678",
-    validation: (num) => /^5[0-9]{8}$/.test(num),
-  },
-  AUD: {
-    code: "+61",
-    flag: "🇦🇺",
-    pattern: /^[0-9]{9}$/,
-    example: "412345678",
-    validation: (num) => /^4[0-9]{8}$/.test(num),
-  },
-  CAD: {
-    code: "+1",
-    flag: "🇨🇦",
-    pattern: /^[0-9]{10}$/,
-    example: "4161234567",
-    validation: (num) => /^[2-9][0-9]{9}$/.test(num),
-  },
-  INR: {
-    code: "+91",
-    flag: "🇮🇳",
-    pattern: /^[0-9]{10}$/,
-    example: "9876543210",
-    validation: (num) => /^[6-9][0-9]{9}$/.test(num),
-  },
+  EUR: { code: "+49", flag: "🇪🇺", example: "15123456789", name: "Europe" },
+  AUD: { code: "+61", flag: "🇦🇺", example: "412345678", name: "Australia" },
+  CAD: { code: "+1", flag: "🇨🇦", example: "4165551234", name: "Canada" },
+  AED: { code: "+971", flag: "🇦🇪", example: "501234567", name: "UAE" },
+  SAR: { code: "+966", flag: "🇸🇦", example: "501234567", name: "Saudi Arabia" },
+  INR: { code: "+91", flag: "🇮🇳", example: "9876543210", name: "India" },
 };
 
-const STORAGE_KEYS = {
-  CHECKOUT_FORM: "checkout_form_data",
-  CHECKOUT_STEP: "checkout_current_step",
-};
+const STORAGE_KEY = "checkout_form_data";
+
+function generateOrderNumber(): string {
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `T4U-${timestamp}-${random}`;
+}
 
 export default function Checkout() {
   const router = useRouter();
-  const {
-    items,
-    loading,
-    initialized,
-    fetchCart,
-    clearCart,
-    getSubtotal,
-    getCartCount,
-  } = useCartStore();
+  const { items, loading, fetchCart, clearCart, getSubtotal, getCartCount } =
+    useCartStore();
+
   const { formatPrice, currency } = useCurrency();
-  const [step, setStep] = useState<Step>("shipping");
+
+  // ─── KEY FIX ────────────────────────────────────────────────────────────────
+  // Hum ek "settled" flag rakhte hain. Jab tak cart store se pehli baar
+  // actual response nahi aata (chahe items hon ya na hon), hum koi bhi
+  // conditional UI (empty / checkout) nahi dikhate — sirf ek neutral spinner.
+  //
+  // Agar items pehle se store mein hain (cached), toh `loading` false hoga
+  // aur hum foran checkout show karenge bina kisi flash ke.
+  // ─────────────────────────────────────────────────────────────────────────────
+  const [cartSettled, setCartSettled] = useState(
+    // Sync-check: agar store mein already items hain toh settled = true
+    () => !loading && items.length > 0
+  );
+  const fetchedRef = useRef(false);
+
   const [focused, setFocused] = useState<string | null>(null);
   const [placed, setPlaced] = useState(false);
-  const [orderNumber, setOrderNumber] = useState("");
+  const [orderNumber] = useState(() => generateOrderNumber());
   const [submitting, setSubmitting] = useState(false);
-  const [selectedCountryCode, setSelectedCountryCode] = useState("+92");
-  const [selectedFlag, setSelectedFlag] = useState("🇵🇰");
-  const [phonePattern, setPhonePattern] = useState<RegExp>(/^[0-9]{10}$/);
-  const [phoneExample, setPhoneExample] = useState("3XXXXXXXXX");
-  const [phoneValidator, setPhoneValidator] = useState<
-    (num: string) => boolean
-  >(() => (num: string) => /^3[0-9]{9}$/.test(num));
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [notifStatus, setNotifStatus] = useState<{
+    email: boolean | null;
+    whatsapp: boolean | null;
+  }>({ email: null, whatsapp: null });
 
-  // Payment related states
-  const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [paymentCompleted, setPaymentCompleted] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
-    "card" | "paypal"
-  >("card");
+  const [checkoutStep, setCheckoutStep] = useState<"shipping" | "payment">(
+    "shipping"
+  );
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "paypal">("card");
+
+  const phoneInfo = currencyToPhone[currency.code] || currencyToPhone["USD"];
+  const detectedCountryCode = currencyToCountry[currency.code] || "US";
 
   const [form, setForm] = useState<FormData>({
     firstName: "",
@@ -178,163 +129,74 @@ export default function Checkout() {
     apartment: "",
     city: "",
     zip: "",
-    country: "PK",
+    country: detectedCountryCode,
     cardNumber: "",
     cardName: "",
     expiry: "",
     cvv: "",
   });
 
-  // Load saved form data from localStorage on mount
   useEffect(() => {
-    const savedStep = localStorage.getItem(STORAGE_KEYS.CHECKOUT_STEP);
-    if (
-      savedStep &&
-      (savedStep === "shipping" ||
-        savedStep === "payment" ||
-        savedStep === "review")
-    ) {
-      setStep(savedStep as Step);
-    }
+    setForm((prev) => ({ ...prev, country: detectedCountryCode }));
+  }, [detectedCountryCode]);
 
-    const savedForm = localStorage.getItem(STORAGE_KEYS.CHECKOUT_FORM);
+  useEffect(() => {
+    const savedForm = localStorage.getItem(STORAGE_KEY);
     if (savedForm) {
       try {
-        const parsed = JSON.parse(savedForm);
-        setForm((prev) => ({ ...prev, ...parsed }));
-      } catch (e) {
-        console.error("Error loading saved form:", e);
-      }
+        setForm((prev) => ({ ...prev, ...JSON.parse(savedForm) }));
+      } catch {}
     }
   }, []);
 
-  // Save form data to localStorage
   useEffect(() => {
     if (form.firstName) {
-      localStorage.setItem(STORAGE_KEYS.CHECKOUT_FORM, JSON.stringify(form));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(form));
     }
   }, [form]);
 
-  // Save current step
+  // ─── Cart fetch — only once per mount ────────────────────────────────────────
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, step);
-  }, [step]);
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
 
-  const clearSavedCheckoutData = () => {
-    localStorage.removeItem(STORAGE_KEYS.CHECKOUT_FORM);
-    localStorage.removeItem(STORAGE_KEYS.CHECKOUT_STEP);
-  };
-
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (!placed && (form.firstName || form.email)) {
-        localStorage.setItem(STORAGE_KEYS.CHECKOUT_FORM, JSON.stringify(form));
-        localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, step);
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [form, step, placed]);
-
-  useEffect(() => {
-    if (!initialized) {
-      try {
-        const persisted = localStorage.getItem("cart-storage");
-        if (persisted) {
-          const parsed = JSON.parse(persisted);
-          if (parsed.state?.items?.length > 0) {
-            console.log(
-              "📦 Checkout Page - Loaded from storage:",
-              parsed.state.items.length
-            );
-          }
-        }
-      } catch (e) {}
+    // Agar items already hain (cached store) toh fetch dobara na karo
+    if (items.length > 0) {
+      setCartSettled(true);
+      return;
     }
-  }, [initialized]);
 
-  useEffect(() => {
-    fetchCart();
-  }, [fetchCart]);
+    // Fetch karo aur jab done ho (chahe empty ya full) tab settled mark karo
+    fetchCart().finally(() => {
+      setCartSettled(true);
+    });
+  }, [fetchCart, items.length]);
 
-  // Update country code based on currency
+  // Jab loading khatam ho toh bhi settled karo (safety net)
   useEffect(() => {
-    const countryData = COUNTRY_CODES[currency.code] || COUNTRY_CODES.PKR;
-    setSelectedCountryCode(countryData.code);
-    setSelectedFlag(countryData.flag);
-    setPhonePattern(countryData.pattern);
-    setPhoneExample(countryData.example);
-    setPhoneValidator(() => countryData.validation);
-  }, [currency.code]);
-
-  // Auto-fill email if logged in
-  useEffect(() => {
-    const getUserEmail = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.user?.email && !form.email) {
-        setForm((f) => ({ ...f, email: session.user.email || "" }));
-      }
-    };
-    getUserEmail();
-  }, [form.email]);
-
-  // Generate order number when entering payment section
-  useEffect(() => {
-    if (step === "payment" && !orderNumber) {
-      const newOrderNumber = `AX-${Date.now()
-        .toString(36)
-        .toUpperCase()}-${Math.random()
-        .toString(36)
-        .substring(2, 6)
-        .toUpperCase()}`;
-      setOrderNumber(newOrderNumber);
+    if (!loading) {
+      setCartSettled(true);
     }
-  }, [step, orderNumber]);
+  }, [loading]);
 
   const setFormField =
     (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      let value = e.target.value;
-      if (key === "cardNumber") {
-        value = value
-          .replace(/\s/g, "")
-          .replace(/(.{4})/g, "$1 ")
-          .trim();
-        if (value.length > 19) value = value.slice(0, 19);
-      }
-      if (key === "expiry") {
-        value = value.replace(/[^0-9]/g, "");
-        if (value.length >= 2) {
-          value = value.slice(0, 2) + "/" + value.slice(2, 4);
-        }
-        if (value.length > 5) value = value.slice(0, 5);
-      }
-      if (key === "cvv") {
-        value = value.replace(/[^0-9]/g, "");
-        if (value.length > 4) value = value.slice(0, 4);
-      }
+      const value = e.target.value;
       setForm((f) => ({ ...f, [key]: value }));
       if (errors[key as keyof FormErrors]) {
         setErrors((prev) => ({ ...prev, [key]: undefined }));
       }
-      setTimeout(() => {
-        localStorage.setItem(
-          STORAGE_KEYS.CHECKOUT_FORM,
-          JSON.stringify({ ...form, [key]: value })
-        );
-      }, 0);
     };
 
   const handleBlur = (field: keyof FormData) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
     const error = validateField(field, form[field]);
-    if (error) {
-      setErrors((prev) => ({ ...prev, [field]: error }));
-    } else {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
+    setErrors((prev) => ({ ...prev, [field]: error }));
+  };
+
+  const getFieldError = (field: keyof FormData): string | undefined => {
+    return touched[field] ? errors[field as keyof FormErrors] : undefined;
   };
 
   const validateField = (
@@ -344,87 +206,39 @@ export default function Checkout() {
     switch (field) {
       case "firstName":
         if (!value.trim()) return "First name is required";
-        if (value.trim().length < 2)
-          return "First name must be at least 2 characters";
+        if (value.trim().length < 2) return "At least 2 characters";
         return undefined;
       case "lastName":
         if (!value.trim()) return "Last name is required";
-        if (value.trim().length < 2)
-          return "Last name must be at least 2 characters";
+        if (value.trim().length < 2) return "At least 2 characters";
         return undefined;
       case "email":
-        if (!value.trim()) return "Email address is required";
-        const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
-        if (!emailRegex.test(value))
-          return "Please enter a valid email address (e.g., name@example.com)";
+        if (!value.trim()) return "Email is required";
+        if (!/^[^\s@]+@([^\s@]+\.)+[^\s@]+$/.test(value))
+          return "Enter a valid email address";
         return undefined;
       case "phone":
         if (!value.trim()) return "Phone number is required";
-        if (!phonePattern.test(value))
-          return `Please enter a valid ${selectedCountryCode} phone number (e.g., ${phoneExample})`;
-        if (phoneValidator && !phoneValidator(value))
-          return `Please enter a valid ${selectedCountryCode} phone number`;
+        if (value.trim().length < 7)
+          return `Enter a valid number (e.g. ${phoneInfo.example})`;
         return undefined;
       case "address":
-        if (!value.trim()) return "Street address is required";
-        return undefined;
-      case "apartment":
+        if (!value.trim()) return "Address is required";
         return undefined;
       case "city":
         if (!value.trim()) return "City is required";
         return undefined;
       case "zip":
         if (!value.trim()) return "ZIP/Postal code is required";
-        if (value.length < 3) return "Please enter a valid ZIP code";
-        return undefined;
-      case "cardNumber":
-        if (!value.trim()) return "Card number is required";
-        const cardNum = value.replace(/\s/g, "");
-        if (cardNum.length < 16)
-          return "Please enter a valid 16-digit card number";
-        return undefined;
-      case "cardName":
-        if (!value.trim()) return "Cardholder name is required";
-        return undefined;
-      case "expiry":
-        if (!value.trim()) return "Expiry date is required";
-        if (value.length < 5) return "Please enter valid expiry date (MM/YY)";
-        const [month, year] = value.split("/");
-        const expMonth = parseInt(month);
-        const expYear = parseInt("20" + year);
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth() + 1;
-        if (expMonth < 1 || expMonth > 12) return "Invalid month";
-        if (
-          expYear < currentYear ||
-          (expYear === currentYear && expMonth < currentMonth)
-        ) {
-          return "Card has expired";
-        }
-        return undefined;
-      case "cvv":
-        if (!value.trim()) return "CVV is required";
-        if (value.length < 3) return "CVV must be 3-4 digits";
+        if (value.length < 3) return "Enter a valid ZIP code";
         return undefined;
       default:
         return undefined;
     }
   };
 
-  const subtotal = getSubtotal(); // Always in PKR (raw from cartStore)
-  const cartCount = getCartCount();
-  // Free shipping threshold & shipping cost — keep in PKR so formatPrice converts correctly
-  const freeShippingThresholdPKR = 3000;
-  const shippingCostPKR = 250;
-  const shipping = subtotal >= freeShippingThresholdPKR ? 0 : shippingCostPKR; // PKR
-  const total = subtotal + shipping; // PKR
-  const currentStepIndex = STEPS.findIndex((s) => s.id === step);
-
-  const validItems = items;
-
-  const validateShipping = (): boolean => {
-    const fieldsToValidate: (keyof FormData)[] = [
+  const validateAll = (): boolean => {
+    const fields: (keyof FormData)[] = [
       "firstName",
       "lastName",
       "email",
@@ -434,224 +248,132 @@ export default function Checkout() {
       "zip",
     ];
     const newErrors: FormErrors = {};
-    let isValid = true;
-
-    for (const field of fieldsToValidate) {
+    let valid = true;
+    fields.forEach((field) => {
       const error = validateField(field, form[field]);
       if (error) {
-        newErrors[field] = error;
-        isValid = false;
+        newErrors[field as keyof FormErrors] = error;
+        valid = false;
       }
-    }
-
+    });
     setErrors(newErrors);
-    fieldsToValidate.forEach((field) =>
-      setTouched((prev) => ({ ...prev, [field]: true }))
-    );
-    return isValid;
+    setTouched(fields.reduce((acc, f) => ({ ...acc, [f]: true }), {}));
+    return valid;
   };
 
-  const validatePayment = (): boolean => {
-    const fieldsToValidate: (keyof FormData)[] = [
-      "cardNumber",
-      "cardName",
-      "expiry",
-      "cvv",
-    ];
-    const newErrors: FormErrors = {};
-    let isValid = true;
+  const subtotal = getSubtotal();
+  const cartCount = getCartCount();
+  const shipping = subtotal >= 3000 ? 0 : 250;
+  const total = subtotal + shipping;
+  const validItems = items;
 
-    for (const field of fieldsToValidate) {
-      const error = validateField(field, form[field]);
-      if (error) {
-        newErrors[field] = error;
-        isValid = false;
-      }
-    }
+  const fullPhone = `${phoneInfo.code}${form.phone}`;
+  const customerName = `${form.firstName} ${form.lastName}`;
+  const shippingAddress = [
+    form.address,
+    form.apartment,
+    form.city,
+    form.zip,
+    phoneInfo.name,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
-    setErrors(newErrors);
-    fieldsToValidate.forEach((field) =>
-      setTouched((prev) => ({ ...prev, [field]: true }))
-    );
-    return isValid;
-  };
-
-  const nextStep = () => {
-    if (step === "shipping") {
-      if (!validateShipping()) return;
-      setStep("payment");
-      localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, "payment");
-    } else if (step === "payment") {
-      if (!validatePayment()) return;
-      setStep("review");
-      localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, "review");
-    }
-  };
-
-  const prevStep = () => {
-    if (step === "payment") {
-      setStep("shipping");
-      localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, "shipping");
-    } else if (step === "review") {
-      setStep("payment");
-      localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, "payment");
-    }
-  };
-
-  const getFieldError = (field: keyof FormData): string | undefined => {
-    if (touched[field]) {
-      return errors[field as keyof FormErrors];
-    }
-    return undefined;
-  };
-
-  // Handle payment method change from PaymentSection
-  const handlePaymentMethodChange = (method: "card" | "paypal") => {
-    setSelectedPaymentMethod(method);
-  };
-
-  // Handle payment success from Stripe/PayPal
-  const handlePaymentSuccess = () => {
-    setPaymentCompleted(true);
-    setStep("review");
-    localStorage.setItem(STORAGE_KEYS.CHECKOUT_STEP, "review");
-  };
-
-  // Handle payment error
-  const handlePaymentError = (error: string) => {
-    setPaymentError(error);
-    console.error("Payment error:", error);
-  };
-
-  const placeOrder = async () => {
-    // ✅ Pehle check karo - payment already completed hai?
-    if (!paymentCompleted) {
-      alert("Please complete payment first!");
-      return;
-    }
-
-    // ✅ Agar payment completed hai toh agey badho
+  const handleContinueToPayment = () => {
+    if (!validateAll()) return;
     if (validItems.length === 0) {
-      alert("Your cart is empty.");
+      alert("Your cart is empty!");
       return;
     }
+    setCheckoutStep("payment");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
+  const handlePaymentSuccess = async () => {
     setSubmitting(true);
-    const orderRef =
-      orderNumber ||
-      `AX-${Date.now().toString(36).toUpperCase()}-${Math.random()
-        .toString(36)
-        .substring(2, 6)
-        .toUpperCase()}`;
-    setOrderNumber(orderRef);
-
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const userId = session?.user?.id || null;
-
       const orderItems = validItems.map((item) => {
         const product = item.product ?? {
-          id: item.product_id,
           name: item.variant_name || "Product",
           price: item.variant_price ?? 0,
         };
         const ppu = item.pieces_per_unit ?? 1;
         const pricePerPiece = item.variant_price ?? (product as any).price ?? 0;
         return {
-          product_id: product.id,
-          product_name: product.name,
-          variant_id: item.variant_id,
-          variant_name: item.variant_name,
+          name: (product as any).name,
+          variant: item.variant_name || null,
           quantity: item.quantity,
-          pieces_per_unit: ppu,
-          unit_price: pricePerPiece,
-          total_price: pricePerPiece * ppu * item.quantity,
-          variant_image: item.variant_image,
+          piecesPerUnit: ppu,
+          price: pricePerPiece * ppu * item.quantity,
+          image: item.variant_image || (product as any).images?.[0] || null,
         };
       });
 
-      const { error: orderError } = await supabase.from("orders").insert({
-        order_number: orderRef,
-        user_id: userId,
-        first_name: form.firstName,
-        last_name: form.lastName,
-        email: form.email,
-        phone: `${selectedCountryCode}${form.phone}`,
-        address: form.address,
-        apartment: form.apartment || null,
-        city: form.city,
-        zip: form.zip,
-        country: form.country,
-        subtotal: subtotal,
-        shipping_cost: shipping,
-        total_amount: total,
-        status: "processing",
-        payment_status: "paid",
-        payment_method: selectedPaymentMethod === "card" ? "stripe" : "paypal",
-        items: orderItems,
-      });
-
-      if (orderError) {
-        console.error("Order save error:", orderError);
-        alert("Failed to save order. Please contact support.");
-        setSubmitting(false);
-        return;
-      }
-
-      // Send notification (optional - don't block order)
-      try {
-        const notificationData = {
-          orderNumber: orderRef,
+      const response = await fetch("/api/send-order-notification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderNumber,
           email: form.email,
-          phone: `${selectedCountryCode}${form.phone}`,
-          name: `${form.firstName} ${form.lastName}`,
-          items: validItems.map((item) => {
-            const product = item.product ?? {
-              name: item.variant_name || "Product",
-              price: item.variant_price ?? 0,
-            };
-            const ppu = item.pieces_per_unit ?? 1;
-            const pricePerPiece =
-              item.variant_price ?? (product as any).price ?? 0;
-            return {
-              name: product.name,
-              variant: item.variant_name,
-              quantity: item.quantity,
-              piecesPerUnit: ppu,
-              price: pricePerPiece * ppu * item.quantity,
-            };
-          }),
-          subtotal: subtotal,
-          shipping: shipping,
-          total: total,
-          shippingAddress: `${form.address}${
-            form.apartment ? `, ${form.apartment}` : ""
-          }, ${form.city}, ${form.zip}`,
-          paymentMethod: selectedPaymentMethod === "card" ? "Stripe" : "PayPal",
-        };
-        await fetch("/api/send-order-notification", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(notificationData),
+          phone: fullPhone,
+          name: customerName,
+          items: orderItems,
+          subtotal,
+          shipping,
+          total,
+          shippingAddress,
+          paymentMethod:
+            paymentMethod === "card" ? "Credit/Debit Card (Stripe)" : "PayPal",
+          currency: currency.code,
+        }),
+      });
+
+      const result = await response.json();
+      setNotifStatus({
+        email: result.emailSent ?? false,
+        whatsapp: result.whatsappSent ?? false,
+      });
+
+      try {
+        await supabase.from("orders").insert({
+          order_number: orderNumber,
+          customer_name: customerName,
+          customer_email: form.email,
+          customer_phone: fullPhone,
+          shipping_address: shippingAddress,
+          items: orderItems,
+          subtotal,
+          shipping_cost: shipping,
+          total,
+          payment_method: paymentMethod === "card" ? "Stripe" : "PayPal",
+          currency: currency.code,
+          status: "confirmed",
+          created_at: new Date().toISOString(),
         });
-      } catch (notifyError) {
-        console.error("Notification error:", notifyError);
+      } catch (dbError) {
+        console.warn("⚠️ Database save skipped:", dbError);
       }
 
       await clearCart();
-      clearSavedCheckoutData();
+      localStorage.removeItem(STORAGE_KEY);
       setPlaced(true);
     } catch (error) {
-      console.error("Order placement error:", error);
-      alert("There was an error placing your order. Please try again.");
+      console.error("❌ Order error:", error);
+      alert("Something went wrong. Please try again.");
+    } finally {
       setSubmitting(false);
     }
   };
 
-  // Loading state
-  if (loading && items.length === 0) {
+  const handlePaymentError = (error: string) => {
+    console.error("Payment error:", error);
+  };
+
+  // ============================================
+  // LOADING STATE — sirf tab jab cart abhi settle nahi hua
+  // Yahan "Your cart is empty" KABHI nahi dikhega — sirf spinner
+  // ============================================
+  if (!cartSettled) {
     return (
       <div className="co-root">
         <div className="co-grain" aria-hidden="true" />
@@ -662,8 +384,11 @@ export default function Checkout() {
     );
   }
 
-  // Empty cart state
-  if (!loading && items.length === 0 && !placed) {
+  // ============================================
+  // EMPTY CART — sirf tab jab cart settled ho AUR items sach mein 0 hon
+  // Aur order bhi place nahi hua ho
+  // ============================================
+  if (cartSettled && items.length === 0 && !placed) {
     return (
       <div className="co-root">
         <div className="co-grain" aria-hidden="true" />
@@ -683,24 +408,10 @@ export default function Checkout() {
             </div>
             <h2 className="co-empty-title">Your cart is empty</h2>
             <p className="co-empty-sub">
-              Add some luxury items to your cart before checkout.
+              Add some items to your cart before checkout.
             </p>
             <Link href="/watches" className="co-empty-btn">
-              Continue Shopping
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                width="14"
-                height="14"
-              >
-                <path
-                  d="M5 12h14M12 5l7 7-7 7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              Continue Shopping →
             </Link>
           </div>
         </div>
@@ -708,42 +419,39 @@ export default function Checkout() {
     );
   }
 
-  // Order placed success state
+  // ============================================
+  // SUCCESS STATE
+  // ============================================
   if (placed) {
     return (
-      <div className="co-root">
-        <div className="co-grain" aria-hidden="true" />
-        <div className="co-success">
-          <div className="co-success-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
-          <h1 className="co-success-title">
-            Thank <em>You</em>
-          </h1>
-          <p className="co-success-sub">
-            Your order has been received. A confirmation has been sent to{" "}
-            {form.email} and via SMS to your phone.
-          </p>
-          <div className="co-success-ref">
-            <span className="co-success-ref-label">Order Reference</span>
-            <span className="co-success-ref-val">{orderNumber}</span>
-          </div>
-          <Link href="/" className="co-success-btn">
-            Return Home
-          </Link>
-        </div>
-      </div>
+      <OrderSuccess
+        firstName={form.firstName}
+        lastName={form.lastName}
+        email={form.email}
+        phone={form.phone}
+        address={form.address}
+        apartment={form.apartment}
+        city={form.city}
+        zip={form.zip}
+        country={phoneInfo.name}
+        orderNumber={orderNumber}
+        paymentMethod={paymentMethod}
+        items={validItems}
+        subtotal={subtotal}
+        shipping={shipping}
+        total={total}
+        cartCount={cartCount}
+        notifStatus={notifStatus}
+        fullPhone={fullPhone}
+        shippingAddress={shippingAddress}
+        formatPrice={formatPrice}
+      />
     );
   }
 
+  // ============================================
+  // MAIN CHECKOUT UI
+  // ============================================
   return (
     <div className="co-root">
       <div className="co-grain" aria-hidden="true" />
@@ -757,6 +465,7 @@ export default function Checkout() {
       <div className="co-corner co-corner--tr" aria-hidden="true" />
 
       <div className="co-wrap">
+        {/* Header */}
         <div className="co-header">
           <p className="co-eyebrow">
             <span className="co-ey-line" />
@@ -766,130 +475,117 @@ export default function Checkout() {
           <h1 className="co-title">
             Complete <em>Your Order</em>
           </h1>
-        </div>
 
-        <div className="co-steps">
-          {STEPS.map((s, i) => (
+          {/* Step Indicator */}
+          <div className="co-steps">
             <div
-              key={s.id}
-              className={`co-step${s.id === step ? " co-step--active" : ""}${
-                i < currentStepIndex ? " co-step--done" : ""
+              className={`co-step ${
+                checkoutStep === "shipping"
+                  ? "co-step--active"
+                  : "co-step--done"
               }`}
             >
               <div className="co-step-circle">
-                {i < currentStepIndex ? (
+                {checkoutStep === "payment" ? (
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    width="12"
-                    height="12"
+                    strokeWidth="2.5"
+                    width="14"
+                    height="14"
                   >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 ) : (
-                  <span>{s.num}</span>
+                  "1"
                 )}
               </div>
-              <span className="co-step-label">{s.label}</span>
-              {i < STEPS.length - 1 && <div className="co-step-line" />}
+              <span>Shipping</span>
             </div>
-          ))}
+            <div className="co-step-line" />
+            <div
+              className={`co-step ${
+                checkoutStep === "payment" ? "co-step--active" : ""
+              }`}
+            >
+              <div className="co-step-circle">2</div>
+              <span>Payment</span>
+            </div>
+          </div>
         </div>
 
         <div className="co-layout">
           <div className="co-form-col">
-            {/* STEP 1: SHIPPING */}
-            {step === "shipping" && (
-              <ShippingSection
-                form={form}
-                setFormField={setFormField}
-                getFieldError={getFieldError}
-                handleBlur={handleBlur}
-                focused={focused}
-                setFocused={setFocused}
-                selectedFlag={selectedFlag}
-                selectedCountryCode={selectedCountryCode}
-                phoneExample={phoneExample}
-              />
+            {/* ─── STEP 1: SHIPPING ─── */}
+            {checkoutStep === "shipping" && (
+              <>
+                <ShippingSection
+                  form={form}
+                  setFormField={setFormField}
+                  getFieldError={getFieldError}
+                  handleBlur={handleBlur}
+                  focused={focused}
+                  setFocused={setFocused}
+                  selectedFlag={phoneInfo.flag}
+                  selectedCountryCode={phoneInfo.code}
+                  phoneExample={phoneInfo.example}
+                  selectedCountry={detectedCountryCode}
+                  onCountryChange={(code) =>
+                    setForm((f) => ({ ...f, country: code, phone: "" }))
+                  }
+                />
+
+                <div className="co-nav-btns">
+                  <Link href="/cart" className="co-back-btn">
+                    ← Cart
+                  </Link>
+                  <button
+                    className="co-next-btn co-continue-btn"
+                    onClick={handleContinueToPayment}
+                  >
+                    Continue to Payment →
+                  </button>
+                </div>
+              </>
             )}
 
-            {/* STEP 2: PAYMENT with Stripe & PayPal */}
-            {step === "payment" && (
-              <PaymentSection
-                form={form}
-                setFormField={setFormField}
-                getFieldError={getFieldError}
-                handleBlur={handleBlur}
-                focused={focused}
-                setFocused={setFocused}
-                totalAmount={total}
-                currency={currency.code}
-                orderNumber={orderNumber}
-                formData={{
-                  firstName: form.firstName,
-                  lastName: form.lastName,
-                  email: form.email,
-                  phone: `${selectedCountryCode}${form.phone}`,
-                  address: form.address,
-                  apartment: form.apartment,
-                  city: form.city,
-                  zip: form.zip,
-                }}
-                subtotal={subtotal}
-                shipping={shipping}
-                total={total}
-                onPaymentSuccess={handlePaymentSuccess}
-                onPaymentError={handlePaymentError}
-                onPaymentMethodChange={handlePaymentMethodChange}
-              />
-            )}
-
-            {/* STEP 3: REVIEW */}
-            {step === "review" && (
-              <ReviewSection
-                items={validItems}
-                form={form}
-                selectedCountryCode={selectedCountryCode}
-                selectedFlag={selectedFlag}
-                formatPrice={formatPrice}
-              />
-            )}
-
-            <div className="co-nav-btns">
-              {currentStepIndex > 0 ? (
-                <button className="co-back-btn" onClick={prevStep}>
-                  ← Back
-                </button>
-              ) : (
-                <Link href="/cart" className="co-back-btn">
-                  ← Cart
-                </Link>
-              )}
-              {step === "review" ? (
+            {/* ─── STEP 2: PAYMENT ─── */}
+            {checkoutStep === "payment" && (
+              <>
                 <button
-                  className="co-next-btn"
-                  onClick={placeOrder}
-                  disabled={submitting}
+                  className="co-back-step-btn"
+                  onClick={() => setCheckoutStep("shipping")}
                 >
-                  {submitting ? (
-                    <>
-                      <span className="co-spinner-btn" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>Place Order →</>
-                  )}
+                  ← Back to Shipping
                 </button>
-              ) : step === "payment" ? null : (
-                <button className="co-next-btn" onClick={nextStep}>
-                  Continue →
-                </button>
-              )}
-            </div>
+
+                <PaymentSection
+                  totalAmount={total}
+                  currency={currency?.code || "USD"}
+                  orderNumber={orderNumber}
+                  formData={{
+                    firstName: form.firstName,
+                    lastName: form.lastName,
+                    email: form.email,
+                    phone: form.phone,
+                    address: form.address,
+                    apartment: form.apartment,
+                    city: form.city,
+                    zip: form.zip,
+                  }}
+                  subtotal={subtotal}
+                  shipping={shipping}
+                  total={total}
+                  onPaymentSuccess={handlePaymentSuccess}
+                  onPaymentError={handlePaymentError}
+                  onPaymentMethodChange={setPaymentMethod}
+                />
+              </>
+            )}
           </div>
 
-          {/* RIGHT COLUMN - ORDER SUMMARY */}
+          {/* Cart Summary Sidebar */}
           <div className="co-summary-col">
             <CartSummary
               items={validItems}

@@ -1,30 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import "./about.css";
 
-// const team = [
-//   {
-//     name: "Waqas Sarwar",
-//     role: "Founder & Creative Director",
-//     img: "/waqas.jpg",
-//     quote: "Luxury is in each detail.",
-//   },
-//   {
-//     name: "Sofia Laurent",
-//     role: "Master Watchmaker ",
-//     img: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=600&q=80",
-//     quote: "We craft time, not just watches.",
-//   },
-//   {
-//     name: "Husban Ahmad",
-//     role: "Head of Design",
-//     img: "/husban.jpg",
-//     quote: "Precision is our signature.",
-//   },
-// ];
-
+/* ═══════════════════════════════════════════
+   STATIC DATA — defined at module level so
+   they are never re-created on re-renders
+═══════════════════════════════════════════ */
 const values = [
   {
     num: "01",
@@ -55,6 +37,9 @@ const stats = [
   { value: "99%", label: "Satisfaction" },
 ];
 
+/* ═══════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════ */
 export default function About() {
   return (
     <div className="ab-root">
@@ -73,7 +58,7 @@ export default function About() {
       <div className="ab-corner ab-corner--tl" aria-hidden="true" />
       <div className="ab-corner ab-corner--tr" aria-hidden="true" />
 
-      {/* ── HERO ── */}
+      {/* ══ HERO ══ */}
       <section className="ab-hero">
         <div className="ab-hero-inner">
           <p className="ab-eyebrow">
@@ -111,7 +96,7 @@ export default function About() {
         </div>
       </section>
 
-      {/* ── BRAND STATEMENT ── */}
+      {/* ══ BRAND STATEMENT ══ */}
       <section className="ab-statement">
         <div className="ab-statement-inner">
           <div className="ab-statement-num" aria-hidden="true">
@@ -121,13 +106,10 @@ export default function About() {
             "We do not simply sell watches. We offer you a relationship with
             time — intimate, deliberate, and yours alone."
           </blockquote>
-          {/* <cite className="ab-statement-cite">
-            — Waqas Sarwar, Founder of Tech4U
-          </cite> */}
         </div>
       </section>
 
-      {/* ── VALUES ── */}
+      {/* ══ VALUES ══ */}
       <section className="ab-values">
         <div className="ab-section-header">
           <p className="ab-eyebrow">
@@ -154,45 +136,7 @@ export default function About() {
         </div>
       </section>
 
-      {/* ── TEAM ── */}
-      {/* <section className="ab-team">
-        <div className="ab-section-header">
-          <p className="ab-eyebrow">
-            <span className="ab-ey-line" />
-            The Minds Behind Tech4U
-            <span className="ab-ey-line" />
-          </p>
-          <h2 className="ab-section-title">
-            Meet the <em>Makers</em>
-          </h2>
-        </div>
-
-        <div className="ab-team-grid">
-          {team.map((member) => (
-            <div key={member.name} className="ab-team-card">
-              <div className="ab-team-img-wrap">
-                <Image
-                  src={member.img}
-                  alt={member.name}
-                  fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw"
-                  style={{ objectFit: "cover", objectPosition: "center top" }}
-                  priority={member.name === "Waqas Sarwar"}
-                />
-                <div className="ab-team-overlay">
-                  <p className="ab-team-quote">"{member.quote}"</p>
-                </div>
-              </div>
-              <div className="ab-team-info">
-                <h3 className="ab-team-name">{member.name}</h3>
-                <p className="ab-team-role">{member.role}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section> */}
-
-      {/* ── CTA ── */}
+      {/* ══ CTA ══ */}
       <section className="ab-cta">
         <div className="ab-cta-inner">
           <p className="ab-eyebrow">
@@ -213,6 +157,7 @@ export default function About() {
                 strokeWidth="1.5"
                 width="14"
                 height="14"
+                aria-hidden="true"
               >
                 <path
                   d="M5 12h14M12 5l7 7-7 7"

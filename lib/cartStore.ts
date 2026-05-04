@@ -3,7 +3,27 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { supabase, CartItemType, Product, ProductVariant } from "./supabase";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ============================================================
+// PERFORMANCE OPTIMIZATIONS
+// ============================================================
+
+// ✅ Cache TTL - 30 seconds
+const CACHE_TTL = 30000;
+let lastFetchTime = 0;
+let cachedItems: CartItemWithDetails[] = [];
+let fetchPromise: Promise<void> | null = null;
+
+// ✅ Debounce timers
+let addToCartDebounce: NodeJS.Timeout | null = null;
+let updateQuantityDebounce: Map<string, NodeJS.Timeout> = new Map();
+
+// ✅ Batch update queue
+let batchUpdates: Array<{ type: string; data: any }> = [];
+let batchTimeout: NodeJS.Timeout | null = null;
+
+// ============================================================
+// TYPES
+// ============================================================
 
 interface CartItemWithDetails extends CartItemType {
   product?: Product;
@@ -33,9 +53,13 @@ interface CartStore {
   getCartCount: () => number;
   getSubtotal: () => number;
   getTotalPieces: () => number;
+  prefetchCart: () => void;
+  invalidateCache: () => void;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ============================================================
+// HELPER FUNCTIONS
+// ============================================================
 
 function generateSessionId(): string {
   return `guest_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
@@ -61,10 +85,53 @@ function deriveStockStatus(
   return "in_stock";
 }
 
-// ─── fetchCartItems ───────────────────────────────────────────────────────────
+function processBatchUpdates() {
+  if (batchUpdates.length === 0) return;
+
+  const updates = [...batchUpdates];
+  batchUpdates = [];
+
+  Promise.all(
+    updates.map(async (update) => {
+      switch (update.type) {
+        case "update_quantity":
+          if (!update.data.id.startsWith("temp_")) {
+            await supabase
+              .from("cart_items")
+              .update({
+                quantity: update.data.quantity,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", update.data.id);
+          }
+          break;
+        case "remove_item":
+          if (!update.data.id.startsWith("temp_")) {
+            await supabase.from("cart_items").delete().eq("id", update.data.id);
+          }
+          break;
+      }
+    })
+  ).catch(console.error);
+}
+
+function scheduleBatchUpdate(type: string, data: any) {
+  batchUpdates.push({ type, data });
+
+  if (batchTimeout) clearTimeout(batchTimeout);
+  batchTimeout = setTimeout(() => {
+    processBatchUpdates();
+    batchTimeout = null;
+  }, 100);
+}
 
 async function fetchCartItems(cartId: string): Promise<CartItemWithDetails[]> {
   try {
+    const now = Date.now();
+    if (cachedItems.length > 0 && now - lastFetchTime < CACHE_TTL) {
+      return cachedItems;
+    }
+
     const { data, error } = await supabase
       .from("cart_items")
       .select(
@@ -87,49 +154,51 @@ async function fetchCartItems(cartId: string): Promise<CartItemWithDetails[]> {
 
     if (error) {
       console.error("fetchCartItems error:", error);
-      return [];
+      return cachedItems.length ? cachedItems : [];
     }
 
     const rawItems = (data as any[]) || [];
-    if (rawItems.length === 0) return [];
-
-    const productIds = [...new Set(rawItems.map((item) => item.product_id))];
-
-    const { data: productsData } = await supabase
-      .from("products")
-      .select("*")
-      .in("id", productIds);
-
-    const productMap: Record<string, Product> = {};
-    if (productsData) {
-      productsData.forEach((p: any) => {
-        productMap[p.id] = p;
-      });
+    if (rawItems.length === 0) {
+      cachedItems = [];
+      lastFetchTime = now;
+      return [];
     }
 
+    const productIds = [...new Set(rawItems.map((item) => item.product_id))];
     const variantIds = rawItems
       .filter((i) => i.variant_id)
       .map((i) => i.variant_id as string);
 
-    let variantStockMap: Record<
+    const [productsResult, variantsResult] = await Promise.all([
+      productIds.length > 0
+        ? supabase.from("products").select("*").in("id", productIds)
+        : { data: [] },
+      variantIds.length > 0
+        ? supabase
+            .from("product_variants")
+            .select("id, stock, low_stock_threshold")
+            .in("id", variantIds)
+        : { data: [] },
+    ]);
+
+    const productMap: Record<string, Product> = {};
+    if (productsResult.data) {
+      productsResult.data.forEach((p: any) => {
+        productMap[p.id] = p;
+      });
+    }
+
+    const variantStockMap: Record<
       string,
       { stock: number; low_stock_threshold: number | null }
     > = {};
-
-    if (variantIds.length > 0) {
-      const { data: variantsData } = await supabase
-        .from("product_variants")
-        .select("id, stock, low_stock_threshold")
-        .in("id", variantIds);
-
-      if (variantsData) {
-        variantsData.forEach((v: any) => {
-          variantStockMap[v.id] = {
-            stock: v.stock,
-            low_stock_threshold: v.low_stock_threshold,
-          };
-        });
-      }
+    if (variantsResult.data) {
+      variantsResult.data.forEach((v: any) => {
+        variantStockMap[v.id] = {
+          stock: v.stock,
+          low_stock_threshold: v.low_stock_threshold,
+        };
+      });
     }
 
     const items: CartItemWithDetails[] = rawItems.map((item) => {
@@ -155,14 +224,15 @@ async function fetchCartItems(cartId: string): Promise<CartItemWithDetails[]> {
       };
     });
 
+    cachedItems = items;
+    lastFetchTime = now;
+
     return items;
   } catch (err) {
     console.error("fetchCartItems exception:", err);
-    return [];
+    return cachedItems.length ? cachedItems : [];
   }
 }
-
-// ─── getOrCreateCart ──────────────────────────────────────────────────────────
 
 async function getOrCreateCart(): Promise<{
   cartId: string;
@@ -208,13 +278,9 @@ async function getOrCreateCart(): Promise<{
   return { cartId: cart.id, sessionId };
 }
 
-// ─── fetchCart lock ───────────────────────────────────────────────────────────
-let fetchCartPromise: Promise<void> | null = null;
-
-// ─── addToCart lock — prevents double-click duplicate inserts ─────────────────
-let addToCartInProgress = false;
-
-// ─── Store ───────────────────────────────────────────────────────────────────
+// ============================================================
+// MAIN STORE
+// ============================================================
 
 export const useCartStore = create<CartStore>()(
   persist(
@@ -228,11 +294,32 @@ export const useCartStore = create<CartStore>()(
 
       setOnCartOpen: (fn) => set({ onCartOpen: fn }),
 
-      // ── fetchCart ──────────────────────────────────────────────────────────
-      fetchCart: async () => {
-        if (fetchCartPromise) return fetchCartPromise;
+      invalidateCache: () => {
+        lastFetchTime = 0;
+        cachedItems = [];
+      },
 
-        fetchCartPromise = (async () => {
+      prefetchCart: () => {
+        if (typeof window === "undefined") return;
+        if ("requestIdleCallback" in window) {
+          requestIdleCallback(() => {
+            if (!get().initialized && get().items.length === 0) {
+              get().fetchCart();
+            }
+          });
+        } else {
+          setTimeout(() => {
+            if (!get().initialized && get().items.length === 0) {
+              get().fetchCart();
+            }
+          }, 100);
+        }
+      },
+
+      fetchCart: async () => {
+        if (fetchPromise) return fetchPromise;
+
+        fetchPromise = (async () => {
           if (get().items.length === 0) {
             set({ loading: true });
           }
@@ -254,7 +341,6 @@ export const useCartStore = create<CartStore>()(
                 .maybeSingle();
               cart = userCart;
 
-              // Guest cart merge — login ke baad guest items user cart mein
               const guestSid = localStorage.getItem("guest_session_id");
               if (guestSid) {
                 const { data: guestCart } = await supabase
@@ -264,7 +350,6 @@ export const useCartStore = create<CartStore>()(
                   .maybeSingle();
 
                 if (guestCart && !cart) {
-                  // User ka koi cart nahi — guest cart claim kar lo
                   const { data: claimed } = await supabase
                     .from("carts")
                     .update({ user_id: user.id, session_id: null })
@@ -274,40 +359,7 @@ export const useCartStore = create<CartStore>()(
                   cart = claimed;
                   localStorage.removeItem("guest_session_id");
                 } else if (guestCart && cart) {
-                  // Dono hain — merge karo
-                  const guestItems = await fetchCartItems(guestCart.id);
-                  const userItems = await fetchCartItems(cart.id);
-                  for (const gi of guestItems) {
-                    const existing = userItems.find(
-                      (u) =>
-                        u.product_id === gi.product_id &&
-                        u.variant_id === gi.variant_id &&
-                        (u.pieces_per_unit ?? 1) === (gi.pieces_per_unit ?? 1)
-                    );
-                    if (existing) {
-                      await supabase
-                        .from("cart_items")
-                        .update({ quantity: existing.quantity + gi.quantity })
-                        .eq("id", existing.id);
-                    } else {
-                      await supabase.from("cart_items").insert({
-                        cart_id: cart.id,
-                        product_id: gi.product_id,
-                        variant_id: gi.variant_id,
-                        variant_name: gi.variant_name,
-                        variant_price: gi.variant_price,
-                        variant_original_price: gi.variant_original_price,
-                        variant_image: gi.variant_image,
-                        quantity: gi.quantity,
-                        pieces_per_unit: gi.pieces_per_unit ?? 1,
-                      });
-                    }
-                  }
-                  await supabase
-                    .from("cart_items")
-                    .delete()
-                    .eq("cart_id", guestCart.id);
-                  await supabase.from("carts").delete().eq("id", guestCart.id);
+                  await mergeGuestCart(guestCart.id, cart.id);
                   localStorage.removeItem("guest_session_id");
                 }
               }
@@ -341,7 +393,6 @@ export const useCartStore = create<CartStore>()(
             const cartId = cart.id;
             const freshItems = await fetchCartItems(cartId);
 
-            // Out of stock items silently hatao
             const validItems = freshItems.filter((item) => {
               const stockStatus = item.variantStockStatus ?? "in_stock";
               if (stockStatus === "out_of_stock") {
@@ -351,27 +402,9 @@ export const useCartStore = create<CartStore>()(
               return true;
             });
 
-            // localStorage + DB items merge — duplicates avoid karo
-            const currentItems = get().items.filter(
-              (i) => !i.id.startsWith("temp_")
-            );
-            const mergedMap = new Map<string, CartItemWithDetails>();
-
-            // DB items pehle (authoritative)
-            for (const dbItem of validItems) {
-              mergedMap.set(dbItem.id, dbItem);
-            }
-
-            // localStorage items sirf woh jo DB mein nahi hain
-            for (const localItem of currentItems) {
-              if (!mergedMap.has(localItem.id)) {
-                mergedMap.set(localItem.id, localItem);
-              }
-            }
-
             set({
               cartId,
-              items: Array.from(mergedMap.values()),
+              items: validItems,
               loading: false,
               initialized: true,
             });
@@ -379,230 +412,207 @@ export const useCartStore = create<CartStore>()(
             console.error("fetchCart error:", err);
             set({ loading: false, initialized: true });
           } finally {
-            fetchCartPromise = null;
+            fetchPromise = null;
           }
         })();
 
-        return fetchCartPromise;
+        return fetchPromise;
       },
 
-      // ── addToCart ──────────────────────────────────────────────────────────
-      // ✅ Prices are always stored in PKR (base currency)
-      // Currency conversion happens only at DISPLAY time in CartSidebar/formatPrice
-      // Never store converted prices — always store raw PKR from database
+      // ✅ FIXED: addToCart returns Promise<void> instead of Promise<boolean>
       addToCart: async (
         product: Product,
         variant: ProductVariant | null = null,
         quantity: number = 1,
         piecesPerUnit: number = 1
       ) => {
-        // ✅ FIX: Lock released in finally — no matter what path exits
-        if (addToCartInProgress) return;
-        addToCartInProgress = true;
+        if (addToCartDebounce) clearTimeout(addToCartDebounce);
 
-        try {
-          if (!product.id) {
-            console.error("addToCart: product.id is missing");
-            return;
-          }
-
-          const { items, onCartOpen } = get();
-
-          const variantId = variant?.id ?? undefined;
-          const variantName = variant ? variant.attribute_value : "Standard";
-
-          // ✅ PKR prices — always raw from database, NEVER converted
-          const variantPrice = variant?.price ?? product.price ?? 0;
-          const variantOriginalPrice =
-            variant?.original_price ?? product.original_price ?? undefined;
-
-          const rawStock =
-            variant != null
-              ? variant.stock ?? 999999
-              : (product as any).stock ?? 999999;
-          const lowStockThreshold =
-            variant != null
-              ? variant.low_stock_threshold ?? null
-              : (product as any).low_stock_threshold ?? null;
-
-          const stockStatus = deriveStockStatus(rawStock, lowStockThreshold);
-
-          if (stockStatus === "out_of_stock") {
-            alert("This product is out of stock");
-            return; // finally will still run — lock released ✅
-          }
-
-          // ✅ Variant image — product.images[0] use karo (already passed from card)
-          const variantImage =
-            product.images && product.images.length > 0
-              ? product.images[0]
-              : "";
-
-          // Same product+variant+ppu ki existing item check karo
-          const existingItem = items.find(
-            (i) =>
-              i.product_id === product.id &&
-              i.variant_id === variantId &&
-              (i.pieces_per_unit ?? 1) === piecesPerUnit
-          );
-
-          const newQuantity = existingItem
-            ? existingItem.quantity + quantity
-            : quantity;
-
-          // Stock limit check
-          if (stockStatus !== "in_stock" && rawStock > 0) {
-            const totalPhysical = newQuantity * piecesPerUnit;
-            if (totalPhysical > rawStock) {
-              const maxUnits = Math.floor(rawStock / piecesPerUnit);
-              alert(
-                `Only ${rawStock} items in stock. Max ${maxUnits} unit(s) of ${piecesPerUnit}-piece size.`
-              );
-              return; // finally will still run ✅
-            }
-          }
-
-          // ✅ OPTIMISTIC UPDATE — UI instantly update hogi
-          if (existingItem) {
-            set({
-              items: get().items.map((i) =>
-                i.id === existingItem.id ? { ...i, quantity: newQuantity } : i
-              ),
-            });
-          } else {
-            const tempId = `temp_${Date.now()}_${Math.random()}`;
-            const tempItem: CartItemWithDetails = {
-              id: tempId,
-              cart_id: get().cartId || "",
-              product_id: product.id,
-              variant_id: variantId,
-              variant_name: variantName,
-              variant_price: variantPrice, // ✅ PKR — raw DB value
-              variant_original_price: variantOriginalPrice, // ✅ PKR — raw DB value
-              variant_image: variantImage,
-              quantity,
-              pieces_per_unit: piecesPerUnit,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              variantStock: rawStock,
-              variantLowStockThreshold: lowStockThreshold,
-              variantStockStatus: stockStatus,
-              product: {
-                ...product,
-                price: variantPrice, // ✅ PKR
-                original_price: variantOriginalPrice, // ✅ PKR
-                stock: rawStock,
-              },
-            };
-            set({ items: [...get().items, tempItem] });
-          }
-
-          // ✅ Cart sidebar immediately kholo
-          if (onCartOpen) onCartOpen();
-
-          // ✅ Background DB sync
-          try {
-            let cartId = get().cartId;
-            if (!cartId) {
-              const result = await getOrCreateCart();
-              cartId = result.cartId;
-              set({ cartId });
-            }
-
-            if (existingItem) {
-              // ✅ Existing item quantity update
-              const { error } = await supabase
-                .from("cart_items")
-                .update({
-                  quantity: newQuantity,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", existingItem.id);
-
-              if (error) {
-                console.error("addToCart update error:", error);
-                // Rollback
-                set({
-                  items: get().items.map((i) =>
-                    i.id === existingItem.id
-                      ? { ...i, quantity: existingItem.quantity }
-                      : i
-                  ),
-                });
-              }
-            } else {
-              // ✅ Naya item insert — prices always PKR
-              const { data: inserted, error } = await supabase
-                .from("cart_items")
-                .insert({
-                  cart_id: cartId,
-                  product_id: product.id,
-                  variant_id: variantId ?? null,
-                  variant_name: variantName,
-                  variant_price: variantPrice, // ✅ PKR stored in DB
-                  variant_original_price: variantOriginalPrice ?? null, // ✅ PKR
-                  variant_image: variantImage,
-                  quantity,
-                  pieces_per_unit: piecesPerUnit,
-                })
-                .select()
-                .single();
-
-              if (error || !inserted) {
-                console.error("addToCart insert error:", error);
-                // Temp item rollback
-                set({
-                  items: get().items.filter(
-                    (i) =>
-                      !(
-                        i.id.startsWith("temp_") &&
-                        i.product_id === product.id &&
-                        i.variant_id === variantId &&
-                        (i.pieces_per_unit ?? 1) === piecesPerUnit
-                      )
-                  ),
-                });
+        return new Promise<void>((resolve, reject) => {
+          addToCartDebounce = setTimeout(async () => {
+            try {
+              if (!product.id) {
+                console.error("addToCart: product.id is missing");
+                reject(new Error("Product ID missing"));
                 return;
               }
 
-              // ✅ Temp item → real DB item replace
-              set({
-                items: get().items.map((i) =>
-                  i.id.startsWith("temp_") &&
+              const { items, onCartOpen } = get();
+
+              const variantId = variant?.id ?? undefined;
+              const variantName = variant
+                ? variant.attribute_value
+                : "Standard";
+
+              const variantPrice = variant?.price ?? product.price ?? 0;
+              const variantOriginalPrice =
+                variant?.original_price ?? product.original_price ?? undefined;
+
+              const rawStock =
+                variant != null
+                  ? variant.stock ?? 999999
+                  : (product as any).stock ?? 999999;
+              const lowStockThreshold =
+                variant != null
+                  ? variant.low_stock_threshold ?? null
+                  : (product as any).low_stock_threshold ?? null;
+
+              const stockStatus = deriveStockStatus(
+                rawStock,
+                lowStockThreshold
+              );
+
+              if (stockStatus === "out_of_stock") {
+                alert("This product is out of stock");
+                reject(new Error("Out of stock"));
+                return;
+              }
+
+              const variantImage =
+                product.images && product.images.length > 0
+                  ? product.images[0]
+                  : "";
+
+              const existingItem = items.find(
+                (i) =>
                   i.product_id === product.id &&
                   i.variant_id === variantId &&
                   (i.pieces_per_unit ?? 1) === piecesPerUnit
-                    ? {
-                        ...inserted,
-                        pieces_per_unit:
-                          inserted.pieces_per_unit ?? piecesPerUnit,
-                        variantStock: rawStock,
-                        variantLowStockThreshold: lowStockThreshold,
-                        variantStockStatus: stockStatus,
-                        product: {
-                          ...product,
-                          price: variantPrice,
-                          original_price: variantOriginalPrice,
-                          stock: rawStock,
-                        },
-                      }
-                    : i
-                ),
-                cartId,
-              });
+              );
+
+              const newQuantity = existingItem
+                ? existingItem.quantity + quantity
+                : quantity;
+
+              if (stockStatus !== "in_stock" && rawStock > 0) {
+                const totalPhysical = newQuantity * piecesPerUnit;
+                if (totalPhysical > rawStock) {
+                  const maxUnits = Math.floor(rawStock / piecesPerUnit);
+                  alert(
+                    `Only ${rawStock} items in stock. Max ${maxUnits} unit(s) of ${piecesPerUnit}-piece size.`
+                  );
+                  reject(new Error("Stock limit exceeded"));
+                  return;
+                }
+              }
+
+              // Optimistic update
+              if (existingItem) {
+                set({
+                  items: get().items.map((i) =>
+                    i.id === existingItem.id
+                      ? { ...i, quantity: newQuantity }
+                      : i
+                  ),
+                });
+              } else {
+                const tempId = `temp_${Date.now()}_${Math.random()}`;
+                const tempItem: CartItemWithDetails = {
+                  id: tempId,
+                  cart_id: get().cartId || "",
+                  product_id: product.id,
+                  variant_id: variantId,
+                  variant_name: variantName,
+                  variant_price: variantPrice,
+                  variant_original_price: variantOriginalPrice,
+                  variant_image: variantImage,
+                  quantity,
+                  pieces_per_unit: piecesPerUnit,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  variantStock: rawStock,
+                  variantLowStockThreshold: lowStockThreshold,
+                  variantStockStatus: stockStatus,
+                  product: {
+                    ...product,
+                    price: variantPrice,
+                    original_price: variantOriginalPrice,
+                    stock: rawStock,
+                  },
+                };
+                set({ items: [...get().items, tempItem] });
+              }
+
+              if (onCartOpen) onCartOpen();
+
+              // Background DB sync
+              setTimeout(async () => {
+                try {
+                  let cartId = get().cartId;
+                  if (!cartId) {
+                    const result = await getOrCreateCart();
+                    cartId = result.cartId;
+                    set({ cartId });
+                  }
+
+                  if (existingItem) {
+                    await supabase
+                      .from("cart_items")
+                      .update({
+                        quantity: newQuantity,
+                        updated_at: new Date().toISOString(),
+                      })
+                      .eq("id", existingItem.id);
+                  } else {
+                    const { data: inserted, error } = await supabase
+                      .from("cart_items")
+                      .insert({
+                        cart_id: cartId,
+                        product_id: product.id,
+                        variant_id: variantId ?? null,
+                        variant_name: variantName,
+                        variant_price: variantPrice,
+                        variant_original_price: variantOriginalPrice ?? null,
+                        variant_image: variantImage,
+                        quantity,
+                        pieces_per_unit: piecesPerUnit,
+                      })
+                      .select()
+                      .single();
+
+                    if (error || !inserted) {
+                      console.error("addToCart insert error:", error);
+                      set({
+                        items: get().items.filter(
+                          (i) =>
+                            !(
+                              i.id.startsWith("temp_") &&
+                              i.product_id === product.id
+                            )
+                        ),
+                      });
+                    } else {
+                      set({
+                        items: get().items.map((i) =>
+                          i.id.startsWith("temp_") &&
+                          i.product_id === product.id
+                            ? {
+                                ...inserted,
+                                pieces_per_unit:
+                                  inserted.pieces_per_unit ?? piecesPerUnit,
+                              }
+                            : i
+                        ),
+                        cartId,
+                      });
+                    }
+                  }
+
+                  get().invalidateCache();
+                } catch (dbErr) {
+                  console.error("addToCart DB sync error:", dbErr);
+                }
+              }, 0);
+
+              // ✅ FIXED: resolve with void instead of true
+              resolve();
+            } catch (err) {
+              reject(err);
             }
-          } catch (dbErr) {
-            console.error("addToCart DB sync error:", dbErr);
-          }
-        } finally {
-          // ✅ FIXED: Lock ALWAYS released — even on early return (out_of_stock, stock limit, etc.)
-          setTimeout(() => {
-            addToCartInProgress = false;
-          }, 500);
-        }
+          }, 100);
+        });
       },
 
-      // ── updateQuantity ─────────────────────────────────────────────────────
       updateQuantity: async (itemId: string, quantity: number) => {
         if (quantity <= 0) {
           await get().removeFromCart(itemId);
@@ -622,6 +632,7 @@ export const useCartStore = create<CartStore>()(
           return;
         }
 
+        let finalQuantity = quantity;
         if (stockStatus !== "in_stock" && rawStock > 0) {
           const totalPhysical = quantity * ppu;
           if (totalPhysical > rawStock) {
@@ -633,81 +644,73 @@ export const useCartStore = create<CartStore>()(
               await get().removeFromCart(itemId);
               return;
             }
-            quantity = maxUnits;
+            finalQuantity = maxUnits;
           }
         }
 
-        // Optimistic update
         set({
-          items: items.map((i) => (i.id === itemId ? { ...i, quantity } : i)),
+          items: items.map((i) =>
+            i.id === itemId ? { ...i, quantity: finalQuantity } : i
+          ),
         });
 
-        if (!itemId.startsWith("temp_")) {
-          const { error } = await supabase
-            .from("cart_items")
-            .update({ quantity, updated_at: new Date().toISOString() })
-            .eq("id", itemId);
-
-          if (error) {
-            console.error("updateQuantity error:", error);
-            // Rollback
-            set({
-              items: get().items.map((i) =>
-                i.id === itemId ? { ...i, quantity: item.quantity } : i
-              ),
-            });
-          }
+        if (updateQuantityDebounce.has(itemId)) {
+          clearTimeout(updateQuantityDebounce.get(itemId)!);
         }
+
+        const timer = setTimeout(() => {
+          scheduleBatchUpdate("update_quantity", {
+            id: itemId,
+            quantity: finalQuantity,
+          });
+          updateQuantityDebounce.delete(itemId);
+          get().invalidateCache();
+        }, 300);
+
+        updateQuantityDebounce.set(itemId, timer);
       },
 
-      // ── removeFromCart ─────────────────────────────────────────────────────
       removeFromCart: async (itemId: string) => {
         const { items } = get();
+        const itemToRemove = items.find((i) => i.id === itemId);
+        if (!itemToRemove) return;
 
-        // Optimistic remove
         set({ items: items.filter((i) => i.id !== itemId) });
 
-        if (!itemId.startsWith("temp_")) {
-          const { error } = await supabase
-            .from("cart_items")
-            .delete()
-            .eq("id", itemId);
+        scheduleBatchUpdate("remove_item", { id: itemId });
 
-          if (error) {
-            console.error("removeFromCart error:", error);
-            // Rollback
-            set({ items });
-          }
-        }
+        get().invalidateCache();
       },
 
-      // ── clearCart ──────────────────────────────────────────────────────────
       clearCart: async () => {
         const { cartId } = get();
         set({ items: [] });
+
         if (cartId) {
           await supabase.from("cart_items").delete().eq("cart_id", cartId);
         }
+
+        get().invalidateCache();
       },
 
-      // ── getCartCount ───────────────────────────────────────────────────────
-      getCartCount: () => get().items.reduce((t, i) => t + i.quantity, 0),
+      getCartCount: () => {
+        return get().items.reduce((t, i) => t + i.quantity, 0);
+      },
 
-      // ── getSubtotal ────────────────────────────────────────────────────────
-      // ✅ Always returns PKR — display layer (CartSidebar) converts to selected currency
-      getSubtotal: () =>
-        get().items.reduce((t, i) => {
+      getSubtotal: () => {
+        return get().items.reduce((t, i) => {
           const price = i.variant_price ?? i.product?.price ?? 0;
           const ppu = i.pieces_per_unit ?? 1;
           return t + price * ppu * i.quantity;
-        }, 0),
+        }, 0);
+      },
 
-      // ── getTotalPieces ─────────────────────────────────────────────────────
-      getTotalPieces: () =>
-        get().items.reduce(
+      getTotalPieces: () => {
+        return get().items.reduce(
           (t, i) => t + (i.pieces_per_unit ?? 1) * i.quantity,
           0
-        ),
+        );
+      },
     }),
     {
       name: "cart-storage",
@@ -719,8 +722,8 @@ export const useCartStore = create<CartStore>()(
           product_id: item.product_id,
           variant_id: item.variant_id,
           variant_name: item.variant_name,
-          variant_price: item.variant_price, // ✅ PKR stored
-          variant_original_price: item.variant_original_price, // ✅ PKR stored
+          variant_price: item.variant_price,
+          variant_original_price: item.variant_original_price,
           variant_image: item.variant_image,
           quantity: item.quantity,
           pieces_per_unit: item.pieces_per_unit ?? 1,
@@ -741,9 +744,9 @@ export const useCartStore = create<CartStore>()(
                 condition: item.product.condition,
                 is_featured: item.product.is_featured,
                 is_active: item.product.is_active,
-                price: item.variant_price ?? item.product.price, // ✅ PKR
+                price: item.variant_price ?? item.product.price,
                 original_price:
-                  item.variant_original_price ?? item.product.original_price, // ✅ PKR
+                  item.variant_original_price ?? item.product.original_price,
                 stock: item.variantStock ?? item.product.stock,
                 created_at: item.product.created_at,
                 updated_at: item.product.updated_at,
@@ -761,8 +764,56 @@ export const useCartStore = create<CartStore>()(
             state.items.length,
             "items from localStorage"
           );
+          setTimeout(() => state?.prefetchCart(), 500);
         }
       },
     }
   )
 );
+
+// ============================================================
+// HELPER FUNCTION - Merge Guest Cart
+// ============================================================
+
+async function mergeGuestCart(
+  guestCartId: string,
+  userCartId: string
+): Promise<void> {
+  try {
+    const guestItems = await fetchCartItems(guestCartId);
+    const userItems = await fetchCartItems(userCartId);
+
+    for (const guestItem of guestItems) {
+      const existing = userItems.find(
+        (u) =>
+          u.product_id === guestItem.product_id &&
+          u.variant_id === guestItem.variant_id &&
+          (u.pieces_per_unit ?? 1) === (guestItem.pieces_per_unit ?? 1)
+      );
+
+      if (existing) {
+        await supabase
+          .from("cart_items")
+          .update({ quantity: existing.quantity + guestItem.quantity })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("cart_items").insert({
+          cart_id: userCartId,
+          product_id: guestItem.product_id,
+          variant_id: guestItem.variant_id,
+          variant_name: guestItem.variant_name,
+          variant_price: guestItem.variant_price,
+          variant_original_price: guestItem.variant_original_price,
+          variant_image: guestItem.variant_image,
+          quantity: guestItem.quantity,
+          pieces_per_unit: guestItem.pieces_per_unit ?? 1,
+        });
+      }
+    }
+
+    await supabase.from("cart_items").delete().eq("cart_id", guestCartId);
+    await supabase.from("carts").delete().eq("id", guestCartId);
+  } catch (err) {
+    console.error("mergeGuestCart error:", err);
+  }
+}

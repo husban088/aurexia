@@ -13,6 +13,23 @@ import { useCartStore } from "@/lib/cartStore";
 import { useCurrency } from "../context/CurrencyContext";
 import QuickView from "./QuickView";
 
+/* ─────────────────────────────────────────────────────────────
+   MODULE-LEVEL CACHE
+   Lives for the entire browser session (not per-component).
+   Navigation back/forward never refetches — data is instant.
+───────────────────────────────────────────────────────────── */
+interface CachedData {
+  products: FeaturedProduct[];
+  variantsMap: Record<string, ProductVariant[]>;
+  variantImagesMap: VariantImagesMap;
+}
+
+const MODULE_CACHE: Record<string, CachedData> = {};
+
+/* Tracks in-flight promises so two mounts don't double-fetch */
+const FETCH_IN_FLIGHT: Record<string, Promise<CachedData>> = {};
+
+/* ── Types ── */
 interface QuickViewProduct {
   id: string;
   name: string;
@@ -48,8 +65,8 @@ interface ProductVariant {
   product_id: string;
   attribute_type: "color" | "size" | "material" | "capacity" | "standard";
   attribute_value: string;
-  price: number; // ✅ Always PKR in database
-  original_price?: number; // ✅ Always PKR in database
+  price: number;
+  original_price?: number;
   description?: string;
   stock: number;
   low_stock_threshold?: number;
@@ -61,10 +78,9 @@ interface VariantImagesMap {
   [variantId: string]: string[];
 }
 
-const truncateProductName = (name: string, maxLength: number = 50): string => {
-  if (name.length <= maxLength) return name;
-  return name.substring(0, maxLength).trim() + "...";
-};
+/* ── Helpers ── */
+const truncateProductName = (name: string, maxLength = 50) =>
+  name.length <= maxLength ? name : name.substring(0, maxLength).trim() + "...";
 
 const getStockStatus = (
   stock: number,
@@ -76,8 +92,9 @@ const getStockStatus = (
   return "in_stock";
 };
 
-async function fetchFeaturedTabDataFast(tab: string) {
-  const { data: productsData, error: productsError } = await supabase
+/* ── Fetch function ── */
+async function fetchFeaturedTabDataFast(tab: string): Promise<CachedData> {
+  const { data: productsData, error } = await supabase
     .from("products")
     .select("*, product_variants(*, variant_images(*))")
     .eq("is_active", true)
@@ -85,7 +102,7 @@ async function fetchFeaturedTabDataFast(tab: string) {
     .eq("category", tab)
     .order("created_at", { ascending: false });
 
-  if (productsError || !productsData || productsData.length === 0) {
+  if (error || !productsData || productsData.length === 0) {
     return { products: [], variantsMap: {}, variantImagesMap: {} };
   }
 
@@ -113,8 +130,8 @@ async function fetchFeaturedTabDataFast(tab: string) {
       product_id: variant.product_id,
       attribute_type: variant.attribute_type,
       attribute_value: variant.attribute_value,
-      price: variant.price, // ✅ Raw PKR from DB
-      original_price: variant.original_price, // ✅ Raw PKR from DB
+      price: variant.price,
+      original_price: variant.original_price,
       description: variant.description,
       stock: variant.stock,
       low_stock_threshold: variant.low_stock_threshold,
@@ -126,9 +143,7 @@ async function fetchFeaturedTabDataFast(tab: string) {
       const images = (variant.variant_images || [])
         .sort((a: any, b: any) => a.display_order - b.display_order)
         .map((img: any) => img.image_url);
-      if (images.length > 0) {
-        variantImagesMap[variant.id] = images;
-      }
+      if (images.length > 0) variantImagesMap[variant.id] = images;
     });
   });
 
@@ -139,7 +154,52 @@ async function fetchFeaturedTabDataFast(tab: string) {
   };
 }
 
-// Variant Thumbnails Component
+/* ── Prefetch all tabs into module cache ── */
+const ALL_TABS = ["Accessories", "Watches", "Automotive", "Home Decor"];
+
+/* 
+  Returns a promise that resolves when the given tab is fully cached.
+  Safe to call multiple times — deduped via FETCH_IN_FLIGHT. 
+*/
+async function ensureTabCached(tab: string): Promise<CachedData> {
+  // If already cached, return cached data
+  if (MODULE_CACHE[tab]) {
+    return MODULE_CACHE[tab];
+  }
+
+  // If fetch already in flight, wait for it
+  const inFlight = FETCH_IN_FLIGHT[tab];
+  if (inFlight) {
+    return await inFlight;
+  }
+
+  // Start new fetch
+  const promise = fetchFeaturedTabDataFast(tab).then((data) => {
+    MODULE_CACHE[tab] = data;
+    delete FETCH_IN_FLIGHT[tab];
+    return data;
+  });
+
+  FETCH_IN_FLIGHT[tab] = promise;
+  return await promise;
+}
+
+function prefetchAllTabs() {
+  ALL_TABS.forEach((tab) => {
+    if (!MODULE_CACHE[tab] && !FETCH_IN_FLIGHT[tab]) {
+      const promise = fetchFeaturedTabDataFast(tab).then((data) => {
+        MODULE_CACHE[tab] = data;
+        delete FETCH_IN_FLIGHT[tab];
+        return data;
+      });
+      FETCH_IN_FLIGHT[tab] = promise;
+    }
+  });
+}
+
+/* ─────────────────────────────────────────────────────────────
+   VARIANT THUMBNAILS
+───────────────────────────────────────────────────────────── */
 function VariantThumbnails({
   variants,
   type,
@@ -250,7 +310,9 @@ function LoadingSpinner({ size = 18 }: { size?: number }) {
   );
 }
 
-// ✅ Product Card — currency conversion fixed here
+/* ─────────────────────────────────────────────────────────────
+   PRODUCT CARD
+───────────────────────────────────────────────────────────── */
 function ProductCard({
   product,
   variants,
@@ -269,11 +331,10 @@ function ProductCard({
     productStock: number,
     stockStatus: "in_stock" | "out_of_stock" | "low_stock",
     lowStockThreshold: number | null | undefined,
-    variantImagesMap: VariantImagesMap
+    variantImages: VariantImagesMap
   ) => void;
 }) {
-  // ✅ Get currency and formatPrice — formatPrice already handles PKR→currency conversion internally
-  const { currency, formatPrice } = useCurrency();
+  const { formatPrice } = useCurrency();
 
   const [isHovered, setIsHovered] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -315,8 +376,7 @@ function ProductCard({
 
   const handleVariantSelect = (variant: ProductVariant) => {
     setSelectedVariant(variant);
-    const newImages = getVariantImages(variant.id);
-    setCurrentImages(newImages);
+    setCurrentImages(getVariantImages(variant.id));
     setCurrentImageIndex(0);
     setIsHovered(false);
   };
@@ -331,13 +391,10 @@ function ProductCard({
     setCurrentImageIndex(0);
   };
 
-  const getDisplayImage = () => {
-    if (currentImages.length === 0) return null;
-    if (isHovered && currentImages.length > 1) return currentImages[1];
-    return currentImages[currentImageIndex];
-  };
-
-  const displayImage = getDisplayImage();
+  const displayImage =
+    isHovered && currentImages.length > 1
+      ? currentImages[1]
+      : currentImages[currentImageIndex] ?? null;
 
   const discount =
     selectedVariant?.original_price &&
@@ -369,8 +426,6 @@ function ProductCard({
     return "in";
   };
 
-  const truncatedName = truncateProductName(product.name, 45);
-
   const handleAddToCart = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -378,36 +433,36 @@ function ProductCard({
       alert("Please select a variant first");
       return;
     }
-    if (stockStatus === "out_of_stock") {
+    if (isOutOfStock) {
       alert("This product is out of stock");
       return;
     }
     if (addToCartLoading) return;
     setAddToCartLoading(true);
-
-    // ✅ IMPORTANT: Always store PKR price in cart — conversion happens at display time
-    const productToAdd = {
-      id: product.id,
-      name: product.name,
-      description: selectedVariant?.description || product.description || "",
-      category: product.category,
-      subcategory: product.subcategory,
-      brand: product.brand || "",
-      condition: product.condition,
-      is_featured: product.is_featured,
-      is_active: product.is_active,
-      images: currentImages.length > 0 ? currentImages : [],
-      price: selectedVariant.price, // ✅ PKR — raw database value
-      original_price: selectedVariant.original_price, // ✅ PKR — raw database value
-      stock: selectedVariant.stock,
-      low_stock_threshold: selectedVariant.low_stock_threshold,
-      stockStatus: stockStatus,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
     try {
+      // Create a clean product object without low_stock_threshold to avoid type issues
+      const productToAdd = {
+        id: product.id,
+        name: product.name,
+        description: selectedVariant?.description || product.description || "",
+        category: product.category,
+        subcategory: product.subcategory,
+        brand: product.brand || "",
+        condition: product.condition,
+        is_featured: product.is_featured,
+        is_active: product.is_active,
+        images: currentImages,
+        price: selectedVariant.price,
+        original_price: selectedVariant.original_price,
+        stock: selectedVariant.stock,
+        stockStatus,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
       await addToCart(productToAdd, selectedVariant, 1, 1);
+    } catch (err) {
+      console.error("Add to cart error:", err);
     } finally {
       setAddToCartLoading(false);
     }
@@ -419,7 +474,7 @@ function ProductCard({
     e.preventDefault();
     e.stopPropagation();
     setQuickViewLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((r) => setTimeout(r, 80));
     onQuickView(
       product,
       variants,
@@ -434,12 +489,9 @@ function ProductCard({
     setQuickViewLoading(false);
   };
 
-  // ✅ formatPrice(pkrValue) internally does: pkrValue * currency.rate → formats with symbol
-  // Example: formatPrice(6516) with USD = "$ 23.35" — no separate convertPrice needed
   const displaySalePrice = selectedVariant
     ? formatPrice(selectedVariant.price)
     : formatPrice(0);
-
   const displayOriginalPrice = selectedVariant?.original_price
     ? formatPrice(selectedVariant.original_price)
     : null;
@@ -529,10 +581,9 @@ function ProductCard({
       <div className="fp-card-body">
         {product.brand && <p className="fp-card-brand">{product.brand}</p>}
         <h3 className="fp-card-name" title={product.name}>
-          {truncatedName}
+          {truncateProductName(product.name, 45)}
         </h3>
         <div className="fp-card-price-row">
-          {/* ✅ Correctly converted price shown */}
           <span className="fp-card-price">{displaySalePrice}</span>
           {displayOriginalPrice && (
             <span className="fp-card-orig">{displayOriginalPrice}</span>
@@ -600,17 +651,22 @@ function ProductCard({
   );
 }
 
-// ✅ Main FeaturedProducts Component
+/* ─────────────────────────────────────────────────────────────
+   MAIN COMPONENT
+───────────────────────────────────────────────────────────── */
 export default function FeaturedProducts() {
   const [activeTab, setActiveTab] = useState("Accessories");
-  const [products, setProducts] = useState<FeaturedProduct[]>([]);
+
+  const [products, setProducts] = useState<FeaturedProduct[]>(
+    () => MODULE_CACHE["Accessories"]?.products ?? []
+  );
   const [variantsMap, setVariantsMap] = useState<
     Record<string, ProductVariant[]>
-  >({});
+  >(() => MODULE_CACHE["Accessories"]?.variantsMap ?? {});
   const [variantImagesMap, setVariantImagesMap] = useState<
     Record<string, string[]>
-  >({});
-  const [loading, setLoading] = useState(false);
+  >(() => MODULE_CACHE["Accessories"]?.variantImagesMap ?? {});
+
   const [quickViewProduct, setQuickViewProduct] =
     useState<QuickViewProduct | null>(null);
   const [quickViewVariants, setQuickViewVariants] = useState<ProductVariant[]>(
@@ -622,56 +678,76 @@ export default function FeaturedProducts() {
     Record<string, string[]>
   >({});
   const [quickViewOpen, setQuickViewOpen] = useState(false);
+
   const prevRef = useRef<HTMLButtonElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
   const swiperRef = useRef<SwiperType | null>(null);
   const { currency } = useCurrency();
-  const dataCache = useRef<Record<string, any>>({});
 
+  /* ── On mount: load initial "Accessories" tab + prefetch all others ── */
   useEffect(() => {
-    async function loadInitialData() {
-      try {
-        const categories = [
-          "Accessories",
-          "Watches",
-          "Automotive",
-          "Home Decor",
-        ];
-        const promises = categories.map((cat) => fetchFeaturedTabDataFast(cat));
-        const results = await Promise.all(promises);
-        categories.forEach((cat, idx) => {
-          dataCache.current[cat] = results[idx];
-        });
-        const initialData = dataCache.current["Accessories"];
-        setProducts(initialData.products);
-        setVariantsMap(initialData.variantsMap);
-        setVariantImagesMap(initialData.variantImagesMap);
-      } catch (error) {
-        console.error("Error loading featured products:", error);
+    let isMounted = true;
+
+    async function loadInitialTab() {
+      // If already in cache, state was already set via initializer
+      if (MODULE_CACHE["Accessories"]) {
+        // Make sure state is updated
+        if (isMounted) {
+          const d = MODULE_CACHE["Accessories"];
+          setProducts(d.products);
+          setVariantsMap(d.variantsMap);
+          setVariantImagesMap(d.variantImagesMap);
+        }
+        // Still kick off background prefetch for other tabs
+        prefetchAllTabs();
+        return;
       }
+
+      // Not cached yet — fetch now
+      const data = await ensureTabCached("Accessories");
+
+      if (isMounted && data) {
+        setProducts(data.products);
+        setVariantsMap(data.variantsMap);
+        setVariantImagesMap(data.variantImagesMap);
+      }
+
+      // Prefetch remaining tabs in background after initial tab is ready
+      prefetchAllTabs();
     }
-    loadInitialData();
+
+    loadInitialTab();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
+  /* ── Tab change — instant from cache, fetch only if missing ── */
   const handleTabChange = useCallback(async (tab: string) => {
     setActiveTab(tab);
-    if (dataCache.current[tab]) {
-      const tabData = dataCache.current[tab];
-      setProducts(tabData.products);
-      setVariantsMap(tabData.variantsMap);
-      setVariantImagesMap(tabData.variantImagesMap);
-    } else {
-      const tabData = await fetchFeaturedTabDataFast(tab);
-      dataCache.current[tab] = tabData;
-      setProducts(tabData.products);
-      setVariantsMap(tabData.variantsMap);
-      setVariantImagesMap(tabData.variantImagesMap);
+
+    if (MODULE_CACHE[tab]) {
+      // Instant — already cached
+      const d = MODULE_CACHE[tab];
+      setProducts(d.products);
+      setVariantsMap(d.variantsMap);
+      setVariantImagesMap(d.variantImagesMap);
+      setTimeout(() => swiperRef.current?.update(), 50);
+      return;
     }
-    setTimeout(() => {
-      swiperRef.current?.update();
-    }, 50);
+
+    // Not cached — fetch
+    const data = await ensureTabCached(tab);
+    if (data) {
+      setProducts(data.products);
+      setVariantsMap(data.variantsMap);
+      setVariantImagesMap(data.variantImagesMap);
+    }
+
+    setTimeout(() => swiperRef.current?.update(), 50);
   }, []);
 
+  /* ── Update swiper when products change ── */
   useEffect(() => {
     if (swiperRef.current && products.length > 0) {
       setTimeout(() => swiperRef.current?.update(), 50);
@@ -689,11 +765,11 @@ export default function FeaturedProducts() {
     lowStockThreshold: number | null | undefined,
     variantImages: VariantImagesMap
   ) => {
-    const quickViewProductData: QuickViewProduct = {
+    setQuickViewProduct({
       id: product.id,
       name: product.name,
       brand: product.brand,
-      price: productPrice, // ✅ PKR — QuickView component should also use convertPrice
+      price: productPrice,
       original_price: selectedVariant?.original_price,
       category: product.category,
       subcategory: product.subcategory,
@@ -703,10 +779,9 @@ export default function FeaturedProducts() {
       condition: product.condition,
       is_featured: product.is_featured,
       is_active: product.is_active,
-      stockStatus: stockStatus,
-      lowStockThreshold: lowStockThreshold,
-    };
-    setQuickViewProduct(quickViewProductData);
+      stockStatus,
+      lowStockThreshold,
+    });
     setQuickViewVariants(variants);
     setQuickViewSelectedVariant(selectedVariant);
     setQuickViewVariantImagesMap(variantImages);
@@ -720,10 +795,10 @@ export default function FeaturedProducts() {
     { key: "Home Decor", label: "Home Decor", href: "/home-decor" },
   ].find((t) => t.key === activeTab);
 
-  const getCurrencyText = () => {
-    if (currency.code === "PKR") return "PKR (₨)";
-    return `${currency.code} (${currency.symbol})`;
-  };
+  const getCurrencyText = () =>
+    currency.code === "PKR"
+      ? "PKR (₨)"
+      : `${currency.code} (${currency.symbol})`;
 
   return (
     <>
@@ -731,7 +806,7 @@ export default function FeaturedProducts() {
         <div className="fp-header">
           <p className="fp-eyebrow">
             <span className="fp-ey-line" />
-            Curated Selection {currency.flag} {getCurrencyText()}
+            Curated Selection
             <span className="fp-ey-line" />
           </p>
           <h2 className="fp-title">
@@ -739,18 +814,14 @@ export default function FeaturedProducts() {
           </h2>
           <p className="fp-subtitle">
             Handpicked luxury essentials across our finest categories
-            <br />
-            <span style={{ fontSize: "0.7rem", color: "#8b6914" }}>
-              💱 Prices shown in {currency.code} ({currency.symbol})
-            </span>
           </p>
+
           <div
             style={{
               width: "100%",
               marginTop: "1.5rem",
               display: "flex",
               justifyContent: "center",
-              alignItems: "center",
               overflow: "hidden",
             }}
           >
@@ -766,6 +837,7 @@ export default function FeaturedProducts() {
               }}
             />
           </div>
+
           <div className="fp-tabs" style={{ marginTop: "2rem" }}>
             {["Accessories", "Watches", "Automotive", "Home Decor"].map(
               (tab) => (

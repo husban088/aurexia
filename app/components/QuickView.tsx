@@ -858,7 +858,7 @@ export default function QuickView({
               )}
 
               {/* ✅ DESCRIPTION SECTION - Click to open modal with full rich text */}
-              <div className="qv-desc-section">
+              {/* <div className="qv-desc-section">
                 <div
                   className="qv-desc-header"
                   onClick={() => hasDescription && setIsDescModalOpen(true)}
@@ -896,7 +896,6 @@ export default function QuickView({
                   )}
                 </div>
 
-                {/* Preview of description */}
                 {hasDescription && (
                   <div className="qv-desc-preview">
                     {currentDescription.length > 120
@@ -906,15 +905,13 @@ export default function QuickView({
                       : currentDescription.replace(/<[^>]*>/g, "")}
                   </div>
                 )}
-              </div>
+              </div> */}
 
-              {/* Stock Status */}
               <div className="qv-stock">
                 <span className={`qv-stock-dot ${stockClass}`} />
                 {stockLabel}
               </div>
 
-              {/* Feature Pills */}
               <div className="qv-features">
                 <div className="qv-feature">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -942,7 +939,6 @@ export default function QuickView({
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="qv-actions">
                 <button
                   className="qv-add-cart"

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useCurrency } from "@/app/context/CurrencyContext";
 import "./ShippingSection.css";
 
 interface FormData {
@@ -29,20 +30,21 @@ interface ShippingSectionProps {
     apartment: string;
     city: string;
     zip: string;
+    country: string;
   };
-  // ✅ FIXED: Type changed to match page.tsx
   setFormField: (
     key: keyof FormData
   ) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
-  // ✅ FIXED: Type changed to keyof FormData
   getFieldError: (field: keyof FormData) => string | undefined;
-  // ✅ FIXED: Type changed to keyof FormData
   handleBlur: (field: keyof FormData) => void;
   focused: string | null;
   setFocused: (field: string | null) => void;
-  selectedFlag: string;
-  selectedCountryCode: string;
-  phoneExample: string;
+  // These props are kept for backward compat but phone code now comes from currency
+  selectedFlag?: string;
+  selectedCountryCode?: string;
+  phoneExample?: string;
+  selectedCountry?: string;
+  onCountryChange?: (countryCode: string) => void;
 }
 
 export default function ShippingSection({
@@ -52,10 +54,28 @@ export default function ShippingSection({
   handleBlur,
   focused,
   setFocused,
-  selectedFlag,
-  selectedCountryCode,
-  phoneExample,
 }: ShippingSectionProps) {
+  // ✅ Phone code auto-detect from CurrencyContext (detected from user's country/IP)
+  const { currency } = useCurrency();
+
+  // Map currency code → phone prefix + flag + example
+  const phoneMap: Record<
+    string,
+    { code: string; flag: string; example: string }
+  > = {
+    PKR: { code: "+92", flag: "🇵🇰", example: "3001234567" },
+    USD: { code: "+1", flag: "🇺🇸", example: "2125551234" },
+    GBP: { code: "+44", flag: "🇬🇧", example: "7123456789" },
+    EUR: { code: "+49", flag: "🇪🇺", example: "15123456789" },
+    AUD: { code: "+61", flag: "🇦🇺", example: "412345678" },
+    CAD: { code: "+1", flag: "🇨🇦", example: "4165551234" },
+    AED: { code: "+971", flag: "🇦🇪", example: "501234567" },
+    SAR: { code: "+966", flag: "🇸🇦", example: "501234567" },
+    INR: { code: "+91", flag: "🇮🇳", example: "9876543210" },
+  };
+
+  const phoneInfo = phoneMap[currency.code] || phoneMap["USD"];
+
   return (
     <div className="ss-shipping-section">
       <h2 className="ss-section-title">
@@ -144,7 +164,7 @@ export default function ShippingSection({
           )}
         </div>
 
-        {/* Phone */}
+        {/* Phone Number — auto country code from currency detection */}
         <div
           className={`ss-field ${
             focused === "phone" ? "ss-field--focused" : ""
@@ -152,14 +172,15 @@ export default function ShippingSection({
         >
           <label className="ss-label">Phone Number *</label>
           <div className="ss-input-wrap">
+            {/* ✅ Auto-detected flag + code — no dropdown needed */}
             <div className="ss-phone-prefix">
-              <span className="ss-phone-flag">{selectedFlag}</span>
-              <span className="ss-phone-code">{selectedCountryCode}</span>
+              <span className="ss-phone-flag">{phoneInfo.flag}</span>
+              <span className="ss-phone-code">{phoneInfo.code}</span>
             </div>
             <input
               type="tel"
               className="ss-input ss-input-with-prefix"
-              placeholder={phoneExample}
+              placeholder={phoneInfo.example}
               value={form.phone}
               onChange={setFormField("phone")}
               onFocus={() => setFocused("phone")}
@@ -174,7 +195,7 @@ export default function ShippingSection({
             <span className="ss-error-text">{getFieldError("phone")}</span>
           )}
           <span className="ss-hint-text">
-            We'll send order updates via SMS to this number
+            We'll send order updates via WhatsApp to this number
           </span>
         </div>
 

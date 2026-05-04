@@ -1,3 +1,4 @@
+// app/api/capture-paypal-order/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
@@ -5,9 +6,14 @@ const PAYPAL_API_URL =
   process.env.PAYPAL_API_URL || "https://api-m.sandbox.paypal.com";
 
 async function getPayPalAccessToken(): Promise<string> {
-  const auth = Buffer.from(
-    `${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`
-  ).toString("base64");
+  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error("PayPal credentials not configured");
+  }
+
+  const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
   const response = await fetch(`${PAYPAL_API_URL}/v1/oauth2/token`, {
     method: "POST",
@@ -27,8 +33,16 @@ export async function POST(request: NextRequest) {
     const { orderId, orderNumber, formData, subtotal, shipping, total } =
       await request.json();
 
+    if (!orderId) {
+      return NextResponse.json(
+        { error: "Order ID is required" },
+        { status: 400 }
+      );
+    }
+
     const accessToken = await getPayPalAccessToken();
 
+    // Capture the payment
     const response = await fetch(
       `${PAYPAL_API_URL}/v2/checkout/orders/${orderId}/capture`,
       {
@@ -41,6 +55,14 @@ export async function POST(request: NextRequest) {
     );
 
     const captureData = await response.json();
+
+    if (!response.ok) {
+      console.error("PayPal capture error:", captureData);
+      return NextResponse.json(
+        { error: captureData.message || "Payment capture failed" },
+        { status: response.status }
+      );
+    }
 
     if (captureData.status !== "COMPLETED") {
       return NextResponse.json(
@@ -57,22 +79,29 @@ export async function POST(request: NextRequest) {
         payment_method: "paypal",
         payment_id: captureData.id,
         status: "processing",
+        updated_at: new Date().toISOString(),
       })
       .eq("order_number", orderNumber);
 
     if (updateError) {
       console.error("Error updating order:", updateError);
+      // Don't fail the response, just log the error
     }
 
     return NextResponse.json({
       success: true,
       captureId: captureData.id,
       payerEmail: captureData.payer?.email_address,
+      payerName: captureData.payer?.name?.given_name
+        ? `${captureData.payer.name.given_name} ${
+            captureData.payer.name.surname || ""
+          }`
+        : null,
     });
   } catch (error) {
     console.error("Error capturing PayPal order:", error);
     return NextResponse.json(
-      { error: "Failed to capture payment" },
+      { error: "Failed to capture payment. Please try again." },
       { status: 500 }
     );
   }

@@ -29,19 +29,19 @@ interface FormData {
 }
 
 interface PaymentSectionProps {
-  form: {
+  form?: {
     cardNumber: string;
     cardName: string;
     expiry: string;
     cvv: string;
   };
-  setFormField: (
+  setFormField?: (
     key: keyof FormData
   ) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
-  getFieldError: (field: keyof FormData) => string | undefined;
-  handleBlur: (field: keyof FormData) => void;
-  focused: string | null;
-  setFocused: (field: string | null) => void;
+  getFieldError?: (field: keyof FormData) => string | undefined;
+  handleBlur?: (field: keyof FormData) => void;
+  focused?: string | null;
+  setFocused?: (field: string | null) => void;
   totalAmount: number;
   currency: string;
   orderNumber: string;
@@ -63,10 +63,14 @@ interface PaymentSectionProps {
   onPaymentMethodChange?: (method: "card" | "paypal") => void;
 }
 
-// ✅ Currency mapping:
-// Stripe doesn't support PKR — convert to USD
-// UK customers → GBP, AU customers → AUD, US customers → USD
+// ✅ Currency mapping with safety checks
 const getStripeCurrency = (currency: string): string => {
+  // Safety check for undefined or null currency
+  if (!currency || typeof currency !== "string") {
+    console.warn("Invalid currency provided to getStripeCurrency:", currency);
+    return "usd"; // Default to USD
+  }
+
   const map: Record<string, string> = {
     PKR: "usd", // Pakistan → USD (Stripe doesn't support PKR)
     USD: "usd", // USA ✅
@@ -78,11 +82,19 @@ const getStripeCurrency = (currency: string): string => {
     SAR: "sar",
     INR: "inr",
   };
-  return map[currency.toUpperCase()] ?? "usd";
+
+  const upperCurrency = currency.toUpperCase();
+  return map[upperCurrency] ?? "usd";
 };
 
-// ✅ PayPal currency mapping (same logic)
+// ✅ PayPal currency mapping with safety checks
 const getPayPalCurrency = (currency: string): string => {
+  // Safety check for undefined or null currency
+  if (!currency || typeof currency !== "string") {
+    console.warn("Invalid currency provided to getPayPalCurrency:", currency);
+    return "USD"; // Default to USD
+  }
+
   const map: Record<string, string> = {
     PKR: "USD", // Pakistan → USD
     USD: "USD", // USA ✅
@@ -94,12 +106,14 @@ const getPayPalCurrency = (currency: string): string => {
     SAR: "SAR",
     INR: "INR",
   };
-  return map[currency.toUpperCase()] ?? "USD";
+
+  const upperCurrency = currency.toUpperCase();
+  return map[upperCurrency] ?? "USD";
 };
 
 export default function PaymentSection({
   totalAmount,
-  currency,
+  currency = "USD", // ✅ Default value to prevent undefined
   orderNumber,
   formData,
   subtotal,
@@ -108,6 +122,13 @@ export default function PaymentSection({
   onPaymentSuccess,
   onPaymentError,
   onPaymentMethodChange,
+  // Optional props with defaults
+  form = { cardNumber: "", cardName: "", expiry: "", cvv: "" },
+  setFormField = () => () => {},
+  getFieldError = () => undefined,
+  handleBlur = () => {},
+  focused = null,
+  setFocused = () => {},
 }: PaymentSectionProps) {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
     "card" | "paypal"
@@ -118,12 +139,13 @@ export default function PaymentSection({
   // ✅ Currency context — convert PKR → selected currency for Stripe/PayPal
   const { formatPrice, currency: currencyObj } = useCurrency();
 
-  // ✅ Convert PKR totalAmount → selected currency (e.g. 6766 PKR → $24.24 USD)
-  const convertedTotal = parseFloat(
-    (totalAmount * currencyObj.rate).toFixed(2)
-  );
+  // ✅ Safety check for currencyObj
+  const conversionRate = currencyObj?.rate || 1;
 
-  // ✅ Get correct currencies
+  // ✅ Convert PKR totalAmount → selected currency
+  const convertedTotal = parseFloat((totalAmount * conversionRate).toFixed(2));
+
+  // ✅ Get correct currencies with safety checks
   const stripeCurrency = getStripeCurrency(currency);
   const paypalCurrency = getPayPalCurrency(currency);
 
@@ -152,8 +174,10 @@ export default function PaymentSection({
               currency: stripeCurrency, // ✅ "usd" | "gbp" | "aud" — never "pkr"
               metadata: {
                 orderNumber,
-                customerEmail: formData.email,
-                customerName: `${formData.firstName} ${formData.lastName}`,
+                customerEmail: formData?.email || "",
+                customerName: formData
+                  ? `${formData.firstName} ${formData.lastName}`
+                  : "",
               },
             }),
           });
@@ -162,7 +186,7 @@ export default function PaymentSection({
           if (data.clientSecret) {
             setClientSecret(data.clientSecret);
           } else {
-            onPaymentError("Failed to initialize payment");
+            onPaymentError(data.error || "Failed to initialize payment");
           }
         } catch (error) {
           console.error("Error creating payment intent:", error);
@@ -175,13 +199,14 @@ export default function PaymentSection({
     }
   }, [
     selectedPaymentMethod,
-    totalAmount,
+    convertedTotal, // ✅ Use convertedTotal instead of totalAmount
     stripeCurrency,
     orderNumber,
-    formData.email,
-    formData.firstName,
-    formData.lastName,
+    formData?.email,
+    formData?.firstName,
+    formData?.lastName,
     clientSecret,
+    onPaymentError,
   ]);
 
   const appearance = {
@@ -207,6 +232,7 @@ export default function PaymentSection({
             selectedPaymentMethod === "card" ? "ps-method-btn--active" : ""
           }`}
           onClick={() => handleMethodChange("card")}
+          type="button"
         >
           <svg
             width="20"
@@ -228,6 +254,7 @@ export default function PaymentSection({
             selectedPaymentMethod === "paypal" ? "ps-method-btn--active" : ""
           }`}
           onClick={() => handleMethodChange("paypal")}
+          type="button"
         >
           <svg
             width="20"
@@ -243,8 +270,6 @@ export default function PaymentSection({
           PayPal
         </button>
       </div>
-
-      {/* ✅ Card preview removed — Stripe PaymentElement renders its own secure card UI */}
 
       {/* ✅ Stripe Card Payment Form */}
       {selectedPaymentMethod === "card" && (
@@ -289,8 +314,8 @@ export default function PaymentSection({
             currency={paypalCurrency}
             orderNumber={orderNumber}
             formData={formData}
-            subtotal={parseFloat((subtotal * currencyObj.rate).toFixed(2))}
-            shipping={parseFloat((shipping * currencyObj.rate).toFixed(2))}
+            subtotal={parseFloat((subtotal * conversionRate).toFixed(2))}
+            shipping={parseFloat((shipping * conversionRate).toFixed(2))}
             total={convertedTotal}
             onSuccess={onPaymentSuccess}
             onError={onPaymentError}

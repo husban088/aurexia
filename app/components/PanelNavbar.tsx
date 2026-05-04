@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isOwner } from "@/lib/checkOwner";
+import { useCurrency } from "@/app/context/CurrencyContext";
 import "./panel-navbar.css";
 
 interface PanelNavbarProps {
@@ -36,7 +37,7 @@ const panelLinks = [
   {
     href: "/panel/add-product",
     label: "Add Product",
-    exact: false,
+    exact: true,
     add: true,
     icon: (
       <svg
@@ -47,6 +48,40 @@ const panelLinks = [
       >
         <circle cx="12" cy="12" r="9" />
         <path d="M12 8v8M8 12h8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: "/panel/products",
+    label: "Products",
+    exact: false,
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
+        <path d="M16 3H8l-2 4h12l-2-4z" />
+        <line x1="3" y1="11" x2="21" y2="11" />
+      </svg>
+    ),
+  },
+  {
+    href: "/panel/orders",
+    label: "Orders",
+    exact: false,
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <path d="M16 10a4 4 0 01-8 0" />
       </svg>
     ),
   },
@@ -84,6 +119,90 @@ function PanelLink({
   );
 }
 
+// Currency Dropdown Component for Panel Navbar
+function PanelCurrencyDropdown() {
+  const [currencyOpen, setCurrencyOpen] = useState(false);
+  const currencyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { currency, currencies, setCurrency } = useCurrency();
+
+  const availableCurrencies = currencies.filter((c) => c.code !== "PKR");
+
+  const handleMouseEnter = () => {
+    if (currencyTimeoutRef.current) {
+      clearTimeout(currencyTimeoutRef.current);
+      currencyTimeoutRef.current = null;
+    }
+    setCurrencyOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    currencyTimeoutRef.current = setTimeout(() => setCurrencyOpen(false), 200);
+  };
+
+  return (
+    <div
+      className="pn-currency-dropdown"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <button className="pn-currency-btn">
+        <span className="pn-currency-flag">{currency.flag}</span>
+        <span className="pn-currency-symbol">{currency.symbol}</span>
+        <span className="pn-currency-code">{currency.code}</span>
+        <svg
+          className={`pn-currency-arrow ${currencyOpen ? "open" : ""}`}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {currencyOpen && (
+        <div className="pn-currency-menu">
+          {availableCurrencies.map((cur) => (
+            <button
+              key={cur.code}
+              className={`pn-currency-option${
+                currency.code === cur.code ? " active" : ""
+              }`}
+              onClick={() => {
+                setCurrency(cur);
+                setCurrencyOpen(false);
+              }}
+            >
+              <span className="pn-currency-option-flag">{cur.flag}</span>
+              <span className="pn-currency-option-symbol">{cur.symbol}</span>
+              <span className="pn-currency-option-code">{cur.code}</span>
+              <span className="pn-currency-option-name">{cur.name}</span>
+            </button>
+          ))}
+          {/* PKR option */}
+          <button
+            className={`pn-currency-option${
+              currency.code === "PKR" ? " active" : ""
+            }`}
+            onClick={() => {
+              const pkr = currencies.find((c) => c.code === "PKR");
+              if (pkr) {
+                setCurrency(pkr);
+                setCurrencyOpen(false);
+              }
+            }}
+          >
+            <span className="pn-currency-option-flag">🇵🇰</span>
+            <span className="pn-currency-option-symbol">₨</span>
+            <span className="pn-currency-option-code">PKR</span>
+            <span className="pn-currency-option-name">Pakistani Rupee</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PanelNavbar({
   signupCount = 0,
   contactCount = 0,
@@ -95,11 +214,21 @@ export default function PanelNavbar({
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
 
-  const isActive = (href: string, exact: boolean) => {
-    if (exact) return pathname === href;
-    return pathname?.startsWith(href) || false;
+  // ✅ FIXED: Proper active state checking
+  const isActive = (href: string, exact: boolean = false) => {
+    if (exact) {
+      return pathname === href;
+    }
+    // For non-exact routes like /panel/products, check if pathname starts with href
+    // But make sure it doesn't accidentally match /panel/products when on /panel/add-product
+    if (href === "/panel/products") {
+      return (
+        pathname === "/panel/products" ||
+        pathname?.startsWith("/panel/products/")
+      );
+    }
+    return pathname?.startsWith(href) && href !== "/panel/add-product";
   };
 
   // Check if user is authorized (owner)
@@ -116,9 +245,7 @@ export default function PanelNavbar({
         if (!isMounted) return;
 
         if (error || !user) {
-          console.log("No user found in PanelNavbar");
           setIsAuthorized(false);
-          // Redirect to signin if not authorized
           window.location.href = "/signin?redirectTo=/panel";
           return;
         }
@@ -127,7 +254,6 @@ export default function PanelNavbar({
         const isUserOwner = isOwner(userEmail);
 
         if (!isUserOwner) {
-          console.log("User is not owner in PanelNavbar");
           setIsAuthorized(false);
           window.location.href = "/";
           return;
@@ -142,11 +268,9 @@ export default function PanelNavbar({
 
     checkAuth();
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth state change in PanelNavbar:", event);
       if (event === "SIGNED_OUT" || !session) {
         setIsAuthorized(false);
         window.location.href = "/signin?redirectTo=/panel";
@@ -167,20 +291,13 @@ export default function PanelNavbar({
 
     try {
       await supabase.auth.signOut();
-      // Clear all storage
       localStorage.clear();
       sessionStorage.clear();
-      // Redirect to home
       window.location.href = "/";
     } catch (err) {
       console.error("Sign out error:", err);
       window.location.href = "/";
     }
-  };
-
-  const handleBackToSite = (e: React.MouseEvent) => {
-    e.preventDefault();
-    window.location.href = "/";
   };
 
   useEffect(() => {
@@ -190,12 +307,10 @@ export default function PanelNavbar({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Don't render if not authorized
   if (!isAuthorized && mounted) {
     return null;
   }
 
-  // Server-side fallback
   if (!mounted) {
     return (
       <nav className="pn-nav">
@@ -273,6 +388,9 @@ export default function PanelNavbar({
         </ul>
 
         <div className="pn-actions">
+          {/* Currency Dropdown - Added to Panel Navbar */}
+          <PanelCurrencyDropdown />
+
           <div className="pn-icon-btn" title="Total Products">
             <svg
               viewBox="0 0 24 24"

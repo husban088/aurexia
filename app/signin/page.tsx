@@ -6,14 +6,24 @@ import { supabase } from "@/lib/supabase";
 import { isOwner } from "@/lib/checkOwner";
 import "./signin.css";
 
-// ✅ Same cache helpers as layout.tsx
+/* ═══════════════════════════════════════════
+   SESSION CACHE HELPERS
+   Same pattern as layout.tsx — set BEFORE
+   redirect so layout gets cache instantly
+═══════════════════════════════════════════ */
 const CACHE_KEY = "panel_auth_ok";
+
 function setCachedAuth(ok: boolean) {
   try {
     sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ok, ts: Date.now() }));
-  } catch {}
+  } catch {
+    // sessionStorage not available (SSR / private mode) — silently ignore
+  }
 }
 
+/* ═══════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════ */
 export default function SignIn() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -23,8 +33,8 @@ export default function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
+  /* ── On mount: skip form if already signed in ── */
   useEffect(() => {
-    // ✅ Already signed in? Skip form — go directly
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         const params = new URLSearchParams(window.location.search);
@@ -41,6 +51,7 @@ export default function SignIn() {
       }
     });
 
+    /* ── Show success message after password reset ── */
     const params = new URLSearchParams(window.location.search);
     if (params.get("reset") === "success") {
       setResetSuccess(
@@ -50,6 +61,7 @@ export default function SignIn() {
     }
   }, []);
 
+  /* ── Form submit ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -58,6 +70,7 @@ export default function SignIn() {
     let emailToUse = identifier.trim();
     const isEmail = identifier.includes("@");
 
+    /* Username → email lookup */
     if (!isEmail) {
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
@@ -73,6 +86,7 @@ export default function SignIn() {
       emailToUse = profile.email;
     }
 
+    /* Sign in */
     const { data: signInData, error: signInError } =
       await supabase.auth.signInWithPassword({ email: emailToUse, password });
 
@@ -87,7 +101,7 @@ export default function SignIn() {
     const userEmail = signInData?.user?.email ?? null;
     const ownerUser = isOwner(userEmail);
 
-    // ✅ Cache set karo BEFORE redirect — layout pe cache milega instantly
+    /* Cache BEFORE redirect — layout gets it instantly */
     setCachedAuth(ownerUser);
 
     const params = new URLSearchParams(window.location.search);
@@ -102,8 +116,12 @@ export default function SignIn() {
     }
   };
 
+  /* ═══════════════════════════════════════════
+     RENDER
+  ═══════════════════════════════════════════ */
   return (
     <div className="si-root">
+      {/* Decorative overlays */}
       <div className="si-grain" aria-hidden="true" />
       <div className="si-bg-lines" aria-hidden="true">
         <span />
@@ -112,12 +130,15 @@ export default function SignIn() {
         <span />
         <span />
       </div>
+
+      {/* Corner brackets */}
       <div className="si-corner si-corner--tl" aria-hidden="true" />
       <div className="si-corner si-corner--tr" aria-hidden="true" />
       <div className="si-corner si-corner--bl" aria-hidden="true" />
       <div className="si-corner si-corner--br" aria-hidden="true" />
 
       <div className="si-card">
+        {/* ══ LEFT: Brand Panel ══ */}
         <div className="si-brand">
           <div className="si-brand-inner">
             <p className="si-brand-eyebrow">
@@ -133,7 +154,7 @@ export default function SignIn() {
             </p>
             <div className="si-brand-divider" aria-hidden="true" />
             <p className="si-brand-quote">
-              "Time is the most precious luxury — wear it well."
+              &ldquo;Time is the most precious luxury — wear it well.&rdquo;
             </p>
             <div className="si-watch-ring" aria-hidden="true">
               <div className="si-watch-inner" />
@@ -141,24 +162,27 @@ export default function SignIn() {
           </div>
         </div>
 
-        {resetSuccess && (
-          <div className="si-success-box" role="alert">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              width="14"
-              height="14"
-            >
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            {resetSuccess}
-          </div>
-        )}
-
+        {/* ══ RIGHT: Form Panel ══ */}
         <div className="si-form-panel">
           <div className="si-form-wrap">
+            {/* Password reset success alert */}
+            {resetSuccess && (
+              <div className="si-success-box" role="alert">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  width="14"
+                  height="14"
+                  aria-hidden="true"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                {resetSuccess}
+              </div>
+            )}
+
             <div className="si-form-header">
               <p className="si-form-eyebrow">
                 <span className="si-ey-line" />
@@ -174,6 +198,7 @@ export default function SignIn() {
             </div>
 
             <form className="si-form" onSubmit={handleSubmit} noValidate>
+              {/* Error alert */}
               {error && (
                 <div className="si-error-box" role="alert">
                   <svg
@@ -183,6 +208,7 @@ export default function SignIn() {
                     strokeWidth="1.5"
                     width="14"
                     height="14"
+                    aria-hidden="true"
                   >
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
@@ -192,6 +218,7 @@ export default function SignIn() {
                 </div>
               )}
 
+              {/* Username / Email field */}
               <div
                 className={`si-field${
                   focused === "id" ? " si-field--focused" : ""
@@ -228,6 +255,7 @@ export default function SignIn() {
                 <div className="si-field-line" aria-hidden="true" />
               </div>
 
+              {/* Password field */}
               <div
                 className={`si-field${
                   focused === "pw" ? " si-field--focused" : ""
@@ -263,7 +291,7 @@ export default function SignIn() {
                   <button
                     type="button"
                     className="si-eye-btn"
-                    onClick={() => setShowPass(!showPass)}
+                    onClick={() => setShowPass((prev) => !prev)}
                     aria-label={showPass ? "Hide password" : "Show password"}
                   >
                     {showPass ? (
@@ -272,6 +300,7 @@ export default function SignIn() {
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="1.5"
+                        aria-hidden="true"
                       >
                         <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
                         <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
@@ -283,6 +312,7 @@ export default function SignIn() {
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="1.5"
+                        aria-hidden="true"
                       >
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                         <circle cx="12" cy="12" r="3" />
@@ -293,19 +323,22 @@ export default function SignIn() {
                 <div className="si-field-line" aria-hidden="true" />
               </div>
 
+              {/* Forgot password link */}
               <div className="si-forgot-row">
                 <Link href="/forgot-password" className="si-forgot-link">
                   Forgot password?
                 </Link>
               </div>
 
+              {/* Submit button */}
               <button
                 type="submit"
                 className="si-submit-btn"
                 disabled={loading}
+                aria-busy={loading}
               >
                 {loading ? (
-                  <span className="si-btn-loader">
+                  <span className="si-btn-loader" aria-hidden="true">
                     <span className="si-spinner" />
                   </span>
                 ) : (
@@ -316,6 +349,7 @@ export default function SignIn() {
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.5"
+                      aria-hidden="true"
                     >
                       <path
                         d="M5 12h14M12 5l7 7-7 7"
@@ -328,12 +362,14 @@ export default function SignIn() {
               </button>
             </form>
 
+            {/* Divider */}
             <div className="si-or" aria-hidden="true">
               <span className="si-or-line" />
               <span className="si-or-text">or</span>
               <span className="si-or-line" />
             </div>
 
+            {/* Switch to signup */}
             <p className="si-switch">
               Don&apos;t have an account?{" "}
               <Link href="/signup" className="si-switch-link">
@@ -345,6 +381,7 @@ export default function SignIn() {
                   strokeWidth="1.5"
                   width="12"
                   height="12"
+                  aria-hidden="true"
                 >
                   <path
                     d="M9 18l6-6-6-6"

@@ -277,3 +277,155 @@
     display: none;
   }
 }
+
+/* Add these styles to panel-navbar.css at the end */
+
+/* ── Panel Currency Dropdown ── */
+.pn-currency-dropdown {
+  position: relative;
+}
+
+.pn-currency-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(218, 165, 32, 0.05);
+  border: 1px solid var(--pn-border);
+  border-radius: 40px;
+  padding: 6px 12px;
+  font-family: var(--pn-sans);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--pn-text-secondary);
+  cursor: pointer;
+  transition: all var(--pn-ease);
+}
+
+.pn-currency-btn:hover {
+  border-color: var(--pn-gold);
+  color: var(--pn-gold-deep);
+  background: rgba(218, 165, 32, 0.1);
+  transform: translateY(-1px);
+}
+
+.pn-currency-flag {
+  font-size: 0.9rem;
+}
+
+.pn-currency-symbol {
+  font-weight: 600;
+}
+
+.pn-currency-code {
+  font-size: 0.65rem;
+  opacity: 0.7;
+}
+
+.pn-currency-arrow {
+  width: 10px;
+  height: 10px;
+  transition: transform 0.3s ease;
+}
+
+.pn-currency-arrow.open {
+  transform: rotate(180deg);
+}
+
+.pn-currency-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: 240px;
+  background: #ffffff;
+  border: 1px solid var(--pn-border);
+  border-radius: 16px;
+  margin-top: 12px;
+  overflow: hidden;
+  z-index: 1002;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  animation: pn-currency-slide-down 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pn-currency-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pn-currency-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  font-family: var(--pn-sans);
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #666666;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.25s ease;
+}
+
+.pn-currency-option:hover {
+  background: var(--pn-gold-dim);
+  color: var(--pn-gold-deep);
+  padding-left: 22px;
+}
+
+.pn-currency-option.active {
+  color: var(--pn-gold-deep);
+  background: rgba(218, 165, 32, 0.1);
+}
+
+.pn-currency-option-flag {
+  font-size: 1.1rem;
+}
+
+.pn-currency-option-symbol {
+  font-weight: 500;
+  width: 28px;
+}
+
+.pn-currency-option-code {
+  font-weight: 600;
+  width: 45px;
+}
+
+.pn-currency-option-name {
+  font-size: 0.65rem;
+  opacity: 0.6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .pn-currency-btn {
+    padding: 5px 10px;
+  }
+  .pn-currency-code {
+    display: none;
+  }
+  .pn-currency-symbol {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .pn-currency-btn {
+    padding: 4px 8px;
+  }
+  .pn-currency-flag {
+    font-size: 0.8rem;
+  }
+  .pn-currency-symbol {
+    font-size: 0.7rem;
+  }
+}

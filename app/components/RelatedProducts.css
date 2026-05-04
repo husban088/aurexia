@@ -692,3 +692,167 @@
     height: 13px;
   }
 }
+
+/* Add these styles to RelatedProducts.css for better variant display */
+
+/* Variant Thumbnails - Like FeaturedProducts */
+.rp-card-variants {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  flex-wrap: wrap;
+  font-size: 0.55rem;
+  min-height: 55px;
+}
+
+.rp-variant-label {
+  font-family: var(--rp-sans);
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--rp-gold-dark);
+  letter-spacing: 0.05em;
+}
+
+.rp-variant-thumbnails {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.rp-variant-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  border: 1px solid rgba(218, 165, 32, 0.2);
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.rp-variant-thumb img {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.rp-variant-thumb .rp-variant-text {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #666;
+}
+
+.rp-variant-label-text {
+  font-size: 0.5rem;
+  font-weight: 500;
+  color: #8b6914;
+  text-align: center;
+  max-width: 48px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-variant-thumb:hover {
+  border-color: var(--rp-gold);
+  transform: translateY(-2px);
+}
+
+.rp-variant-thumb.active {
+  border-color: var(--rp-gold);
+  box-shadow: 0 0 0 1.5px var(--rp-gold);
+  background: rgba(218, 165, 32, 0.08);
+}
+
+.rp-variant-thumb.active .rp-variant-label-text {
+  color: var(--rp-gold);
+  font-weight: 700;
+}
+
+.rp-variant-more {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--rp-gold);
+  font-family: var(--rp-sans);
+  margin-left: 0.2rem;
+  background: rgba(218, 165, 32, 0.1);
+  padding: 0.25rem 0.7rem;
+  border-radius: 20px;
+}
+
+/* Rating styles */
+.rp-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.25rem 0 0;
+}
+
+.rp-rating-count {
+  font-family: var(--rp-sans);
+  font-size: 0.6rem;
+  color: var(--rp-grey-dim);
+}
+
+/* Responsive adjustments for variants */
+@media (max-width: 900px) {
+  .rp-variant-thumb {
+    width: 42px;
+    height: 42px;
+  }
+  .rp-variant-thumb img {
+    width: 28px;
+    height: 28px;
+  }
+  .rp-variant-label-text {
+    font-size: 0.45rem;
+    max-width: 42px;
+  }
+  .rp-card-variants {
+    min-height: 50px;
+  }
+}
+
+@media (max-width: 768px) {
+  .rp-variant-thumb {
+    width: 38px;
+    height: 38px;
+  }
+  .rp-variant-thumb img {
+    width: 24px;
+    height: 24px;
+  }
+  .rp-variant-label-text {
+    font-size: 0.4rem;
+    max-width: 38px;
+  }
+  .rp-variant-label {
+    font-size: 0.55rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .rp-variant-thumb {
+    width: 34px;
+    height: 34px;
+  }
+  .rp-variant-thumb img {
+    width: 20px;
+    height: 20px;
+  }
+  .rp-variant-label-text {
+    display: none;
+  }
+  .rp-card-variants {
+    min-height: 44px;
+  }
+}

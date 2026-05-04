@@ -1,12 +1,30 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADMIN PANEL PAGE — Module-level cache
+// Back/forward pe Supabase call nahi hogi — data instantly dikhega
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { supabase, Product } from "@/lib/supabase";
 import "./panel.css";
 import PanelNavbar from "../components/PanelNavbar";
 
+// ─── MODULE-LEVEL CACHE ───────────────────────────────────────────────────────
+// Yeh Next.js client-side navigation ke baad bhi survive karta hai
+// Component unmount/remount hone par bhi data memory mein rehta hai
+let _cachedProducts: Product[] | null = null;
+let _cachedStats: { users: number; orders: number; contacts: number } | null =
+  null;
+let _fetchPromise: Promise<void> | null = null;
+let _lastFetchTime = 0;
+const CACHE_STALE_MS = 60 * 1000; // 1 minute — stale hone ke baad background refresh
+// ─────────────────────────────────────────────────────────────────────────────
+
+/* ═══════════════════════════════════════════
+   TYPES
+═══════════════════════════════════════════ */
 type Toast = {
   id: number;
   type: "success" | "error" | "info";
@@ -15,6 +33,26 @@ type Toast = {
   exiting?: boolean;
 };
 
+type CategoryGroup = {
+  category: string;
+  subcategories: {
+    name: string;
+    products: Product[];
+  }[];
+};
+
+type CategoryStats = {
+  category: string;
+  totalProducts: number;
+  subcategoryStats: {
+    name: string;
+    count: number;
+  }[];
+};
+
+/* ═══════════════════════════════════════════
+   TOAST CONTAINER
+═══════════════════════════════════════════ */
 function ToastContainer({
   toasts,
   onRemove,
@@ -85,6 +123,9 @@ function ToastContainer({
   );
 }
 
+/* ═══════════════════════════════════════════
+   DELETE CONFIRM MODAL
+═══════════════════════════════════════════ */
 function DeleteConfirmModal({
   isOpen,
   onClose,
@@ -127,7 +168,8 @@ function DeleteConfirmModal({
         </div>
         <h3 className="p-modal-title">Delete Product</h3>
         <p className="p-modal-text">
-          Are you sure you want to delete <strong>"{productName}"</strong>?
+          Are you sure you want to delete{" "}
+          <strong>&quot;{productName}&quot;</strong>?
           <br />
           This action cannot be undone.
         </p>
@@ -144,87 +186,188 @@ function DeleteConfirmModal({
   );
 }
 
-function ProductRow({
-  product,
-  onEdit,
-  onDelete,
-}: {
-  product: Product;
-  onEdit: (id: string) => void;
-  onDelete: (id: string, name: string) => void;
-}) {
+/* ═══════════════════════════════════════════
+   CATEGORY STATS CARD
+═══════════════════════════════════════════ */
+function CategoryStatsCard({ stats }: { stats: CategoryStats[] }) {
   return (
-    <tr>
-      <td className="p-td-name">{product.name || "Unnamed"}</td>
-      <td>
-        <span className="p-td-category">
-          {product.subcategory || "Uncategorized"}
-        </span>
-      </td>
-      <td>
-        <span className="p-td-status">
-          <span
-            className={`p-td-status-dot p-td-status-dot--${
-              product.is_active ? "active" : "inactive"
-            }`}
-          />
-          {product.is_active ? "Active" : "Inactive"}
-        </span>
-      </td>
-      <td>
-        <div className="p-td-actions">
-          <button
-            className="p-td-btn"
-            title="Edit"
-            onClick={() =>
-              product.id &&
-              (window.location.href = `/panel/edit-product/${product.id}`)
-            }
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-          </button>
-          <button
-            className="p-td-btn"
-            title="Delete"
-            onClick={() => product.id && onDelete(product.id, product.name)}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14H6L5 6" />
-              <path d="M10 11v6M14 11v6" />
-              <path d="M9 6V4h6v2" />
-            </svg>
-          </button>
+    <div className="p-category-stats-grid">
+      {stats.map((catStat) => (
+        <div key={catStat.category} className="p-category-stats-card">
+          <div className="p-category-stats-header">
+            <h4 className="p-category-stats-title">{catStat.category}</h4>
+            <span className="p-category-stats-total">
+              {catStat.totalProducts} products
+            </span>
+          </div>
+          <div className="p-category-stats-subcategories">
+            {catStat.subcategoryStats.map((subStat) => (
+              <div key={subStat.name} className="p-subcategory-stats-item">
+                <span className="p-subcategory-stats-name">{subStat.name}</span>
+                <span className="p-subcategory-stats-count">
+                  {subStat.count} item{subStat.count !== 1 ? "s" : ""}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-      </td>
-    </tr>
+      ))}
+    </div>
   );
 }
 
+/* ═══════════════════════════════════════════
+   CATEGORY SECTION
+═══════════════════════════════════════════ */
+function CategorySection({
+  category,
+  subcategories,
+  onDelete,
+}: {
+  category: string;
+  subcategories: { name: string; products: Product[] }[];
+  onDelete: (id: string, name: string) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const totalProducts = subcategories.reduce(
+    (sum, sub) => sum + sub.products.length,
+    0
+  );
+
+  if (totalProducts === 0) return null;
+
+  return (
+    <div className="p-category-section">
+      <div
+        className="p-category-header"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="p-category-header-left">
+          <span className="p-category-expand">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              style={{
+                transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 0.3s ease",
+              }}
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </span>
+          <h3 className="p-category-title">{category}</h3>
+          <span className="p-category-count">{totalProducts} products</span>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="p-subcategories-container">
+          {subcategories.map((sub) => (
+            <div key={sub.name} className="p-subcategory-block">
+              <div className="p-subcategory-header">
+                <h4 className="p-subcategory-title">{sub.name}</h4>
+                <span className="p-subcategory-count">
+                  {sub.products.length} item
+                  {sub.products.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              {sub.products.length === 0 ? (
+                <div className="p-subcategory-empty">
+                  No products in this subcategory
+                </div>
+              ) : (
+                <div className="p-subcategory-products">
+                  {sub.products.map((product) => (
+                    <div key={product.id} className="p-product-card">
+                      <div className="p-product-info">
+                        <div className="p-product-name">{product.name}</div>
+                        {product.brand && (
+                          <div className="p-product-brand">{product.brand}</div>
+                        )}
+                        <div className="p-product-meta">
+                          <span
+                            className={`p-product-status ${
+                              !product.is_active ? "inactive" : ""
+                            }`}
+                          >
+                            <span className="p-status-dot" />
+                            {product.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="p-product-actions">
+                        <button
+                          className="p-product-edit"
+                          title="Edit Product"
+                          onClick={() =>
+                            (window.location.href = `/panel/edit-product/${product.id}`)
+                          }
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          >
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          className="p-product-delete"
+                          title="Delete Product"
+                          onClick={() =>
+                            product.id && onDelete(product.id, product.name)
+                          }
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          >
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6l-1 14H6L5 6" />
+                            <path d="M10 11v6M14 11v6" />
+                            <path d="M9 6V4h6v2" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   MAIN PANEL PAGE
+═══════════════════════════════════════════ */
 export default function Panel() {
-  const router = useRouter();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [productsLoading, setProductsLoading] = useState(true);
+  // ── Sync-init from cache — instant render agar already cached hai ──
+  const [products, setProducts] = useState<Product[]>(
+    () => _cachedProducts ?? []
+  );
+  const [productsLoading, setProductsLoading] = useState(
+    () => _cachedProducts === null
+  );
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     productId: string;
     productName: string;
   }>({ isOpen: false, productId: "", productName: "" });
-  const [stats, setStats] = useState({ users: 0, orders: 0, contacts: 0 });
+  const [stats, setStats] = useState(
+    () => _cachedStats ?? { users: 0, orders: 0, contacts: 0 }
+  );
+  const [searchTerm, setSearchTerm] = useState("");
 
   const addToast = useCallback(
     (type: Toast["type"], title: string, msg: string) => {
@@ -245,74 +388,99 @@ export default function Panel() {
     setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 350);
   }, []);
 
-  // OPTIMIZED FETCH - Products load first, stats in background
-  useEffect(() => {
-    let isMounted = true;
+  // ── Core fetch — products + stats ek hi baar mein ──
+  const fetchData = useCallback(
+    async (silent = false) => {
+      // Agar pehle se fetch chal rahi hai toh ussi ka wait karo
+      if (_fetchPromise) {
+        await _fetchPromise;
+        if (_cachedProducts) setProducts(_cachedProducts);
+        if (_cachedStats) setStats(_cachedStats);
+        setProductsLoading(false);
+        return;
+      }
 
-    async function fetchData() {
-      try {
-        console.log("📦 Panel - Fetching data (optimized)...");
+      if (!silent) setProductsLoading(true);
 
-        // Step 1: Products only first (fast)
-        const productsRes = await supabase
-          .from("products")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(50); // Limit to 50 products for speed
+      _fetchPromise = (async () => {
+        try {
+          const [productsRes, usersRes, ordersRes, contactsRes] =
+            await Promise.all([
+              supabase
+                .from("products")
+                .select("*")
+                .order("created_at", { ascending: false }),
+              supabase
+                .from("profiles")
+                .select("*", { count: "exact", head: true }),
+              supabase
+                .from("cart_items")
+                .select("*", { count: "exact", head: true }),
+              supabase
+                .from("contacts")
+                .select("*", { count: "exact", head: true }),
+            ]);
 
-        if (isMounted && productsRes.data && !productsRes.error) {
-          setProducts(
-            productsRes.data.map((p: any) => ({
+          if (productsRes.data && !productsRes.error) {
+            const mapped = productsRes.data.map((p: any) => ({
               ...p,
               price: p.price ?? 0,
               stock: p.stock ?? 0,
               subcategory: p.subcategory ?? "Uncategorized",
               is_active: p.is_active ?? true,
-            }))
-          );
-          console.log("✅ Panel - Products loaded:", productsRes.data.length);
-        } else if (productsRes.error) {
-          console.error("Products fetch error:", productsRes.error);
-          if (isMounted)
-            addToast("error", "Load Failed", "Could not fetch products");
-        }
+            })) as Product[];
 
-        // Step 2: Stats in background (don't wait)
-        Promise.all([
-          supabase.from("profiles").select("*", { count: "exact", head: true }),
-          supabase
-            .from("cart_items")
-            .select("*", { count: "exact", head: true }),
-          supabase.from("contacts").select("*", { count: "exact", head: true }),
-        ])
-          .then(([usersRes, ordersRes, contactsRes]) => {
-            if (isMounted) {
-              setStats({
-                users: usersRes.count || 0,
-                orders: ordersRes.count || 0,
-                contacts: contactsRes.count || 0,
-              });
-              console.log("✅ Panel - Stats loaded in background");
-            }
-          })
-          .catch((err) => {
-            console.error("Stats fetch error:", err);
-          });
-      } catch (err) {
-        console.error("Panel fetch error:", err);
-        if (isMounted) addToast("error", "Load Failed", "Could not fetch data");
-      } finally {
-        if (isMounted) setProductsLoading(false);
+            _cachedProducts = mapped;
+            _lastFetchTime = Date.now();
+            setProducts(mapped);
+          } else if (productsRes.error) {
+            console.error("Products fetch error:", productsRes.error);
+            if (!silent)
+              addToast("error", "Load Failed", "Could not fetch products");
+          }
+
+          const newStats = {
+            users: usersRes.count || 0,
+            orders: ordersRes.count || 0,
+            contacts: contactsRes.count || 0,
+          };
+          _cachedStats = newStats;
+          setStats(newStats);
+        } catch (err) {
+          console.error("Fetch error:", err);
+          if (!silent) addToast("error", "Load Failed", "Could not fetch data");
+        } finally {
+          _fetchPromise = null;
+          setProductsLoading(false);
+        }
+      })();
+
+      await _fetchPromise;
+    },
+    [addToast]
+  );
+
+  // ── Main fetch effect ──
+  useEffect(() => {
+    if (_cachedProducts !== null && _cachedStats !== null) {
+      // Cache available — instantly set karo
+      setProducts(_cachedProducts);
+      setStats(_cachedStats);
+      setProductsLoading(false);
+
+      // Stale check — agar 1 minute se zyada purana hai toh background refresh
+      const isStale = Date.now() - _lastFetchTime > CACHE_STALE_MS;
+      if (isStale) {
+        fetchData(true); // silent=true — loader nahi dikhega
       }
+      return;
     }
 
-    fetchData();
-    return () => {
-      isMounted = false;
-    };
-  }, [addToast]);
+    // Cache nahi — fresh fetch karo
+    fetchData(false);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Realtime subscription
+  // ── Realtime subscription — live updates ──
   useEffect(() => {
     const channel = supabase
       .channel("panel-products-realtime")
@@ -327,7 +495,13 @@ export default function Panel() {
             subcategory: payload.new.subcategory ?? "Uncategorized",
             is_active: payload.new.is_active ?? true,
           } as Product;
-          setProducts((prev) => [newProduct, ...prev]);
+
+          setProducts((prev) => {
+            const updated = [newProduct, ...prev];
+            _cachedProducts = updated;
+            return updated;
+          });
+
           addToast(
             "success",
             "Product Added",
@@ -346,9 +520,15 @@ export default function Panel() {
             subcategory: payload.new.subcategory ?? "Uncategorized",
             is_active: payload.new.is_active ?? true,
           } as Product;
-          setProducts((prev) =>
-            prev.map((p) => (p.id === updated.id ? updated : p))
-          );
+
+          setProducts((prev) => {
+            const newList = prev.map((p) =>
+              p.id === updated.id ? updated : p
+            );
+            _cachedProducts = newList;
+            return newList;
+          });
+
           addToast("info", "Product Updated", `${updated.name} updated!`);
         }
       )
@@ -356,7 +536,12 @@ export default function Panel() {
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "products" },
         (payload) => {
-          setProducts((prev) => prev.filter((p) => p.id !== payload.old.id));
+          setProducts((prev) => {
+            const newList = prev.filter((p) => p.id !== payload.old.id);
+            _cachedProducts = newList;
+            return newList;
+          });
+
           addToast(
             "info",
             "Product Deleted",
@@ -371,8 +556,7 @@ export default function Panel() {
     };
   }, [addToast]);
 
-  const totalProducts = products.length;
-
+  // ── Delete handlers ──
   const handleDeleteClick = (id: string, name: string) => {
     setDeleteModal({ isOpen: true, productId: id, productName: name });
   };
@@ -389,10 +573,91 @@ export default function Panel() {
     if (error) {
       addToast("error", "Delete Failed", error.message);
     } else {
-      setProducts((p) => p.filter((x) => x.id !== productId));
+      setProducts((p) => {
+        const newList = p.filter((x) => x.id !== productId);
+        _cachedProducts = newList;
+        return newList;
+      });
       addToast("success", "Deleted", `${productName} removed from store`);
     }
   };
+
+  // ── Group products by category ──
+  const groupProductsByCategory = useCallback((): CategoryGroup[] => {
+    let filteredProducts = products;
+
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filteredProducts = products.filter((p) => {
+        const matchName = p.name?.toLowerCase().includes(term) || false;
+        const matchBrand = p.brand?.toLowerCase().includes(term) || false;
+        const matchCategory = p.category?.toLowerCase().includes(term) || false;
+        const matchSubcategory =
+          p.subcategory?.toLowerCase().includes(term) || false;
+        return matchName || matchBrand || matchCategory || matchSubcategory;
+      });
+    }
+
+    const groups: {
+      [category: string]: { [subcategory: string]: Product[] };
+    } = {};
+
+    filteredProducts.forEach((product) => {
+      const category = product.category || "Uncategorized";
+      const subcategory = product.subcategory || "Uncategorized";
+      if (!groups[category]) groups[category] = {};
+      if (!groups[category][subcategory]) groups[category][subcategory] = [];
+      groups[category][subcategory].push(product);
+    });
+
+    const result: CategoryGroup[] = Object.entries(groups).map(
+      ([category, subcats]) => ({
+        category,
+        subcategories: Object.entries(subcats)
+          .map(([name, products]) => ({ name, products }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      })
+    );
+
+    return result.sort((a, b) => a.category.localeCompare(b.category));
+  }, [products, searchTerm]);
+
+  // ── Category stats ──
+  const getCategoryStats = useCallback((): CategoryStats[] => {
+    const statsMap: {
+      [category: string]: { [subcategory: string]: number };
+    } = {};
+
+    products.forEach((product) => {
+      const category = product.category || "Uncategorized";
+      const subcategory = product.subcategory || "Uncategorized";
+      if (!statsMap[category]) statsMap[category] = {};
+      if (!statsMap[category][subcategory]) statsMap[category][subcategory] = 0;
+      statsMap[category][subcategory]++;
+    });
+
+    return Object.entries(statsMap)
+      .map(([category, subcats]) => ({
+        category,
+        totalProducts: Object.values(subcats).reduce(
+          (sum, count) => sum + count,
+          0
+        ),
+        subcategoryStats: Object.entries(subcats)
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      }))
+      .sort((a, b) => a.category.localeCompare(b.category));
+  }, [products]);
+
+  const categoryGroups = groupProductsByCategory();
+  const categoryStats = getCategoryStats();
+  const totalProducts = products.length;
+  const filteredCount = categoryGroups.reduce(
+    (sum, group) =>
+      sum + group.subcategories.reduce((s, sub) => s + sub.products.length, 0),
+    0
+  );
 
   return (
     <div className="p-root">
@@ -407,6 +672,7 @@ export default function Panel() {
       />
 
       <div className="p-content">
+        {/* ── Page Header ── */}
         <div className="p-page-header">
           <p className="p-eyebrow">
             <span className="p-ey-line" />
@@ -419,6 +685,7 @@ export default function Panel() {
           <p className="p-page-sub">Manage your store, products from here.</p>
         </div>
 
+        {/* ── Stats Grid ── */}
         <div className="p-stats-grid">
           <div className="p-stat-card">
             <div className="p-stat-icon">
@@ -438,93 +705,169 @@ export default function Panel() {
           </div>
         </div>
 
-        <div className="p-table-wrap">
-          <div className="p-table-header">
-            <div className="p-table-header-left">
-              <h3 className="p-table-title">Recent Products</h3>
-              <p className="p-table-sub">
-                Latest {totalProducts} items in your store
+        {/* ── Category Stats ── */}
+        {categoryStats.length > 0 && (
+          <div className="p-category-stats-wrapper">
+            <div className="p-section-header">
+              <h2 className="p-section-title">
+                <span className="p-section-icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                  </svg>
+                </span>
+                Category & Subcategory Breakdown
+              </h2>
+              <p className="p-section-subtitle">
+                Total products distributed across {categoryStats.length}{" "}
+                categories
               </p>
             </div>
-            <a
-              href="/panel/add-product"
-              className="p-table-action-btn"
-              onClick={(e) => {
-                e.preventDefault();
-                window.location.href = "/panel/add-product";
-              }}
+            <CategoryStatsCard stats={categoryStats} />
+          </div>
+        )}
+
+        {/* ── Search ── */}
+        <div className="p-search-section">
+          <div className="p-search-wrap">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="p-search-icon"
             >
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+            <input
+              type="text"
+              className="p-search-input"
+              placeholder="Search by product name, brand, category, or subcategory..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button
+                className="p-search-clear"
+                onClick={() => setSearchTerm("")}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+          </div>
+          {searchTerm && (
+            <div className="p-search-results-info">
+              Found {filteredCount} product{filteredCount !== 1 ? "s" : ""}{" "}
+              matching &quot;{searchTerm}&quot;
+            </div>
+          )}
+        </div>
+
+        {/* ── Add Product Button ── */}
+        <div className="p-add-product-section">
+          <Link href="/panel/add-product" className="p-add-product-btn">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v8M8 12h8" strokeLinecap="round" />
+            </svg>
+            Add New Product
+          </Link>
+        </div>
+
+        {/* ── Products List Header ── */}
+        <div className="p-products-list-header">
+          <h2 className="p-section-title">
+            <span className="p-section-icon">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.5"
               >
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 8v8M8 12h8" strokeLinecap="round" />
+                <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
+                <path d="M16 3H8l-2 4h12l-2-4z" />
               </svg>
-              Add New
-            </a>
-          </div>
-
-          {/* OPTIMIZED LOADING STATE - Shows only when actually loading with no products */}
-          {productsLoading && products.length === 0 ? (
-            <div className="p-empty">
-              <div className="p-empty-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1"
-                >
-                  <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
-                </svg>
-              </div>
-              <p className="p-empty-title">Loading products...</p>
-            </div>
-          ) : products.length === 0 ? (
-            <div className="p-empty">
-              <div className="p-empty-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1"
-                >
-                  <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
-                  <path d="M16 3H8l-2 4h12l-2-4z" />
-                </svg>
-              </div>
-              <p className="p-empty-title">No products yet</p>
-              <p className="p-empty-sub">
-                Add your first product to get started
-              </p>
-            </div>
-          ) : (
-            <table className="p-table">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Category</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((p) => (
-                  <ProductRow
-                    key={p.id}
-                    product={p}
-                    onEdit={() => {}}
-                    onDelete={handleDeleteClick}
-                  />
-                ))}
-              </tbody>
-            </table>
-          )}
+            </span>
+            Products by Category
+          </h2>
+          <p className="p-section-subtitle">
+            Browse and manage products organized by category and subcategory
+          </p>
         </div>
+
+        {/* ── Products Content ── */}
+        {productsLoading && products.length === 0 ? (
+          <div className="p-empty">
+            <div className="p-empty-icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1"
+              >
+                <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+              </svg>
+            </div>
+            <p className="p-empty-title">Loading products...</p>
+          </div>
+        ) : categoryGroups.length === 0 ? (
+          <div className="p-empty">
+            <div className="p-empty-icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1"
+              >
+                <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
+                <path d="M16 3H8l-2 4h12l-2-4z" />
+              </svg>
+            </div>
+            <p className="p-empty-title">
+              {searchTerm ? "No products found" : "No products yet"}
+            </p>
+            <p className="p-empty-sub">
+              {searchTerm
+                ? "Try a different search term"
+                : "Add your first product to get started"}
+            </p>
+          </div>
+        ) : (
+          <div className="p-categories-container">
+            {categoryGroups.map((group) => (
+              <CategorySection
+                key={group.category}
+                category={group.category}
+                subcategories={group.subcategories}
+                onDelete={handleDeleteClick}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* ── Delete Modal ── */}
       <DeleteConfirmModal
         isOpen={deleteModal.isOpen}
         onClose={() =>
@@ -534,149 +877,8 @@ export default function Panel() {
         productName={deleteModal.productName}
       />
 
+      {/* ── Toasts ── */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
-
-      <style jsx>{`
-        .p-modal-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.6);
-          backdrop-filter: blur(4px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 10000;
-          animation: fadeIn 0.2s ease;
-        }
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-        .p-modal {
-          background: #ffffff;
-          border-radius: 20px;
-          width: 90%;
-          max-width: 420px;
-          padding: 2rem;
-          position: relative;
-          box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
-          animation: slideUp 0.25s ease;
-        }
-        @keyframes slideUp {
-          from {
-            transform: translateY(20px);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
-        }
-        .p-modal-close {
-          position: absolute;
-          top: 1rem;
-          right: 1rem;
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: transparent;
-          border: 1px solid rgba(218, 165, 32, 0.2);
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #999;
-          transition: all 0.2s ease;
-        }
-        .p-modal-close:hover {
-          border-color: #daa520;
-          color: #daa520;
-          transform: rotate(90deg);
-        }
-        .p-modal-close svg {
-          width: 14px;
-          height: 14px;
-        }
-        .p-modal-icon {
-          width: 56px;
-          height: 56px;
-          background: rgba(239, 68, 68, 0.1);
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin: 0 auto 1rem;
-          color: #ef4444;
-        }
-        .p-modal-icon svg {
-          width: 28px;
-          height: 28px;
-        }
-        .p-modal-title {
-          font-family: var(--p-serif);
-          font-size: 1.4rem;
-          font-weight: 500;
-          text-align: center;
-          color: #1a1a1a;
-          margin: 0 0 0.5rem;
-        }
-        .p-modal-text {
-          font-family: var(--p-sans);
-          font-size: 0.75rem;
-          color: #666;
-          text-align: center;
-          margin: 0 0 1.5rem;
-          line-height: 1.6;
-        }
-        .p-modal-text strong {
-          color: #1a1a1a;
-        }
-        .p-modal-actions {
-          display: flex;
-          gap: 1rem;
-          justify-content: center;
-        }
-        .p-modal-cancel {
-          padding: 0.6rem 1.5rem;
-          background: transparent;
-          border: 1px solid rgba(218, 165, 32, 0.3);
-          border-radius: 40px;
-          font-family: var(--p-sans);
-          font-size: 0.6rem;
-          font-weight: 600;
-          letter-spacing: 0.15em;
-          text-transform: uppercase;
-          color: #666;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        .p-modal-cancel:hover {
-          border-color: #daa520;
-          color: #8b6914;
-        }
-        .p-modal-confirm {
-          padding: 0.6rem 1.5rem;
-          background: #ef4444;
-          border: none;
-          border-radius: 40px;
-          font-family: var(--p-sans);
-          font-size: 0.6rem;
-          font-weight: 600;
-          letter-spacing: 0.15em;
-          text-transform: uppercase;
-          color: white;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        .p-modal-confirm:hover {
-          background: #dc2626;
-          transform: translateY(-1px);
-        }
-      `}</style>
     </div>
   );
 }

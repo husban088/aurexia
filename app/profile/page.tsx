@@ -14,14 +14,100 @@ type ProfileData = {
   updated_at: string;
 };
 
+// ─── MODULE-LEVEL CACHE ───────────────────────────────────────────────────────
+// Survives Next.js client-side navigation — profile loads instantly on revisit
+let _cachedProfile: ProfileData | null = null;
+let _fetchPromise: Promise<ProfileData | null> | null = null;
+
+async function getProfile(): Promise<ProfileData | null> {
+  // 1. Return cache instantly (no network, no delay)
+  if (_cachedProfile) return _cachedProfile;
+
+  // 2. Dedupe in-flight calls
+  if (_fetchPromise) return _fetchPromise;
+
+  _fetchPromise = (async () => {
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        _fetchPromise = null;
+        return null;
+      }
+
+      // Try fetching profile
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError || !profileData) {
+        // Profile doesn't exist yet — create it
+        const { data: newProfile, error: insertError } = await supabase
+          .from("profiles")
+          .insert({
+            id: user.id,
+            username:
+              user.user_metadata?.username ||
+              user.email?.split("@")[0] ||
+              "user",
+            email: user.email || "",
+          })
+          .select()
+          .single();
+
+        const result: ProfileData =
+          insertError || !newProfile
+            ? {
+                id: user.id,
+                username:
+                  user.user_metadata?.username ||
+                  user.email?.split("@")[0] ||
+                  "user",
+                email: user.email || "",
+                created_at: user.created_at,
+                updated_at: user.updated_at || user.created_at,
+              }
+            : newProfile;
+
+        _cachedProfile = result;
+        _fetchPromise = null;
+        return result;
+      }
+
+      _cachedProfile = profileData;
+      _fetchPromise = null;
+      return profileData;
+    } catch {
+      _fetchPromise = null;
+      return null;
+    }
+  })();
+
+  return _fetchPromise;
+}
+
+// Clear cache on sign-out so next user gets fresh data
+function clearProfileCache() {
+  _cachedProfile = null;
+  _fetchPromise = null;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function ProfilePage() {
   const router = useRouter();
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  // Sync-init from cache — renders instantly if already loaded
+  const [profile, setProfile] = useState<ProfileData | null>(_cachedProfile);
+  const [loading, setLoading] = useState(!_cachedProfile);
   const [activeTab, setActiveTab] = useState<"info" | "security">("info");
 
   // Edit states
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(_cachedProfile?.username ?? "");
   const [focused, setFocused] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState<{
@@ -39,71 +125,30 @@ export default function ProfilePage() {
   const [passLoading, setPassLoading] = useState(false);
 
   useEffect(() => {
-    async function loadProfile() {
-      try {
-        // Step 1: Get authenticated user
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError || !user) {
-          // Not logged in — redirect to signin
-          router.replace("/signin?redirectTo=/profile");
-          return;
-        }
-
-        // Step 2: Fetch profile from profiles table
-        const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-
-        if (profileError || !profileData) {
-          // Profile might not exist yet — create it
-          const { data: newProfile, error: insertError } = await supabase
-            .from("profiles")
-            .insert({
-              id: user.id,
-              username:
-                user.user_metadata?.username ||
-                user.email?.split("@")[0] ||
-                "user",
-              email: user.email || "",
-            })
-            .select()
-            .single();
-
-          if (insertError || !newProfile) {
-            // Fall back to user data
-            setProfile({
-              id: user.id,
-              username:
-                user.user_metadata?.username ||
-                user.email?.split("@")[0] ||
-                "user",
-              email: user.email || "",
-              created_at: user.created_at,
-              updated_at: user.updated_at || user.created_at,
-            });
-          } else {
-            setProfile(newProfile);
-            setUsername(newProfile.username);
-          }
-        } else {
-          setProfile(profileData);
-          setUsername(profileData.username);
-        }
-      } catch (err) {
-        console.error("Profile load error:", err);
-        router.replace("/signin?redirectTo=/profile");
-      } finally {
-        setLoading(false);
-      }
+    // Already cached — nothing to fetch
+    if (_cachedProfile) {
+      setProfile(_cachedProfile);
+      setUsername(_cachedProfile.username);
+      setLoading(false);
+      return;
     }
 
-    loadProfile();
+    let active = true;
+
+    getProfile().then((result) => {
+      if (!active) return;
+      if (!result) {
+        router.replace("/signin?redirectTo=/profile");
+        return;
+      }
+      setProfile(result);
+      setUsername(result.username);
+      setLoading(false);
+    });
+
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   const getInitials = (name: string) => {
@@ -136,7 +181,6 @@ export default function ProfilePage() {
         return;
       }
 
-      // Check uniqueness (exclude self)
       const { data: existing } = await supabase
         .from("profiles")
         .select("id")
@@ -159,6 +203,8 @@ export default function ProfilePage() {
 
       if (error) throw error;
 
+      // Update cache so next navigation is also instant with new username
+      _cachedProfile = updated;
       setProfile(updated);
       setUsername(updated.username);
       setAlert({ type: "success", msg: "Profile updated successfully!" });
@@ -194,7 +240,6 @@ export default function ProfilePage() {
       }
 
       const { error } = await supabase.auth.updateUser({ password: newPass });
-
       if (error) throw error;
 
       setCurrentPass("");
@@ -212,11 +257,12 @@ export default function ProfilePage() {
   };
 
   const handleSignOut = async () => {
+    clearProfileCache(); // Clear cache so fresh user starts clean
     await signOutUser();
     window.location.href = "/signin";
   };
 
-  // ── Loading ──
+  // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="pf-loading">
@@ -234,7 +280,6 @@ export default function ProfilePage() {
     <div className="pf-root">
       <div className="pf-grain" aria-hidden="true" />
       <div className="pf-bg-lines" aria-hidden="true">
-        <span />
         <span />
         <span />
         <span />

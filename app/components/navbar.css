@@ -29,7 +29,7 @@
   top: 0;
   left: 0;
   right: 0;
-  z-index: 500 !important;
+  z-index: 100 !important;
   background: var(--nav-bg);
   border-bottom: 1px solid var(--nav-border);
   backdrop-filter: blur(0px);
@@ -86,7 +86,7 @@
 
 .logo-tech {
   font-family: var(--nav-font-tech);
-  font-size: 1.6rem;
+  font-size: 1.9rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   background: linear-gradient(135deg, #1a1a1a 0%, #8b6914 100%);
@@ -104,7 +104,7 @@
 
 .logo-four {
   font-family: var(--nav-font-tech);
-  font-size: 1.6rem;
+  font-size: 1.9rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: #daa520;
@@ -626,7 +626,7 @@
 
   .logo-tech,
   .logo-four {
-    font-size: 1.3rem;
+    font-size: 1.7rem;
   }
 
   .logo-luxury {
@@ -660,7 +660,7 @@
 
   .logo-tech,
   .logo-four {
-    font-size: 1.1rem;
+    font-size: 1.7rem;
   }
 
   .nav-icon-btn {
@@ -704,7 +704,7 @@
 
   .logo-tech,
   .logo-four {
-    font-size: 0.95rem;
+    font-size: 1.3rem;
   }
 
   .nav-icon-btn {

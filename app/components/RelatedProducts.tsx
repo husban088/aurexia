@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useCartStore } from "@/lib/cartStore";
 import { useCurrency } from "@/app/context/CurrencyContext";
@@ -45,9 +45,8 @@ interface ExtendedProduct {
   reviews_count?: number;
   low_stock_threshold?: number | null;
   stockStatus?: "in_stock" | "out_of_stock" | "low_stock";
-  variantId?: string;
-  variants?: ProductVariant[];
-  variantImagesMap?: VariantImagesMap;
+  variants: ProductVariant[];
+  variantImagesMap: VariantImagesMap;
 }
 
 interface RelatedProductsProps {
@@ -60,7 +59,7 @@ interface RelatedProductsProps {
 /* ─────────────────────────────────────────────
    HELPERS
 ───────────────────────────────────────────── */
-const truncateProductName = (name: string, maxLength = 35): string => {
+const truncateProductName = (name: string, maxLength = 45): string => {
   if (!name) return "";
   if (name.length <= maxLength) return name;
   return name.substring(0, maxLength).trim() + "...";
@@ -74,6 +73,14 @@ const getStockStatus = (
   if (stock >= 999999) return "in_stock";
   if (threshold && threshold > 0 && stock <= threshold) return "low_stock";
   return "in_stock";
+};
+
+const typePriority: Record<string, number> = {
+  standard: 0,
+  color: 1,
+  size: 2,
+  material: 3,
+  capacity: 4,
 };
 
 /* ─────────────────────────────────────────────
@@ -123,24 +130,113 @@ function LoadingSpinner({ size = 18 }: { size?: number }) {
 }
 
 /* ─────────────────────────────────────────────
-   FETCH — mirrors ProductGrid's fetchProductsWithVariants
-   so images & variants are always populated
+   VARIANT THUMBNAILS COMPONENT
 ───────────────────────────────────────────── */
-const typePriority: Record<string, number> = {
-  standard: 0,
-  color: 1,
-  size: 2,
-  material: 3,
-  capacity: 4,
-};
+function VariantThumbnails({
+  variants,
+  type,
+  onSelect,
+  currentValue,
+  variantImagesMap,
+}: {
+  variants: ProductVariant[];
+  type: string;
+  onSelect: (variant: ProductVariant) => void;
+  currentValue: string;
+  variantImagesMap: VariantImagesMap;
+}) {
+  if (!variants || variants.length === 0) return null;
 
+  const getIcon = () => {
+    switch (type) {
+      case "color":
+        return "🎨";
+      case "size":
+        return "📏";
+      case "material":
+        return "🔧";
+      case "capacity":
+        return "⚡";
+      default:
+        return "•";
+    }
+  };
+
+  const getTypeLabel = () => {
+    switch (type) {
+      case "color":
+        return "Colors";
+      case "size":
+        return "Sizes";
+      case "material":
+        return "Materials";
+      case "capacity":
+        return "Capacities";
+      default:
+        return type;
+    }
+  };
+
+  const displayVariants = variants.slice(0, 4);
+  const hasMore = variants.length > 4;
+
+  const getVariantImage = (variantId: string): string | null => {
+    const images = variantImagesMap[variantId];
+    return images && images.length > 0 ? images[0] : null;
+  };
+
+  return (
+    <div className="rp-card-variants">
+      <span className="rp-variant-label">
+        {getIcon()} {getTypeLabel()}:
+      </span>
+      <div className="rp-variant-thumbnails">
+        {displayVariants.map((variant) => {
+          const variantImage = getVariantImage(variant.id);
+          const isActive = currentValue === variant.attribute_value;
+          return (
+            <button
+              key={variant.id}
+              className={`rp-variant-thumb ${isActive ? "active" : ""}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSelect(variant);
+              }}
+              title={variant.attribute_value}
+            >
+              {variantImage ? (
+                <img src={variantImage} alt={variant.attribute_value} />
+              ) : (
+                <span className="rp-variant-text">
+                  {variant.attribute_value.charAt(0)}
+                </span>
+              )}
+              <span className="rp-variant-label-text">
+                {variant.attribute_value.length > 10
+                  ? variant.attribute_value.slice(0, 8) + "..."
+                  : variant.attribute_value}
+              </span>
+            </button>
+          );
+        })}
+        {hasMore && (
+          <span className="rp-variant-more">+{variants.length - 4}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   FETCH RELATED PRODUCTS
+───────────────────────────────────────────── */
 async function fetchRelatedProducts(
   productId: string,
   category: string,
   limit = 4
 ): Promise<ExtendedProduct[]> {
   try {
-    // Same query pattern as ProductGrid — includes variants + variant_images
     const { data, error } = await supabase
       .from("products")
       .select("*, product_variants(*, variant_images(*))")
@@ -156,12 +252,11 @@ async function fetchRelatedProducts(
     }
 
     if (data.length === 0) {
-      console.log("No related products found for category:", category);
       return [];
     }
 
     return data.map((item: any) => {
-      // Build variants exactly like ProductGrid does
+      // Build variants array
       const variants: ProductVariant[] = (item.product_variants || []).map(
         (variant: any) => {
           const variantImages = (variant.variant_images || [])
@@ -187,13 +282,14 @@ async function fetchRelatedProducts(
         }
       );
 
+      // Sort variants by priority
       const sortedVariants = [...variants].sort(
         (a, b) =>
           (typePriority[a.attribute_type] ?? 5) -
           (typePriority[b.attribute_type] ?? 5)
       );
-      const bestVariant = sortedVariants[0];
 
+      // Build variant images map
       const variantImagesMap: VariantImagesMap = {};
       variants.forEach((v) => {
         if (v.images && v.images.length > 0) {
@@ -201,7 +297,10 @@ async function fetchRelatedProducts(
         }
       });
 
-      // images: prefer best variant images, fallback to product images
+      // Get best variant (first in priority)
+      const bestVariant = sortedVariants[0];
+
+      // Get images - prefer variant images, fallback to product images
       const images =
         bestVariant?.images?.length > 0
           ? bestVariant.images
@@ -229,9 +328,7 @@ async function fetchRelatedProducts(
         rating: item.rating,
         reviews_count: item.reviews_count,
         low_stock_threshold: lowStockThreshold,
-        stockStatus:
-          bestVariant?.stockStatus || getStockStatus(stock, lowStockThreshold),
-        variantId: bestVariant?.id,
+        stockStatus: getStockStatus(stock, lowStockThreshold),
         variants: sortedVariants,
         variantImagesMap,
       };
@@ -243,7 +340,7 @@ async function fetchRelatedProducts(
 }
 
 /* ─────────────────────────────────────────────
-   SINGLE CARD COMPONENT
+   RELATED PRODUCT CARD - Like FeaturedProducts Card
 ───────────────────────────────────────────── */
 function RelatedProductCard({
   product,
@@ -259,42 +356,95 @@ function RelatedProductCard({
     maxStock?: number
   ) => Promise<void>;
 }) {
+  const [isHovered, setIsHovered] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    product.variants.length > 0 ? product.variants[0] : null
+  );
+  const [currentImages, setCurrentImages] = useState<string[]>(() => {
+    if (
+      product.variants.length > 0 &&
+      product.variantImagesMap[product.variants[0].id]
+    ) {
+      return product.variantImagesMap[product.variants[0].id];
+    }
+    return product.images || [];
+  });
   const [addToCartLoading, setAddToCartLoading] = useState(false);
 
-  const displayImage =
-    product.images && product.images.length > 0
-      ? product.images[currentImageIndex]
-      : null;
+  // Filter variants by type
+  const colorVariants = product.variants.filter(
+    (v) => v.attribute_type === "color"
+  );
+  const sizeVariants = product.variants.filter(
+    (v) => v.attribute_type === "size"
+  );
+  const materialVariants = product.variants.filter(
+    (v) => v.attribute_type === "material"
+  );
+  const capacityVariants = product.variants.filter(
+    (v) => v.attribute_type === "capacity"
+  );
+
+  const getVariantImages = useCallback(
+    (variantId: string): string[] => product.variantImagesMap[variantId] || [],
+    [product.variantImagesMap]
+  );
+
+  const handleVariantSelect = (variant: ProductVariant) => {
+    setSelectedVariant(variant);
+    const newImages = getVariantImages(variant.id);
+    setCurrentImages(newImages);
+    setCurrentImageIndex(0);
+    setIsHovered(false);
+  };
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    if (currentImages.length > 1) setCurrentImageIndex(1);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    setCurrentImageIndex(0);
+  };
+
+  const getDisplayImage = () => {
+    if (currentImages.length === 0) return null;
+    if (isHovered && currentImages.length > 1) return currentImages[1];
+    return currentImages[currentImageIndex];
+  };
+
+  const displayImage = getDisplayImage();
+
+  const currentPrice = selectedVariant?.price ?? product.price;
+  const currentOriginalPrice =
+    selectedVariant?.original_price ?? product.original_price;
+  const currentStock = selectedVariant?.stock ?? product.stock;
+  const stockStatus = getStockStatus(currentStock, product.low_stock_threshold);
+  const isLowStock = stockStatus === "low_stock";
+  const isOutOfStock = stockStatus === "out_of_stock";
 
   const discount =
-    product.original_price && product.original_price > product.price
+    currentOriginalPrice && currentOriginalPrice > currentPrice
       ? Math.round(
-          ((product.original_price - product.price) / product.original_price) *
-            100
+          ((currentOriginalPrice - currentPrice) / currentOriginalPrice) * 100
         )
       : 0;
 
-  const stockStatus =
-    product.stockStatus ||
-    getStockStatus(product.stock, product.low_stock_threshold);
-  const isLowStock = stockStatus === "low_stock";
-  const isOutOfStock = stockStatus === "out_of_stock";
-  const currentStock = product.stock || 0;
-
-  const getStockLabelText = () => {
+  const getStockLabel = () => {
     if (isOutOfStock) return "Out of Stock";
     if (isLowStock) return `Only ${currentStock} left`;
     return "In Stock";
   };
 
-  const getStockClassText = () => {
+  const getStockClass = () => {
     if (isOutOfStock) return "out";
     if (isLowStock) return "low";
     return "in";
   };
 
-  const truncatedName = truncateProductName(product.name, 35);
+  const truncatedName = truncateProductName(product.name, 45);
 
   const handleAddToCartClick = async (
     e: React.MouseEvent<HTMLButtonElement>
@@ -308,30 +458,26 @@ function RelatedProductCard({
     if (addToCartLoading) return;
     setAddToCartLoading(true);
     try {
-      await addToCart(
-        {
-          id: product.id,
-          name: product.name,
-          description: product.description || "",
-          category: product.category,
-          subcategory: product.subcategory,
-          brand: product.brand || "",
-          condition: product.condition,
-          is_featured: product.is_featured,
-          is_active: product.is_active,
-          images: product.images || [],
-          price: product.price,
-          original_price: product.original_price,
-          stock: product.stock,
-          low_stock_threshold: product.low_stock_threshold,
-          stockStatus,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        null,
-        1,
-        1
-      );
+      const productToAdd = {
+        id: product.id,
+        name: product.name,
+        description: selectedVariant?.description || product.description || "",
+        category: product.category,
+        subcategory: product.subcategory,
+        brand: product.brand || "",
+        condition: product.condition,
+        is_featured: product.is_featured,
+        is_active: product.is_active,
+        images: currentImages.length > 0 ? currentImages : product.images,
+        price: currentPrice,
+        original_price: currentOriginalPrice,
+        stock: currentStock,
+        low_stock_threshold: product.low_stock_threshold,
+        stockStatus,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await addToCart(productToAdd, selectedVariant, 1, 1);
     } finally {
       setAddToCartLoading(false);
     }
@@ -347,11 +493,8 @@ function RelatedProductCard({
     >
       <div
         className="rp-card-img"
-        onMouseEnter={() => {
-          if (product.images && product.images.length > 1)
-            setCurrentImageIndex(1);
-        }}
-        onMouseLeave={() => setCurrentImageIndex(0)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {displayImage ? (
           <img src={displayImage} alt={product.name} loading="lazy" />
@@ -386,7 +529,7 @@ function RelatedProductCard({
           )}
         </div>
 
-        {/* Cart Button */}
+        {/* Quick Action Buttons */}
         <div className="rp-icon-buttons">
           <button
             className="rp-icon-btn rp-icon-btn--cart"
@@ -418,17 +561,20 @@ function RelatedProductCard({
         <h3 className="rp-card-name" title={product.name}>
           {truncatedName}
         </h3>
+
         <div className="rp-card-price-row">
-          <span className="rp-card-price">{formatPrice(product.price)}</span>
-          {product.original_price && product.original_price > product.price && (
+          <span className="rp-card-price">{formatPrice(currentPrice)}</span>
+          {currentOriginalPrice && currentOriginalPrice > currentPrice && (
             <span className="rp-card-orig">
-              {formatPrice(product.original_price)}
+              {formatPrice(currentOriginalPrice)}
             </span>
           )}
           {discount > 0 && (
             <span className="rp-card-discount">-{discount}%</span>
           )}
         </div>
+
+        {/* Rating */}
         {product.rating &&
           product.reviews_count &&
           product.reviews_count > 0 && (
@@ -437,8 +583,48 @@ function RelatedProductCard({
               <span className="rp-rating-count">({product.reviews_count})</span>
             </div>
           )}
-        <div className={`rp-card-stock ${getStockClassText()}`}>
-          {getStockLabelText()}
+
+        {/* Variant Thumbnails - Like FeaturedProducts */}
+        {colorVariants.length > 0 && (
+          <VariantThumbnails
+            variants={colorVariants}
+            type="color"
+            onSelect={handleVariantSelect}
+            currentValue={selectedVariant?.attribute_value || ""}
+            variantImagesMap={product.variantImagesMap}
+          />
+        )}
+        {sizeVariants.length > 0 && (
+          <VariantThumbnails
+            variants={sizeVariants}
+            type="size"
+            onSelect={handleVariantSelect}
+            currentValue={selectedVariant?.attribute_value || ""}
+            variantImagesMap={product.variantImagesMap}
+          />
+        )}
+        {materialVariants.length > 0 && (
+          <VariantThumbnails
+            variants={materialVariants}
+            type="material"
+            onSelect={handleVariantSelect}
+            currentValue={selectedVariant?.attribute_value || ""}
+            variantImagesMap={product.variantImagesMap}
+          />
+        )}
+        {capacityVariants.length > 0 && (
+          <VariantThumbnails
+            variants={capacityVariants}
+            type="capacity"
+            onSelect={handleVariantSelect}
+            currentValue={selectedVariant?.attribute_value || ""}
+            variantImagesMap={product.variantImagesMap}
+          />
+        )}
+
+        {/* Stock Status */}
+        <div className={`rp-card-stock ${getStockClass()}`}>
+          {getStockLabel()}
         </div>
       </div>
 
@@ -480,33 +666,27 @@ export default function RelatedProducts({
     };
   }, [productId, category, limit]);
 
-  /* ── IntersectionObserver for scroll-reveal ──
-     BUG FIX: rp-reveal class was keeping opacity:0 forever
-     because no observer was adding the "visible" class.
-     Now we watch the section element and add "visible" when
-     it enters the viewport. ── */
+  /* ── IntersectionObserver for scroll-reveal ── */
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
 
-    // If already visible (e.g. already in viewport on mount), reveal immediately
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add("visible");
-            observer.unobserve(entry.target); // only need to fire once
+            observer.unobserve(entry.target);
           }
         });
       },
-      { threshold: 0.05 } // trigger when even 5% is visible
+      { threshold: 0.05 }
     );
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [relatedProducts]); // re-run after products load so ref is attached
+  }, [relatedProducts]);
 
-  /* ── Category label helper ── */
   const getCategoryLabel = (cat: string): string => {
     const labels: Record<string, string> = {
       Accessories: "Mobile Accessories",
@@ -548,16 +728,11 @@ export default function RelatedProducts({
     );
   }
 
-  /* ── Nothing to show ── */
   if (relatedProducts.length === 0) return null;
 
   const catLabel = getCategoryLabel(category);
 
   return (
-    /* ── FIX: removed rp-reveal class from here.
-       The section is now referenced via ref and the IntersectionObserver
-       above adds "visible" when needed. We keep rp-reveal on the element
-       so the CSS transition works, but the observer handles making it visible. ── */
     <section className="rp-section rp-reveal" ref={sectionRef}>
       <div className="rp-header">
         <p className="rp-eyebrow">
@@ -580,7 +755,6 @@ export default function RelatedProducts({
         ))}
       </div>
 
-      {/* Inline keyframe for spinner since jsx is removed */}
       <style>{`
         @keyframes rp-spin {
           0%   { transform: rotate(0deg); }

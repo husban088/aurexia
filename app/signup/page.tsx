@@ -2,13 +2,26 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import "./signup.css";
 
+/* ═══════════════════════════════════════════
+   STATIC DATA — module level, never re-created
+═══════════════════════════════════════════ */
+const PERKS = [
+  "Exclusive member pricing",
+  "Early access to collections",
+  "Free shipping on all orders",
+  "Dedicated concierge support",
+] as const;
+
+/* ═══════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════ */
 export default function SignUp() {
   const router = useRouter();
+
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,12 +30,13 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /* ── Form submit ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    // Validate username uniqueness
+    /* Check username uniqueness */
     const { data: existing } = await supabase
       .from("profiles")
       .select("id")
@@ -35,6 +49,7 @@ export default function SignUp() {
       return;
     }
 
+    /* Register user */
     const { error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
@@ -49,7 +64,7 @@ export default function SignUp() {
       return;
     }
 
-    // Auto sign in after signup
+    /* Auto sign in immediately after signup */
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
@@ -64,8 +79,12 @@ export default function SignUp() {
     router.push("/profile");
   };
 
+  /* ═══════════════════════════════════════════
+     RENDER
+  ═══════════════════════════════════════════ */
   return (
     <div className="su-root">
+      {/* Decorative overlays */}
       <div className="su-grain" aria-hidden="true" />
       <div className="su-bg-lines" aria-hidden="true">
         <span />
@@ -74,25 +93,17 @@ export default function SignUp() {
         <span />
         <span />
       </div>
+
+      {/* Corner brackets */}
       <div className="su-corner su-corner--tl" aria-hidden="true" />
       <div className="su-corner su-corner--tr" aria-hidden="true" />
       <div className="su-corner su-corner--bl" aria-hidden="true" />
       <div className="su-corner su-corner--br" aria-hidden="true" />
 
       <div className="su-card">
-        {/* Left — brand */}
+        {/* ══ LEFT: Brand Panel ══ */}
         <div className="su-brand">
           <div className="su-brand-inner">
-            {/* <div className="su-brand-logo">
-              <Image
-                src="/logo.png"
-                alt="Aurexia"
-                width={52}
-                height={52}
-                className="su-logo-img"
-                priority
-              />
-            </div> */}
             <p className="su-brand-eyebrow">
               <span className="su-ey-line" />
               Join Tech4U
@@ -106,18 +117,14 @@ export default function SignUp() {
             </p>
             <div className="su-brand-divider" aria-hidden="true" />
             <ul className="su-brand-perks">
-              {[
-                "Exclusive member pricing",
-                "Early access to collections",
-                "Free shipping on all orders",
-                "Dedicated concierge support",
-              ].map((perk) => (
+              {PERKS.map((perk) => (
                 <li key={perk}>
                   <svg
                     viewBox="0 0 20 20"
                     width="12"
                     height="12"
                     fill="currentColor"
+                    aria-hidden="true"
                   >
                     <polygon points="10,1 12.9,7 19.5,8.1 14.7,12.7 16,19.5 10,16.2 4,19.5 5.3,12.7 0.5,8.1 7.1,7" />
                   </svg>
@@ -131,7 +138,7 @@ export default function SignUp() {
           </div>
         </div>
 
-        {/* Right — form */}
+        {/* ══ RIGHT: Form Panel ══ */}
         <div className="su-form-panel">
           <div className="su-form-wrap">
             <div className="su-form-header">
@@ -144,12 +151,12 @@ export default function SignUp() {
                 Create <em>Account</em>
               </h2>
               <p className="su-form-sub">
-                Set up your Aurexia profile in seconds
+                Set up your Tech4U profile in seconds
               </p>
             </div>
 
             <form className="su-form" onSubmit={handleSubmit} noValidate>
-              {/* Error */}
+              {/* Error alert */}
               {error && (
                 <div className="su-error-box" role="alert">
                   <svg
@@ -159,6 +166,7 @@ export default function SignUp() {
                     strokeWidth="1.5"
                     width="14"
                     height="14"
+                    aria-hidden="true"
                   >
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
@@ -279,7 +287,7 @@ export default function SignUp() {
                   <button
                     type="button"
                     className="su-eye-btn"
-                    onClick={() => setShowPass(!showPass)}
+                    onClick={() => setShowPass((prev) => !prev)}
                     aria-label={showPass ? "Hide password" : "Show password"}
                   >
                     {showPass ? (
@@ -288,6 +296,7 @@ export default function SignUp() {
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="1.5"
+                        aria-hidden="true"
                       >
                         <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
                         <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
@@ -299,6 +308,7 @@ export default function SignUp() {
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="1.5"
+                        aria-hidden="true"
                       >
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                         <circle cx="12" cy="12" r="3" />
@@ -309,13 +319,15 @@ export default function SignUp() {
                 <div className="su-field-line" aria-hidden="true" />
               </div>
 
+              {/* Submit button */}
               <button
                 type="submit"
                 className="su-submit-btn"
                 disabled={loading}
+                aria-busy={loading}
               >
                 {loading ? (
-                  <span className="su-spinner" />
+                  <span className="su-spinner" aria-hidden="true" />
                 ) : (
                   <>
                     <span>Create Account</span>
@@ -324,6 +336,7 @@ export default function SignUp() {
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.5"
+                      aria-hidden="true"
                     >
                       <path
                         d="M5 12h14M12 5l7 7-7 7"
@@ -336,12 +349,14 @@ export default function SignUp() {
               </button>
             </form>
 
+            {/* Divider */}
             <div className="su-or" aria-hidden="true">
               <span className="su-or-line" />
               <span className="su-or-text">or</span>
               <span className="su-or-line" />
             </div>
 
+            {/* Switch to signin */}
             <p className="su-switch">
               Already have an account?{" "}
               <Link href="/signin" className="su-switch-link">
@@ -353,6 +368,7 @@ export default function SignUp() {
                   strokeWidth="1.5"
                   width="12"
                   height="12"
+                  aria-hidden="true"
                 >
                   <path
                     d="M9 18l6-6-6-6"

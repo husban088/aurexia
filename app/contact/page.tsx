@@ -30,7 +30,7 @@ interface Toast {
 }
 
 /* ═══════════════════════════════════════════
-   CONTACT DETAILS
+   CONTACT DETAILS — module level (no re-create)
 ═══════════════════════════════════════════ */
 const contactDetails = [
   {
@@ -40,6 +40,7 @@ const contactDetails = [
         fill="none"
         stroke="currentColor"
         strokeWidth="1.2"
+        aria-hidden="true"
       >
         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
         <circle cx="12" cy="10" r="3" />
@@ -56,6 +57,7 @@ const contactDetails = [
         fill="none"
         stroke="currentColor"
         strokeWidth="1.2"
+        aria-hidden="true"
       >
         <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.03 1.19 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.08 6.08l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
       </svg>
@@ -71,6 +73,7 @@ const contactDetails = [
         fill="none"
         stroke="currentColor"
         strokeWidth="1.2"
+        aria-hidden="true"
       >
         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
         <polyline points="22,6 12,13 2,6" />
@@ -223,7 +226,6 @@ export default function Contact() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        /* Server-side field errors */
         if (data.errors) {
           setErrors(data.errors);
         }
@@ -259,7 +261,7 @@ export default function Contact() {
     setSubmitted(false);
   }
 
-  /* ── Field helper ── */
+  /* ── Field CSS class helper ── */
   function fieldClass(field: keyof FormFields) {
     const classes = ["co-field"];
     if (focused === field) classes.push("focused");
@@ -273,7 +275,7 @@ export default function Contact() {
   ═══════════════════════════════════════════ */
   return (
     <div className="co-root">
-      {/* Grain */}
+      {/* Grain overlay */}
       <div className="co-grain" aria-hidden="true" />
 
       {/* Background geometry */}
@@ -293,7 +295,7 @@ export default function Contact() {
       <div className="co-corner co-corner--br" aria-hidden="true" />
 
       <div className="co-container">
-        {/* Page Header */}
+        {/* ══ Page Header ══ */}
         <header className="co-header">
           <p className="co-eyebrow">
             <span className="co-ey-line" />
@@ -301,7 +303,7 @@ export default function Contact() {
             <span className="co-ey-line" />
           </p>
           <h1 className="co-heading">
-            We're Here
+            We&apos;re Here
             <br />
             For <em>You</em>
           </h1>
@@ -311,7 +313,7 @@ export default function Contact() {
           </p>
         </header>
 
-        {/* Main Grid */}
+        {/* ══ Main Grid ══ */}
         <div className="co-main">
           {/* ── LEFT: Info Panel ── */}
           <aside className="co-info">
@@ -332,11 +334,11 @@ export default function Contact() {
               ))}
             </div>
 
-            {/* Social */}
+            {/* Social Links */}
             <div className="co-social">
               <p className="co-social-label">
                 <span className="co-ey-line" style={{ width: 14 }} />
-                Follow Aurexia
+                Follow Tech4U
                 <span className="co-ey-line" style={{ width: 14 }} />
               </p>
               <div className="co-social-icons">
@@ -352,6 +354,7 @@ export default function Contact() {
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.5"
+                    aria-hidden="true"
                   >
                     <rect x="2" y="2" width="20" height="20" rx="5" />
                     <path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z" />
@@ -371,7 +374,11 @@ export default function Contact() {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  <svg viewBox="0 0 24 24" fill="currentColor">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
                     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                   </svg>
                 </a>
@@ -387,6 +394,7 @@ export default function Contact() {
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.5"
+                    aria-hidden="true"
                   >
                     <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
                   </svg>
@@ -403,6 +411,7 @@ export default function Contact() {
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.5"
+                    aria-hidden="true"
                   >
                     <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
                   </svg>
@@ -410,15 +419,26 @@ export default function Contact() {
               </div>
             </div>
 
-            {/* Map placeholder */}
+            {/* Map Placeholder */}
             <div
               className="co-map-placeholder"
+              role="button"
+              tabIndex={0}
+              aria-label="Open in Google Maps"
               onClick={() =>
                 window.open(
                   "https://maps.google.com?q=Faisalabad+Punjab+Pakistan",
                   "_blank"
                 )
               }
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  window.open(
+                    "https://maps.google.com?q=Faisalabad+Punjab+Pakistan",
+                    "_blank"
+                  );
+                }
+              }}
             >
               <div className="co-map-inner">
                 <svg
@@ -426,6 +446,7 @@ export default function Contact() {
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.2"
+                  aria-hidden="true"
                 >
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
                   <circle cx="12" cy="10" r="3" />
@@ -435,7 +456,7 @@ export default function Contact() {
             </div>
           </aside>
 
-          {/* ── RIGHT: Form ── */}
+          {/* ── RIGHT: Contact Form ── */}
           <section className="co-form-section">
             <div className="co-form-card">
               <div
@@ -456,6 +477,7 @@ export default function Contact() {
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.5"
+                      aria-hidden="true"
                     >
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
@@ -469,8 +491,8 @@ export default function Contact() {
                     Thank You, <em>{form.name.split(" ")[0] || "Friend"}</em>
                   </h2>
                   <p className="co-success-sub">
-                    We've received your message and will get back to you within
-                    24 hours.
+                    We&apos;ve received your message and will get back to you
+                    within 24 hours.
                   </p>
                   <button className="co-success-btn" onClick={resetForm}>
                     <svg
@@ -479,6 +501,7 @@ export default function Contact() {
                       stroke="currentColor"
                       strokeWidth="1.5"
                       style={{ width: 14, height: 14 }}
+                      aria-hidden="true"
                     >
                       <polyline points="1 4 1 10 7 10" />
                       <path d="M3.51 15a9 9 0 102.13-9.36L1 10" />
@@ -496,7 +519,7 @@ export default function Contact() {
                       <span className="co-ey-line" />
                     </p>
                     <h2 className="co-form-title">
-                      Let's <em>Connect</em>
+                      Let&apos;s <em>Connect</em>
                     </h2>
                     <p className="co-form-sub">
                       Every message is read personally by our team.
@@ -553,6 +576,7 @@ export default function Contact() {
                               fill="none"
                               stroke="currentColor"
                               strokeWidth="2"
+                              aria-hidden="true"
                             >
                               <circle cx="12" cy="12" r="10" />
                               <line x1="12" y1="8" x2="12" y2="12" />
@@ -609,6 +633,7 @@ export default function Contact() {
                               fill="none"
                               stroke="currentColor"
                               strokeWidth="2"
+                              aria-hidden="true"
                             >
                               <circle cx="12" cy="12" r="10" />
                               <line x1="12" y1="8" x2="12" y2="12" />
@@ -665,6 +690,7 @@ export default function Contact() {
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="2"
+                            aria-hidden="true"
                           >
                             <circle cx="12" cy="12" r="10" />
                             <line x1="12" y1="8" x2="12" y2="12" />
@@ -724,6 +750,7 @@ export default function Contact() {
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="2"
+                            aria-hidden="true"
                           >
                             <circle cx="12" cy="12" r="10" />
                             <line x1="12" y1="8" x2="12" y2="12" />
@@ -734,11 +761,12 @@ export default function Contact() {
                       )}
                     </div>
 
-                    {/* Submit */}
+                    {/* Submit Button */}
                     <button
                       type="submit"
                       className="co-submit-btn"
                       disabled={sending}
+                      aria-busy={sending}
                     >
                       {sending ? (
                         <>
@@ -753,6 +781,7 @@ export default function Contact() {
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="1.5"
+                            aria-hidden="true"
                           >
                             <path
                               d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"
@@ -771,9 +800,7 @@ export default function Contact() {
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════
-          TOASTS
-      ═══════════════════════════════════════════ */}
+      {/* ══ TOASTS ══ */}
       <div className="co-toast-wrap" aria-live="polite" aria-atomic="false">
         {toasts.map((t) => (
           <div
@@ -783,7 +810,7 @@ export default function Contact() {
             }`}
             role="status"
           >
-            <div className="co-toast-icon">
+            <div className="co-toast-icon" aria-hidden="true">
               {t.type === "success" && (
                 <svg
                   viewBox="0 0 24 24"
@@ -825,13 +852,14 @@ export default function Contact() {
             <button
               className="co-toast-close"
               onClick={() => dismiss(t.id)}
-              aria-label="Dismiss"
+              aria-label="Dismiss notification"
             >
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
+                aria-hidden="true"
               >
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />

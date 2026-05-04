@@ -1,20 +1,73 @@
 "use client";
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PRODUCT DETAILS PAGE — Module-level cache
+// Har baar back/forward pe Supabase call nahi hogi — data instantly dikhega
+// ═══════════════════════════════════════════════════════════════════════════════
+
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase, Product, ProductVariant } from "@/lib/supabase";
-import { uploadToCloudinary } from "@/lib/cloudinary";
 import "@/app/styles/product-detail.css";
 import { useCartStore } from "@/lib/cartStore";
 import { useCurrency } from "@/app/context/CurrencyContext";
 import ProductReviews from "@/app/components/ProductReviews";
-// Import components
 import EstimatedDelivery from "@/app/components/EstimatedDelivery";
 import TrustBadges from "@/app/components/TrustBadges";
 import ProductGallery from "@/app/components/ProductGallery";
 import RelatedProducts from "@/app/components/RelatedProducts";
 import DescriptionModal from "@/app/components/DescriptionModal";
+
+// ─── MODULE-LEVEL CACHE ───────────────────────────────────────────────────────
+// productId → product data — survives Next.js client-side navigation
+// Back/forward karne pe Supabase call nahi hogi, data instantly milega
+const _productCache = new Map<string, any>();
+const _inFlight = new Map<string, Promise<any>>();
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function fetchProductCached(id: string): Promise<any | null> {
+  // 1. Cached — return instantly
+  if (_productCache.has(id)) return _productCache.get(id)!;
+
+  // 2. In-flight — wait for same promise (duplicate calls prevent karta hai)
+  if (_inFlight.has(id)) return _inFlight.get(id)!;
+
+  // 3. Fresh fetch
+  const promise = (async () => {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*, product_variants(*, variant_images(*))")
+      .eq("id", id)
+      .eq("is_active", true)
+      .single();
+
+    _inFlight.delete(id);
+
+    if (error || !data) return null;
+
+    // Process variants — images sort karke attach karo
+    const variants = (data.product_variants || []).map((variant: any) => {
+      const variantImages = (variant.variant_images || [])
+        .sort((a: any, b: any) => a.display_order - b.display_order)
+        .map((img: any) => img.image_url);
+      return {
+        ...variant,
+        images: variantImages,
+        description_images: variant.description_images || [],
+        description_rich: variant.description_rich || variant.description || "",
+        variant_images: variant.variant_images || [],
+      };
+    });
+
+    const result = { ...data, product_variants: variants };
+    _productCache.set(id, result);
+    return result;
+  })();
+
+  _inFlight.set(id, promise);
+  return promise;
+}
 
 /* ═══════════════════════════════════════════
    TYPES
@@ -278,14 +331,19 @@ export default function ProductDetail() {
   const router = useRouter();
   const id = params?.id as string;
 
-  const [product, setProduct] = useState<Product | null>(null);
+  // ── Sync-init from cache — instant render if already cached ──
+  const [product, setProduct] = useState<Product | null>(() =>
+    id ? _productCache.get(id) ?? null : null
+  );
   const [variants, setVariants] = useState<VariantWithDetails[]>([]);
   const [variantImagesMap, setVariantImagesMap] = useState<VariantImagesMap>(
     {}
   );
   const [selectedVariant, setSelectedVariant] =
     useState<VariantWithDetails | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() =>
+    id ? !_productCache.has(id) : true
+  );
   const [qty, setQty] = useState(1);
   const [wishlist, setWishlist] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("description");
@@ -297,8 +355,6 @@ export default function ProductDetail() {
   const [liveRating, setLiveRating] = useState<number | null>(null);
   const [liveReviewCount, setLiveReviewCount] = useState<number | null>(null);
   const [isDescModalOpen, setIsDescModalOpen] = useState(false);
-
-  // State for currently selected variant's description and images
   const [currentDescription, setCurrentDescription] = useState<string>("");
   const [currentDescriptionImages, setCurrentDescriptionImages] = useState<
     string[]
@@ -308,28 +364,103 @@ export default function ProductDetail() {
   const { addToCart } = useCartStore();
   const { formatPrice, currency } = useCurrency();
 
-  // Update description and images when selected variant changes
+  // ── If cache already had the product, hydrate variants too ──
+  useEffect(() => {
+    if (!id) return;
+    const cached = _productCache.get(id);
+    if (cached && !loading) {
+      hydrateFromData(cached);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Helper: hydrate all state from a product data object ──
+  function hydrateFromData(productData: any) {
+    setProduct(productData);
+    setLiveRating(productData.rating || null);
+    setLiveReviewCount(productData.reviews_count || null);
+    setCurrentDescription(productData.description || "");
+    setCurrentDescriptionImages(productData.description_images || []);
+    document.title = `${productData.name} | Tech4U`;
+
+    const variantsData: VariantWithDetails[] =
+      productData.product_variants || [];
+
+    if (variantsData.length > 0) {
+      const sortedVariants = [...variantsData].sort((a: any, b: any) => {
+        const order: Record<string, number> = {
+          standard: 0,
+          color: 1,
+          size: 2,
+          material: 3,
+          capacity: 4,
+        };
+        return (order[a.attribute_type] ?? 5) - (order[b.attribute_type] ?? 5);
+      });
+      setVariants(sortedVariants);
+      setSelectedVariant(sortedVariants[0]);
+
+      const imagesByVariant: VariantImagesMap = {};
+      variantsData.forEach((v: any) => {
+        const imgs = (v.variant_images || [])
+          .sort((a: any, b: any) => a.display_order - b.display_order)
+          .map((img: any) => img.image_url);
+        if (imgs.length > 0) imagesByVariant[v.id] = imgs;
+      });
+      setVariantImagesMap(imagesByVariant);
+    } else {
+      setVariants([]);
+      setSelectedVariant(null);
+    }
+  }
+
+  // ── Main fetch effect ──
+  useEffect(() => {
+    if (!id) return;
+
+    // Already cached? Hydrate instantly without fetch
+    if (_productCache.has(id)) {
+      hydrateFromData(_productCache.get(id));
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+
+    fetchProductCached(id).then((data) => {
+      if (!active) return;
+      if (data) {
+        hydrateFromData(data);
+      }
+      setLoading(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Update description/images when variant changes ──
   useEffect(() => {
     if (selectedVariant) {
       if (selectedVariant.attribute_type !== "standard") {
-        // Detail mode: use variant's own description and images
         setCurrentDescription(
-          selectedVariant.description_rich || selectedVariant.description || ""
+          selectedVariant.description_rich ||
+            (selectedVariant as any).description ||
+            ""
         );
         setCurrentDescriptionImages(selectedVariant.description_images || []);
       } else {
-        // Simple mode: use product description and images
         setCurrentDescription(product?.description || "");
-        setCurrentDescriptionImages(product?.description_images || []);
+        setCurrentDescriptionImages((product as any)?.description_images || []);
       }
     } else if (product) {
-      // No variant: fallback to product description
       setCurrentDescription(product.description || "");
-      setCurrentDescriptionImages(product.description_images || []);
+      setCurrentDescriptionImages((product as any).description_images || []);
     }
   }, [selectedVariant, product]);
 
-  // Fetch bulk pricing tiers when variant changes
+  // ── Fetch bulk pricing tiers when variant changes ──
   useEffect(() => {
     async function fetchBulkTiers() {
       if (!selectedVariant?.id) {
@@ -361,72 +492,7 @@ export default function ProductDetail() {
     fetchBulkTiers();
   }, [selectedVariant]);
 
-  /* ── Fetch product and variants ── */
-  useEffect(() => {
-    if (!id) return;
-
-    async function load() {
-      // Single combined query — product + variants + variant_images in one round trip
-      const { data: productData, error: productError } = await supabase
-        .from("products")
-        .select("*, product_variants(*, variant_images(*))")
-        .eq("id", id)
-        .eq("is_active", true)
-        .single();
-
-      if (productError || !productData) {
-        return;
-      }
-
-      setProduct(productData);
-      setLiveRating(productData.rating || null);
-      setLiveReviewCount(productData.reviews_count || null);
-      setCurrentDescription(productData.description || "");
-      setCurrentDescriptionImages(productData.description_images || []);
-      document.title = `${productData.name} | Tech4U`;
-
-      const variantsData = productData.product_variants || [];
-
-      if (variantsData.length > 0) {
-        const processedVariants = variantsData.map((v: any) => ({
-          ...v,
-          description_images: v.description_images || [],
-          description_rich: v.description_rich || v.description || "",
-          variant_images: v.variant_images || [],
-        }));
-
-        const sortedVariants = processedVariants.sort((a: any, b: any) => {
-          const order: Record<string, number> = {
-            standard: 0,
-            color: 1,
-            size: 2,
-            material: 3,
-            capacity: 4,
-          };
-          return (
-            (order[a.attribute_type] ?? 5) - (order[b.attribute_type] ?? 5)
-          );
-        });
-        setVariants(sortedVariants);
-        setSelectedVariant(sortedVariants[0]);
-
-        const imagesByVariant: VariantImagesMap = {};
-        variantsData.forEach((v: any) => {
-          const imgs = (v.variant_images || [])
-            .sort((a: any, b: any) => a.display_order - b.display_order)
-            .map((img: any) => img.image_url);
-          if (imgs.length > 0) imagesByVariant[v.id] = imgs;
-        });
-        setVariantImagesMap(imagesByVariant);
-      } else {
-        setSelectedVariant(null);
-      }
-    }
-
-    load();
-  }, [id]);
-
-  /* ── Realtime rating updates ── */
+  // ── Realtime rating updates ──
   useEffect(() => {
     if (!id) return;
     const channel = supabase
@@ -457,10 +523,25 @@ export default function ProductDetail() {
     };
   }, [id]);
 
+  // ── IntersectionObserver for reveal animations ──
+  useEffect(() => {
+    const els = document.querySelectorAll(".pd-reveal, .rp-reveal");
+    const obs = new IntersectionObserver(
+      (entries) =>
+        entries.forEach(
+          (e) => e.isIntersecting && e.target.classList.add("visible")
+        ),
+      { threshold: 0.12 }
+    );
+    els.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, [loading, product]);
+
+  // ── Derived values ──
   const currentImages =
     selectedVariant?.id && variantImagesMap[selectedVariant.id]
       ? variantImagesMap[selectedVariant.id]
-      : product?.images || [];
+      : (product as any)?.images || [];
 
   const getCurrentPrice = (): number => {
     if (selectedTier) return selectedTier.tier_price;
@@ -480,7 +561,9 @@ export default function ProductDetail() {
   const currentPrice = getCurrentPrice();
   const currentPerPiecePrice = getPerPiecePrice();
   const currentOriginalPrice =
-    selectedVariant?.original_price || product?.original_price || 0;
+    (selectedVariant as any)?.original_price ||
+    (product as any)?.original_price ||
+    0;
   const currentStock = selectedVariant?.stock || product?.stock || 0;
   const discount =
     currentOriginalPrice > currentPerPiecePrice
@@ -530,9 +613,9 @@ export default function ProductDetail() {
       description: selectedVariant?.description || product.description || "",
       category: product.category,
       subcategory: product.subcategory,
-      brand: product.brand || "",
-      condition: product.condition,
-      is_featured: product.is_featured,
+      brand: (product as any).brand || "",
+      condition: (product as any).condition,
+      is_featured: (product as any).is_featured,
       is_active: product.is_active,
       images: currentImages,
       price: currentPerPiecePrice,
@@ -558,31 +641,70 @@ export default function ProductDetail() {
     router.push("/checkout");
   }
 
-  useEffect(() => {
-    const els = document.querySelectorAll(".pd-reveal, .rp-reveal");
-    const obs = new IntersectionObserver(
-      (entries) =>
-        entries.forEach(
-          (e) => e.isIntersecting && e.target.classList.add("visible")
-        ),
-      { threshold: 0.12 }
+  // ── Loading skeleton ──
+  if (loading) {
+    return (
+      <div style={{ padding: "2rem", maxWidth: 1200, margin: "0 auto" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "2rem",
+            animation: "skeleton-pulse 1.4s ease-in-out infinite",
+          }}
+        >
+          {/* Image skeleton */}
+          <div
+            style={{
+              aspectRatio: "1",
+              background: "rgba(255,255,255,0.06)",
+              borderRadius: 12,
+            }}
+          />
+          {/* Details skeleton */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {[80, 55, 40, 30, 60, 100].map((w, i) => (
+              <div
+                key={i}
+                style={{
+                  height: i === 0 ? 28 : i === 4 ? 20 : 16,
+                  width: `${w}%`,
+                  background:
+                    i === 4 ? "rgba(218,165,32,0.2)" : "rgba(255,255,255,0.06)",
+                  borderRadius: 6,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+        <style>{`
+          @keyframes skeleton-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+          }
+        `}</style>
+      </div>
     );
-    els.forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
-  }, [loading, product]);
+  }
 
-  const truncatedProductName = product ? product.name : "";
+  if (!product) {
+    return (
+      <div style={{ padding: "4rem", textAlign: "center" }}>
+        <h2>Product not found</h2>
+        <a href="/watches" style={{ color: "#daa520" }}>
+          ← Continue Shopping
+        </a>
+      </div>
+    );
+  }
 
-  if (!product) return null;
-
-  const catHref = categoryRoute[product.category] || "/";
-  const catLabel = categoryLabel[product.category] || product.category;
+  const catHref = categoryRoute[(product as any).category] || "/";
+  const catLabel =
+    categoryLabel[(product as any).category] || (product as any).category;
   const images =
-    currentImages.length > 0 ? currentImages : product.images || [];
-  const specs = (product as any).specs || {};
-  const hasSpecs = Object.keys(specs).length > 0;
-
+    currentImages.length > 0 ? currentImages : (product as any).images || [];
   const hasDescription = currentDescription && currentDescription.length > 0;
+  const truncatedProductName = truncateProductName(product.name);
 
   return (
     <div className="pd-root">
@@ -595,32 +717,34 @@ export default function ProductDetail() {
       </div>
 
       <div className="pd-content">
-        {/* Breadcrumb */}
+        {/* ── Breadcrumb ── */}
         <nav className="pd-breadcrumb">
           <Link href="/">Home</Link>
           <span className="pd-breadcrumb-sep">›</span>
           <Link href={catHref}>{catLabel}</Link>
           <span className="pd-breadcrumb-sep">›</span>
-          {product.subcategory && (
+          {(product as any).subcategory && (
             <>
               <Link
-                href={`${catHref}/${product.subcategory
+                href={`${catHref}/${(product as any).subcategory
                   .toLowerCase()
                   .replace(/\s+/g, "-")}`}
               >
-                {product.subcategory}
+                {(product as any).subcategory}
               </Link>
             </>
           )}
         </nav>
 
         <div className="pd-grid">
-          {/* GALLERY */}
+          {/* ── GALLERY ── */}
           <ProductGallery images={images} productName={product.name} />
 
-          {/* PRODUCT INFO */}
+          {/* ── PRODUCT INFO ── */}
           <div className="pd-info">
-            {product.brand && <p className="pd-brand">{product.brand}</p>}
+            {(product as any).brand && (
+              <p className="pd-brand">{(product as any).brand}</p>
+            )}
             <h5 className="pd-title" title={product.name}>
               {truncatedProductName}
             </h5>
@@ -651,6 +775,7 @@ export default function ProductDetail() {
               />
             </div>
 
+            {/* ── Price Block ── */}
             <div className="pd-price-block">
               <div className="pd-price-row">
                 <span className="pd-price">{formatPrice(currentPrice)}</span>
@@ -676,7 +801,7 @@ export default function ProductDetail() {
               </p>
             </div>
 
-            {/* VARIANT SELECTORS */}
+            {/* ── Variant Selectors ── */}
             {Object.entries(variantsByType).map(([type, typeVariants]) => (
               <div key={type} className="pd-attr">
                 <span className="pd-attr-label">
@@ -705,22 +830,26 @@ export default function ProductDetail() {
               </div>
             ))}
 
-            {/* BULK PRICING SELECTOR */}
+            {/* ── Bulk Pricing Selector ── */}
             {bulkTiers.length > 0 && !loadingTiers && (
               <BulkPricingSelector
                 tiers={bulkTiers}
-                unitPrice={selectedVariant?.price || product.price || 0}
+                unitPrice={
+                  selectedVariant?.price || (product as any).price || 0
+                }
                 onSelect={setSelectedTier}
                 selectedTier={selectedTier}
                 formatPrice={formatPrice}
               />
             )}
 
+            {/* ── Stock Status ── */}
             <div className={`pd-stock ${stockClass}`}>
               <span className="pd-stock-dot" />
               {stockLabel}
             </div>
 
+            {/* ── Actions ── */}
             <div className="pd-actions">
               {!selectedTier && (
                 <div className="pd-qty-row">
@@ -761,6 +890,7 @@ export default function ProductDetail() {
                   </div>
                 </div>
               )}
+
               {selectedTier && (
                 <div className="pd-bulk-qty-display">
                   <span className="pd-bulk-qty-label">Quantity:</span>
@@ -772,6 +902,7 @@ export default function ProductDetail() {
                   </span>
                 </div>
               )}
+
               <div className="pd-cta-row">
                 <button
                   className="pd-add-cart"
@@ -794,6 +925,7 @@ export default function ProductDetail() {
                     ? `Add to Cart (${selectedTier.min_quantity} pcs)`
                     : `Add to Cart (${qty} pc${qty > 1 ? "s" : ""})`}
                 </button>
+
                 <button
                   className={`pd-wishlist${wishlist ? " active" : ""}`}
                   onClick={() => {
@@ -814,6 +946,7 @@ export default function ProductDetail() {
                   </svg>
                 </button>
               </div>
+
               {currentStock > 0 && (
                 <button className="pd-buy-now" onClick={handleBuyNow}>
                   <svg
@@ -833,7 +966,7 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {/* TABS SECTION - Only Description tab active */}
+        {/* ── TABS SECTION ── */}
         <div className="pd-tabs-section pd-reveal">
           <div className="pd-tab-bar">
             {[
@@ -852,7 +985,7 @@ export default function ProductDetail() {
             ))}
           </div>
 
-          {/* DESCRIPTION TAB PANEL - Rich text HTML rendering */}
+          {/* Description Tab */}
           {activeTab === "description" && (
             <div className="pd-tab-panel">
               <div className="pd-description-full">
@@ -868,7 +1001,7 @@ export default function ProductDetail() {
                 )}
               </div>
 
-              {/* DESCRIPTION IMAGES GALLERY */}
+              {/* Description Images Gallery */}
               {currentDescriptionImages &&
                 currentDescriptionImages.length > 0 && (
                   <div className="pd-desc-images-section">
@@ -908,7 +1041,7 @@ export default function ProductDetail() {
             </div>
           )}
 
-          {/* SHIPPING & RETURNS TAB PANEL */}
+          {/* Shipping & Returns Tab */}
           {activeTab === "shipping" && (
             <div className="pd-tab-panel">
               <div className="pd-shipping-content">
@@ -971,27 +1104,27 @@ export default function ProductDetail() {
           )}
         </div>
 
-        {/* ESTIMATED DELIVERY SECTION */}
+        {/* ── Estimated Delivery ── */}
         <EstimatedDelivery />
 
-        {/* TRUST BADGES SECTION */}
+        {/* ── Trust Badges ── */}
         <TrustBadges />
 
-        {/* REVIEWS & RATINGS */}
+        {/* ── Reviews & Ratings ── */}
         {product.id && <ProductReviews productId={product.id} />}
 
-        {/* RELATED PRODUCTS */}
+        {/* ── Related Products ── */}
         {product.id && (
           <RelatedProducts
             productId={product.id}
-            category={product.category}
+            category={(product as any).category}
             currentProductName={product.name}
             limit={4}
           />
         )}
       </div>
 
-      {/* DESCRIPTION MODAL — description + images pass */}
+      {/* ── Description Modal ── */}
       <DescriptionModal
         isOpen={isDescModalOpen}
         onClose={() => setIsDescModalOpen(false)}
@@ -1008,6 +1141,7 @@ export default function ProductDetail() {
         }
       />
 
+      {/* ── Toast Notifications ── */}
       <div className="pd-toast-wrap">
         {toasts.map((t) => (
           <div

@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import "./explore-aurexia.css";
 
 /* ──────────────────────────────────────────
    CATEGORY DATA
-   imageSrc: apni real images daalo public/ folder mein
 ────────────────────────────────────────── */
 const categories = [
   {
@@ -64,26 +63,73 @@ const categories = [
   },
 ];
 
-export default function ExploreAurexia() {
-  const [mounted, setMounted] = useState(false);
+/* ── Shared CDN loader (same instance reused by HeroSection too) ── */
+let swiperCDNLoaded = false;
+let swiperCDNLoading: Promise<void> | null = null;
 
-  /* ── Refs ─────────────────────────────────────── */
+function loadSwiperCDN(): Promise<void> {
+  if (typeof window !== "undefined" && (window as any).Swiper) {
+    swiperCDNLoaded = true;
+    return Promise.resolve();
+  }
+  if (swiperCDNLoaded) return Promise.resolve();
+  if (swiperCDNLoading) return swiperCDNLoading;
+
+  swiperCDNLoading = new Promise<void>((resolve) => {
+    if (!document.querySelector("link[data-swiper-css]")) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href =
+        "https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css";
+      link.setAttribute("data-swiper-css", "1");
+      document.head.appendChild(link);
+    }
+
+    if (!document.querySelector("script[data-swiper-js]")) {
+      const script = document.createElement("script");
+      script.src =
+        "https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js";
+      script.setAttribute("data-swiper-js", "1");
+      script.onload = () => {
+        swiperCDNLoaded = true;
+        resolve();
+      };
+      script.onerror = () => {
+        swiperCDNLoading = null;
+        resolve();
+      };
+      document.head.appendChild(script);
+    } else {
+      const poll = setInterval(() => {
+        if ((window as any).Swiper) {
+          clearInterval(poll);
+          swiperCDNLoaded = true;
+          resolve();
+        }
+      }, 50);
+      setTimeout(() => {
+        clearInterval(poll);
+        resolve();
+      }, 5000);
+    }
+  });
+
+  return swiperCDNLoading;
+}
+
+export default function ExploreAurexia() {
+  /* ── Refs ── */
   const swiperRef = useRef<HTMLDivElement>(null);
   const prevBtnRef = useRef<HTMLButtonElement>(null);
   const nextBtnRef = useRef<HTMLButtonElement>(null);
   const paginationRef = useRef<HTMLDivElement>(null);
   const swiperInstRef = useRef<any>(null);
 
-  /* ── Mount check ──────────────────────────────── */
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  /* ── Init Swiper ──────────────────────────────── */
+  /* ── Init Swiper ── */
   const initSwiper = useCallback(() => {
-    // Only run on client side and if all refs exist
-    if (typeof window === "undefined") return;
     if (
+      typeof window === "undefined" ||
+      !(window as any).Swiper ||
       !swiperRef.current ||
       !prevBtnRef.current ||
       !nextBtnRef.current ||
@@ -91,18 +137,15 @@ export default function ExploreAurexia() {
     )
       return;
 
-    /* Destroy previous instance cleanly */
     if (swiperInstRef.current) {
       swiperInstRef.current.destroy(true, true);
       swiperInstRef.current = null;
     }
 
     swiperInstRef.current = new (window as any).Swiper(swiperRef.current, {
-      /* Layout — centeredSlides OFF to prevent clipping */
       slidesPerView: 1,
       spaceBetween: 20,
       centeredSlides: false,
-
       breakpoints: {
         480: { slidesPerView: 1.3, spaceBetween: 20 },
         640: { slidesPerView: 1.6, spaceBetween: 24 },
@@ -110,129 +153,56 @@ export default function ExploreAurexia() {
         1200: { slidesPerView: 3, spaceBetween: 32 },
         1440: { slidesPerView: 3, spaceBetween: 36 },
       },
-
-      /* Drag / touch */
       grabCursor: true,
       touchRatio: 1,
       touchAngle: 45,
       simulateTouch: true,
       touchStartPreventDefault: false,
-
-      /* Loop */
       loop: true,
-
-      /* Autoplay */
       autoplay: {
         delay: 3800,
         disableOnInteraction: false,
         pauseOnMouseEnter: true,
       },
-
       speed: 900,
-
-      /* Pass DOM refs directly — avoids global selector conflicts */
       navigation: {
         nextEl: nextBtnRef.current,
         prevEl: prevBtnRef.current,
       },
-
       pagination: {
         el: paginationRef.current,
         clickable: true,
         dynamicBullets: true,
       },
-
-      /* Re-calc on resize / DOM changes */
       observer: true,
       observeParents: true,
       resizeObserver: true,
     });
   }, []);
 
-  /* ── Load CDN → Init ──────────────────────────── */
+  /* ── Load CDN once, then init — NO mounted state needed ── */
   useEffect(() => {
-    if (!mounted) return;
+    let cancelled = false;
 
-    const load = async () => {
-      // Only run on client side
-      if (typeof window === "undefined") return;
-
-      if (!document.querySelector("link[data-swiper-css]")) {
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href =
-          "https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css";
-        link.setAttribute("data-swiper-css", "1");
-        document.head.appendChild(link);
-      }
-
-      if (!(window as any).Swiper) {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src =
-            "https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js";
-          script.setAttribute("data-swiper-js", "1");
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error("Swiper CDN failed"));
-          document.head.appendChild(script);
-        });
-      }
-
-      // Small delay to ensure DOM is ready
-      setTimeout(() => {
-        initSwiper();
-      }, 100);
-    };
-
-    load().catch(console.error);
+    loadSwiperCDN().then(() => {
+      if (!cancelled) initSwiper();
+    });
 
     return () => {
+      cancelled = true;
       if (swiperInstRef.current) {
         swiperInstRef.current.destroy?.(true, true);
         swiperInstRef.current = null;
       }
     };
-  }, [mounted, initSwiper]);
+  }, [initSwiper]);
 
-  const goPrev = () => {
-    if (swiperInstRef.current) {
-      swiperInstRef.current.slidePrev();
-    }
-  };
+  const goPrev = () => swiperInstRef.current?.slidePrev();
+  const goNext = () => swiperInstRef.current?.slideNext();
 
-  const goNext = () => {
-    if (swiperInstRef.current) {
-      swiperInstRef.current.slideNext();
-    }
-  };
-
-  // Server-side fallback - show loading state
-  if (!mounted) {
-    return (
-      <section className="ea-section" aria-label="Explore Aurexia Categories">
-        <div className="ea-header">
-          <p className="ea-header-eyebrow">
-            <span className="ea-eyebrow-line" />
-            Curated Collections
-            <span className="ea-eyebrow-line" />
-          </p>
-          <h2 className="ea-header-title">
-            Explore <em>Tech4U</em>
-          </h2>
-          <p className="ea-header-sub">
-            Four worlds of luxury. One destination. Yours to discover.
-          </p>
-        </div>
-        <div className="ea-slider-wrap">
-          <div className="ea-loading">
-            <div className="ea-loading-spinner"></div>
-            <p>Loading categories...</p>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
+  /* ── RENDER — No conditional rendering based on mounted.
+     Content is always visible immediately (no skeleton/flash).
+     Swiper enhances it once JS is ready. ── */
   return (
     <section className="ea-section" aria-label="Explore Aurexia Categories">
       {/* Grain */}
@@ -323,8 +293,11 @@ export default function ExploreAurexia() {
                         alt={`${cat.title}${cat.titleItalic}`}
                         fill
                         className="ea-card-img"
+                        priority={
+                          true
+                        } /* All images priority — no lazy stall */
                         sizes="(max-width: 640px) 92vw, (max-width: 1200px) 46vw, 33vw"
-                        quality={90}
+                        quality={85}
                       />
                     ) : (
                       <div

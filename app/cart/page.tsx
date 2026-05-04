@@ -6,14 +6,12 @@ import { useCartStore } from "@/lib/cartStore";
 import "./cart.css";
 import { useCurrency } from "../context/CurrencyContext";
 
-// ✅ Threshold always in PKR — conversion happens only at display time
-const FREE_SHIPPING_THRESHOLD_PKR = 3000;
-const SHIPPING_COST_PKR = 250;
+// ✅ FREE DELIVERY - No shipping charges
+const SHIPPING_COST_PKR = 0;
 
 export default function Cart() {
   const {
     items,
-    loading,
     initialized,
     fetchCart,
     updateQuantity,
@@ -22,45 +20,24 @@ export default function Cart() {
     getCartCount,
   } = useCartStore();
 
-  // ✅ formatPrice: adds currency symbol + already-converted value
-  // ✅ currency: current currency object (code, rate, symbol)
-  // ✅ formatPrice: PKR value in → converted + symbol out (never use convertPrice separately)
   const { formatPrice } = useCurrency();
 
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
 
-  // ✅ Same pattern as CartSidebar & Checkout — fetchCart on mount, no mounted gate
   useEffect(() => {
     fetchCart();
   }, [fetchCart]);
 
-  // ✅ getSubtotal() returns PKR value from cartStore
   const subtotalPKR = getSubtotal();
   const cartCount = getCartCount();
 
-  // ✅ Discount calculation in PKR
+  // Discount calculation in PKR
   const discountPKR = promoApplied ? Math.round(subtotalPKR * 0.1) : 0;
   const afterDiscountPKR = subtotalPKR - discountPKR;
 
-  // ✅ Shipping in PKR
-  const shippingPKR =
-    afterDiscountPKR >= FREE_SHIPPING_THRESHOLD_PKR ? 0 : SHIPPING_COST_PKR;
-
-  // ✅ Total in PKR
-  const totalPKR = afterDiscountPKR + shippingPKR;
-
-  // ✅ Progress bar — percentage only (no currency)
-  const shippingProgress = Math.min(
-    (afterDiscountPKR / FREE_SHIPPING_THRESHOLD_PKR) * 100,
-    100
-  );
-
-  // ✅ Remaining for free shipping — in PKR, then converted for display
-  const remainingPKR = Math.max(
-    0,
-    FREE_SHIPPING_THRESHOLD_PKR - afterDiscountPKR
-  );
+  // ✅ No shipping charges - total = after discount
+  const totalPKR = afterDiscountPKR;
 
   const handlePromo = () => {
     if (promoCode.trim().toLowerCase() === "tech4u10") {
@@ -70,8 +47,6 @@ export default function Cart() {
     }
   };
 
-  // ✅ Show spinner only until cartStore is initialized (loaded from localStorage)
-  // After that, show items immediately — same pattern as CartSidebar & Checkout
   if (!initialized) {
     return (
       <div className="cart-root">
@@ -123,47 +98,26 @@ export default function Cart() {
           </h1>
         </div>
 
-        {/* ✅ Shipping progress bar */}
+        {/* ✅ Free delivery message */}
         {items.length > 0 && (
-          <div
-            className={`cart-ship-bar${
-              shippingPKR === 0 ? " cart-ship-bar--done" : ""
-            }`}
-          >
-            {shippingPKR === 0 ? (
-              <p className="cart-ship-text cart-ship-text--done">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  width="13"
-                  height="13"
-                >
-                  <polyline
-                    points="20 6 9 17 4 12"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                Free shipping unlocked!
-              </p>
-            ) : (
-              <>
-                <p className="cart-ship-text">
-                  Add{" "}
-                  {/* ✅ remainingPKR → formatPrice = correct currency shown */}
-                  <strong>{formatPrice(remainingPKR)}</strong> more for free
-                  shipping
-                </p>
-                <div className="cart-ship-track">
-                  <div
-                    className="cart-ship-fill"
-                    style={{ width: `${shippingProgress}%` }}
-                  />
-                </div>
-              </>
-            )}
+          <div className="cart-ship-bar cart-ship-bar--done">
+            <p className="cart-ship-text cart-ship-text--done">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                width="13"
+                height="13"
+              >
+                <polyline
+                  points="20 6 9 17 4 12"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Free Delivery on all orders!
+            </p>
           </div>
         )}
 
@@ -224,11 +178,7 @@ export default function Cart() {
                   };
 
                   const ppu = item.pieces_per_unit ?? 1;
-
-                  // ✅ itemPricePKR — raw PKR from database
                   const itemPricePKR = item.variant_price ?? product.price ?? 0;
-
-                  // ✅ itemTotalPKR — total in PKR (multiply then convert once)
                   const itemTotalPKR = itemPricePKR * ppu * item.quantity;
                   const totalPieces = ppu * item.quantity;
 
@@ -311,7 +261,6 @@ export default function Cart() {
                           {product.subcategory}
                         </p>
 
-                        {/* ✅ Per-piece price: PKR → formatPrice */}
                         {ppu > 1 && (
                           <p
                             style={{
@@ -401,7 +350,6 @@ export default function Cart() {
                             </button>
                           </div>
 
-                          {/* ✅ Item total: PKR → formatPrice */}
                           <p className="cart-item-price">
                             {formatPrice(itemTotalPKR)}
                           </p>
@@ -449,7 +397,7 @@ export default function Cart() {
               </Link>
             </div>
 
-            {/* ✅ Order Summary — all PKR → formatPrice */}
+            {/* Order Summary with Free Delivery */}
             <div className="cart-summary-col">
               <div className="cart-summary-card">
                 <p className="cart-summary-heading">
@@ -510,31 +458,25 @@ export default function Cart() {
                 <div className="cart-breakdown">
                   <div className="cart-breakdown-row">
                     <span>Subtotal ({cartCount} items)</span>
-                    {/* ✅ subtotalPKR → formatPrice */}
                     <span>{formatPrice(subtotalPKR)}</span>
                   </div>
 
                   {promoApplied && (
                     <div className="cart-breakdown-row cart-breakdown-row--discount">
                       <span>Discount (10%)</span>
-                      {/* ✅ discountPKR → formatPrice */}
                       <span>-{formatPrice(discountPKR)}</span>
                     </div>
                   )}
 
                   <div className="cart-breakdown-row">
-                    <span>Shipping</span>
-                    {/* ✅ shippingPKR → formatPrice */}
-                    <span>
-                      {shippingPKR === 0 ? "Free" : formatPrice(shippingPKR)}
-                    </span>
+                    <span>Delivery</span>
+                    <span className="cart-free-delivery">Free</span>
                   </div>
 
                   <div className="cart-breakdown-divider" />
 
                   <div className="cart-breakdown-row cart-breakdown-row--total">
                     <span>Total</span>
-                    {/* ✅ totalPKR → formatPrice */}
                     <span>{formatPrice(totalPKR)}</span>
                   </div>
                 </div>
@@ -562,6 +504,7 @@ export default function Cart() {
                     { icon: "🔒", label: "Secure Checkout" },
                     { icon: "↩", label: "30-Day Returns" },
                     { icon: "✦", label: "Luxury Packaging" },
+                    { icon: "🚚", label: "Free Delivery" },
                   ].map((b) => (
                     <div key={b.label} className="cart-trust-badge">
                       <span className="cart-trust-icon">{b.icon}</span>

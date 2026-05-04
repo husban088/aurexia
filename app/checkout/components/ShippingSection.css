@@ -69,7 +69,8 @@
   position: relative;
 }
 
-.ss-input {
+.ss-input,
+.ss-select {
   width: 100%;
   background: transparent;
   border: none;
@@ -81,6 +82,15 @@
   letter-spacing: 0.05em;
   color: #1a1a1a;
   caret-color: #daa520;
+}
+
+.ss-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b6914' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0 center;
+  background-size: 14px;
 }
 
 .ss-input::placeholder {

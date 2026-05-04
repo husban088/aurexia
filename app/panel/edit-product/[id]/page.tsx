@@ -620,7 +620,7 @@ function MultiImageUploader({
   );
 }
 
-// ─── Variant Form Item (with Rich Text Description) ─────────────────────────
+// ─── Variant Data Type ───────────────────────────────────────────────────────
 
 interface VariantData {
   id?: string;
@@ -681,6 +681,8 @@ function getAttributeTypeLabel(type: string) {
   };
   return labels[type] || type.charAt(0).toUpperCase() + type.slice(1);
 }
+
+// ─── Variant Form Item ──────────────────────────────────────────────────────
 
 function VariantFormItem({
   attributeType,
@@ -815,7 +817,6 @@ function VariantFormItem({
         className="ap-variant-form-header"
         onClick={() => setExpanded(!expanded)}
       >
-        {/* Attribute Type Label */}
         <span
           style={{
             fontFamily: "var(--ap-sans)",
@@ -834,7 +835,6 @@ function VariantFormItem({
           {getAttributeTypeLabel(attributeType)}
         </span>
 
-        {/* Attribute Value — colored swatch for colors, plain badge for others */}
         {colorStyle ? (
           <span
             style={{
@@ -914,7 +914,6 @@ function VariantFormItem({
             📷 {descriptionImages.length} Desc Images
           </span>
         )}
-        {/* Expand/collapse arrow */}
         <span
           style={{
             marginLeft: "auto",
@@ -977,7 +976,6 @@ function VariantFormItem({
           </div>
         </div>
 
-        {/* ✅ RICH TEXT DESCRIPTION FOR VARIANT WITH IMAGES */}
         <div className="ap-field">
           <label className="ap-label">
             Description (Rich Text with Images)
@@ -1062,7 +1060,9 @@ function AttributeSelector({
     descriptionImages: v.description_images || [],
     stock: v.stock ?? 999999,
     lowStockThreshold: v.low_stock_threshold || null,
-    images: v.images || [],
+    images: (v.variant_images || [])
+      .sort((a: any, b: any) => a.display_order - b.display_order)
+      .map((i: any) => i.image_url),
     stockStatus: detectStockStatus(
       v.stock ?? 999999,
       v.low_stock_threshold ?? null
@@ -1115,12 +1115,12 @@ function AttributeSelector({
     setVariants(variants.filter((v) => v.attributeValue !== valueToRemove));
   };
 
-  const updateVariant = (index: number, data: any) => {
-    const newVariants = [...variants];
-    if (newVariants[index]) {
-      newVariants[index] = { ...newVariants[index], ...data };
-    }
-    setVariants(newVariants);
+  const updateVariant = (attributeValue: string, data: any) => {
+    setVariants(
+      variants.map((v) =>
+        v.attributeValue === attributeValue ? { ...v, ...data } : v
+      )
+    );
   };
 
   const filteredSuggestions = suggestions.filter(
@@ -1138,7 +1138,9 @@ function AttributeSelector({
             className="ap-input"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addValue(inputValue)}
+            onKeyDown={(e) =>
+              e.key === "Enter" && (e.preventDefault(), addValue(inputValue))
+            }
             placeholder={`Add ${label.toLowerCase()}...`}
           />
           <button
@@ -1170,7 +1172,7 @@ function AttributeSelector({
                 attributeType={type}
                 attributeValue={value}
                 initialData={variant}
-                onUpdate={(data) => updateVariant(idx, data)}
+                onUpdate={(data) => updateVariant(value, data)}
                 onRemove={() => removeValue(value)}
                 onError={onError}
                 isFirstItem={idx === 0}
@@ -1183,7 +1185,7 @@ function AttributeSelector({
   );
 }
 
-// ─── Simple Mode Edit Form (with Rich Text Description and Images) ─────────────────────
+// ─── Simple Mode Edit Form ──────────────────────────────────────────────────
 
 function SimpleModeEditForm({
   tab,
@@ -1223,7 +1225,6 @@ function SimpleModeEditForm({
     const pkrPrice = initialVariant?.original_price || 0;
     return pkrPrice ? convertPriceFromPKR(pkrPrice, currency).toFixed(2) : "";
   });
-
   const [condition, setCondition] = useState(
     initialProduct?.condition || "new"
   );
@@ -1246,15 +1247,15 @@ function SimpleModeEditForm({
 
   const [images, setImages] = useState<string[]>(initialImages);
   const [faqs, setFaqs] = useState<FAQ[]>(initialFaqs);
-  const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>(() => {
-    return initialBulkTiers.map((tier: BulkPricingTier) => ({
+  const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>(() =>
+    initialBulkTiers.map((tier: BulkPricingTier) => ({
       ...tier,
       tier_price: convertPriceFromPKR(tier.tier_price, currency),
       discount_price: tier.discount_price
         ? convertPriceFromPKR(tier.discount_price, currency)
         : null,
-    }));
-  });
+    }))
+  );
 
   const [uploading, setUploading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -1313,7 +1314,7 @@ function SimpleModeEditForm({
 
     setIsUpdating(true);
 
-    // 1. Update product with description and description_images
+    // 1. Update product
     const { error: productError } = await supabase
       .from("products")
       .update({
@@ -1337,7 +1338,7 @@ function SimpleModeEditForm({
       return;
     }
 
-    // 2. Update or create variant with description_images
+    // 2. Update or create variant
     let variantId = initialVariant?.id;
     const pricePKR = getPriceInPKR(priceDisplay);
     const originalPricePKR = originalPriceDisplay
@@ -1404,13 +1405,15 @@ function SimpleModeEditForm({
     // 3. Update images
     await supabase.from("variant_images").delete().eq("variant_id", variantId);
     if (images.length > 0) {
-      const { error: imgErr } = await supabase.from("variant_images").insert(
-        images.map((url, idx) => ({
-          variant_id: variantId,
-          image_url: url,
-          display_order: idx,
-        }))
-      );
+      const { error: imgErr } = await supabase
+        .from("variant_images")
+        .insert(
+          images.map((url, idx) => ({
+            variant_id: variantId,
+            image_url: url,
+            display_order: idx,
+          }))
+        );
       if (imgErr) console.error("Image save error:", imgErr);
     }
 
@@ -1517,8 +1520,8 @@ function SimpleModeEditForm({
                 </div>
               </div>
 
-              {/* ✅ RICH TEXT DESCRIPTION WITH IMAGES */}
               <div className="ap-field">
+                <label className="ap-label">Product Description</label>
                 <ProductDescription
                   value={description}
                   onChange={handleDescriptionChange}
@@ -1805,7 +1808,7 @@ function SimpleModeEditForm({
   );
 }
 
-// ─── Detailed Mode Edit Form (with Rich Text Description for each variant) ──
+// ─── Detailed Mode Edit Form ─────────────────────────────────────────────────
 
 function DetailedModeEditForm({
   tab,
@@ -1940,7 +1943,7 @@ function DetailedModeEditForm({
 
     setIsUpdating(true);
 
-    // 1. Update product with description and description_images
+    // 1. Update product
     const { error: productError } = await supabase
       .from("products")
       .update({
@@ -1964,11 +1967,12 @@ function DetailedModeEditForm({
       return;
     }
 
-    // 2. Delete existing variants
+    // 2. Delete existing variants and their related data
     const { data: existingVariants } = await supabase
       .from("product_variants")
       .select("id")
       .eq("product_id", productId);
+
     if (existingVariants && existingVariants.length > 0) {
       const variantIds = existingVariants.map((v) => v.id);
       await supabase
@@ -1985,7 +1989,7 @@ function DetailedModeEditForm({
         .eq("product_id", productId);
     }
 
-    // 3. Insert new variants with description_images
+    // 3. Insert new variants
     for (const variant of allVariants) {
       const pricePKR = getPriceInPKR(variant.price);
       const originalPricePKR = variant.originalPrice
@@ -2106,8 +2110,8 @@ function DetailedModeEditForm({
                 />
               </div>
 
-              {/* ✅ RICH TEXT DESCRIPTION FOR MAIN PRODUCT WITH IMAGES */}
               <div className="ap-field">
+                <label className="ap-label">Product Description</label>
                 <ProductDescription
                   value={description}
                   onChange={handleDescriptionChange}
@@ -2358,7 +2362,7 @@ function DetailedModeEditForm({
   );
 }
 
-// ─── Main Edit Product Page ─────────────────────────────────────────────────
+// ─── Main Edit Product Page ──────────────────────────────────────────────────
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -2495,6 +2499,7 @@ export default function EditProductPage() {
           }));
           setVariantsData(processedVariants);
         }
+
         if (prod) {
           const tabIdx = TABS.findIndex(
             (t) => t.category === prod.category && t.sub === prod.subcategory
@@ -2560,11 +2565,9 @@ export default function EditProductPage() {
       "Product Updated",
       `${productData.name || "Product"} has been updated successfully in ${
         currency.code
-      }! Product will be updated in the list.`
+      }!`
     );
-    setTimeout(() => {
-      router.push("/panel");
-    }, 1500);
+    setTimeout(() => router.push("/panel"), 1500);
   };
 
   const handleDelete = async () => {
@@ -2613,7 +2616,15 @@ export default function EditProductPage() {
       <PanelNavbar />
 
       <div className="ap-content">
-        <div className="ap-page-header" style={{ position: "relative" }}>
+        {/* ── Page Header ── */}
+        <div
+          className="ap-page-header"
+          style={{
+            position: "relative",
+            textAlign: "center",
+            marginBottom: "2.5rem",
+          }}
+        >
           <Link
             href="/panel"
             style={{
@@ -2652,11 +2663,11 @@ export default function EditProductPage() {
           <div>
             <p className="ap-eyebrow">
               <span className="ap-ey-line" />
-              Inventory Management - {currency.code}
+              Inventory Management — {currency.code}
               <span className="ap-ey-line" />
             </p>
             <h1 className="ap-page-title">
-              Edit <em>{productData.name || "Product"}</em> in {currency.code}
+              Edit <em>{productData.name || "Product"}</em>
             </h1>
             <p className="ap-page-sub">
               Update product information, images, and specifications
@@ -2702,6 +2713,7 @@ export default function EditProductPage() {
           </button>
         </div>
 
+        {/* ── Mode Buttons ── */}
         <div className="ap-mode-buttons">
           <button
             type="button"
@@ -2720,7 +2732,7 @@ export default function EditProductPage() {
             </svg>
             Simple Mode
             <br />
-            <span>Just product images</span>
+            <span>Single product with images</span>
           </button>
           <button
             type="button"
@@ -2744,6 +2756,7 @@ export default function EditProductPage() {
           </button>
         </div>
 
+        {/* ── Category Tabs ── */}
         <div className="ap-tabs">
           {TABS.map((t, i) => (
             <button
@@ -2757,6 +2770,7 @@ export default function EditProductPage() {
           ))}
         </div>
 
+        {/* ── Form ── */}
         {mode === "simple" ? (
           <SimpleModeEditForm
             key={`simple-${activeTab}`}

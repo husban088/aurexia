@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useCartStore } from "@/lib/cartStore";
 import "@/app/styles/product-grid.css";
 import { useCurrency } from "../context/CurrencyContext";
+import FilterSidebar from "@/app/components/ProductGridFilters";
+import "@/app/styles/grid-controls.css";
 
 export interface Product {
   id: string;
@@ -61,6 +63,88 @@ interface ProductGridProps {
   onQuickView?: (productId: string) => void;
 }
 
+// ─── MODULE-LEVEL CACHE ──────────────────────────────────────────────────────
+const MODULE_CACHE: Record<string, ExtendedProduct[]> = {};
+const FETCH_IN_FLIGHT: Record<string, Promise<ExtendedProduct[]>> = {};
+
+function cacheKey(
+  category: string,
+  subcategory?: string,
+  limit?: number,
+  featured?: boolean
+) {
+  return `${category}|${subcategory ?? ""}|${limit ?? ""}|${
+    featured ? "1" : "0"
+  }`;
+}
+
+// ─── Prefetch all common category combinations ───────────────────────────────
+const ALL_CATEGORIES = ["Accessories", "Watches", "Automotive", "Home Decor"];
+const ALL_SUBCATEGORIES: Record<string, string[]> = {
+  Accessories: [
+    "Chargers",
+    "Cables",
+    "Phone Holders",
+    "Tech Gadgets",
+    "Smart Accessories",
+  ],
+  Watches: ["Men Watches", "Women Watches", "Smart Watches", "Luxury Watches"],
+  Automotive: [
+    "Car Accessories",
+    "Car Cleaning Tools",
+    "Phone Holders",
+    "Interior Accessories",
+  ],
+  "Home Decor": [
+    "Wall Decor",
+    "Lighting",
+    "Kitchen Essentials",
+    "Storage Organizers",
+  ],
+};
+
+function prefetchAllProductGridData() {
+  ALL_CATEGORIES.forEach((category) => {
+    ensureCategoryCached(category, undefined, undefined, false);
+    ensureCategoryCached(category, undefined, undefined, true);
+    const subcats = ALL_SUBCATEGORIES[category] || [];
+    subcats.forEach((subcat) => {
+      ensureCategoryCached(category, subcat, undefined, false);
+    });
+  });
+}
+
+async function ensureCategoryCached(
+  category: string,
+  subcategory?: string,
+  limit?: number,
+  featured?: boolean
+): Promise<ExtendedProduct[]> {
+  const key = cacheKey(category, subcategory, limit, featured);
+
+  if (MODULE_CACHE[key]) {
+    return MODULE_CACHE[key];
+  }
+
+  const inFlight = FETCH_IN_FLIGHT[key];
+  if (inFlight) {
+    return await inFlight;
+  }
+
+  const promise = fetchProductsWithVariants(
+    category,
+    subcategory,
+    limit,
+    featured
+  );
+  FETCH_IN_FLIGHT[key] = promise;
+
+  const data = await promise;
+  MODULE_CACHE[key] = data;
+  delete FETCH_IN_FLIGHT[key];
+  return data;
+}
+
 const truncateProductName = (name: string, maxLength: number = 45): string => {
   if (name.length <= maxLength) return name;
   return name.substring(0, maxLength).trim() + "...";
@@ -91,13 +175,12 @@ const getStockClass = (status: "in_stock" | "out_of_stock" | "low_stock") => {
   return "in";
 };
 
-// FAST fetch function with all variants and images
 async function fetchProductsWithVariants(
   category: string,
   subcategory?: string,
   limit?: number,
   featured?: boolean
-) {
+): Promise<ExtendedProduct[]> {
   let query = supabase
     .from("products")
     .select("*, product_variants(*, variant_images(*))")
@@ -120,7 +203,7 @@ async function fetchProductsWithVariants(
     capacity: 4,
   };
 
-  return data.map((item: any) => {
+  const result = data.map((item: any) => {
     const variants = (item.product_variants || []).map((variant: any) => {
       const variantImages = (variant.variant_images || [])
         .sort((a: any, b: any) => a.display_order - b.display_order)
@@ -188,9 +271,10 @@ async function fetchProductsWithVariants(
       variantImagesMap,
     };
   });
+
+  return result;
 }
 
-// Variant selector component for product grid
 function VariantThumbnails({
   variants,
   type,
@@ -284,7 +368,6 @@ function VariantThumbnails({
   );
 }
 
-// Loading Spinner Component
 function LoadingSpinner({ size = 18 }: { size?: number }) {
   return (
     <div
@@ -302,7 +385,49 @@ function LoadingSpinner({ size = 18 }: { size?: number }) {
   );
 }
 
-// Product Card Component with Variant Support - FIXED HOVER IMAGE
+function SkeletonCard() {
+  return (
+    <div
+      className="pg-card"
+      style={{
+        pointerEvents: "none",
+        animation: "pg-skeleton-pulse 1.4s ease-in-out infinite",
+      }}
+    >
+      <div
+        className="pg-card-img"
+        style={{ background: "rgba(0,0,0,0.06)", borderRadius: 8 }}
+      />
+      <div className="pg-card-body" style={{ gap: 10 }}>
+        <div
+          style={{
+            height: 12,
+            width: "40%",
+            background: "rgba(0,0,0,0.06)",
+            borderRadius: 4,
+          }}
+        />
+        <div
+          style={{
+            height: 16,
+            width: "80%",
+            background: "rgba(0,0,0,0.08)",
+            borderRadius: 4,
+          }}
+        />
+        <div
+          style={{
+            height: 14,
+            width: "55%",
+            background: "rgba(218,165,32,0.15)",
+            borderRadius: 4,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function ProductCardComponent({
   productData,
   onQuickView,
@@ -383,21 +508,12 @@ function ProductCardComponent({
     setIsHovered(false);
   };
 
-  // ✅ FIXED: Hover handlers for image switching
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-  };
+  const handleMouseEnter = () => setIsHovered(true);
+  const handleMouseLeave = () => setIsHovered(false);
 
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-  };
-
-  // Get current display image - show second image on hover if available
   const getDisplayImage = () => {
     if (currentImages.length === 0) return null;
-    if (isHovered && currentImages.length > 1) {
-      return currentImages[1];
-    }
+    if (isHovered && currentImages.length > 1) return currentImages[1];
     return currentImages[0];
   };
 
@@ -442,8 +558,6 @@ function ProductCardComponent({
 
   const truncatedName = truncateProductName(productData.name, 45);
 
-  // ✅ FIXED: PKR prices from DB → formatPrice = correct currency display
-  // formatPrice internally does pkrValue * rate, no double conversion
   const displaySalePrice = selectedVariant
     ? formatPrice(selectedVariant.price)
     : formatPrice(productData.price);
@@ -504,8 +618,6 @@ function ProductCardComponent({
       original_price:
         selectedVariant?.original_price || productData.original_price,
       stock: currentStock,
-      low_stock_threshold:
-        selectedVariant?.low_stock_threshold || productData.low_stock_threshold,
       stockStatus: stockStatus,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -538,7 +650,14 @@ function ProductCardComponent({
         onMouseLeave={handleMouseLeave}
       >
         {displayImage ? (
-          <img src={displayImage} alt={productData.name} loading="eager" />
+          <img
+            src={displayImage}
+            alt={productData.name}
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
         ) : (
           <div className="pg-card-placeholder">
             <svg
@@ -653,20 +772,11 @@ function ProductCardComponent({
         </div>
       </div>
       <div className="pg-card-line" />
-      <style jsx>{`
-        @keyframes pg-spin {
-          0% {
-            transform: rotate(0deg);
-          }
-          100% {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </div>
   );
 }
 
+// ─── Main ProductGrid Component ───────────────────────────────────────────────
 export default function ProductGrid({
   category,
   subcategory,
@@ -674,37 +784,173 @@ export default function ProductGrid({
   featured = false,
   onQuickView,
 }: ProductGridProps) {
-  const [products, setProducts] = useState<ExtendedProduct[]>([]);
-  const [loading, setLoading] = useState(false);
+  const key = cacheKey(category, subcategory, limit, featured);
+
+  // ✅ FIX: Store FETCH_IN_FLIGHT[key] in a variable to avoid TypeScript error
+  const hasInFlight = !!FETCH_IN_FLIGHT[key];
+
+  const [products, setProducts] = useState<ExtendedProduct[]>(
+    () => MODULE_CACHE[key] ?? []
+  );
+  const [loading, setLoading] = useState(() => {
+    if (MODULE_CACHE[key]) return false;
+    if (hasInFlight) return true;
+    return true;
+  });
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
+  const [columns, setColumns] = useState(4);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedFilters, setSelectedFilters] = useState({
+    category: "All",
+    subcategory: "All",
+    color: "All",
+    size: "All",
+    capacity: "All",
+    material: "All",
+  });
   const { formatPrice } = useCurrency();
   const { addToCart } = useCartStore();
 
   useEffect(() => {
-    let active = true;
+    setTimeout(() => {
+      prefetchAllProductGridData();
+    }, 100);
+  }, []);
 
-    async function loadProducts() {
-      const data = await fetchProductsWithVariants(
-        category,
-        subcategory,
-        limit,
-        featured
-      );
-      if (active) {
-        setProducts(data);
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadData() {
+      if (MODULE_CACHE[key]) {
+        setProducts(MODULE_CACHE[key]);
         setLoading(false);
+        return;
+      }
+
+      const inFlightPromise = FETCH_IN_FLIGHT[key];
+      if (inFlightPromise) {
+        const data = await inFlightPromise;
+        if (isMounted) {
+          setProducts(data);
+          setLoading(false);
+        }
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const data = await ensureCategoryCached(
+          category,
+          subcategory,
+          limit,
+          featured
+        );
+        if (isMounted) {
+          setProducts(data);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error loading products:", err);
+        if (isMounted) setLoading(false);
       }
     }
 
-    loadProducts();
+    loadData();
     return () => {
-      active = false;
+      isMounted = false;
     };
-  }, [category, subcategory, limit, featured]);
+  }, [key, category, subcategory, limit, featured]);
+
+  const getFilterOptions = useMemo(() => {
+    const categories = new Set<string>();
+    const subcategories = new Set<string>();
+    const colors = new Set<string>();
+    const sizes = new Set<string>();
+    const capacities = new Set<string>();
+    const materials = new Set<string>();
+
+    products.forEach((product) => {
+      categories.add(product.category);
+      subcategories.add(product.subcategory);
+
+      product.variants?.forEach((variant) => {
+        if (variant.attribute_type === "color")
+          colors.add(variant.attribute_value);
+        if (variant.attribute_type === "size")
+          sizes.add(variant.attribute_value);
+        if (variant.attribute_type === "capacity")
+          capacities.add(variant.attribute_value);
+        if (variant.attribute_type === "material")
+          materials.add(variant.attribute_value);
+      });
+    });
+
+    return {
+      categories: Array.from(categories).sort(),
+      subcategories: Array.from(subcategories).sort(),
+      colors: Array.from(colors).sort(),
+      sizes: Array.from(sizes).sort(),
+      capacities: Array.from(capacities).sort(),
+      materials: Array.from(materials).sort(),
+    };
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    let filtered = [...products];
+
+    if (selectedFilters.category !== "All") {
+      filtered = filtered.filter(
+        (p) => p.category === selectedFilters.category
+      );
+    }
+    if (selectedFilters.subcategory !== "All") {
+      filtered = filtered.filter(
+        (p) => p.subcategory === selectedFilters.subcategory
+      );
+    }
+    if (selectedFilters.color !== "All") {
+      filtered = filtered.filter((p) =>
+        p.variants?.some(
+          (v) =>
+            v.attribute_type === "color" &&
+            v.attribute_value === selectedFilters.color
+        )
+      );
+    }
+    if (selectedFilters.size !== "All") {
+      filtered = filtered.filter((p) =>
+        p.variants?.some(
+          (v) =>
+            v.attribute_type === "size" &&
+            v.attribute_value === selectedFilters.size
+        )
+      );
+    }
+    if (selectedFilters.capacity !== "All") {
+      filtered = filtered.filter((p) =>
+        p.variants?.some(
+          (v) =>
+            v.attribute_type === "capacity" &&
+            v.attribute_value === selectedFilters.capacity
+        )
+      );
+    }
+    if (selectedFilters.material !== "All") {
+      filtered = filtered.filter((p) =>
+        p.variants?.some(
+          (v) =>
+            v.attribute_type === "material" &&
+            v.attribute_value === selectedFilters.material
+        )
+      );
+    }
+
+    return filtered;
+  }, [products, selectedFilters]);
 
   const filteredAndSorted = useMemo(() => {
-    let filtered = [...products];
+    let filtered = [...filteredProducts];
     if (search) {
       const s = search.toLowerCase();
       filtered = filtered.filter(
@@ -733,7 +979,43 @@ export default function ProductGrid({
         );
     }
     return filtered;
-  }, [products, search, sort]);
+  }, [filteredProducts, search, sort]);
+
+  const handleFilterChange = (filterType: string, value: string) => {
+    setSelectedFilters((prev) => ({ ...prev, [filterType]: value }));
+  };
+
+  const handleClearAllFilters = () => {
+    setSelectedFilters({
+      category: "All",
+      subcategory: "All",
+      color: "All",
+      size: "All",
+      capacity: "All",
+      material: "All",
+    });
+  };
+
+  const activeFilterCount = Object.values(selectedFilters).filter(
+    (v) => v !== "All"
+  ).length;
+
+  if (loading && products.length === 0) {
+    const skeletonCount = limit ?? 8;
+    return (
+      <>
+        <style>{`
+          @keyframes pg-spin { to { transform: rotate(360deg); } }
+          @keyframes pg-skeleton-pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        `}</style>
+        <div className="pg-grid">
+          {Array.from({ length: skeletonCount }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      </>
+    );
+  }
 
   if (filteredAndSorted.length === 0 && products.length > 0) {
     return (
@@ -759,46 +1041,132 @@ export default function ProductGrid({
     );
   }
 
+  if (products.length === 0 && !loading) {
+    return (
+      <div className="pg-empty">
+        <div className="pg-empty-icon">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
+        </div>
+        <p className="pg-empty-title">No products found</p>
+        <p className="pg-empty-sub">Check back soon for new arrivals</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <style>{`@keyframes pg-spin { to { transform: rotate(360deg); } }`}</style>
       {!limit && (
-        <div className="pg-toolbar">
-          <div className="pg-search-wrap">
-            <svg
-              className="pg-search-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
-            <input
-              className="pg-search"
-              placeholder={`Search ${subcategory || category}...`}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+        <>
+          <div className="grid-controls-bar">
+            <div className="grid-controls-left">
+              <button
+                className="filter-trigger"
+                onClick={() => setIsFilterOpen(true)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <polygon points="22 3 2 3 10 13 10 21 14 18 14 13 22 3" />
+                </svg>
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="filter-active-dot" />
+                )}
+              </button>
+
+              <div className="per-row-selector">
+                <button
+                  className={`per-row-btn ${columns === 2 ? "active" : ""}`}
+                  onClick={() => setColumns(2)}
+                  data-tooltip="2 columns"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <rect x="3" y="3" width="8" height="18" rx="1" />
+                    <rect x="13" y="3" width="8" height="18" rx="1" />
+                  </svg>
+                </button>
+                <button
+                  className={`per-row-btn ${columns === 3 ? "active" : ""}`}
+                  onClick={() => setColumns(3)}
+                  data-tooltip="3 columns"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <rect x="2" y="3" width="6" height="18" rx="1" />
+                    <rect x="9" y="3" width="6" height="18" rx="1" />
+                    <rect x="16" y="3" width="6" height="18" rx="1" />
+                  </svg>
+                </button>
+                <button
+                  className={`per-row-btn ${columns === 4 ? "active" : ""}`}
+                  onClick={() => setColumns(4)}
+                  data-tooltip="4 columns"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <rect x="1" y="3" width="5" height="18" rx="1" />
+                    <rect x="7" y="3" width="5" height="18" rx="1" />
+                    <rect x="13" y="3" width="5" height="18" rx="1" />
+                    <rect x="19" y="3" width="4" height="18" rx="1" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid-controls-right">
+              <select
+                className="grid-sort-select"
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+              >
+                <option value="newest">Newest First</option>
+                <option value="price-asc">Price: Low → High</option>
+                <option value="price-desc">Price: High → Low</option>
+                <option value="featured">Featured First</option>
+              </select>
+              <span className="grid-result-count">
+                <em>{filteredAndSorted.length}</em>{" "}
+                {filteredAndSorted.length === 1 ? "item" : "items"}
+              </span>
+            </div>
           </div>
-          <select
-            className="pg-sort-select"
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-          >
-            <option value="newest">Newest First</option>
-            <option value="price-asc">Price: Low → High</option>
-            <option value="price-desc">Price: High → Low</option>
-            <option value="featured">Featured First</option>
-          </select>
-          <span className="pg-count">
-            <em>{filteredAndSorted.length}</em>{" "}
-            {filteredAndSorted.length === 1 ? "item" : "items"}
-          </span>
-        </div>
+
+          <FilterSidebar
+            isOpen={isFilterOpen}
+            onClose={() => setIsFilterOpen(false)}
+            filters={getFilterOptions}
+            selectedFilters={selectedFilters}
+            onFilterChange={handleFilterChange}
+            onClearAll={handleClearAllFilters}
+          />
+        </>
       )}
-      <div className="pg-grid">
+      <div className={`pg-grid pg-grid--cols-${columns}`}>
         {filteredAndSorted.map((product) => (
           <ProductCardComponent
             key={product.id}

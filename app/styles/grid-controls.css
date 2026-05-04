@@ -1,0 +1,226 @@
+/* ============================================================
+   GRID CONTROLS - Products Per Row & Sorting
+   ============================================================ */
+
+/* Grid Controls Bar */
+.grid-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(218, 165, 32, 0.12);
+}
+
+.grid-controls-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Filter Trigger Button */
+.filter-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 1.2rem;
+  background: rgba(218, 165, 32, 0.06);
+  border: 1px solid rgba(218, 165, 32, 0.2);
+  border-radius: 40px;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8b6914;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.filter-trigger:hover {
+  background: rgba(218, 165, 32, 0.12);
+  border-color: #daa520;
+  transform: translateY(-2px);
+}
+
+.filter-trigger svg {
+  width: 14px;
+  height: 14px;
+}
+
+.filter-active-dot {
+  width: 8px;
+  height: 8px;
+  background: #daa520;
+  border-radius: 50%;
+  animation: filterPulse 1.5s ease-in-out infinite;
+}
+
+/* Products Per Row Selector */
+.per-row-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(218, 165, 32, 0.04);
+  border: 1px solid rgba(218, 165, 32, 0.12);
+  border-radius: 40px;
+  padding: 0.2rem;
+}
+
+.per-row-btn {
+  width: 38px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 40px;
+  cursor: pointer;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #999;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.per-row-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+}
+
+.per-row-btn:hover {
+  color: #8b6914;
+  background: rgba(218, 165, 32, 0.1);
+}
+
+.per-row-btn.active {
+  background: #daa520;
+  color: #1a1a1a;
+  box-shadow: 0 2px 8px rgba(218, 165, 32, 0.3);
+}
+
+/* Tooltip */
+.per-row-btn::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a1a;
+  color: #daa520;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.per-row-btn:hover::before {
+  opacity: 1;
+  visibility: visible;
+  bottom: -38px;
+}
+
+/* Sort Select */
+.grid-sort-select {
+  padding: 0.7rem 2.2rem 0.7rem 1.2rem;
+  background: white;
+  border: 1px solid rgba(218, 165, 32, 0.2);
+  border-radius: 40px;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #444;
+  cursor: pointer;
+  outline: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23daa520' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 12px;
+  appearance: none;
+  transition: all 0.3s ease;
+}
+
+.grid-sort-select:hover {
+  border-color: #daa520;
+}
+
+.grid-sort-select:focus {
+  border-color: #daa520;
+  box-shadow: 0 0 0 3px rgba(218, 165, 32, 0.1);
+}
+
+/* Result Count */
+.grid-result-count {
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: #999;
+}
+
+.grid-result-count em {
+  color: #8b6914;
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* Dynamic Grid Classes */
+.pg-grid--cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.pg-grid--cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.pg-grid--cols-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* Responsive Grid */
+@media (max-width: 1024px) {
+  .pg-grid--cols-4 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .grid-controls-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .grid-controls-left {
+    justify-content: space-between;
+  }
+
+  .per-row-selector {
+    display: none;
+  }
+
+  .pg-grid--cols-4,
+  .pg-grid--cols-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .pg-grid--cols-4,
+  .pg-grid--cols-3,
+  .pg-grid--cols-2 {
+    grid-template-columns: 1fr;
+  }
+}
