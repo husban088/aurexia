@@ -611,7 +611,7 @@ export const useCartStore = create<CartStore>()(
                 }
               }, 0);
 
-              resolve(true);
+              resolve();
             } catch (err) {
               reject(err);
             }
