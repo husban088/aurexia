@@ -1180,3 +1180,75 @@
 html {
   scroll-behavior: smooth;
 }
+
+/* ── Left Section - Brand with 3D Effect ── */
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.footer-logo-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.footer-logo-3d {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Logo Image Styling */
+.footer-logo-img {
+  height: 45px;
+  width: auto;
+  max-width: 136px;
+  object-fit: contain;
+  transition: all 0.4s var(--footer-ease-bounce);
+  filter: drop-shadow(0 0 10px rgba(218, 165, 32, 0.3));
+}
+
+.footer-logo-3d:hover .footer-logo-img {
+  transform: scale(1.05);
+  filter: drop-shadow(0 0 20px rgba(218, 165, 32, 0.6));
+}
+
+/* Old text logo styles - REMOVE OR COMMENT OUT */
+/* .footer-logo-tech, .footer-logo-four ko comment kar do ya hata do */
+
+.footer-logo-gold-ring {
+  position: absolute;
+  right: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  color: var(--footer-gold);
+  animation: ringRotate 4s linear infinite;
+}
+
+@media (max-width: 768px) {
+  .footer-logo-img {
+    height: 48px;
+    max-width: 180px;
+  }
+
+  .footer-logo-gold-ring {
+    right: -25px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer-logo-img {
+    height: 42px;
+    max-width: 160px;
+  }
+
+  .footer-logo-gold-ring {
+    right: -20px;
+    font-size: 0.9rem;
+  }
+}

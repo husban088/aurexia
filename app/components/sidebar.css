@@ -605,3 +605,43 @@
   border-left-color: rgba(218, 165, 32, 0.5);
   padding-left: 2rem;
 }
+
+/* Logo inside sidebar */
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  gap: 0.5rem;
+
+  /* Staggered entry animation when open */
+  opacity: 0;
+  transform: translateX(20px);
+  transition: opacity 0.4s ease 0.25s, transform 0.4s ease 0.25s;
+}
+
+.sidebar.open .sidebar-logo {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Logo Image Styling */
+.sidebar-logo-img {
+  height: 38px;
+  width: auto;
+  max-width: 125px;
+  object-fit: contain;
+  transition: all 0.3s ease;
+}
+
+.sidebar-logo:hover .sidebar-logo-img {
+  transform: scale(1.05);
+  filter: drop-shadow(0 0 6px rgba(218, 165, 32, 0.4));
+}
+
+/* Responsive adjustments for sidebar logo */
+@media (max-width: 480px) {
+  .sidebar-logo-img {
+    height: 32px;
+    max-width: 110px;
+  }
+}

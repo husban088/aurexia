@@ -239,8 +239,11 @@ export default function Footer() {
         <div className="footer-brand">
           <div className="footer-logo-wrapper">
             <div className="footer-logo-3d">
-              <span className="footer-logo-tech">TECH</span>
-              <span className="footer-logo-four">4U</span>
+              <img
+                src="/footer__logo.png"
+                alt="TECH4U Luxury Store"
+                className="footer-logo-img"
+              />
             </div>
             <div className="footer-logo-gold-ring">
               <GiLaurelCrown />

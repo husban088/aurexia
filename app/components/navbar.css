@@ -764,3 +764,90 @@ button,
   opacity: 0.7;
   pointer-events: none;
 }
+
+/* ========== CENTER SECTION - LOGO ========== */
+.navbar-center {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  position: relative;
+  transition: transform 0.3s ease;
+}
+
+.navbar-logo:hover {
+  transform: scale(1.02);
+}
+
+/* Logo Image Styling */
+.navbar-logo-img {
+  height: 40px;
+  width: auto;
+  max-width: 160px;
+  object-fit: contain;
+  transition: all 0.3s ease;
+}
+
+.navbar-logo:hover .navbar-logo-img {
+  filter: drop-shadow(0 0 8px rgba(218, 165, 32, 0.3));
+}
+
+/* Gold underline animation on hover */
+.navbar-logo::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #daa520,
+    #f0c040,
+    #daa520,
+    transparent
+  );
+  transform: scaleX(0);
+  transition: transform 0.5s ease;
+}
+
+.navbar-logo:hover::after {
+  transform: scaleX(1);
+}
+
+/* Old text logo styles - REMOVE OR COMMENT OUT */
+/* .logo-tech, .logo-four, .logo-luxury ko comment kar do ya hata do */
+
+/* Tablet & Mobile */
+@media (max-width: 900px) {
+  .navbar-logo-img {
+    height: 38px;
+    max-width: 150px;
+  }
+
+  .logo-luxury {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .navbar-logo-img {
+    height: 32px;
+    max-width: 130px;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar-logo-img {
+    height: 25px;
+    max-width: 90px;
+  }
+}

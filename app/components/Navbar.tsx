@@ -163,10 +163,21 @@ export default function Navbar({
     return (
       <nav className="navbar">
         <div className="navbar-container">
+          {/* CENTER — Logo */}
           <div className="navbar-center">
-            <a href="/" className="navbar-logo">
-              <span className="logo-tech">TECH</span>
-              <span className="logo-four">4U</span>
+            <a
+              href="/"
+              className="navbar-logo"
+              onClick={(e) => {
+                e.preventDefault();
+                navigateTo("/");
+              }}
+            >
+              <img
+                src="nav__logo.png"
+                alt="TECH4U"
+                className="navbar-logo-img"
+              />
             </a>
           </div>
         </div>
@@ -268,6 +279,8 @@ export default function Navbar({
         </div>
 
         {/* CENTER — Logo */}
+        {/* CENTER — Logo */}
+        {/* CENTER — Logo */}
         <div className="navbar-center">
           <a
             href="/"
@@ -277,8 +290,11 @@ export default function Navbar({
               navigateTo("/");
             }}
           >
-            <span className="logo-tech">TECH</span>
-            <span className="logo-four">4U</span>
+            <img
+              src="/nav__logo.png"
+              alt="TECH4U Logo"
+              className="navbar-logo-img"
+            />
           </a>
         </div>
 

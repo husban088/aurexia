@@ -245,18 +245,20 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
+        {/* Header */}
         <div className="sidebar-header">
-          {/* ✅ Logo — Next.js Link, instant navigation */}
+          {/* ✅ Logo — Next.js Link with Image, instant navigation */}
           <Link
             href="/"
             className="sidebar-logo"
             onClick={onClose}
             prefetch={true}
           >
-            <span className="sidebar-logo-text">
-              <span className="sidebar-logo-tech">TECH</span>
-              <span className="sidebar-logo-four">4U</span>
-            </span>
+            <img
+              src="/nav__logo.png"
+              alt="TECH4U"
+              className="sidebar-logo-img"
+            />
           </Link>
 
           <button
