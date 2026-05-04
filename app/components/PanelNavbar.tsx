@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isOwner } from "@/lib/checkOwner";
@@ -13,6 +13,8 @@ interface PanelNavbarProps {
   cartCount?: number;
   productCount?: number;
 }
+
+// app/panel/components/PanelNavbar.tsx - Add orders to panelLinks array
 
 const panelLinks = [
   {
@@ -36,7 +38,7 @@ const panelLinks = [
   {
     href: "/panel/add-product",
     label: "Add Product",
-    exact: true,
+    exact: false,
     add: true,
     icon: (
       <svg
@@ -50,6 +52,7 @@ const panelLinks = [
       </svg>
     ),
   },
+  // ✅ ADD THIS NEW ORDERS LINK
   {
     href: "/panel/orders",
     label: "Orders",
@@ -61,9 +64,9 @@ const panelLinks = [
         stroke="currentColor"
         strokeWidth="1.5"
       >
-        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-        <line x1="3" y1="6" x2="21" y2="6" />
-        <path d="M16 10a4 4 0 01-8 0" />
+        <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
+        <path d="M16 3H8l-2 4h12l-2-4z" />
+        <line x1="3" y1="11" x2="21" y2="11" />
       </svg>
     ),
   },
@@ -112,20 +115,14 @@ export default function PanelNavbar({
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
-  const isActive = (href: string, exact: boolean = false) => {
-    if (exact) {
-      return pathname === href;
-    }
-    if (href === "/panel/products") {
-      return (
-        pathname === "/panel/products" ||
-        pathname?.startsWith("/panel/products/")
-      );
-    }
-    return pathname?.startsWith(href) && href !== "/panel/add-product";
+  const isActive = (href: string, exact: boolean) => {
+    if (exact) return pathname === href;
+    return pathname?.startsWith(href) || false;
   };
 
+  // Check if user is authorized (owner)
   useEffect(() => {
     let isMounted = true;
 
@@ -139,7 +136,9 @@ export default function PanelNavbar({
         if (!isMounted) return;
 
         if (error || !user) {
+          console.log("No user found in PanelNavbar");
           setIsAuthorized(false);
+          // Redirect to signin if not authorized
           window.location.href = "/signin?redirectTo=/panel";
           return;
         }
@@ -148,6 +147,7 @@ export default function PanelNavbar({
         const isUserOwner = isOwner(userEmail);
 
         if (!isUserOwner) {
+          console.log("User is not owner in PanelNavbar");
           setIsAuthorized(false);
           window.location.href = "/";
           return;
@@ -162,9 +162,11 @@ export default function PanelNavbar({
 
     checkAuth();
 
+    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state change in PanelNavbar:", event);
       if (event === "SIGNED_OUT" || !session) {
         setIsAuthorized(false);
         window.location.href = "/signin?redirectTo=/panel";
@@ -185,13 +187,20 @@ export default function PanelNavbar({
 
     try {
       await supabase.auth.signOut();
+      // Clear all storage
       localStorage.clear();
       sessionStorage.clear();
+      // Redirect to home
       window.location.href = "/";
     } catch (err) {
       console.error("Sign out error:", err);
       window.location.href = "/";
     }
+  };
+
+  const handleBackToSite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    window.location.href = "/";
   };
 
   useEffect(() => {
@@ -201,10 +210,12 @@ export default function PanelNavbar({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Don't render if not authorized
   if (!isAuthorized && mounted) {
     return null;
   }
 
+  // Server-side fallback
   if (!mounted) {
     return (
       <nav className="pn-nav">

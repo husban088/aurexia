@@ -1,6 +1,7 @@
+// app/checkout/page.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cartStore";
@@ -8,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import "./checkout.css";
 import { useCurrency } from "../context/CurrencyContext";
 
+// Import components
 import ShippingSection from "@/app/checkout/components/ShippingSection";
 import CartSummary from "@/app/checkout/components/CartSummary";
 import PaymentSection from "@/app/checkout/components/PaymentSection";
@@ -40,6 +42,7 @@ interface FormErrors {
   zip?: string;
 }
 
+// Currency code → country code mapping
 const currencyToCountry: Record<string, string> = {
   PKR: "PK",
   USD: "US",
@@ -52,6 +55,7 @@ const currencyToCountry: Record<string, string> = {
   INR: "IN",
 };
 
+// Currency code → phone info mapping
 const currencyToPhone: Record<
   string,
   { code: string; flag: string; example: string; name: string }
@@ -80,26 +84,29 @@ function generateOrderNumber(): string {
   return `T4U-${timestamp}-${random}`;
 }
 
+// ============================================
+// MAIN CHECKOUT COMPONENT
+// ============================================
 export default function Checkout() {
   const router = useRouter();
-  const { items, loading, fetchCart, clearCart, getSubtotal, getCartCount } =
-    useCartStore();
+  const {
+    items,
+    loading,
+    fetchCart,
+    clearCart,
+    getSubtotal,
+    getCartCount,
+    initialized,
+    refreshCart,
+  } = useCartStore();
 
+  // Currency context — auto-detected from user's IP/country
   const { formatPrice, currency } = useCurrency();
 
-  // ─── KEY FIX ────────────────────────────────────────────────────────────────
-  // Hum ek "settled" flag rakhte hain. Jab tak cart store se pehli baar
-  // actual response nahi aata (chahe items hon ya na hon), hum koi bhi
-  // conditional UI (empty / checkout) nahi dikhate — sirf ek neutral spinner.
-  //
-  // Agar items pehle se store mein hain (cached), toh `loading` false hoga
-  // aur hum foran checkout show karenge bina kisi flash ke.
-  // ─────────────────────────────────────────────────────────────────────────────
-  const [cartSettled, setCartSettled] = useState(
-    // Sync-check: agar store mein already items hain toh settled = true
-    () => !loading && items.length > 0
-  );
-  const fetchedRef = useRef(false);
+  // ✅ CRITICAL: Hydration state to prevent flash and disappearing items
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [cartFetched, setCartFetched] = useState(false);
 
   const [focused, setFocused] = useState<string | null>(null);
   const [placed, setPlaced] = useState(false);
@@ -112,11 +119,13 @@ export default function Checkout() {
     whatsapp: boolean | null;
   }>({ email: null, whatsapp: null });
 
+  // Step management: "shipping" | "payment"
   const [checkoutStep, setCheckoutStep] = useState<"shipping" | "payment">(
     "shipping"
   );
   const [paymentMethod, setPaymentMethod] = useState<"card" | "paypal">("card");
 
+  // Get phone info from detected currency
   const phoneInfo = currencyToPhone[currency.code] || currencyToPhone["USD"];
   const detectedCountryCode = currencyToCountry[currency.code] || "US";
 
@@ -136,48 +145,50 @@ export default function Checkout() {
     cvv: "",
   });
 
+  // ✅ Handle mounting and hydration
   useEffect(() => {
-    setForm((prev) => ({ ...prev, country: detectedCountryCode }));
-  }, [detectedCountryCode]);
+    setIsMounted(true);
+  }, []);
+
+  // ✅ Handle cart fetching after hydration
+  useEffect(() => {
+    if (!isMounted) return;
+
+    setIsHydrated(true);
+
+    // Fetch cart only if not initialized or items are empty
+    if (!initialized || items.length === 0) {
+      fetchCart().then(() => {
+        setCartFetched(true);
+      });
+    } else {
+      setCartFetched(true);
+    }
+  }, [isMounted, initialized, items.length, fetchCart]);
+
+  // When currency changes (auto-detected), update country in form too
+  useEffect(() => {
+    if (isMounted) {
+      setForm((prev) => ({ ...prev, country: detectedCountryCode }));
+    }
+  }, [detectedCountryCode, isMounted]);
 
   useEffect(() => {
+    if (!isMounted) return;
     const savedForm = localStorage.getItem(STORAGE_KEY);
     if (savedForm) {
       try {
         setForm((prev) => ({ ...prev, ...JSON.parse(savedForm) }));
       } catch {}
     }
-  }, []);
+  }, [isMounted]);
 
   useEffect(() => {
+    if (!isMounted) return;
     if (form.firstName) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(form));
     }
-  }, [form]);
-
-  // ─── Cart fetch — only once per mount ────────────────────────────────────────
-  useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-
-    // Agar items already hain (cached store) toh fetch dobara na karo
-    if (items.length > 0) {
-      setCartSettled(true);
-      return;
-    }
-
-    // Fetch karo aur jab done ho (chahe empty ya full) tab settled mark karo
-    fetchCart().finally(() => {
-      setCartSettled(true);
-    });
-  }, [fetchCart, items.length]);
-
-  // Jab loading khatam ho toh bhi settled karo (safety net)
-  useEffect(() => {
-    if (!loading) {
-      setCartSettled(true);
-    }
-  }, [loading]);
+  }, [form, isMounted]);
 
   const setFormField =
     (key: keyof FormData) =>
@@ -261,12 +272,14 @@ export default function Checkout() {
     return valid;
   };
 
-  const subtotal = getSubtotal();
+  // Prices in PKR (base) — CartSummary/PaymentSection will convert via formatPrice
+  const subtotal = getSubtotal(); // PKR
   const cartCount = getCartCount();
-  const shipping = subtotal >= 3000 ? 0 : 250;
-  const total = subtotal + shipping;
+  const shipping = subtotal >= 3000 ? 0 : 250; // PKR
+  const total = subtotal + shipping; // PKR
   const validItems = items;
 
+  // Full phone with country code from detected currency
   const fullPhone = `${phoneInfo.code}${form.phone}`;
   const customerName = `${form.firstName} ${form.lastName}`;
   const shippingAddress = [
@@ -279,6 +292,7 @@ export default function Checkout() {
     .filter(Boolean)
     .join(", ");
 
+  // Step 1 → Step 2: Continue to Payment
   const handleContinueToPayment = () => {
     if (!validateAll()) return;
     if (validItems.length === 0) {
@@ -289,6 +303,7 @@ export default function Checkout() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Called after Stripe/PayPal payment success — send notifications + save order
   const handlePaymentSuccess = async () => {
     setSubmitting(true);
     try {
@@ -309,6 +324,7 @@ export default function Checkout() {
         };
       });
 
+      // Send email + WhatsApp notifications
       const response = await fetch("/api/send-order-notification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -334,6 +350,7 @@ export default function Checkout() {
         whatsapp: result.whatsappSent ?? false,
       });
 
+      // Save order to Supabase
       try {
         await supabase.from("orders").insert({
           order_number: orderNumber,
@@ -370,10 +387,14 @@ export default function Checkout() {
   };
 
   // ============================================
-  // LOADING STATE — sirf tab jab cart abhi settle nahi hua
-  // Yahan "Your cart is empty" KABHI nahi dikhega — sirf spinner
+  // LOADING STATE - Wait for hydration and cart fetch
   // ============================================
-  if (!cartSettled) {
+  if (
+    !isMounted ||
+    !isHydrated ||
+    !cartFetched ||
+    (loading && items.length === 0)
+  ) {
     return (
       <div className="co-root">
         <div className="co-grain" aria-hidden="true" />
@@ -385,10 +406,9 @@ export default function Checkout() {
   }
 
   // ============================================
-  // EMPTY CART — sirf tab jab cart settled ho AUR items sach mein 0 hon
-  // Aur order bhi place nahi hua ho
+  // EMPTY CART STATE
   // ============================================
-  if (cartSettled && items.length === 0 && !placed) {
+  if (!loading && items.length === 0 && !placed) {
     return (
       <div className="co-root">
         <div className="co-grain" aria-hidden="true" />
@@ -420,7 +440,7 @@ export default function Checkout() {
   }
 
   // ============================================
-  // SUCCESS STATE
+  // SUCCESS STATE — OrderSuccess Component
   // ============================================
   if (placed) {
     return (
@@ -450,7 +470,7 @@ export default function Checkout() {
   }
 
   // ============================================
-  // MAIN CHECKOUT UI
+  // MAIN CHECKOUT UI — 2 Steps
   // ============================================
   return (
     <div className="co-root">
@@ -517,7 +537,7 @@ export default function Checkout() {
 
         <div className="co-layout">
           <div className="co-form-col">
-            {/* ─── STEP 1: SHIPPING ─── */}
+            {/* STEP 1: SHIPPING */}
             {checkoutStep === "shipping" && (
               <>
                 <ShippingSection
@@ -550,7 +570,7 @@ export default function Checkout() {
               </>
             )}
 
-            {/* ─── STEP 2: PAYMENT ─── */}
+            {/* STEP 2: PAYMENT */}
             {checkoutStep === "payment" && (
               <>
                 <button

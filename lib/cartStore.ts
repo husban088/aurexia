@@ -55,6 +55,8 @@ interface CartStore {
   getTotalPieces: () => number;
   prefetchCart: () => void;
   invalidateCache: () => void;
+  // ✅ New method for forced refresh
+  refreshCart: () => Promise<void>;
 }
 
 // ============================================================
@@ -316,6 +318,13 @@ export const useCartStore = create<CartStore>()(
         }
       },
 
+      refreshCart: async () => {
+        // Force cache invalidation and refetch
+        get().invalidateCache();
+        fetchPromise = null;
+        await get().fetchCart();
+      },
+
       fetchCart: async () => {
         if (fetchPromise) return fetchPromise;
 
@@ -419,7 +428,6 @@ export const useCartStore = create<CartStore>()(
         return fetchPromise;
       },
 
-      // ✅ FIXED: addToCart returns Promise<void> instead of Promise<boolean>
       addToCart: async (
         product: Product,
         variant: ProductVariant | null = null,
@@ -428,7 +436,7 @@ export const useCartStore = create<CartStore>()(
       ) => {
         if (addToCartDebounce) clearTimeout(addToCartDebounce);
 
-        return new Promise<void>((resolve, reject) => {
+        return new Promise((resolve, reject) => {
           addToCartDebounce = setTimeout(async () => {
             try {
               if (!product.id) {
@@ -443,7 +451,6 @@ export const useCartStore = create<CartStore>()(
               const variantName = variant
                 ? variant.attribute_value
                 : "Standard";
-
               const variantPrice = variant?.price ?? product.price ?? 0;
               const variantOriginalPrice =
                 variant?.original_price ?? product.original_price ?? undefined;
@@ -604,8 +611,7 @@ export const useCartStore = create<CartStore>()(
                 }
               }, 0);
 
-              // ✅ FIXED: resolve with void instead of true
-              resolve();
+              resolve(true);
             } catch (err) {
               reject(err);
             }
@@ -676,9 +682,7 @@ export const useCartStore = create<CartStore>()(
         if (!itemToRemove) return;
 
         set({ items: items.filter((i) => i.id !== itemId) });
-
         scheduleBatchUpdate("remove_item", { id: itemId });
-
         get().invalidateCache();
       },
 
@@ -716,6 +720,7 @@ export const useCartStore = create<CartStore>()(
       name: "cart-storage",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
+        // ✅ Store complete items with all data
         items: state.items.map((item) => ({
           id: item.id,
           cart_id: item.cart_id,
@@ -758,15 +763,16 @@ export const useCartStore = create<CartStore>()(
         initialized: state.initialized,
       }),
       onRehydrateStorage: () => (state) => {
+        console.log("🔄 Cart rehydrating...");
         if (state?.items?.length) {
           console.log(
-            "✅ Cart rehydrated:",
-            state.items.length,
-            "items from localStorage"
+            `✅ Cart rehydrated: ${state.items.length} items from localStorage`
           );
-          setTimeout(() => state?.prefetchCart(), 500);
         }
+        // ✅ Don't auto-fetch immediately - let component decide
+        // This prevents race conditions and disappearing items
       },
+      skipHydration: false,
     }
   )
 );

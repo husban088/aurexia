@@ -2,11 +2,11 @@
 "use client";
 
 import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface PayPalPaymentProps {
   amount: number;
-  currency: string; // Already normalized: "USD" | "GBP" | "AUD"
+  currency: string;
   orderNumber: string;
   formData: any;
   subtotal: number;
@@ -28,18 +28,13 @@ export default function PayPalPayment({
   onError: onPaymentError,
 }: PayPalPaymentProps) {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isClientReady, setIsClientReady] = useState(false);
+  const [paymentCancelled, setPaymentCancelled] = useState(false);
 
-  useEffect(() => {
-    setIsClientReady(true);
-  }, []);
-
-  // ✅ currency is already "USD" | "GBP" | "AUD" — handled in PaymentSection
   const finalCurrency = currency.toUpperCase();
+  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 
-  // Validate amount
+  // ✅ Amount check
   if (!amount || amount <= 0) {
-    console.error("Invalid amount for PayPal:", amount);
     return (
       <div className="ps-paypal-error">
         <p>Unable to process payment. Invalid amount.</p>
@@ -47,44 +42,20 @@ export default function PayPalPayment({
     );
   }
 
-  // Client ID validation
-  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+  // ✅ Client ID check — sirf missing/placeholder check, hardcoded ID block NAHI
   if (!clientId || clientId === "your_paypal_client_id") {
     return (
       <div className="ps-paypal-error">
         <p>
-          ⚠️ PayPal is not configured yet. Please add your PayPal API
-          credentials to .env.local
-        </p>
-        <p style={{ fontSize: "12px", marginTop: "8px" }}>
-          Get your credentials from{" "}
-          <a
-            href="https://developer.paypal.com"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            PayPal Developer Portal
-          </a>
-        </p>
-        <p style={{ fontSize: "12px", marginTop: "8px", color: "#daa520" }}>
-          Steps:
-          <br />
-          1. Go to developer.paypal.com
-          <br />
-          2. Login with your PayPal account
-          <br />
-          3. Go to "Apps & Credentials"
-          <br />
-          4. Create a new "Sandbox" app
-          <br />
-          5. Copy "Client ID" and "Secret" to .env.local
+          ⚠️ PayPal Client ID missing hai. .env.local mein
+          NEXT_PUBLIC_PAYPAL_CLIENT_ID daalo.
         </p>
       </div>
     );
   }
 
   const createOrder = async () => {
-    setIsProcessing(true);
+    setPaymentCancelled(false);
     try {
       const response = await fetch("/api/create-paypal-order", {
         method: "POST",
@@ -109,11 +80,9 @@ export default function PayPalPayment({
         throw new Error("No order ID received from PayPal");
       }
 
-      setIsProcessing(false);
       return data.orderId;
     } catch (error) {
       console.error("Failed to create PayPal order:", error);
-      setIsProcessing(false);
       onPaymentError(
         error instanceof Error ? error.message : "Failed to initialize PayPal"
       );
@@ -140,17 +109,16 @@ export default function PayPalPayment({
       const result = await response.json();
 
       if (response.ok && result.success) {
-        onSuccess(); // ✅ Payment captured — notify parent
+        onSuccess();
       } else {
         throw new Error(result.error || "Payment capture failed");
       }
     } catch (error) {
       console.error("Error capturing PayPal order:", error);
+      setIsProcessing(false);
       onPaymentError(
         error instanceof Error ? error.message : "Payment processing failed"
       );
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -162,25 +130,24 @@ export default function PayPalPayment({
     );
   };
 
-  if (!isClientReady) {
-    return (
-      <div className="ps-loading">
-        <div className="co-spinner" />
-        <span>Loading PayPal...</span>
-      </div>
-    );
-  }
+  const handleCancel = () => {
+    console.log("PayPal payment cancelled by user");
+    setPaymentCancelled(true);
+    setIsProcessing(false);
+  };
 
+  // ✅ Processing spinner — sirf capture ke baad (popup close hone pe NAHI)
   if (isProcessing) {
     return (
       <div className="ps-loading">
         <div className="co-spinner" />
-        <span>Processing PayPal payment...</span>
+        <span>Processing your payment...</span>
       </div>
     );
   }
 
   return (
+    // ✅ KEY FIX: PayPalScriptProvider yahan hai — stable rahega, re-render pe script reload nahi hogi
     <PayPalScriptProvider
       options={{
         clientId: clientId,
@@ -189,22 +156,39 @@ export default function PayPalPayment({
         components: "buttons",
       }}
     >
-      <PayPalButtons
-        createOrder={createOrder}
-        onApprove={onApprove}
-        onError={handlePayPalError}
-        onCancel={() => {
-          console.log("PayPal payment cancelled");
-          onPaymentError("Payment was cancelled");
-        }}
-        style={{
-          layout: "vertical",
-          color: "gold",
-          shape: "rect",
-          label: "paypal",
-          height: 48,
-        }}
-      />
+      <div>
+        {paymentCancelled && (
+          <div
+            style={{
+              marginBottom: "12px",
+              padding: "10px 14px",
+              background: "#fff8e1",
+              border: "1px solid #f0b429",
+              borderRadius: "8px",
+              fontSize: "13px",
+              color: "#7c5a00",
+            }}
+          >
+            ⚠️ Payment cancel ho gayi. Dobara try karo.
+          </div>
+        )}
+
+        <PayPalButtons
+          key={`${orderNumber}-${finalCurrency}`}
+          createOrder={createOrder}
+          onApprove={onApprove}
+          onError={handlePayPalError}
+          onCancel={handleCancel}
+          forceReRender={[amount, finalCurrency, orderNumber]}
+          style={{
+            layout: "vertical",
+            color: "gold",
+            shape: "rect",
+            label: "paypal",
+            height: 48,
+          }}
+        />
+      </div>
     </PayPalScriptProvider>
   );
 }

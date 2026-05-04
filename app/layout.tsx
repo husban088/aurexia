@@ -4,7 +4,6 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 import { CurrencyProvider } from "./context/CurrencyContext";
-import { Suspense } from "react";
 
 // Poppins font configuration
 const poppins = Poppins({

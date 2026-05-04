@@ -441,24 +441,14 @@ export default function ProductDetail() {
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Update description/images when variant changes ──
+  // ALWAYS use product-level main description and images regardless of variant selected
+  // Variant descriptions are NOT shown on the product detail page bottom section
   useEffect(() => {
-    if (selectedVariant) {
-      if (selectedVariant.attribute_type !== "standard") {
-        setCurrentDescription(
-          selectedVariant.description_rich ||
-            (selectedVariant as any).description ||
-            ""
-        );
-        setCurrentDescriptionImages(selectedVariant.description_images || []);
-      } else {
-        setCurrentDescription(product?.description || "");
-        setCurrentDescriptionImages((product as any)?.description_images || []);
-      }
-    } else if (product) {
+    if (product) {
       setCurrentDescription(product.description || "");
-      setCurrentDescriptionImages((product as any).description_images || []);
+      setCurrentDescriptionImages((product as any)?.description_images || []);
     }
-  }, [selectedVariant, product]);
+  }, [product]);
 
   // ── Fetch bulk pricing tiers when variant changes ──
   useEffect(() => {
@@ -1012,12 +1002,7 @@ export default function ProductDetail() {
                       </span>
                       <span className="pd-desc-images-line" />
                     </div>
-                    <div
-                      className={`pd-desc-images-grid pd-desc-images-grid--${Math.min(
-                        currentDescriptionImages.length,
-                        3
-                      )}`}
-                    >
+                    <div className="pd-desc-images-grid pd-desc-images-grid--responsive">
                       {currentDescriptionImages.map((imgUrl, idx) => (
                         <div key={idx} className="pd-desc-img-card">
                           <div className="pd-desc-img-inner">
@@ -1026,6 +1011,7 @@ export default function ProductDetail() {
                               alt={`${product.name} detail ${idx + 1}`}
                               className="pd-desc-img"
                               loading="lazy"
+                              draggable={false}
                             />
                             <div className="pd-desc-img-overlay">
                               <span className="pd-desc-img-num">

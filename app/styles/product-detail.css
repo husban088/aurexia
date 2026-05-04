@@ -164,8 +164,8 @@
 }
 
 /* ═══════════════════════════════════════════
-                                 INFO COLUMN
-                              ═══════════════════════════════════════════ */
+                                       INFO COLUMN
+                                    ═══════════════════════════════════════════ */
 .pd-info {
   display: flex;
   flex-direction: column;
@@ -816,8 +816,8 @@
 }
 
 /* ═══════════════════════════════════════════
-                                 TABS SECTION (3 TABS)
-                              ═══════════════════════════════════════════ */
+                                       TABS SECTION (3 TABS)
+                                    ═══════════════════════════════════════════ */
 .pd-tabs-section {
   margin-top: 4rem;
   animation: pd-fade-up 0.7s var(--pd-ease) 0.3s both;
@@ -1059,8 +1059,8 @@
 }
 
 /* ═══════════════════════════════════════════
-                                 BADGES
-                              ═══════════════════════════════════════════ */
+                                       BADGES
+                                    ═══════════════════════════════════════════ */
 .pd-badge {
   display: inline-block;
   padding: 0.25rem 0.6rem;
@@ -1088,8 +1088,8 @@
 }
 
 /* ═══════════════════════════════════════════
-                                 VARIANT SELECTORS
-                              ═══════════════════════════════════════════ */
+                                       VARIANT SELECTORS
+                                    ═══════════════════════════════════════════ */
 .pd-attr {
   margin-bottom: 1.25rem;
 }
@@ -1148,8 +1148,8 @@
 }
 
 /* ═══════════════════════════════════════════
-                                 CURRENCY INDICATOR
-                              ═══════════════════════════════════════════ */
+                                       CURRENCY INDICATOR
+                                    ═══════════════════════════════════════════ */
 .pd-currency-indicator {
   display: inline-flex;
   align-items: center;
@@ -1179,8 +1179,8 @@
 }
 
 /* ═══════════════════════════════════════════
-                                 LOADING SKELETON
-                              ═══════════════════════════════════════════ */
+                                       LOADING SKELETON
+                                    ═══════════════════════════════════════════ */
 .pd-skeleton-root {
   position: relative;
   z-index: 1;
@@ -1239,8 +1239,8 @@
 }
 
 /* ═══════════════════════════════════════════
-                                 NOT FOUND
-                              ═══════════════════════════════════════════ */
+                                       NOT FOUND
+                                    ═══════════════════════════════════════════ */
 .pd-notfound {
   min-height: 80vh;
   display: flex;
@@ -1291,8 +1291,8 @@
 }
 
 /* ═══════════════════════════════════════════
-                                 TOAST NOTIFICATION
-                              ═══════════════════════════════════════════ */
+                                       TOAST NOTIFICATION
+                                    ═══════════════════════════════════════════ */
 .pd-toast-wrap {
   position: fixed;
   bottom: 2rem;
@@ -1370,8 +1370,8 @@
 }
 
 /* ═══════════════════════════════════════════
-                                 RATING DISPLAY
-                              ═══════════════════════════════════════════ */
+                                       RATING DISPLAY
+                                    ═══════════════════════════════════════════ */
 .pd-rating-display {
   display: flex;
   align-items: center;
@@ -1404,8 +1404,8 @@
 }
 
 /* ═══════════════════════════════════════════
-                                 SCROLL REVEAL
-                              ═══════════════════════════════════════════ */
+                                       SCROLL REVEAL
+                                    ═══════════════════════════════════════════ */
 .pd-reveal {
   opacity: 0;
   transform: translateY(20px);
@@ -1421,8 +1421,8 @@
 }
 
 /* ═══════════════════════════════════════════
-                                 RESPONSIVE
-                              ═══════════════════════════════════════════ */
+                                       RESPONSIVE
+                                    ═══════════════════════════════════════════ */
 @media (max-width: 768px) {
   .pd-content {
     padding: 1.5rem 1.25rem 5rem;
@@ -1503,8 +1503,8 @@
 }
 
 /* ============================================================
-                           REVIEWS & RATINGS SECTION (Light Theme)
-                           ============================================================ */
+                                 REVIEWS & RATINGS SECTION (Light Theme)
+                                 ============================================================ */
 
 /* ── Section Wrapper ── */
 .pd-reviews-section {
@@ -2410,8 +2410,8 @@
 }
 
 /* ============================================================
-                        BULK PRICING STYLES (Product Detail Page)
-                        ============================================================ */
+                              BULK PRICING STYLES (Product Detail Page)
+                              ============================================================ */
 
 .pd-bulk-section {
   margin: 1rem 0 1.5rem;
@@ -2717,14 +2717,14 @@
 }
 
 /* ============================================================
-                       LUXURY DESCRIPTION SECTION - UPDATED (Info column dropdown)
-                       ============================================================ */
+                             LUXURY DESCRIPTION SECTION - UPDATED (Info column dropdown)
+                             ============================================================ */
 
 /* Description Dropdown (already included above) */
 
 /* ============================================================
-               UPDATED DESCRIPTION DROPDOWN (Click to open modal)
-               ============================================================ */
+                     UPDATED DESCRIPTION DROPDOWN (Click to open modal)
+                     ============================================================ */
 
 /* ── Description Dropdown (Click to open modal) ── */
 .pd-desc-dropdown {
@@ -2839,8 +2839,8 @@
 }
 
 /* ============================================================
-               MODAL OVERRIDES (Ensure modal appears above everything)
-               ============================================================ */
+                     MODAL OVERRIDES (Ensure modal appears above everything)
+                     ============================================================ */
 
 .dm-overlay {
   position: fixed;
@@ -3143,8 +3143,8 @@
 }
 
 /* ============================================================
-            RICH TEXT DESCRIPTION STYLES - Same as Quill Editor
-            ============================================================ */
+                  RICH TEXT DESCRIPTION STYLES - Same as Quill Editor
+                  ============================================================ */
 
 .pd-description-rich {
   font-family: var(--ap-sans, "Josefin Sans", sans-serif);
@@ -3313,8 +3313,8 @@
 }
 
 /* ============================================================
-         FIX: Description Rich Text — Prevent Left/Right Overflow
-         ============================================================ */
+               FIX: Description Rich Text — Prevent Left/Right Overflow
+               ============================================================ */
 
 .pd-description-full {
   width: 100%;
@@ -3380,10 +3380,10 @@
 }
 
 /* ============================================================
-         DESCRIPTION IMAGES GALLERY — Fully Responsive
-         Equal Fixed Height, Complete Image (no crop/stretch)
-         ALL images same size — matches Product Visuals section
-         ============================================================ */
+               DESCRIPTION IMAGES GALLERY — Fully Responsive
+               Equal Fixed Height, Complete Image (no crop/stretch)
+               ALL images same size — matches Product Visuals section
+               ============================================================ */
 
 .pd-desc-images-section {
   margin-top: 2.5rem;
@@ -3453,15 +3453,14 @@
 .pd-desc-img-card {
   position: relative;
   border-radius: 12px;
-  overflow: hidden;
-  background: #faf8f3;
+  /* NO overflow:hidden — image must never be clipped */
+  overflow: visible;
+  background: #f8f6f2;
   border: 1px solid rgba(218, 165, 32, 0.15);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease;
   box-sizing: border-box;
-  /* ✅ All cards same height */
-  height: 100%;
+  cursor: default;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .pd-desc-img-card:hover {
@@ -3506,34 +3505,38 @@
   border-color: rgba(218, 165, 32, 0.8);
 }
 
-/* ── Image inner: FIXED equal height — same for ALL cards ── */
+/* ── Image inner: aspect-ratio based — image NEVER clips on any side ── */
 .pd-desc-img-inner {
   position: relative;
   width: 100%;
-  /* ✅ Fixed height = every image box same size */
-  height: 220px;
+  /* aspect-ratio ensures consistent box without clipping */
+  aspect-ratio: 4 / 3;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  background: linear-gradient(135deg, #fdf6e8 0%, #faf8f5 100%);
+  /* NO overflow: hidden — so image is never cut on any side */
+  overflow: visible;
+  background: #f8f6f2;
+  border-radius: 10px;
 }
 
-/* ── The actual image — full visible, no crop ── */
+/* ── The actual image — contain: entire image 100% visible, no clipping, no stretching ── */
 .pd-desc-img {
   width: 100%;
   height: 100%;
-  /* ✅ contain = shows full image, no stretching, no cropping */
+  /* contain = whole image shows, nothing hidden on any side, no distortion */
   object-fit: contain;
   object-position: center center;
-  padding: 0.75rem;
-  box-sizing: border-box;
   display: block;
-  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: default;
+  pointer-events: none;
+  user-select: none;
+  border-radius: 8px;
 }
 
 .pd-desc-img-card:hover .pd-desc-img {
-  transform: scale(1.04);
+  /* no zoom on hover — images are not interactive */
+  transform: none;
 }
 
 /* Number badge on hover */
@@ -3566,70 +3569,263 @@
 
 /* ── RESPONSIVE BREAKPOINTS ── */
 
-/* Large desktop */
-@media (min-width: 1280px) {
-  .pd-desc-img-inner {
-    height: 240px;
-  }
+/* ── Responsive grid: desktop=4, tablet=3, mobile=2 ── */
+.pd-desc-images-grid--responsive {
+  display: grid;
+  /* Desktop default: 4 columns */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  width: 100%;
 }
 
-/* Tablet (769px – 1024px) */
+/* Tablet (769px – 1024px): 3 columns */
 @media (max-width: 1024px) {
-  .pd-desc-images-grid--3 {
+  .pd-desc-images-grid--responsive {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .pd-desc-images-grid--2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .pd-desc-images-grid--1 {
-    grid-template-columns: repeat(1, minmax(0, 340px));
-  }
-  .pd-desc-img-inner {
-    height: 190px;
+    gap: 0.75rem;
   }
 }
 
 /* Mobile (≤ 768px): 2 columns */
 @media (max-width: 768px) {
-  .pd-desc-images-grid--1,
-  .pd-desc-images-grid--2,
-  .pd-desc-images-grid--3 {
+  .pd-desc-images-grid--responsive {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
     max-width: 100%;
-  }
-  .pd-desc-images-grid--1 {
-    grid-template-columns: repeat(1, minmax(0, 100%));
-  }
-  .pd-desc-img-inner {
-    height: 165px;
   }
   .pd-desc-images-section {
     margin-top: 2rem;
     padding-top: 1.5rem;
   }
-  /* ✅ Rich text images also responsive on mobile */
+  /* Rich text images responsive */
   .pd-description-rich img {
     max-width: 100%;
-    height: 160px;
+    height: auto;
   }
 }
 
-/* Small mobile (≤ 480px): 1 column */
+/* Small mobile (≤ 480px): still 2 columns */
 @media (max-width: 480px) {
-  .pd-desc-images-grid--1,
-  .pd-desc-images-grid--2,
-  .pd-desc-images-grid--3 {
-    grid-template-columns: repeat(1, minmax(0, 100%));
+  .pd-desc-images-grid--responsive {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
   }
-  .pd-desc-img-inner {
-    height: 200px;
-  }
-  .pd-desc-images-gap {
-    gap: 0.75rem;
-  }
-  /* ✅ Rich text images on small mobile */
+  /* Rich text images on small mobile */
   .pd-description-rich img {
     max-width: 100%;
-    height: 180px;
+    height: auto;
+  }
+}
+
+/* Extra small (≤ 360px) */
+@media (max-width: 360px) {
+  .pd-desc-images-grid--responsive {
+    gap: 0.4rem;
+  }
+  .pd-desc-img-inner {
+    height: 120px;
+  }
+}
+
+/* ============================================================
+         FULL PAGE RESPONSIVE FIXES
+         ============================================================ */
+
+/* ── Mobile ≤ 768px ── */
+@media (max-width: 768px) {
+  /* Content padding */
+  .pd-content {
+    padding: 1rem 1rem 5rem;
+  }
+
+  /* Breadcrumb wrapping */
+  .pd-breadcrumb {
+    flex-wrap: wrap;
+    font-size: 0.5rem;
+    gap: 0.3rem;
+    margin-bottom: 1.5rem;
+  }
+
+  /* Grid: stack vertically */
+  .pd-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  /* Title */
+  .pd-title {
+    font-size: clamp(1.1rem, 5vw, 1.6rem);
+    line-height: 1.3;
+  }
+
+  /* Price */
+  .pd-price {
+    font-size: clamp(1.5rem, 6vw, 2rem);
+  }
+
+  /* CTA row — add to cart + wishlist */
+  .pd-cta-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem;
+  }
+
+  .pd-add-cart {
+    width: 100%;
+  }
+
+  /* Qty row */
+  .pd-qty-row {
+    gap: 0.5rem;
+  }
+
+  /* Variants */
+  .pd-variant-options {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Tabs */
+  .pd-tab-bar {
+    gap: 0.25rem;
+  }
+
+  .pd-tab-btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.5rem;
+    letter-spacing: 0.15em;
+    flex: 1;
+    text-align: center;
+  }
+
+  /* Description images gap fix */
+  .pd-desc-images-grid--responsive {
+    gap: 0.5rem;
+  }
+
+  /* Description text */
+  .pd-description-rich {
+    font-size: 0.85rem;
+    line-height: 1.7;
+  }
+
+  /* Bulk pricing tiers */
+  .pd-bulk-tiers {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Specs grid */
+  .pd-specs-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Small mobile ≤ 480px ── */
+@media (max-width: 480px) {
+  .pd-content {
+    padding: 0.75rem 0.75rem 5rem;
+  }
+
+  .pd-breadcrumb {
+    font-size: 0.45rem;
+  }
+
+  .pd-title {
+    font-size: clamp(1rem, 5vw, 1.4rem);
+  }
+
+  .pd-price {
+    font-size: clamp(1.3rem, 7vw, 1.8rem);
+  }
+
+  .pd-price-original {
+    font-size: 0.85rem;
+  }
+
+  .pd-discount-pill {
+    font-size: 0.55rem;
+    padding: 0.2rem 0.5rem;
+  }
+
+  /* CTA: full width column on very small screens */
+  .pd-cta-row {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+
+  .pd-wishlist-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pd-buy-now {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Tabs: equal width buttons */
+  .pd-tab-btn {
+    font-size: 0.45rem;
+    padding: 0.5rem 0.5rem;
+    letter-spacing: 0.1em;
+  }
+
+  /* Description label font */
+  .pd-desc-images-label {
+    font-size: 0.42rem;
+    letter-spacing: 0.2em;
+    padding: 0.25rem 0.6rem;
+  }
+
+  /* Bulk tiers: 1 column on very small */
+  .pd-bulk-tiers {
+    grid-template-columns: 1fr;
+  }
+
+  /* Shipping features */
+  .pd-shipping-features {
+    gap: 0.6rem;
+  }
+
+  .pd-ship-feature {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.6rem;
+  }
+
+  /* Toast */
+  .pd-toast-wrap {
+    right: 0.75rem;
+    bottom: 5rem;
+    left: 0.75rem;
+  }
+
+  .pd-toast {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* ── Extra small (≤ 360px) ── */
+@media (max-width: 360px) {
+  .pd-content {
+    padding: 0.5rem 0.5rem 5rem;
+  }
+
+  .pd-title {
+    font-size: 1rem;
+  }
+
+  .pd-price {
+    font-size: 1.3rem;
+  }
+
+  .pd-tab-btn {
+    font-size: 0.4rem;
+    padding: 0.5rem 0.4rem;
+    letter-spacing: 0.08em;
+  }
+
+  .pd-desc-images-grid--responsive {
+    gap: 0.4rem;
   }
 }

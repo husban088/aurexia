@@ -1,3 +1,4 @@
+// app/checkout/components/CartSummary.tsx
 "use client";
 
 import React from "react";
@@ -35,7 +36,8 @@ interface CartSummaryProps {
   shipping: number;
   total: number;
   cartCount: number;
-  formatPrice: (price: number) => string;
+  // formatPrice ab optional hai - agar nahi diya toh useCurrency se le lega
+  formatPrice?: (price: number) => string;
 }
 
 export default function CartSummary({
@@ -44,13 +46,32 @@ export default function CartSummary({
   shipping,
   total,
   cartCount,
-  formatPrice,
+  formatPrice: propFormatPrice,
 }: CartSummaryProps) {
+  // ✅ Agar formatPrice prop mein nahi aaya toh context se le lo
+  const {
+    formatPrice: contextFormatPrice,
+    currency,
+    loading: currencyLoading,
+  } = useCurrency();
+
+  // ✅ Use prop formatPrice if provided, otherwise use context
+  const formatPrice = propFormatPrice || contextFormatPrice;
+
+  // ✅ Show currency info for debugging
+  const currencyCode = currency?.code || "PKR";
+  const currencySymbol = currency?.symbol || "₨";
+
   return (
     <div className="cs-summary-card">
       <p className="cs-summary-title">
         <span className="cs-ey-line" />
-        Order Summary
+        Order Summary{" "}
+        {!currencyLoading && (
+          <span style={{ fontSize: "0.7rem", marginLeft: "0.5rem" }}>
+            ({currencyCode})
+          </span>
+        )}
         <span className="cs-ey-line" />
       </p>
 
@@ -78,6 +99,7 @@ export default function CartSummary({
             item.variant_name && item.variant_name !== "Standard"
               ? `${productName} (${item.variant_name})`
               : productName;
+
           return (
             <li key={item.id} className="cs-summary-item">
               <div className="cs-summary-item-img">
@@ -139,7 +161,7 @@ export default function CartSummary({
         </div>
         <div className="cs-summary-divider" />
         <div className="cs-summary-row cs-summary-total">
-          <span>Total</span>
+          <span>Total ({currencyCode})</span>
           <span>{formatPrice(total)}</span>
         </div>
       </div>

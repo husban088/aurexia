@@ -21,8 +21,6 @@ export default function ProductDescription({
   const [descriptionImages, setDescriptionImages] =
     useState<string[]>(existingImages);
   const [uploading, setUploading] = useState(false);
-  const [showImageModal, setShowImageModal] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const editorRef = useRef<any>(null);
   const scrollLockRef = useRef(false);
   const lastScrollYRef = useRef(0);
@@ -128,15 +126,6 @@ export default function ProductDescription({
     }
   }, []);
 
-  const openImageModal = (imageUrl: string) => {
-    const savedScrollY = window.scrollY;
-    setSelectedImage(imageUrl);
-    setShowImageModal(true);
-    setTimeout(() => {
-      window.scrollTo({ top: savedScrollY, behavior: "instant" });
-    }, 10);
-  };
-
   return (
     <div className="ap-description-editor">
       <div className="ap-description-header">
@@ -166,12 +155,7 @@ export default function ProductDescription({
           <div className="ap-gallery-grid">
             {descriptionImages.map((imgUrl, idx) => (
               <div key={idx} className="ap-gallery-item">
-                <img
-                  src={imgUrl}
-                  alt={`Description image ${idx + 1}`}
-                  onClick={() => openImageModal(imgUrl)}
-                  style={{ cursor: "pointer" }}
-                />
+                <img src={imgUrl} alt={`Description image ${idx + 1}`} />
                 <button
                   type="button"
                   className="ap-gallery-remove"
@@ -188,21 +172,6 @@ export default function ProductDescription({
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </button>
-                <button
-                  type="button"
-                  className="ap-gallery-insert"
-                  onClick={() => insertImageAtCursor(imgUrl)}
-                  title="Insert image at cursor position"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                </button>
               </div>
             ))}
           </div>
@@ -213,49 +182,6 @@ export default function ProductDescription({
         <div className="ap-upload-progress">
           <div className="ap-spinner-small" />
           <span>Uploading image to gallery...</span>
-        </div>
-      )}
-
-      {showImageModal && selectedImage && (
-        <div
-          className="ap-image-modal"
-          onClick={() => setShowImageModal(false)}
-        >
-          <div
-            className="ap-image-modal-content"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              className="ap-image-modal-close"
-              onClick={() => setShowImageModal(false)}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                width="20"
-                height="20"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-            <img
-              src={selectedImage}
-              alt="Preview"
-              style={{ maxWidth: "100%", maxHeight: "70vh" }}
-            />
-            <button
-              className="ap-image-modal-insert-btn"
-              onClick={() => {
-                insertImageAtCursor(selectedImage);
-                setShowImageModal(false);
-              }}
-            >
-              Insert into Description
-            </button>
-          </div>
         </div>
       )}
 
@@ -315,11 +241,6 @@ export default function ProductDescription({
           width: 100%;
           height: 100%;
           object-fit: cover;
-          cursor: pointer;
-          transition: transform 0.2s;
-        }
-        .ap-gallery-item img:hover {
-          transform: scale(1.05);
         }
         .ap-gallery-remove {
           position: absolute;
@@ -347,32 +268,6 @@ export default function ProductDescription({
           width: 10px;
           height: 10px;
         }
-        .ap-gallery-insert {
-          position: absolute;
-          bottom: 4px;
-          right: 4px;
-          width: 20px;
-          height: 20px;
-          background: rgba(0, 0, 0, 0.7);
-          border: none;
-          border-radius: 50%;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #22c55e;
-          transition: all 0.2s;
-          z-index: 10;
-        }
-        .ap-gallery-insert:hover {
-          background: #22c55e;
-          color: white;
-          transform: scale(1.1);
-        }
-        .ap-gallery-insert svg {
-          width: 10px;
-          height: 10px;
-        }
         .ap-upload-progress {
           margin-top: 0.5rem;
           padding: 0.5rem;
@@ -392,71 +287,6 @@ export default function ProductDescription({
           border-top-color: #daa520;
           border-radius: 50%;
           animation: spin 0.6s linear infinite;
-        }
-        .ap-image-modal {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.85);
-          backdrop-filter: blur(4px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 10000;
-        }
-        .ap-image-modal-content {
-          position: relative;
-          background: white;
-          padding: 20px;
-          border-radius: 16px;
-          max-width: 90vw;
-          max-height: 90vh;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 1rem;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-        }
-        .ap-image-modal-close {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          background: rgba(0, 0, 0, 0.6);
-          border: none;
-          color: white;
-          cursor: pointer;
-          border-radius: 50%;
-          width: 32px;
-          height: 32px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-          z-index: 1;
-        }
-        .ap-image-modal-close:hover {
-          background: rgba(239, 68, 68, 0.9);
-          transform: scale(1.05);
-        }
-        .ap-image-modal-insert-btn {
-          padding: 10px 24px;
-          background: #8b6914;
-          color: white;
-          border: none;
-          border-radius: 40px;
-          font-family: var(--ap-sans);
-          font-size: 0.7rem;
-          font-weight: 600;
-          letter-spacing: 0.1em;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .ap-image-modal-insert-btn:hover {
-          background: #6b4f0e;
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(139, 105, 20, 0.3);
         }
         @keyframes spin {
           to {
