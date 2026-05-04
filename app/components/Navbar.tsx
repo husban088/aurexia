@@ -179,66 +179,72 @@ export default function Navbar({
       <div className="navbar-container">
         {/* LEFT — Currency & Search */}
         <div className="navbar-left">
-          <div
-            className="currency-dropdown"
-            onMouseEnter={handleCurrencyMouseEnter}
-            onMouseLeave={handleCurrencyMouseLeave}
-          >
-            <button className="currency-btn">
-              <span className="currency-flag">{currency.flag}</span>
-              <span className="currency-symbol">{currency.symbol}</span>
-              <span className="currency-code">{currency.code}</span>
-              <svg
-                className={`currency-arrow ${currencyOpen ? "open" : ""}`}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
+          {showPanel && (
+            <div
+              className="currency-dropdown"
+              onMouseEnter={handleCurrencyMouseEnter}
+              onMouseLeave={handleCurrencyMouseLeave}
+            >
+              <button className="currency-btn">
+                <span className="currency-flag">{currency.flag}</span>
+                <span className="currency-symbol">{currency.symbol}</span>
+                <span className="currency-code">{currency.code}</span>
+                <svg
+                  className={`currency-arrow ${currencyOpen ? "open" : ""}`}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
 
-            {currencyOpen && (
-              <div className="currency-menu">
-                {availableCurrencies.map((cur) => (
+              {currencyOpen && (
+                <div className="currency-menu">
+                  {availableCurrencies.map((cur) => (
+                    <button
+                      key={cur.code}
+                      className={`currency-option${
+                        currency.code === cur.code ? " active" : ""
+                      }`}
+                      onClick={() => {
+                        setCurrency(cur);
+                        setCurrencyOpen(false);
+                      }}
+                    >
+                      <span className="currency-option-flag">{cur.flag}</span>
+                      <span className="currency-option-symbol">
+                        {cur.symbol}
+                      </span>
+                      <span className="currency-option-code">{cur.code}</span>
+                      <span className="currency-option-name">{cur.name}</span>
+                    </button>
+                  ))}
+                  {/* ✅ Also show PKR option for Pakistan users */}
                   <button
-                    key={cur.code}
                     className={`currency-option${
-                      currency.code === cur.code ? " active" : ""
+                      currency.code === "PKR" ? " active" : ""
                     }`}
                     onClick={() => {
-                      setCurrency(cur);
-                      setCurrencyOpen(false);
+                      const pkr = currencies.find((c) => c.code === "PKR");
+                      if (pkr) {
+                        setCurrency(pkr);
+                        setCurrencyOpen(false);
+                      }
                     }}
                   >
-                    <span className="currency-option-flag">{cur.flag}</span>
-                    <span className="currency-option-symbol">{cur.symbol}</span>
-                    <span className="currency-option-code">{cur.code}</span>
-                    <span className="currency-option-name">{cur.name}</span>
+                    <span className="currency-option-flag">🇵🇰</span>
+                    <span className="currency-option-symbol">₨</span>
+                    <span className="currency-option-code">PKR</span>
+                    <span className="currency-option-name">
+                      Pakistani Rupee
+                    </span>
                   </button>
-                ))}
-                {/* ✅ Also show PKR option for Pakistan users */}
-                <button
-                  className={`currency-option${
-                    currency.code === "PKR" ? " active" : ""
-                  }`}
-                  onClick={() => {
-                    const pkr = currencies.find((c) => c.code === "PKR");
-                    if (pkr) {
-                      setCurrency(pkr);
-                      setCurrencyOpen(false);
-                    }
-                  }}
-                >
-                  <span className="currency-option-flag">🇵🇰</span>
-                  <span className="currency-option-symbol">₨</span>
-                  <span className="currency-option-code">PKR</span>
-                  <span className="currency-option-name">Pakistani Rupee</span>
-                </button>
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <button
             className="nav-icon-btn search-btn"
