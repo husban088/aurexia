@@ -11,11 +11,7 @@ import PanelNavbar from "@/app/components/PanelNavbar";
 import { supabase } from "@/lib/supabase";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { isOwner } from "@/lib/checkOwner";
-import {
-  convertPriceToPKR,
-  convertPriceFromPKR,
-  formatPanelPrice,
-} from "@/lib/panelCurrency";
+import { convertPriceToPKR, convertPriceFromPKR } from "@/lib/panelCurrency";
 import ProductDescription from "@/app/components/ProductDescription";
 import "@/app/panel/add-product/add-product.css";
 import "./edit-product.css";
@@ -1044,7 +1040,7 @@ function AttributeSelector({
   setValues: (v: string[]) => void;
   suggestions: string[];
   variants: any[];
-  setVariants: (v: any[]) => void;
+  setVariants: (v: any[] | ((prev: any[]) => any[])) => void;
   onError: (msg: string) => void;
   initialVariantsData?: any[];
 }) {
