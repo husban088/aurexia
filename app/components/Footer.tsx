@@ -18,6 +18,9 @@ import {
   FaGoogle,
   FaStar,
   FaCrown,
+  FaEnvelope,
+  FaMapMarkerAlt,
+  FaPhoneAlt,
 } from "react-icons/fa";
 import {
   MdKeyboardArrowRight,
@@ -29,8 +32,17 @@ import {
   MdSupportAgent,
   MdBusinessCenter,
   MdGavel,
+  MdLocalShipping,
+  MdSupport as MdSupportIcon,
+  MdVerified,
+  MdSecurity,
 } from "react-icons/md";
-import { GiCarKey, GiWatch, GiLaurelCrown } from "react-icons/gi";
+import {
+  GiCarKey,
+  GiWatch,
+  GiLaurelCrown,
+  GiReturnArrow,
+} from "react-icons/gi";
 import "./footer.css";
 
 // ─── Pre-computed static particle positions ───────────────────────────────────
@@ -75,7 +87,7 @@ export default function Footer() {
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
-          observer.disconnect(); // Stop observing after first intersection
+          observer.disconnect();
         }
       },
       { threshold: 0.1 }
@@ -97,36 +109,19 @@ export default function Footer() {
   };
 
   const footerLinks = {
-    shop: [
-      { name: "Watches", href: "/watches", icon: <GiWatch /> },
+    pages: [
+      { name: "Home", href: "/", icon: <MdHome /> },
       { name: "Accessories", href: "/accessories", icon: <MdVibration /> },
+      { name: "Watches", href: "/watches", icon: <GiWatch /> },
       { name: "Automotive", href: "/automotive", icon: <GiCarKey /> },
       { name: "Home Decor", href: "/home-decor", icon: <MdHome /> },
-      { name: "New Arrivals", href: "/new-arrivals", badge: true },
-      { name: "Best Sellers", href: "/best-sellers", badge: true },
-    ],
-    support: [
-      { name: "Contact Us", href: "/contact", icon: <MdSupportAgent /> },
-      { name: "FAQs", href: "/faqs" },
-      { name: "Shipping Info", href: "/shipping" },
-      { name: "Returns & Exchanges", href: "/returns" },
-      { name: "Size Guide", href: "/size-guide" },
-      { name: "24/7 Concierge", href: "/concierge", premium: true },
+      { name: "About Us", href: "/about", icon: <MdBusinessCenter /> },
+      { name: "Contact", href: "/contact", icon: <MdSupportAgent /> },
     ],
     company: [
-      { name: "About Tech4U", href: "/about", icon: <MdBusinessCenter /> },
-      { name: "Our Story", href: "/our-story" },
-      { name: "Sustainability", href: "/sustainability", eco: true },
-      { name: "Press & Media", href: "/press" },
-      { name: "Careers", href: "/careers" },
-      { name: "Affiliate Program", href: "/affiliate" },
-    ],
-    legal: [
+      { name: "About Us", href: "/about", icon: <MdBusinessCenter /> },
       { name: "Privacy Policy", href: "/privacy", icon: <MdGavel /> },
-      { name: "Terms of Service", href: "/terms" },
-      { name: "Cookie Policy", href: "/cookies" },
-      { name: "GDPR Compliance", href: "/gdpr" },
-      { name: "Accessibility", href: "/accessibility" },
+      { name: "Terms of Service", href: "/terms", icon: <MdGavel /> },
     ],
   };
 
@@ -192,24 +187,135 @@ export default function Footer() {
   ];
 
   const categories = [
-    { id: "shop", title: "Shop", icon: <GiWatch />, color: "#daa520" },
     {
-      id: "support",
-      title: "Support",
-      icon: <MdSupportAgent />,
-      color: "#f0c040",
+      id: "pages",
+      title: "Quick Links",
+      icon: <MdHome />,
+      color: "#daa520",
     },
     {
       id: "company",
       title: "Company",
       icon: <MdBusinessCenter />,
-      color: "#daa520",
+      color: "#f0c040",
     },
-    { id: "legal", title: "Legal", icon: <MdGavel />, color: "#8b6914" },
+  ];
+
+  const features = [
+    {
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        >
+          <path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+        </svg>
+      ),
+      title: "Free Delivery",
+      subtitle: "For all orders",
+    },
+    {
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        >
+          <path d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      ),
+      title: "24/7 Help Center",
+      subtitle: "Dedicated 24/7 support",
+    },
+    {
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        >
+          <path d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" />
+        </svg>
+      ),
+      title: "Satisfied or Refunded",
+      subtitle: "Free returns within 14 days",
+    },
+    {
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        >
+          <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      ),
+      title: "100% Secure Payments",
+      subtitle: "Accept all payment methods",
+    },
+  ];
+
+  const contactInfo = [
+    {
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        >
+          <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+      ),
+      label: "Email Us",
+      value: "info@tech4ru.com",
+      href: "mailto:info@tech4ru.com",
+    },
+    {
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        >
+          <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      ),
+      label: "Our Location",
+      value: "Faisalabad, Punjab, Pakistan",
+      href: null,
+    },
   ];
 
   return (
     <footer className="footer">
+      {/* ── Features Strip ── */}
+      <div className="footer-features">
+        <div className="footer-features-grid">
+          {features.map((feature, idx) => (
+            <div key={idx} className="footer-feature-card">
+              <div className="footer-feature-icon-wrap">
+                <div className="footer-feature-icon-glow" />
+                {feature.icon}
+              </div>
+              <div className="footer-feature-text">
+                <span className="footer-feature-title">{feature.title}</span>
+                <span className="footer-feature-subtitle">
+                  {feature.subtitle}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* 3D Glassmorphism Overlay */}
       <div className="footer-glass-overlay" />
 
@@ -235,7 +341,7 @@ export default function Footer() {
 
       {/* Main Footer Content */}
       <div className={`footer-container ${isVisible ? "visible" : ""}`}>
-        {/* Left Section - Brand & Newsletter */}
+        {/* Left Section - Brand & Social & Contact */}
         <div className="footer-brand">
           <div className="footer-logo-wrapper">
             <div className="footer-logo-3d">
@@ -261,40 +367,6 @@ export default function Footer() {
             <span className="footer-description-glow">Since 2026</span>
           </p>
 
-          {/* Newsletter */}
-          <div className="footer-newsletter">
-            <div className="footer-newsletter-header">
-              <div className="newsletter-glow" />
-              <p className="footer-newsletter-title">Join the Inner Circle</p>
-              <span className="newsletter-badge">VIP</span>
-            </div>
-            <p className="footer-newsletter-sub">
-              Receive exclusive offers, early access, and curated luxury drops.
-            </p>
-            <form className="footer-newsletter-form" onSubmit={handleSubscribe}>
-              <div className="footer-input-wrapper">
-                <input
-                  type="email"
-                  className="footer-newsletter-input"
-                  placeholder="your.email@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <button type="submit" className="footer-newsletter-btn">
-                  <span>Subscribe</span>
-                  <MdSend />
-                </button>
-              </div>
-            </form>
-            {subscribed && (
-              <div className="footer-subscribe-success">
-                <MdCheckCircle />
-                <span>Welcome to the Inner Circle!</span>
-              </div>
-            )}
-          </div>
-
           {/* Social Links */}
           <div className="footer-social">
             {socialLinks.map((social, index) => (
@@ -318,83 +390,138 @@ export default function Footer() {
               </a>
             ))}
           </div>
+
+          {/* Contact Info */}
+          <div className="footer-contact-section">
+            <div className="footer-contact-list">
+              {contactInfo.map((item, idx) => (
+                <div key={idx} className="footer-contact-item">
+                  <div className="footer-contact-icon">{item.icon}</div>
+                  <div className="footer-contact-text">
+                    <span className="footer-contact-label">{item.label}</span>
+                    {item.href ? (
+                      <a href={item.href} className="footer-contact-value">
+                        {item.value}
+                      </a>
+                    ) : (
+                      <span className="footer-contact-value">{item.value}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Right Section - Links Grid */}
-        <div className="footer-links">
-          {categories.map((category) => (
-            <div
-              key={category.id}
-              className={`footer-links-column ${
-                hoveredColumn === category.id ? "hovered" : ""
-              }`}
-              onMouseEnter={() => setHoveredColumn(category.id)}
-              onMouseLeave={() => setHoveredColumn(null)}
-              onClick={() =>
-                setActiveCategory(
-                  activeCategory === category.id ? null : category.id
-                )
-              }
-            >
-              <div className="footer-links-header">
-                <div
-                  className="footer-links-icon"
-                  style={{ color: category.color }}
-                >
-                  {category.icon}
-                </div>
-                <h4 className="footer-links-title">
-                  {category.title}
-                  <div className="footer-links-gold-dot" />
-                </h4>
-                <button className="footer-links-mobile-toggle">
-                  <MdKeyboardArrowRight
-                    className={activeCategory === category.id ? "rotated" : ""}
-                  />
-                </button>
-              </div>
-              <ul
-                className={`footer-links-list ${
-                  activeCategory === category.id ? "active" : ""
+        {/* Right Section - Links Grid + Newsletter */}
+        <div className="footer-right-section">
+          {/* Links Grid - Two Columns */}
+          <div className="footer-links-grid">
+            {categories.map((category) => (
+              <div
+                key={category.id}
+                className={`footer-links-column ${
+                  hoveredColumn === category.id ? "hovered" : ""
                 }`}
-              >
-                {footerLinks[category.id as keyof typeof footerLinks].map(
-                  (link, idx) => (
-                    <li
-                      key={link.name}
-                      className="footer-link-item"
-                      style={{ animationDelay: `${idx * 0.03}s` }}
-                    >
-                      <Link href={link.href} className="footer-link">
-                        <span className="footer-link-icon-wrapper">
-                          {(link as any).icon && (
-                            <span className="footer-link-icon">
-                              {(link as any).icon}
-                            </span>
-                          )}
-                        </span>
-                        <span className="footer-link-text">{link.name}</span>
-                        <span className="footer-link-arrow">
-                          <MdKeyboardArrowRight />
-                        </span>
-                      </Link>
-                      {(link as any).badge && (
-                        <span className="footer-link-badge">NEW</span>
-                      )}
-                      {(link as any).premium && (
-                        <span className="footer-link-badge premium">
-                          PREMIUM
-                        </span>
-                      )}
-                      {(link as any).eco && (
-                        <span className="footer-link-badge eco">🌱 ECO</span>
-                      )}
-                    </li>
+                onMouseEnter={() => setHoveredColumn(category.id)}
+                onMouseLeave={() => setHoveredColumn(null)}
+                onClick={() =>
+                  setActiveCategory(
+                    activeCategory === category.id ? null : category.id
                   )
-                )}
-              </ul>
+                }
+              >
+                <div className="footer-links-header">
+                  <div
+                    className="footer-links-icon"
+                    style={{ color: category.color }}
+                  >
+                    {category.icon}
+                  </div>
+                  <h4 className="footer-links-title">
+                    {category.title}
+                    <div className="footer-links-gold-dot" />
+                  </h4>
+                  <button className="footer-links-mobile-toggle">
+                    <MdKeyboardArrowRight
+                      className={
+                        activeCategory === category.id ? "rotated" : ""
+                      }
+                    />
+                  </button>
+                </div>
+                <ul
+                  className={`footer-links-list ${
+                    activeCategory === category.id ? "active" : ""
+                  }`}
+                >
+                  {footerLinks[category.id as keyof typeof footerLinks].map(
+                    (link, idx) => (
+                      <li
+                        key={link.name}
+                        className="footer-link-item"
+                        style={{ animationDelay: `${idx * 0.03}s` }}
+                      >
+                        <Link href={link.href} className="footer-link">
+                          <span className="footer-link-icon-wrapper">
+                            {(link as any).icon && (
+                              <span className="footer-link-icon">
+                                {(link as any).icon}
+                              </span>
+                            )}
+                          </span>
+                          <span className="footer-link-text">{link.name}</span>
+                          <span className="footer-link-arrow">
+                            <MdKeyboardArrowRight />
+                          </span>
+                        </Link>
+                      </li>
+                    )
+                  )}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          {/* Newsletter Section - Below both link columns */}
+          <div className="footer-newsletter-wrapper">
+            <div className="footer-newsletter">
+              <div className="footer-newsletter-header">
+                <div className="newsletter-glow" />
+                <p className="footer-newsletter-title">Join the Inner Circle</p>
+                <span className="newsletter-badge">VIP</span>
+              </div>
+              <p className="footer-newsletter-sub">
+                Receive exclusive offers, early access, and curated luxury
+                drops.
+              </p>
+              <form
+                className="footer-newsletter-form"
+                onSubmit={handleSubscribe}
+              >
+                <div className="footer-input-wrapper">
+                  <input
+                    type="email"
+                    className="footer-newsletter-input"
+                    placeholder="your.email@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                  <button type="submit" className="footer-newsletter-btn">
+                    <span>Subscribe</span>
+                    <MdSend />
+                  </button>
+                </div>
+              </form>
+              {subscribed && (
+                <div className="footer-subscribe-success">
+                  <MdCheckCircle />
+                  <span>Welcome to the Inner Circle!</span>
+                </div>
+              )}
             </div>
-          ))}
+          </div>
         </div>
       </div>
 

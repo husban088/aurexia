@@ -4,6 +4,7 @@ import HeroSection from "./components/HeroSection";
 import ExploreAurexia from "./components/ExploreAurexia";
 import FeaturedProducts from "./components/FeaturedProducts";
 import PageLoader from "./components/PageLoader";
+import HomeReviews from "./components/HomeReviews";
 
 export default function Home() {
   return (
@@ -13,6 +14,7 @@ export default function Home() {
         <HeroSection />
         <ExploreAurexia />
         <FeaturedProducts />
+        <HomeReviews />
       </main>
     </>
   );

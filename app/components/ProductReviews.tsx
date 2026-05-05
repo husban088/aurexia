@@ -21,7 +21,7 @@ interface ProductReviewsProps {
   productId: string;
 }
 
-// Star Icon Component
+// ── Star Icon Component ───────────────────────────────────────
 function StarIcon({
   filled,
   half = false,
@@ -72,6 +72,285 @@ function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
   );
 }
 
+// ── Reviews Swiper Component ──────────────────────────────────
+function ReviewsSwiper({ reviews }: { reviews: Review[] }) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const autoplayRef = useRef<NodeJS.Timeout | null>(null);
+  const progressRef = useRef<NodeJS.Timeout | null>(null);
+  const dragStart = useRef<{ x: number } | null>(null);
+  const touchStart = useRef<{ x: number } | null>(null);
+  const progressStart = useRef<number>(0);
+  const AUTOPLAY_DURATION = 5500;
+
+  // ── Progress ──────────────────────────────────────────────
+  const startProgress = useCallback(() => {
+    setProgress(0);
+    progressStart.current = Date.now();
+    if (progressRef.current) clearInterval(progressRef.current);
+    progressRef.current = setInterval(() => {
+      const elapsed = Date.now() - progressStart.current;
+      setProgress(Math.min((elapsed / AUTOPLAY_DURATION) * 100, 100));
+    }, 30);
+  }, []);
+
+  const stopProgress = useCallback(() => {
+    if (progressRef.current) clearInterval(progressRef.current);
+  }, []);
+
+  // ── Navigate ──────────────────────────────────────────────
+  const goTo = useCallback(
+    (idx: number) => {
+      if (isTransitioning || reviews.length === 0) return;
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setActiveIdx(
+          ((idx % reviews.length) + reviews.length) % reviews.length
+        );
+        setIsTransitioning(false);
+      }, 320);
+    },
+    [isTransitioning, reviews.length]
+  );
+
+  const next = useCallback(() => {
+    goTo(activeIdx + 1);
+    startProgress();
+  }, [activeIdx, goTo, startProgress]);
+  const prev = useCallback(() => {
+    goTo(activeIdx - 1);
+    startProgress();
+  }, [activeIdx, goTo, startProgress]);
+
+  // ── Autoplay ──────────────────────────────────────────────
+  useEffect(() => {
+    if (reviews.length <= 1 || isPaused) return;
+    startProgress();
+    autoplayRef.current = setInterval(() => {
+      setActiveIdx((i) => (i + 1) % reviews.length);
+      startProgress();
+    }, AUTOPLAY_DURATION);
+    return () => {
+      if (autoplayRef.current) clearInterval(autoplayRef.current);
+      stopProgress();
+    };
+  }, [reviews.length, isPaused, startProgress, stopProgress]);
+
+  // ── Mouse drag ────────────────────────────────────────────
+  const handleMouseDown = (e: React.MouseEvent) => {
+    dragStart.current = { x: e.clientX };
+    setIsDragging(false);
+  };
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (dragStart.current && Math.abs(e.clientX - dragStart.current.x) > 5)
+      setIsDragging(true);
+  };
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (!dragStart.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    if (Math.abs(dx) > 55) {
+      dx > 0 ? prev() : next();
+    }
+    dragStart.current = null;
+    setTimeout(() => setIsDragging(false), 50);
+  };
+
+  // ── Touch swipe ───────────────────────────────────────────
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = { x: e.touches[0].clientX };
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart.current) return;
+    const dx = e.changedTouches[0].clientX - touchStart.current.x;
+    if (Math.abs(dx) > 50) {
+      dx > 0 ? prev() : next();
+    }
+    touchStart.current = null;
+  };
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+  if (reviews.length === 0) return null;
+  const current = reviews[activeIdx];
+
+  return (
+    <div className="pd-swiper-reviews">
+      {/* ── Main Card ── */}
+      <div
+        className="pd-swiper-stage"
+        onMouseEnter={() => {
+          setIsPaused(true);
+          stopProgress();
+        }}
+        onMouseLeave={() => setIsPaused(false)}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        style={{ cursor: isDragging ? "grabbing" : "grab" }}
+      >
+        <div
+          className={`pd-swiper-card${
+            isTransitioning ? " pd-swiper-card--exit" : ""
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Gold accent bar */}
+          <div className="pd-swiper-accent" />
+
+          {/* Quote icon */}
+          <svg className="pd-swiper-quote" viewBox="0 0 48 36" fill="none">
+            <path
+              d="M0 36V22.5C0 16.5 1.5 11.5 4.5 7.5C7.5 3.5 11.5 1 16.5 0L18 3C14.5 4 11.75 6 9.75 9C7.75 12 6.75 15.5 6.75 19.5H13.5V36H0ZM27 36V22.5C27 16.5 28.5 11.5 31.5 7.5C34.5 3.5 38.5 1 43.5 0L45 3C41.5 4 38.75 6 36.75 9C34.75 12 33.75 15.5 33.75 19.5H40.5V36H27Z"
+              fill="currentColor"
+            />
+          </svg>
+
+          {/* Stars */}
+          <div className="pd-swiper-stars">
+            <StarDisplay rating={current.rating} size={15} />
+          </div>
+
+          {/* Title */}
+          <h4 className="pd-swiper-card-title">
+            &ldquo;{current.title}&rdquo;
+          </h4>
+
+          {/* Body */}
+          <p className="pd-swiper-card-body">{current.body}</p>
+
+          {/* Review Images */}
+          {current.images && current.images.length > 0 && (
+            <div className="pd-swiper-imgs">
+              {current.images.slice(0, 4).map((img, idx) => (
+                <div key={idx} className="pd-swiper-img-wrap">
+                  <img
+                    src={img}
+                    alt={`Review photo ${idx + 1}`}
+                    draggable={false}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Author */}
+          <div className="pd-swiper-author">
+            <div className="pd-swiper-avatar">
+              {current.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="pd-swiper-author-text">
+              <span className="pd-swiper-author-name">{current.name}</span>
+              <span className="pd-swiper-author-date">
+                {formatDate(current.created_at)}
+              </span>
+            </div>
+            <div className="pd-swiper-verified">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Verified
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          {reviews.length > 1 && (
+            <div className="pd-swiper-progress-track">
+              <div
+                className="pd-swiper-progress-fill"
+                style={{
+                  width: `${progress}%`,
+                  transition: isPaused ? "none" : "width 0.03s linear",
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Controls ── */}
+      {reviews.length > 1 && (
+        <div className="pd-swiper-controls">
+          <button
+            className="pd-swiper-arrow pd-swiper-arrow--prev"
+            onClick={prev}
+            aria-label="Previous"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+
+          <div className="pd-swiper-dots">
+            {reviews.map((_, i) => (
+              <button
+                key={i}
+                className={`pd-swiper-dot${
+                  i === activeIdx ? " pd-swiper-dot--active" : ""
+                }`}
+                onClick={() => {
+                  goTo(i);
+                  startProgress();
+                }}
+                aria-label={`Review ${i + 1}`}
+              />
+            ))}
+          </div>
+
+          <button
+            className="pd-swiper-arrow pd-swiper-arrow--next"
+            onClick={next}
+            aria-label="Next"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Counter */}
+      {reviews.length > 1 && (
+        <p className="pd-swiper-counter">
+          <span className="pd-swiper-counter-cur">
+            {String(activeIdx + 1).padStart(2, "0")}
+          </span>
+          <span className="pd-swiper-counter-sep">/</span>
+          <span className="pd-swiper-counter-tot">
+            {String(reviews.length).padStart(2, "0")}
+          </span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Main ProductReviews Component ─────────────────────────────
 export default function ProductReviews({ productId }: ProductReviewsProps) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
@@ -148,7 +427,6 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     const remaining = 5 - imageFiles.length;
     const toAdd = files.slice(0, remaining);
     setImageFiles((prev) => [...prev, ...toAdd]);
-
     toAdd.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (ev) => {
@@ -175,6 +453,17 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     return e;
   };
 
+  // ── Timeout wrapper — promise ko max N ms me resolve karta hai ──
+  const withTimeout = <T,>(
+    promise: Promise<T>,
+    ms: number,
+    fallback: T
+  ): Promise<T> =>
+    Promise.race([
+      promise,
+      new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+    ]);
+
   const handleSubmit = async () => {
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
@@ -186,68 +475,76 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     setSubmitting(true);
 
     try {
+      // ── Step 1: Image upload (max 8s per image, skip on timeout) ──
       const uploadedUrls: string[] = [];
-      for (const file of imageFiles) {
-        try {
-          const url = await uploadToCloudinary(file);
-          uploadedUrls.push(url);
-        } catch (err) {
-          console.error("Failed to upload image:", err);
+      if (imageFiles.length > 0) {
+        for (const file of imageFiles) {
+          try {
+            const url = await withTimeout(
+              uploadToCloudinary(file),
+              8000,
+              "" // timeout pe empty string — skip this image
+            );
+            if (url) uploadedUrls.push(url);
+          } catch {
+            // Upload fail hoi — review bina image ke submit karo
+          }
         }
       }
 
-      const { error: insertError } = await supabase
-        .from("product_reviews")
-        .insert({
+      // ── Step 2: Insert review (max 10s) ──
+      const insertResult = await withTimeout(
+        supabase.from("product_reviews").insert({
           product_id: productId,
           name: name.trim(),
           email: email.trim().toLowerCase(),
           title: title.trim(),
           body: body.trim(),
-          rating: rating,
+          rating: Number(rating),
           images: uploadedUrls,
-        });
+        }),
+        10000,
+        {
+          error: {
+            message: "Request timed out. Please try again.",
+            code: "TIMEOUT",
+          } as any,
+          data: null,
+        }
+      );
+
+      const insertError = (insertResult as any)?.error;
 
       if (insertError) {
-        console.error("Supabase insert error:", insertError);
-        setSubmitError(
-          insertError.message || "Failed to submit review. Please try again."
-        );
+        // Supabase PostgrestError — extract all fields properly
+        const msg =
+          (insertError as any).message ||
+          (insertError as any).details ||
+          "Failed to submit review. Please try again.";
+        console.error("Insert error:", {
+          message: (insertError as any).message,
+          details: (insertError as any).details,
+          hint: (insertError as any).hint,
+          code: (insertError as any).code,
+        });
+        setSubmitError(msg);
         return;
       }
 
-      // Update product rating & reviews_count
-      const { data: allReviews } = await supabase
-        .from("product_reviews")
-        .select("rating")
-        .eq("product_id", productId);
-
-      if (allReviews && allReviews.length > 0) {
-        const newAvg =
-          allReviews.reduce(
-            (s: number, r: { rating: number }) => s + r.rating,
-            0
-          ) / allReviews.length;
-        await supabase
-          .from("products")
-          .update({
-            rating: Math.round(newAvg * 10) / 10,
-            reviews_count: allReviews.length,
-          })
-          .eq("id", productId);
-      }
-
+      // ── Step 3: Success — immediately show toast, reset form ──
       resetForm();
       setShowForm(false);
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 5000);
-      await fetchReviews();
+
+      // ── Step 4: Background refresh (non-blocking, max 5s) ──
+      withTimeout(fetchReviews(), 5000, undefined).catch(() => {});
     } catch (err: unknown) {
-      console.error("Unexpected error:", err);
       const message =
         err instanceof Error
           ? err.message
           : "Something went wrong. Please try again.";
+      console.error("Unexpected submit error:", err);
       setSubmitError(message);
     } finally {
       setSubmitting(false);
@@ -535,7 +832,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                     <line x1="12" y1="3" x2="12" y2="15" />
                   </svg>
                   <p className="pd-upload-zone-text">
-                    <span>Click to upload</span> or drag & drop
+                    <span>Click to upload</span> or drag &amp; drop
                   </p>
                 </div>
               )}
@@ -604,6 +901,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
         </div>
       )}
 
+      {/* ── Reviews List Header ── */}
       <div className="pd-reviews-list-header">
         <h3 className="pd-reviews-list-title">Customer Reviews</h3>
         {reviews.length > 0 && (
@@ -613,6 +911,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
         )}
       </div>
 
+      {/* ── Reviews Content ── */}
       {loadingReviews ? (
         <div className="pd-reviews-loading">
           <div className="pd-reviews-loading-dot" />
@@ -631,44 +930,51 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           </svg>
           <p>No reviews yet — be the first to share your experience</p>
         </div>
-      ) : (
+      ) : reviews.length === 1 ? (
+        /* Single review — show normal card */
         <div className="pd-reviews-list">
-          {reviews.map((review) => (
-            <div key={review.id} className="pd-review-card">
-              <div className="pd-review-card-top">
-                <div className="pd-review-author">
-                  <div className="pd-review-avatar">
-                    {review.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="pd-review-author-info">
-                    <span className="pd-review-author-name">{review.name}</span>
-                    <span className="pd-review-date">
-                      {new Date(review.created_at).toLocaleDateString("en-US", {
+          <div className="pd-review-card">
+            <div className="pd-review-card-top">
+              <div className="pd-review-author">
+                <div className="pd-review-avatar">
+                  {reviews[0].name.charAt(0).toUpperCase()}
+                </div>
+                <div className="pd-review-author-info">
+                  <span className="pd-review-author-name">
+                    {reviews[0].name}
+                  </span>
+                  <span className="pd-review-date">
+                    {new Date(reviews[0].created_at).toLocaleDateString(
+                      "en-US",
+                      {
                         year: "numeric",
                         month: "long",
                         day: "numeric",
-                      })}
-                    </span>
-                  </div>
-                </div>
-                <div className="pd-review-stars">
-                  <StarDisplay rating={review.rating} size={14} />
+                      }
+                    )}
+                  </span>
                 </div>
               </div>
-              <h4 className="pd-review-card-title">{review.title}</h4>
-              <p className="pd-review-body">{review.body}</p>
-              {review.images && review.images.length > 0 && (
-                <div className="pd-review-images">
-                  {review.images.map((img, idx) => (
-                    <div key={idx} className="pd-review-img-thumb">
-                      <img src={img} alt={`Review image ${idx + 1}`} />
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="pd-review-stars">
+                <StarDisplay rating={reviews[0].rating} size={14} />
+              </div>
             </div>
-          ))}
+            <h4 className="pd-review-card-title">{reviews[0].title}</h4>
+            <p className="pd-review-body">{reviews[0].body}</p>
+            {reviews[0].images && reviews[0].images.length > 0 && (
+              <div className="pd-review-images">
+                {reviews[0].images.map((img, idx) => (
+                  <div key={idx} className="pd-review-img-thumb">
+                    <img src={img} alt={`Review image ${idx + 1}`} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
+      ) : (
+        /* Multiple reviews — Luxury Swiper */
+        <ReviewsSwiper reviews={reviews} />
       )}
     </section>
   );

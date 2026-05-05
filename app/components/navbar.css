@@ -23,13 +23,34 @@
   --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Main Navbar */
+/* ─────────────────────────────────────────────────────────────
+         Z-INDEX SYSTEM (saara project isi system pe chale):
+         ─────────────────────────────────────────────────────────────
+         10   — Normal page content
+         20   — Sticky elements (product gallery, sidebar)
+         100  — Navbar (fixed, above page content)
+         150  — Navbar dropdowns (currency, category menus — above navbar bar)
+         1000 — Modals / overlays (cart drawer, search modal, mobile menu)
+               → YEH NAVBAR SE UPAR HAIN — hamesha dikhenge
+         9999 — Lightbox (product image fullscreen)
+         ─────────────────────────────────────────────────────────────
+         RULE: Modals ko z-index: 1000+ rakhna ZAROORI hai.
+         Navbar z-index: 100 hai — modals iske upar automatically aayenge.
+   
+         WHY: Navbar position:fixed + z-index milke ek stacking context
+         banate hain. Iske andar ke saare children (navbar-bottom,
+         dropdowns) usi context mein bound hote hain. Isliye modals ko
+         navbar ke BAAD DOM mein hona chahiye AUR unka z-index navbar
+         se zyada hona chahiye. Yahi sahi architecture hai.
+         ───────────────────────────────────────────────────────────── */
+
+/* Main Navbar — z-index: 100 */
 .navbar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 100 !important;
+  z-index: 100;
   background: var(--nav-bg);
   border-bottom: 1px solid var(--nav-border);
   backdrop-filter: blur(0px);
@@ -221,7 +242,7 @@
   visibility: hidden;
   transition: all 0.2s ease;
   pointer-events: none;
-  z-index: 100;
+  z-index: 150;
 }
 
 .nav-icon-btn:hover .nav-icon-tooltip {
@@ -381,7 +402,7 @@
   border-radius: 16px;
   margin-top: 12px;
   overflow: hidden;
-  z-index: 1002;
+  z-index: 150;
   backdrop-filter: blur(20px);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
   animation: currencySlideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -538,7 +559,7 @@
   visibility: hidden;
   transform: translateY(-10px);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 1001;
+  z-index: 150;
 }
 
 .nav-item.has-dropdown:hover .dropdown-menu {
