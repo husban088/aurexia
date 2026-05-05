@@ -792,33 +792,49 @@ export default function ProductDetail() {
             </div>
 
             {/* ── Variant Selectors ── */}
-            {Object.entries(variantsByType).map(([type, typeVariants]) => (
-              <div key={type} className="pd-attr">
-                <span className="pd-attr-label">
-                  {type.charAt(0).toUpperCase() + type.slice(1)}:
-                </span>
-                <div className="pd-attr-tags">
-                  {typeVariants.map((variant) => (
-                    <button
-                      key={variant.id}
-                      className={`pd-attr-tag ${
-                        selectedVariant?.id === variant.id ? "active" : ""
-                      }`}
-                      onClick={() => handleVariantSelect(variant)}
-                    >
-                      {variant.id && getVariantImage(variant.id!) && (
-                        <img
-                          src={getVariantImage(variant.id!)!}
-                          alt={variant.attribute_value}
-                          className="pd-attr-img"
-                        />
-                      )}
-                      <span>{variant.attribute_value}</span>
-                    </button>
-                  ))}
+            {Object.entries(variantsByType).map(([type, typeVariants]) => {
+              // Find the selected variant for this type
+              const selectedForType = typeVariants.find(
+                (v) => v.id === selectedVariant?.id
+              );
+              return (
+                <div key={type} className="pd-attr">
+                  <span className="pd-attr-label">
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                    {selectedForType && (
+                      <>
+                        <span className="pd-attr-label-sep">:</span>
+                        <span className="pd-attr-label-value">
+                          {selectedForType.attribute_value}
+                        </span>
+                      </>
+                    )}
+                    {!selectedForType && ":"}
+                  </span>
+                  <div className="pd-attr-tags">
+                    {typeVariants.map((variant) => (
+                      <button
+                        key={variant.id}
+                        className={`pd-attr-tag ${
+                          selectedVariant?.id === variant.id ? "active" : ""
+                        }`}
+                        onClick={() => handleVariantSelect(variant)}
+                        title={variant.attribute_value}
+                      >
+                        {variant.id && getVariantImage(variant.id!) && (
+                          <img
+                            src={getVariantImage(variant.id!)!}
+                            alt={variant.attribute_value}
+                            className="pd-attr-img"
+                          />
+                        )}
+                        <span>{variant.attribute_value}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {/* ── Bulk Pricing Selector ── */}
             {bulkTiers.length > 0 && !loadingTiers && (

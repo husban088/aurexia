@@ -1134,3 +1134,21 @@
 .cart-ship-text--done {
   color: #22c55e;
 }
+
+.free-shipping-text {
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+.cart-ship-bar--done {
+  background: linear-gradient(
+    135deg,
+    rgba(46, 125, 50, 0.08) 0%,
+    rgba(27, 94, 32, 0.05) 100%
+  );
+  border-color: rgba(46, 125, 50, 0.2);
+}
+
+.cart-ship-text--done {
+  color: #2e7d32;
+}

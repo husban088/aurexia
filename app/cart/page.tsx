@@ -1,4 +1,4 @@
-// app/cart/page.tsx - COMPLETE FIX
+// app/cart/page.tsx - NO SHIPPING CHARGES (FREE SHIPPING ALWAYS)
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,9 +6,6 @@ import Link from "next/link";
 import { useCartStore } from "@/lib/cartStore";
 import "./cart.css";
 import { useCurrency } from "../context/CurrencyContext";
-
-const FREE_SHIPPING_THRESHOLD_PKR = 3000;
-const SHIPPING_COST_PKR = 250;
 
 export default function Cart() {
   const {
@@ -24,23 +21,21 @@ export default function Cart() {
 
   const { formatPrice, currency, loading: currencyLoading } = useCurrency();
 
-  // ✅ CRITICAL: Track hydration to prevent flash
+  // Track hydration to prevent flash
   const [isHydrated, setIsHydrated] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  // ✅ Wait for component to mount on client
+  // Wait for component to mount on client
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // ✅ Handle hydration and fetch cart only once
+  // Handle hydration and fetch cart only once
   useEffect(() => {
     if (!isMounted) return;
 
-    // Mark as hydrated after initial render
     setIsHydrated(true);
 
-    // Only fetch if not initialized or items are empty
     if (!initialized || items.length === 0) {
       console.log("🛒 Fetching cart on mount...");
       fetchCart();
@@ -49,21 +44,14 @@ export default function Cart() {
 
   const subtotalPKR = getSubtotal();
   const cartCount = getCartCount();
-  const discountPKR = 0; // No promo for now
-  const afterDiscountPKR = subtotalPKR - discountPKR;
-  const shippingPKR =
-    afterDiscountPKR >= FREE_SHIPPING_THRESHOLD_PKR ? 0 : SHIPPING_COST_PKR;
-  const totalPKR = afterDiscountPKR + shippingPKR;
-  const shippingProgress = Math.min(
-    (afterDiscountPKR / FREE_SHIPPING_THRESHOLD_PKR) * 100,
-    100
-  );
-  const remainingPKR = Math.max(
-    0,
-    FREE_SHIPPING_THRESHOLD_PKR - afterDiscountPKR
-  );
 
-  // ✅ Show loading until mounted and initialized
+  // ✅ NO SHIPPING CHARGES - Always free
+  const discountPKR = 0;
+  const afterDiscountPKR = subtotalPKR - discountPKR;
+  const shippingPKR = 0; // ✅ FREE SHIPPING ALWAYS
+  const totalPKR = afterDiscountPKR + shippingPKR; // Same as afterDiscountPKR
+
+  // Show loading until mounted and initialized
   if (!isMounted || !isHydrated || (!initialized && loading)) {
     return (
       <div className="cart-root">
@@ -172,45 +160,26 @@ export default function Cart() {
           </h1>
         </div>
 
-        {/* Shipping progress bar */}
+        {/* ✅ FREE SHIPPING BANNER - Always showing free shipping */}
         {items.length > 0 && (
-          <div
-            className={`cart-ship-bar${
-              shippingPKR === 0 ? " cart-ship-bar--done" : ""
-            }`}
-          >
-            {shippingPKR === 0 ? (
-              <p className="cart-ship-text cart-ship-text--done">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  width="13"
-                  height="13"
-                >
-                  <polyline
-                    points="20 6 9 17 4 12"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                Free shipping unlocked!
-              </p>
-            ) : (
-              <>
-                <p className="cart-ship-text">
-                  Add <strong>{formatPrice(remainingPKR)}</strong> more for free
-                  shipping
-                </p>
-                <div className="cart-ship-track">
-                  <div
-                    className="cart-ship-fill"
-                    style={{ width: `${shippingProgress}%` }}
-                  />
-                </div>
-              </>
-            )}
+          <div className="cart-ship-bar cart-ship-bar--done">
+            <p className="cart-ship-text cart-ship-text--done">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                width="13"
+                height="13"
+              >
+                <polyline
+                  points="20 6 9 17 4 12"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Free Shipping
+            </p>
           </div>
         )}
 
@@ -441,7 +410,7 @@ export default function Cart() {
             </Link>
           </div>
 
-          {/* Order Summary */}
+          {/* Order Summary - NO SHIPPING CHARGES */}
           <div className="cart-summary-col">
             <div className="cart-summary-card">
               <p className="cart-summary-heading">
@@ -456,11 +425,10 @@ export default function Cart() {
                   <span>{formatPrice(subtotalPKR)}</span>
                 </div>
 
+                {/* ✅ Shipping row - Always Free */}
                 <div className="cart-breakdown-row">
                   <span>Shipping</span>
-                  <span>
-                    {shippingPKR === 0 ? "Free" : formatPrice(shippingPKR)}
-                  </span>
+                  <span className="free-shipping-text">Free</span>
                 </div>
 
                 <div className="cart-breakdown-divider" />
@@ -494,6 +462,7 @@ export default function Cart() {
                   { icon: "🔒", label: "Secure Checkout" },
                   { icon: "↩", label: "30-Day Returns" },
                   { icon: "✦", label: "Luxury Packaging" },
+                  { icon: "🚚", label: "Free Shipping" },
                 ].map((b) => (
                   <div key={b.label} className="cart-trust-badge">
                     <span className="cart-trust-icon">{b.icon}</span>

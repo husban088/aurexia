@@ -33,7 +33,7 @@ interface CartItem {
 interface CartSummaryProps {
   items: CartItem[];
   subtotal: number;
-  shipping: number;
+  shipping?: number; // ✅ Made optional - will default to 0
   total: number;
   cartCount: number;
   // formatPrice ab optional hai - agar nahi diya toh useCurrency se le lega
@@ -43,7 +43,7 @@ interface CartSummaryProps {
 export default function CartSummary({
   items,
   subtotal,
-  shipping,
+  shipping = 0, // ✅ Default to 0 (free shipping)
   total,
   cartCount,
   formatPrice: propFormatPrice,
@@ -61,6 +61,10 @@ export default function CartSummary({
   // ✅ Show currency info for debugging
   const currencyCode = currency?.code || "PKR";
   const currencySymbol = currency?.symbol || "₨";
+
+  // ✅ Ensure shipping is always treated as free (0)
+  const finalShipping = 0; // Force free shipping
+  const finalTotal = subtotal; // Since shipping is 0, total = subtotal
 
   return (
     <div className="cs-summary-card">
@@ -95,10 +99,16 @@ export default function CartSummary({
           const displayImage =
             item.variant_image || product.images?.[0] || null;
           const productName = product.name ?? item.variant_name ?? "Product";
-          const displayName =
+
+          // ✅ Better display name with tier info
+          const tierLabel = ppu > 1 ? ` (${ppu}-Piece)` : "";
+          const variantSuffix =
             item.variant_name && item.variant_name !== "Standard"
-              ? `${productName} (${item.variant_name})`
-              : productName;
+              ? ` — ${item.variant_name}`
+              : "";
+          const displayName = `${productName}${tierLabel}${variantSuffix}`;
+
+          const totalPieces = ppu * item.quantity;
 
           return (
             <li key={item.id} className="cs-summary-item">
@@ -129,8 +139,19 @@ export default function CartSummary({
               <div className="cs-summary-item-info">
                 <p className="cs-summary-item-name">{displayName}</p>
                 <p className="cs-summary-item-variant">
-                  {ppu > 1 ? `${ppu}-Piece × ` : ""}
+                  {ppu > 1 ? `${ppu} pieces per unit × ` : ""}
                   {item.quantity} {item.quantity === 1 ? "unit" : "units"}
+                  {ppu > 1 && (
+                    <span
+                      style={{
+                        fontSize: "0.7rem",
+                        opacity: 0.7,
+                        marginLeft: "4px",
+                      }}
+                    >
+                      ({totalPieces} total pieces)
+                    </span>
+                  )}
                 </p>
               </div>
               <span className="cs-summary-item-price">
@@ -155,15 +176,39 @@ export default function CartSummary({
           </span>
           <span>{formatPrice(subtotal)}</span>
         </div>
+
+        {/* ✅ Shipping row - Always Free */}
         <div className="cs-summary-row">
           <span>Shipping</span>
-          <span>{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
+          <span className="free-shipping-text">Free</span>
         </div>
+
         <div className="cs-summary-divider" />
+
+        {/* ✅ Total row - Equal to subtotal */}
         <div className="cs-summary-row cs-summary-total">
           <span>Total ({currencyCode})</span>
-          <span>{formatPrice(total)}</span>
+          <span className="total-amount">{formatPrice(finalTotal)}</span>
         </div>
+      </div>
+
+      {/* ✅ Free Shipping Perks Message */}
+      <div className="free-shipping-banner">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          width="16"
+          height="16"
+        >
+          <polyline
+            points="20 6 9 17 4 12"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span>Free Shipping</span>
       </div>
 
       <div className="cs-perks">
@@ -178,6 +223,10 @@ export default function CartSummary({
         <div className="cs-perk">
           <span className="cs-perk-icon">✦</span>
           <span className="cs-perk-text">Luxury Packaging</span>
+        </div>
+        <div className="cs-perk">
+          <span className="cs-perk-icon">🚚</span>
+          <span className="cs-perk-text">Free Shipping</span>
         </div>
       </div>
     </div>

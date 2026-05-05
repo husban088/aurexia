@@ -63,7 +63,7 @@ const PARTICLES = [
 export default function Footer() {
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
-  const [currentYear, setCurrentYear] = useState(2024);
+  const [currentYear, setCurrentYear] = useState(2026);
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -258,7 +258,7 @@ export default function Footer() {
           <p className="footer-description">
             Curating the finest in watches, automotive elegance, home decor, and
             tech accessories for those who demand nothing but the extraordinary.
-            <span className="footer-description-glow">Since 2024</span>
+            <span className="footer-description-glow">Since 2026</span>
           </p>
 
           {/* Newsletter */}

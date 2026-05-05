@@ -89,7 +89,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.18em;
@@ -107,7 +107,7 @@
 }
 
 .cs-title {
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 2rem;
   font-weight: 500;
   color: #1a1a1a;
@@ -164,7 +164,7 @@
 }
 
 .cs-shipping-text {
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 0.72rem;
   font-weight: 500;
   color: #444444;
@@ -288,7 +288,7 @@
 }
 
 .cs-item-brand {
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.15em;
@@ -298,7 +298,7 @@
 }
 
 .cs-item-name {
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 1rem;
   font-weight: 600;
   color: #1a1a1a;
@@ -309,7 +309,7 @@
 }
 
 .cs-item-variant {
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 0.7rem;
   font-weight: 400;
   color: #666666;
@@ -358,7 +358,7 @@
 }
 
 .cs-qty-num {
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 0.78rem;
   font-weight: 600;
   color: #1a1a1a;
@@ -368,7 +368,7 @@
 
 /* Item price */
 .cs-item-price {
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 1rem;
   font-weight: 700;
   color: #8b6914;
@@ -377,12 +377,12 @@
 
 /* Remove btn */
 .cs-item-remove {
-  width: 28px;
-  height: 28px;
+  width: 35px;
+  height: 35px;
   background: transparent;
   border: 1px solid rgba(139, 105, 20, 0.15);
   border-radius: 50%;
-  color: #999999;
+  color: red;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -428,7 +428,7 @@
 }
 
 .cs-empty-title {
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 1.4rem;
   font-weight: 500;
   color: #1a1a1a;
@@ -436,7 +436,7 @@
 }
 
 .cs-empty-sub {
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 0.78rem;
   font-weight: 400;
   color: #666666;
@@ -453,7 +453,7 @@
   border: 1px solid rgba(218, 165, 32, 0.4);
   border-radius: 2px;
   color: #8b6914;
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.12em;
@@ -487,7 +487,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.3rem 0;
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 0.78rem;
   font-weight: 500;
   color: #444444;
@@ -506,7 +506,7 @@
 }
 
 .cs-summary-total span:last-child {
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 1.15rem;
   color: #8b6914;
 }
@@ -523,7 +523,7 @@
   border: none;
   border-radius: 40px;
   color: #1a1a1a;
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -572,7 +572,7 @@
   border: 1px solid rgba(218, 165, 32, 0.3);
   border-radius: 40px;
   color: #8b6914;
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.12em;
@@ -599,7 +599,7 @@
   background: transparent;
   border: none;
   color: #999999;
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 0.7rem;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -647,7 +647,7 @@
   gap: 0.3rem;
   padding: 0.2rem 0.6rem;
   border-radius: 20px;
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 0.55rem;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -682,7 +682,7 @@
   gap: 0.3rem;
   padding: 0.25rem 0.8rem;
   border-radius: 20px;
-  font-family: "Poppins", sans-serif;
+  font-family: "Russo One", sans-serif;
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -730,4 +730,18 @@
 
 .cs-shipping-bar--achieved .cs-shipping-text {
   color: #22c55e;
+}
+
+.free-shipping-text {
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+.cs-shipping-bar--achieved {
+  background: linear-gradient(
+    135deg,
+    rgba(46, 125, 50, 0.08) 0%,
+    rgba(27, 94, 32, 0.05) 100%
+  );
+  border-color: rgba(46, 125, 50, 0.2);
 }

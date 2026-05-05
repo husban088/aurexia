@@ -11,9 +11,8 @@ interface CartSidebarProps {
   onClose: () => void;
 }
 
-// ✅ Base values are always in PKR
-const FREE_SHIPPING_THRESHOLD_PKR = 3000;
-const SHIPPING_COST_PKR = 250;
+// ✅ NO SHIPPING CHARGES - FREE SHIPPING ALWAYS
+const SHIPPING_COST_PKR = 0; // Set to 0 for free shipping
 
 export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const [mounted, setMounted] = useState(false);
@@ -24,7 +23,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
 
-  // ✅ subtotalPKR — always in PKR (raw database value)
+  // subtotalPKR — always in PKR (raw database value)
   const subtotalPKR = useCartStore((state) =>
     state.items.reduce((t, i) => {
       const price = i.variant_price ?? i.product?.price ?? 0;
@@ -41,7 +40,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     state.items.reduce((t, i) => t + (i.pieces_per_unit ?? 1) * i.quantity, 0)
   );
 
-  // ✅ currency hook — formatPrice(pkrValue) already handles conversion internally
+  // currency hook — formatPrice(pkrValue) handles conversion internally
   const { formatPrice, currency } = useCurrency();
   const sidebarRef = useRef<HTMLDivElement>(null);
 
@@ -94,17 +93,9 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     return () => document.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose, mounted]);
 
-  // ✅ All calculations in PKR first, then convert for display
-  const shippingPKR =
-    subtotalPKR >= FREE_SHIPPING_THRESHOLD_PKR ? 0 : SHIPPING_COST_PKR;
-  const totalPKR = subtotalPKR + shippingPKR;
-  const remainingPKR = Math.max(0, FREE_SHIPPING_THRESHOLD_PKR - subtotalPKR);
-
-  // ✅ Progress bar — based on PKR threshold (no conversion needed for %)
-  const shippingProgress = Math.min(
-    (subtotalPKR / FREE_SHIPPING_THRESHOLD_PKR) * 100,
-    100
-  );
+  // ✅ NO SHIPPING CHARGES - Always free
+  const shippingPKR = 0; // Always free shipping
+  const totalPKR = subtotalPKR + shippingPKR; // Same as subtotal
 
   const handleSidebarClick = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -209,47 +200,26 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           </button>
         </div>
 
-        {/* ✅ Shipping progress bar — converted to current currency for display */}
+        {/* ✅ FREE SHIPPING BANNER - Always showing free shipping */}
         {cartUnitCount > 0 && (
-          <div
-            className={`cs-shipping-bar${
-              shippingPKR === 0 ? " cs-shipping-bar--achieved" : ""
-            }`}
-          >
-            {shippingPKR === 0 ? (
-              <p className="cs-shipping-text">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  width="13"
-                  height="13"
-                >
-                  <polyline
-                    points="20 6 9 17 4 12"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                Free shipping unlocked!
-              </p>
-            ) : (
-              <>
-                <p className="cs-shipping-text">
-                  Add{" "}
-                  {/* ✅ remainingPKR → convertPrice → formatPrice = correct currency */}
-                  <strong>{formatPrice(remainingPKR)}</strong> more for free
-                  shipping
-                </p>
-                <div className="cs-shipping-track">
-                  <div
-                    className="cs-shipping-fill"
-                    style={{ width: `${shippingProgress}%` }}
-                  />
-                </div>
-              </>
-            )}
+          <div className="cs-shipping-bar cs-shipping-bar--achieved">
+            <p className="cs-shipping-text">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                width="13"
+                height="13"
+              >
+                <polyline
+                  points="20 6 9 17 4 12"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Free Shipping
+            </p>
           </div>
         )}
 
@@ -312,12 +282,8 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 };
 
                 const ppu = item.pieces_per_unit ?? 1;
-
-                // ✅ pricePerPiecePKR — raw PKR from database
                 const pricePerPiecePKR =
                   item.variant_price ?? product.price ?? 0;
-
-                // ✅ itemTotalPKR — total in PKR
                 const itemTotalPKR = pricePerPiecePKR * ppu * item.quantity;
                 const rowPhysicalPieces = ppu * item.quantity;
 
@@ -425,7 +391,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                         <p className="cs-item-variant">{product.subcategory}</p>
                       )}
 
-                      {/* ✅ Breakdown: PKR price → convertPrice → formatPrice = correct currency */}
                       <p className="cs-item-breakdown">
                         {formatPrice(pricePerPiecePKR)} × {ppu} pcs ×{" "}
                         {item.quantity} unit
@@ -496,7 +461,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                           </button>
                         </div>
 
-                        {/* ✅ Item total: PKR → convertPrice → formatPrice */}
                         <p className="cs-item-price">
                           {formatPrice(itemTotalPKR)}
                         </p>
@@ -532,7 +496,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           )}
         </div>
 
-        {/* ✅ Footer totals — all PKR → convertPrice → formatPrice */}
+        {/* ✅ Footer totals - NO SHIPPING CHARGES */}
         {cartUnitCount > 0 && (
           <div className="cs-footer">
             <div className="cs-summary">
@@ -544,11 +508,10 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 <span>{formatPrice(subtotalPKR)}</span>
               </div>
 
+              {/* ✅ Shipping row - Always Free */}
               <div className="cs-summary-row">
                 <span>Shipping</span>
-                <span>
-                  {shippingPKR === 0 ? "Free" : formatPrice(shippingPKR)}
-                </span>
+                <span className="free-shipping-text">Free</span>
               </div>
 
               <div className="cs-summary-divider" />
@@ -590,10 +553,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               </svg>
               View Full Cart
             </button>
-
-            <button className="cs-continue-btn" onClick={onClose}>
-              Continue Shopping
-            </button>
           </div>
         )}
 
@@ -630,6 +589,10 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           .cs-item-remove:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+          }
+          .free-shipping-text {
+            color: #2e7d32;
+            font-weight: 500;
           }
         `}</style>
       </div>

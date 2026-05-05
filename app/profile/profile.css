@@ -3,7 +3,7 @@
    Premium Theme with High Contrast Text
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Russo+One&display=swap");
 
 :root {
   --pf-gold: #daa520;
@@ -22,8 +22,8 @@
   --pf-text-light: #444444;
   --pf-text-grey: #666666;
   --pf-text-gold: #8b6914;
-  --pf-serif: "Poppins", sans-serif;
-  --pf-sans: "Poppins", sans-serif;
+  --pf-serif: "Russo One", sans-serif;
+  --pf-sans: "Russo One", sans-serif;
   --pf-ease: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
   --pf-error: #ef4444;
   --pf-success: #22c55e;

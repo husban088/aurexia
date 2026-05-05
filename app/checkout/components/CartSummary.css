@@ -177,3 +177,64 @@
   letter-spacing: 0.04em;
   color: #999999;
 }
+
+/* Free shipping text styling */
+.free-shipping-text {
+  color: #2e7d32;
+  font-weight: 600;
+  background: linear-gradient(135deg, #2e7d32, #1b5e20);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  position: relative;
+}
+
+/* Total amount styling */
+.total-amount {
+  font-weight: 700;
+  font-size: 1.2rem;
+  background: linear-gradient(135deg, #daa520, #f5cb5c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Free shipping banner */
+.free-shipping-banner {
+  background: linear-gradient(
+    135deg,
+    rgba(46, 125, 50, 0.08) 0%,
+    rgba(27, 94, 32, 0.05) 100%
+  );
+  border: 1px solid rgba(46, 125, 50, 0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 12px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #2e7d32;
+}
+
+.free-shipping-banner svg {
+  stroke: #2e7d32;
+  flex-shrink: 0;
+}
+
+/* If you want animation for free shipping banner */
+@keyframes subtlePulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.free-shipping-banner {
+  animation: subtlePulse 2s ease-in-out infinite;
+}

@@ -1115,13 +1115,16 @@ function AttributeSelector({
     setVariants(variants.filter((v) => v.attributeValue !== valueToRemove));
   };
 
-  const updateVariant = (attributeValue: string, data: any) => {
-    setVariants(
-      variants.map((v) =>
-        v.attributeValue === attributeValue ? { ...v, ...data } : v
-      )
-    );
-  };
+  const updateVariant = useCallback(
+    (attributeValue: string, data: any) => {
+      setVariants((prev: any[]) =>
+        prev.map((v) =>
+          v.attributeValue === attributeValue ? { ...v, ...data } : v
+        )
+      );
+    },
+    [setVariants]
+  );
 
   const filteredSuggestions = suggestions.filter(
     (s) =>
@@ -1405,15 +1408,13 @@ function SimpleModeEditForm({
     // 3. Update images
     await supabase.from("variant_images").delete().eq("variant_id", variantId);
     if (images.length > 0) {
-      const { error: imgErr } = await supabase
-        .from("variant_images")
-        .insert(
-          images.map((url, idx) => ({
-            variant_id: variantId,
-            image_url: url,
-            display_order: idx,
-          }))
-        );
+      const { error: imgErr } = await supabase.from("variant_images").insert(
+        images.map((url, idx) => ({
+          variant_id: variantId,
+          image_url: url,
+          display_order: idx,
+        }))
+      );
       if (imgErr) console.error("Image save error:", imgErr);
     }
 
@@ -1910,9 +1911,6 @@ function DetailedModeEditForm({
     materialVariants.length +
     capacityVariants.length;
 
-  const getPriceInPKR = (priceNum: number): number =>
-    convertPriceToPKR(priceNum, currency);
-
   const handleDescriptionChange = (
     newValue: string,
     imagesInDesc: string[]
@@ -1990,11 +1988,12 @@ function DetailedModeEditForm({
     }
 
     // 3. Insert new variants
+    // NOTE: variant.price and variant.bulkPricingTiers.tier_price are ALREADY in PKR
+    // because VariantFormItem's useEffect converts them via getPriceInPKR/convertPriceToPKR
+    // before calling onUpdate. Do NOT convert again to avoid double conversion.
     for (const variant of allVariants) {
-      const pricePKR = getPriceInPKR(variant.price);
-      const originalPricePKR = variant.originalPrice
-        ? getPriceInPKR(variant.originalPrice)
-        : null;
+      const pricePKR = variant.price; // already PKR from VariantFormItem onUpdate
+      const originalPricePKR = variant.originalPrice ?? null; // already PKR
 
       const { data: variantData, error: variantError } = await supabase
         .from("product_variants")
@@ -2047,13 +2046,11 @@ function DetailedModeEditForm({
               variant_id: variantData.id,
               min_quantity: t.min_quantity,
               max_quantity: t.max_quantity,
-              tier_price: convertPriceToPKR(t.tier_price, currency),
+              tier_price: t.tier_price, // already PKR from VariantFormItem onUpdate
               discount_percentage: t.discount_percentage,
-              discount_price: t.discount_price
-                ? convertPriceToPKR(t.discount_price, currency)
-                : null,
+              discount_price: t.discount_price ?? null, // already PKR
               currency_code: currency.code,
-              base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
+              base_tier_price_pkr: t.tier_price, // already PKR
             }))
           );
         }

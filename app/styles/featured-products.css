@@ -4,7 +4,7 @@
    ✅ Perfect image cover, consistent alignment, luxury hover FX
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Russo+One&display=swap");
 @import url("https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css");
 
 /* ── Design Tokens ── */
@@ -24,8 +24,8 @@
   --fp-ink: #111111;
   --fp-ink-soft: #333333;
   --fp-ink-muted: #777777;
-  --fp-serif: "Poppins", sans-serif;
-  --fp-sans: "Poppins", sans-serif;
+  --fp-serif: "Russo One", sans-serif;
+  --fp-sans: "Russo One", sans-serif;
   --fp-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --fp-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   /* ── Card layout constants — prevents any misalignment ── */
@@ -104,7 +104,7 @@
   gap: 1rem;
   font-family: var(--fp-sans);
   font-size: 0.65rem;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: 0.45em;
   text-transform: uppercase;
   color: var(--fp-gold-deep);
@@ -132,7 +132,7 @@
 .fp-title em {
   font-style: italic;
   color: var(--fp-gold-deep);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .fp-subtitle {
@@ -166,7 +166,7 @@
   border-right: 1px solid var(--fp-gold-border);
   font-family: var(--fp-sans);
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: 0.28em;
   text-transform: uppercase;
   color: var(--fp-ink-muted);
@@ -205,7 +205,7 @@
 
 .fp-tab.fp-tab--active {
   color: var(--fp-gold-dark);
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .fp-tab.fp-tab--active::before {
@@ -452,7 +452,7 @@
   border-radius: 30px;
   font-family: var(--fp-sans);
   font-size: 0.5rem;
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   backdrop-filter: blur(6px);
@@ -574,7 +574,7 @@
 .fp-card-brand {
   font-family: var(--fp-sans);
   font-size: 0.58rem;
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0.26em;
   text-transform: uppercase;
   color: var(--fp-gold-dark);
@@ -587,7 +587,7 @@
 .fp-card-name {
   font-family: var(--fp-serif);
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--fp-ink);
   margin: 0 0 0.55rem;
   line-height: 1.38;
@@ -617,7 +617,7 @@
 .fp-card-price {
   font-family: var(--fp-serif);
   font-size: 1.3rem;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--fp-gold-dark);
   letter-spacing: -0.01em;
 }
@@ -633,7 +633,7 @@
 .fp-card-discount {
   font-family: var(--fp-sans);
   font-size: 0.62rem;
-  font-weight: 700;
+  font-weight: 400;
   color: #dc2626;
   background: rgba(220, 38, 38, 0.08);
   padding: 0.1rem 0.45rem;
@@ -655,7 +655,7 @@
 .fp-variant-label {
   font-family: var(--fp-sans);
   font-size: 0.52rem;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--fp-gold-deep);
   letter-spacing: 0.06em;
 }
@@ -719,12 +719,12 @@
 
 .fp-variant-thumb.active .fp-variant-label-text {
   color: var(--fp-gold-dark);
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .fp-variant-more {
   font-size: 0.56rem;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--fp-gold-dark);
   font-family: var(--fp-sans);
   background: var(--fp-gold-dim);
@@ -737,7 +737,7 @@
 .fp-card-stock {
   font-family: var(--fp-sans);
   font-size: 0.58rem;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   min-height: 1rem; /* ✅ always takes space even when not rendered */
@@ -826,7 +826,7 @@
   border-radius: 50px;
   font-family: var(--fp-sans);
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--fp-gold-deep);

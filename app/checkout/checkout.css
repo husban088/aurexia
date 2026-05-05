@@ -4,7 +4,7 @@
    GLOBAL STYLES ONLY (Component-specific styles moved to their respective CSS files)
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Russo+One&display=swap");
 
 :root {
   --co-gold: #daa520;
@@ -18,8 +18,8 @@
   --co-grey: #444444;
   --co-grey-light: #666666;
   --co-grey-dark: #999999;
-  --co-serif: "Poppins", sans-serif;
-  --co-sans: "Poppins", sans-serif;
+  --co-serif: "Russo One", sans-serif;
+  --co-sans: "Russo One", sans-serif;
   --co-ease: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -672,7 +672,7 @@
   cursor: pointer;
   margin-bottom: 1.5rem;
   transition: all 0.25s ease;
-  font-family: inherit;
+  font-family: "Russo One", sans-serif;
 }
 
 .co-back-step-btn:hover {
@@ -764,7 +764,7 @@
   color: #1a1a1a;
   text-align: center;
   line-height: 1.2;
-  font-family: "Georgia", serif;
+  font-family: "Russo One", sans-serif;
 }
 
 .co-success-headline em {
@@ -799,7 +799,7 @@
   font-weight: 800;
   color: #daa520;
   letter-spacing: 0.08em;
-  font-family: "Georgia", serif;
+  font-family: "Russo One", sans-serif;
 }
 
 .co-success-msg {
@@ -1040,7 +1040,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: "Georgia", serif;
+  font-family: "Russo One", sans-serif;
 }
 
 .co-success-item-qty {
@@ -1090,7 +1090,7 @@
 .co-success-total span:last-child {
   font-size: 1.4rem;
   color: #daa520;
-  font-family: "Georgia", serif;
+  font-family: "Russo One", sans-serif;
 }
 
 /* Payment badge */

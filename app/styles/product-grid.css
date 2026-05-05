@@ -5,7 +5,7 @@
    ✅ Matches Featured Products design language exactly
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Jost:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Russo+One&display=swap");
 
 /* ── Design Tokens ── */
 :root {
@@ -24,8 +24,8 @@
   --pg-ink: #111111;
   --pg-ink-soft: #333333;
   --pg-ink-muted: #777777;
-  --pg-serif: "Cormorant Garamond", Georgia, serif;
-  --pg-sans: "Jost", sans-serif;
+  --pg-serif: "Russo One", sans-serif;
+  --pg-sans: "Russo One", sans-serif;
   --pg-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --pg-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
