@@ -57,16 +57,16 @@ export default function ProductDescription({
     [descriptionImages, onChange, lockScroll, restoreScroll]
   );
 
+  // ✅ FIX: insertImageCallback ko KABHI call nahi karte
+  // Image sirf gallery mein jayegi, Quill mein nahi
   const handleImageUpload = useCallback(
-    async (file: File, insertImageCallback: (url: string) => void) => {
+    async (file: File, _insertImageCallback: (url: string) => void) => {
       if (descriptionImages.length >= maxImages) {
         alert(`Maximum ${maxImages} images allowed in description`);
         return false;
       }
 
       const savedScrollY = window.scrollY;
-      window.scrollTo({ top: savedScrollY, behavior: "instant" });
-
       setUploading(true);
 
       try {
@@ -78,8 +78,7 @@ export default function ProductDescription({
           return updated;
         });
 
-        insertImageCallback(url);
-
+        // ✅ insertImageCallback ko NAHI call kiya — image Quill mein nahi jayegi
         setUploading(false);
 
         setTimeout(() => {
@@ -111,21 +110,6 @@ export default function ProductDescription({
     [descriptionImages, description, onChange]
   );
 
-  const insertImageAtCursor = useCallback((imageUrl: string) => {
-    if (editorRef.current && editorRef.current.getEditor) {
-      const editor = editorRef.current.getEditor();
-      if (editor) {
-        const savedScrollY = window.scrollY;
-        const range = editor.getSelection(true);
-        editor.insertEmbed(range.index, "image", imageUrl);
-        editor.setSelection(range.index + 1);
-        setTimeout(() => {
-          window.scrollTo({ top: savedScrollY, behavior: "instant" });
-        }, 10);
-      }
-    }
-  }, []);
-
   return (
     <div className="ap-description-editor">
       <div className="ap-description-header">
@@ -147,6 +131,7 @@ export default function ProductDescription({
         editorRef={editorRef}
       />
 
+      {/* ✅ Gallery — images sirf yahan dikhti hain, Quill mein nahi */}
       {descriptionImages.length > 0 && (
         <div className="ap-description-image-gallery">
           <p className="ap-gallery-title">

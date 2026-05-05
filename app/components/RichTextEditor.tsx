@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import dynamic from "next/dynamic";
 import type ReactQuillType from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
@@ -89,93 +95,127 @@ export default function RichTextEditor({
     setTimeout(() => restoreScroll(), 10);
   }, [restoreScroll]);
 
-  const createImageHandler = useCallback(() => {
-    return () => {
-      if (!onImageUpload) return;
+  // ✅ KEY FIX: image handler - file pick karo, onImageUpload call karo
+  // lekin insertCallback (jo Quill mein image daalta hai) ko KABHI execute mat karo
+  const imageHandler = useCallback(() => {
+    if (!onImageUpload) return;
 
-      const savedScrollY = window.scrollY;
-      window.scrollTo({ top: savedScrollY, behavior: "instant" });
+    const savedScrollY = window.scrollY;
+    window.scrollTo({ top: savedScrollY, behavior: "instant" });
 
-      const input = document.createElement("input");
-      input.setAttribute("type", "file");
-      input.setAttribute("accept", "image/*");
-      input.style.position = "fixed";
-      input.style.top = "-100px";
-      input.style.left = "-100px";
-      input.style.opacity = "0";
-      document.body.appendChild(input);
+    const input = document.createElement("input");
+    input.setAttribute("type", "file");
+    input.setAttribute("accept", "image/*");
+    input.style.position = "fixed";
+    input.style.top = "-100px";
+    input.style.left = "-100px";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
 
-      input.onchange = async () => {
-        const file = input.files?.[0];
-        document.body.removeChild(input);
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      document.body.removeChild(input);
 
-        if (!file) {
-          window.scrollTo({ top: savedScrollY, behavior: "instant" });
-          return;
-        }
-
+      if (!file) {
         window.scrollTo({ top: savedScrollY, behavior: "instant" });
-        setIsUploading(true);
+        return;
+      }
 
-        const insertImage = (url: string) => {
-          if (quillInstance.current) {
-            const editor = quillInstance.current.getEditor();
-            if (editor) {
-              const range = editor.getSelection(true);
-              editor.insertEmbed(range.index, "image", url);
-              editor.setSelection(range.index + 1);
-            }
-          }
-        };
+      window.scrollTo({ top: savedScrollY, behavior: "instant" });
+      setIsUploading(true);
 
-        try {
-          await onImageUpload(file, insertImage);
-        } catch (error) {
-          console.error("Error uploading image:", error);
-          alert("Failed to upload image");
-        } finally {
-          setIsUploading(false);
-          window.scrollTo({ top: savedScrollY, behavior: "instant" });
-        }
+      // ✅ FIX: yeh no-op callback hai — Quill mein kuch insert NAHI hoga
+      // ProductDescription component mein bhi insertImageCallback call nahi hoti
+      // to image SIRF gallery mein jayegi
+      const noOpInsertCallback = (_url: string) => {
+        // intentionally empty — image Quill mein nahi jayegi
       };
 
-      input.click();
+      try {
+        await onImageUpload(file, noOpInsertCallback);
+      } catch (error) {
+        console.error("Error uploading image:", error);
+        alert("Failed to upload image");
+      } finally {
+        setIsUploading(false);
+        window.scrollTo({ top: savedScrollY, behavior: "instant" });
+      }
     };
-  }, [onImageUpload, quillInstance]);
 
-  // Fix Quill formatting issues
+    input.click();
+  }, [onImageUpload]);
+
+  // ✅ useMemo use karo taake modules re-create na ho har render pe
+  // Vercel pe yeh bahut zaroori hai — nahi toh Quill reinitialize hota rehta hai
+  const modules = useMemo(
+    () => ({
+      toolbar: {
+        container: [
+          [{ header: [1, 2, 3, 4, 5, 6, false] }],
+          [{ font: [] }],
+          [{ size: ["small", false, "large", "huge"] }],
+          ["bold", "italic", "underline", "strike"],
+          [{ color: [] }, { background: [] }],
+          [{ script: "sub" }, { script: "super" }],
+          [{ list: "ordered" }, { list: "bullet" }],
+          [{ indent: "-1" }, { indent: "+1" }],
+          [{ align: [] }],
+          ["blockquote", "code-block"],
+          ["link", "image"],
+          ["clean"],
+        ],
+        handlers: {
+          image: imageHandler,
+        },
+      },
+      clipboard: {
+        matchVisual: false,
+      },
+    }),
+    [imageHandler]
+  );
+
+  const formats = [
+    "header",
+    "font",
+    "size",
+    "bold",
+    "italic",
+    "underline",
+    "strike",
+    "color",
+    "background",
+    "script",
+    "list",
+    "indent",
+    "align",
+    "blockquote",
+    "code-block",
+    "link",
+    "image",
+  ];
+
+  // Global Quill styles
   useEffect(() => {
     if (!isMounted) return;
 
-    // Add global styles to ensure Quill formatting works
     const style = document.createElement("style");
     style.innerHTML = `
-      /* Ensure Quill toolbar buttons are clickable */
       .ql-toolbar {
         position: relative;
         z-index: 1000 !important;
       }
-      
       .ql-toolbar button {
         pointer-events: auto !important;
         cursor: pointer !important;
       }
-      
-      /* Make sure formatting buttons are visible and work */
-      .ql-bold, .ql-italic, .ql-underline, .ql-strike {
-        background: transparent !important;
-      }
-      
       .ql-bold.ql-active, .ql-italic.ql-active, .ql-underline.ql-active, .ql-strike.ql-active {
         background: rgba(218, 165, 32, 0.2) !important;
         color: #8b6914 !important;
       }
-      
-      /* Dropdown styles */
       .ql-picker {
         z-index: 1001 !important;
       }
-      
       .ql-picker-options {
         z-index: 10000 !important;
         background: white !important;
@@ -183,63 +223,25 @@ export default function RichTextEditor({
         border-radius: 8px !important;
         box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
       }
-      
       .ql-picker-item:hover {
         background: rgba(218, 165, 32, 0.1) !important;
         color: #8b6914 !important;
       }
-      
-      /* Editor content styles */
       .ql-editor {
         min-height: 200px;
         font-family: var(--ap-sans, 'Josefin Sans', sans-serif);
         font-size: 0.9rem;
         line-height: 1.6;
       }
-      
-      .ql-editor strong, .ql-editor b {
-        font-weight: bold !important;
-      }
-      
-      .ql-editor em, .ql-editor i {
-        font-style: italic !important;
-      }
-      
-      .ql-editor u {
-        text-decoration: underline !important;
-      }
-      
-      .ql-editor s, .ql-editor strike {
-        text-decoration: line-through !important;
-      }
-      
-      .ql-editor h1 {
-        font-size: 2rem;
-        font-weight: bold;
-        margin: 0.5rem 0;
-      }
-      
-      .ql-editor h2 {
-        font-size: 1.5rem;
-        font-weight: bold;
-        margin: 0.5rem 0;
-      }
-      
-      .ql-editor h3 {
-        font-size: 1.25rem;
-        font-weight: bold;
-        margin: 0.5rem 0;
-      }
-      
-      .ql-editor ul, .ql-editor ol {
-        padding-left: 1.5rem;
-        margin: 0.5rem 0;
-      }
-      
-      .ql-editor li {
-        margin: 0.25rem 0;
-      }
-      
+      .ql-editor strong, .ql-editor b { font-weight: bold !important; }
+      .ql-editor em, .ql-editor i { font-style: italic !important; }
+      .ql-editor u { text-decoration: underline !important; }
+      .ql-editor s, .ql-editor strike { text-decoration: line-through !important; }
+      .ql-editor h1 { font-size: 2rem; font-weight: bold; margin: 0.5rem 0; }
+      .ql-editor h2 { font-size: 1.5rem; font-weight: bold; margin: 0.5rem 0; }
+      .ql-editor h3 { font-size: 1.25rem; font-weight: bold; margin: 0.5rem 0; }
+      .ql-editor ul, .ql-editor ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+      .ql-editor li { margin: 0.25rem 0; }
       .ql-editor blockquote {
         border-left: 3px solid #daa520;
         padding-left: 1rem;
@@ -247,28 +249,17 @@ export default function RichTextEditor({
         color: #666;
         font-style: italic;
       }
-      
       .ql-editor img {
         max-width: 100%;
         border-radius: 8px;
         margin: 0.5rem 0;
       }
-      
-      .ql-editor a {
-        color: #daa520;
-        text-decoration: none;
-      }
-      
-      .ql-editor a:hover {
-        text-decoration: underline;
-      }
-      
-      /* Color picker */
+      .ql-editor a { color: #daa520; text-decoration: none; }
+      .ql-editor a:hover { text-decoration: underline; }
       .ql-color-picker .ql-picker-options {
         width: 200px !important;
         padding: 8px !important;
       }
-      
       .ql-color-picker .ql-picker-item {
         width: 24px !important;
         height: 24px !important;
@@ -277,13 +268,12 @@ export default function RichTextEditor({
       }
     `;
     document.head.appendChild(style);
-
     return () => {
       document.head.removeChild(style);
     };
   }, [isMounted]);
 
-  // Prevent unwanted scrolling
+  // Scroll prevent
   useEffect(() => {
     if (!isMounted || !quillInstance.current) return;
 
@@ -311,51 +301,6 @@ export default function RichTextEditor({
     }
   }, [isMounted, quillInstance]);
 
-  const modules = {
-    toolbar: {
-      container: [
-        [{ header: [1, 2, 3, 4, 5, 6, false] }],
-        [{ font: [] }],
-        [{ size: ["small", false, "large", "huge"] }],
-        ["bold", "italic", "underline", "strike"],
-        [{ color: [] }, { background: [] }],
-        [{ script: "sub" }, { script: "super" }],
-        [{ list: "ordered" }, { list: "bullet" }],
-        [{ indent: "-1" }, { indent: "+1" }],
-        [{ align: [] }],
-        ["blockquote", "code-block"],
-        ["link", "image"],
-        ["clean"],
-      ],
-      handlers: {
-        image: createImageHandler(),
-      },
-    },
-    clipboard: {
-      matchVisual: false,
-    },
-  };
-
-  const formats = [
-    "header",
-    "font",
-    "size",
-    "bold",
-    "italic",
-    "underline",
-    "strike",
-    "color",
-    "background",
-    "script",
-    "list",
-    "indent",
-    "align",
-    "blockquote",
-    "code-block",
-    "link",
-    "image",
-  ];
-
   if (!isMounted) {
     return (
       <div className="ap-editor-placeholder">
@@ -381,7 +326,7 @@ export default function RichTextEditor({
       {isUploading && (
         <div className="ap-uploading-indicator">
           <div className="ap-spinner-small" />
-          <span>Uploading image...</span>
+          <span>Uploading to gallery...</span>
         </div>
       )}
       <style jsx>{`
