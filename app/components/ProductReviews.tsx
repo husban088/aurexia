@@ -493,24 +493,31 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       }
 
       // ── Step 2: Insert review (max 10s) ──
+      // withTimeout needs a real Promise — wrap the builder.
+      // Fallback cast to "any" avoids PostgrestSingleResponse shape mismatch.
       const insertResult = await withTimeout(
-        supabase.from("product_reviews").insert({
-          product_id: productId,
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
-          title: title.trim(),
-          body: body.trim(),
-          rating: Number(rating),
-          images: uploadedUrls,
-        }),
+        Promise.resolve(
+          supabase.from("product_reviews").insert({
+            product_id: productId,
+            name: name.trim(),
+            email: email.trim().toLowerCase(),
+            title: title.trim(),
+            body: body.trim(),
+            rating: Number(rating),
+            images: uploadedUrls,
+          })
+        ) as Promise<any>,
         10000,
         {
           error: {
             message: "Request timed out. Please try again.",
             code: "TIMEOUT",
-          } as any,
+          },
           data: null,
-        }
+          count: null,
+          status: 408,
+          statusText: "Request Timeout",
+        } as any
       );
 
       const insertError = (insertResult as any)?.error;
