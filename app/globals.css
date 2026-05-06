@@ -24,12 +24,14 @@
 *::before,
 *::after {
   box-sizing: border-box;
+  scroll-behavior: smooth !important;
 }
 
 body {
   margin: 0;
   padding: 0;
   box-sizing: inherit;
+  scroll-behavior: smooth !important;
 }
 
 html {

@@ -2691,7 +2691,7 @@ function DetailedModeForm({
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export default function AddProductPage() {
+export default function AddProduct() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(0);
   const [mode, setMode] = useState<Mode>("simple");

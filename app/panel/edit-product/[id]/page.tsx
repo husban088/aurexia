@@ -562,11 +562,52 @@ function MultiImageUploader({
   const removeImage = (index: number) =>
     onImagesChange(images.filter((_, i) => i !== index));
 
+  const MAX_IMAGES = 20;
+  const canAdd = images.length < MAX_IMAGES;
+
   return (
     <div className="ap-variant-images">
+      {images.length > 0 && (
+        <p
+          style={{
+            fontFamily: "var(--ap-sans)",
+            fontSize: "0.65rem",
+            color: "#999",
+            marginBottom: "0.5rem",
+          }}
+        >
+          {images.length}/{MAX_IMAGES} images · First image is main thumbnail
+        </p>
+      )}
       <div className="ap-variant-image-list">
         {images.map((img, idx) => (
-          <div key={idx} className="ap-variant-image-item">
+          <div
+            key={idx}
+            className="ap-variant-image-item"
+            style={{ position: "relative" }}
+          >
+            {idx === 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "3px",
+                  left: "3px",
+                  background: "#8b6914",
+                  color: "#fff",
+                  fontSize: "0.5rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  padding: "1px 4px",
+                  borderRadius: "3px",
+                  zIndex: 2,
+                  fontFamily: "var(--ap-sans)",
+                  pointerEvents: "none",
+                }}
+              >
+                Main
+              </span>
+            )}
             <img src={img} alt={`Image ${idx + 1}`} />
             <button
               type="button"
@@ -585,21 +626,23 @@ function MultiImageUploader({
             </button>
           </div>
         ))}
-        <button
-          type="button"
-          className="ap-variant-image-add"
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-        >
-          {uploading ? (
-            <div
-              className="ap-spinner"
-              style={{ width: "20px", height: "20px" }}
-            />
-          ) : (
-            "+ Upload Image"
-          )}
-        </button>
+        {canAdd && (
+          <button
+            type="button"
+            className="ap-variant-image-add"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <div
+                className="ap-spinner"
+                style={{ width: "20px", height: "20px" }}
+              />
+            ) : (
+              "+ Upload Image"
+            )}
+          </button>
+        )}
         <input
           ref={fileRef}
           type="file"
@@ -612,6 +655,18 @@ function MultiImageUploader({
           style={{ display: "none" }}
         />
       </div>
+      {!canAdd && (
+        <p
+          style={{
+            fontFamily: "var(--ap-sans)",
+            fontSize: "0.65rem",
+            color: "#f59e0b",
+            marginTop: "0.4rem",
+          }}
+        >
+          Maximum {MAX_IMAGES} images reached. Remove one to add more.
+        </p>
+      )}
     </div>
   );
 }
@@ -1848,37 +1903,27 @@ function DetailedModeEditForm({
   const [isActive, setIsActive] = useState(initialProduct?.is_active !== false);
   const [faqs, setFaqs] = useState<FAQ[]>(initialFaqs);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [mainImages, setMainImages] = useState<string[]>(
-    initialProduct?.main_images ||
-      initialVariants
-        .filter((v) => v.attribute_type === "standard")
-        .flatMap((v) =>
-          (v.variant_images || [])
-            .sort((a: any, b: any) => a.display_order - b.display_order)
-            .map((i: any) => i.image_url)
-        ) ||
-      []
-  );
-  const [mainUploading, setMainUploading] = useState(false);
-  const mainFileRef = useRef<HTMLInputElement>(null);
-
-  const handleMainImageUpload = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      onError("Only image files are allowed");
-      return;
+  const [mainImages, setMainImages] = useState<string[]>(() => {
+    // First priority: main_images column from DB
+    if (
+      initialProduct?.main_images &&
+      Array.isArray(initialProduct.main_images) &&
+      initialProduct.main_images.length > 0
+    ) {
+      return initialProduct.main_images;
     }
-    setMainUploading(true);
-    try {
-      const url = await uploadToCloudinary(file);
-      setMainImages((prev) => [...prev, url]);
-    } catch (err) {
-      onError(
-        "Upload failed: " +
-          (err instanceof Error ? err.message : "Unknown error")
+    // Second priority: images from any non-standard variant (fallback)
+    const nonStandardImages = initialVariants
+      .filter((v) => v.attribute_type !== "standard")
+      .flatMap((v) =>
+        (v.variant_images || [])
+          .sort((a: any, b: any) => a.display_order - b.display_order)
+          .map((i: any) => i.image_url)
       );
-    }
-    setMainUploading(false);
-  };
+    if (nonStandardImages.length > 0) return nonStandardImages.slice(0, 5);
+    // Empty array — user will upload
+    return [];
+  });
 
   const buildInitial = (type: string) =>
     initialVariants
@@ -2300,88 +2345,26 @@ function DetailedModeEditForm({
               <h3 className="ap-card-title">Main Product Gallery Images</h3>
             </div>
             <div className="ap-card-body">
-              <div
-                className="ap-img-upload"
-                onClick={() => !mainUploading && mainFileRef.current?.click()}
+              <p
+                style={{
+                  fontFamily: "var(--ap-sans)",
+                  fontSize: "0.7rem",
+                  color: "#8b6914",
+                  marginBottom: "0.75rem",
+                  background: "rgba(139,105,20,0.08)",
+                  border: "1px solid rgba(139,105,20,0.2)",
+                  borderRadius: "6px",
+                  padding: "0.5rem 0.75rem",
+                }}
               >
-                <input
-                  ref={mainFileRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    e.target.files?.[0] &&
-                    handleMainImageUpload(e.target.files[0])
-                  }
-                  style={{ display: "none" }}
-                />
-                <div className="ap-img-upload-icon">
-                  {mainUploading ? (
-                    <div className="ap-spinner" />
-                  ) : (
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    >
-                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                  )}
-                </div>
-                <p className="ap-img-upload-title">
-                  {mainUploading ? "Uploading..." : "Click to Upload Main Images"}
-                </p>
-                <p className="ap-img-upload-sub">JPG, PNG, WEBP · First image = Main</p>
-              </div>
-              {mainImages.length > 0 && (
-                <div className="ap-img-previews">
-                  {mainImages.map((url, i) => (
-                    <div key={i} className="ap-img-thumb">
-                      {i === 0 && (
-                        <span
-                          style={{
-                            position: "absolute",
-                            top: "4px",
-                            left: "4px",
-                            background: "#8b6914",
-                            color: "#fff",
-                            fontSize: "0.55rem",
-                            fontWeight: 700,
-                            letterSpacing: "0.08em",
-                            textTransform: "uppercase",
-                            padding: "1px 5px",
-                            borderRadius: "3px",
-                            zIndex: 2,
-                            fontFamily: "var(--ap-sans)",
-                          }}
-                        >
-                          Main
-                        </span>
-                      )}
-                      <img src={url} alt={`Main ${i + 1}`} />
-                      <button
-                        type="button"
-                        className="ap-img-thumb-remove"
-                        onClick={() =>
-                          setMainImages(mainImages.filter((_, j) => j !== i))
-                        }
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <line x1="18" y1="6" x2="6" y2="18" />
-                          <line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+                📸 These are the main product images shown in listings. Add up
+                to 20. First image = main thumbnail.
+              </p>
+              <MultiImageUploader
+                images={mainImages}
+                onImagesChange={setMainImages}
+                onError={onError}
+              />
             </div>
           </div>
 
@@ -2498,7 +2481,7 @@ function DetailedModeEditForm({
 
 // ─── Main Edit Product Page ──────────────────────────────────────────────────
 
-export default function EditProductPage() {
+export default function EditProduct() {
   const router = useRouter();
   const params = useParams();
   const productId = params?.id as string;
