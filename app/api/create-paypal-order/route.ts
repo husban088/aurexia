@@ -4,9 +4,9 @@ import { NextRequest, NextResponse } from "next/server";
 const PAYPAL_API_URL =
   process.env.PAYPAL_API_URL || "https://api-m.sandbox.paypal.com";
 
-// ✅ PayPal supported currencies (PKR NOT supported — fallback to USD)
+// ✅ Only PKR needs fallback — all other currencies passed as-is
 const PAYPAL_CURRENCY_FALLBACK: Record<string, string> = {
-  PKR: "USD", // Pakistan Rupee → US Dollar
+  PKR: "USD",
 };
 
 async function getPayPalAccessToken(): Promise<string> {
@@ -44,16 +44,14 @@ export async function POST(request: NextRequest) {
   try {
     const { amount, currency = "USD", orderData } = await request.json();
 
-    // Validate amount
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
-    // ✅ Apply currency fallback for unsupported currencies (e.g. PKR → USD)
+    // ✅ Only fallback PKR → USD. Everything else (AUD, GBP, EUR etc.) passes through.
     const rawCurrency = currency.toUpperCase();
     const finalCurrency = PAYPAL_CURRENCY_FALLBACK[rawCurrency] ?? rawCurrency;
 
-    // Get PayPal access token
     let accessToken;
     try {
       accessToken = await getPayPalAccessToken();
@@ -68,7 +66,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create PayPal order
+    // ✅ Build shipping address block if provided
+    // This pre-fills the billing/shipping form in PayPal's own popup
+    const shippingAddr = orderData?.shippingAddress;
+    const hasAddress = shippingAddr?.addressLine1 || shippingAddr?.firstName;
+
+    const shippingBlock = hasAddress
+      ? {
+          shipping: {
+            name: {
+              full_name: `${shippingAddr.firstName || ""} ${
+                shippingAddr.lastName || ""
+              }`.trim(),
+            },
+            address: {
+              address_line_1: shippingAddr.addressLine1 || "",
+              admin_area_2: shippingAddr.city || "",
+              postal_code: shippingAddr.postalCode || "",
+              country_code: shippingAddr.countryCode || "US",
+            },
+          },
+        }
+      : {};
+
     const response = await fetch(`${PAYPAL_API_URL}/v2/checkout/orders`, {
       method: "POST",
       headers: {
@@ -80,17 +100,23 @@ export async function POST(request: NextRequest) {
         purchase_units: [
           {
             amount: {
-              currency_code: finalCurrency,
-              value: amount.toFixed(2),
+              currency_code: finalCurrency, // ✅ AUD/GBP/EUR/USD etc — correct currency
+              value: amount.toFixed(2), // ✅ Converted amount
             },
             description: orderData?.description || "Order from Tech4U",
             custom_id: orderData?.orderNumber,
+            // ✅ Pre-fill billing/shipping in PayPal's form
+            ...shippingBlock,
           },
         ],
         application_context: {
           brand_name: "Tech4U",
-          landing_page: "NO_PREFERENCE",
+          landing_page: "BILLING", // Opens PayPal directly on card/billing page
           user_action: "PAY_NOW",
+          // ✅ Use provided address so PayPal's form pre-fills it
+          shipping_preference: hasAddress
+            ? "SET_PROVIDED_ADDRESS"
+            : "GET_FROM_FILE",
           return_url: `${
             process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
           }/checkout`,

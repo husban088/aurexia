@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import StripePayment from "./StripePayment";
@@ -43,7 +43,6 @@ interface PaymentSectionProps {
   focused?: string | null;
   setFocused?: (field: string | null) => void;
   totalAmount: number;
-  currency: string;
   orderNumber: string;
   formData: {
     firstName: string;
@@ -63,10 +62,8 @@ interface PaymentSectionProps {
   onPaymentMethodChange?: (method: "card" | "paypal") => void;
 }
 
-const getStripeCurrency = (currency: string): string => {
-  if (!currency || typeof currency !== "string") {
-    return "usd";
-  }
+// ✅ Stripe supported currencies
+const getStripeCurrency = (currencyCode: string): string => {
   const map: Record<string, string> = {
     PKR: "usd",
     USD: "usd",
@@ -78,32 +75,40 @@ const getStripeCurrency = (currency: string): string => {
     SAR: "sar",
     INR: "inr",
   };
-  const upperCurrency = currency.toUpperCase();
-  return map[upperCurrency] ?? "usd";
+  return map[currencyCode] ?? "usd";
 };
 
-const getPayPalCurrency = (currency: string): string => {
-  if (!currency || typeof currency !== "string") {
-    return "USD";
-  }
-  const map: Record<string, string> = {
-    PKR: "USD",
-    USD: "USD",
-    GBP: "GBP",
-    AUD: "AUD",
-    EUR: "EUR",
-    CAD: "CAD",
-    AED: "AED",
-    SAR: "SAR",
-    INR: "INR",
-  };
-  const upperCurrency = currency.toUpperCase();
-  return map[upperCurrency] ?? "USD";
+// ✅ Single source of truth: PKR → foreign currency rates
+// 1 PKR = X foreign currency units
+const PKR_RATES: Record<string, number> = {
+  USD: 0.0036,
+  GBP: 0.00284,
+  AUD: 0.00548,
+  EUR: 0.00332,
+  CAD: 0.0049,
+  AED: 0.01322,
+  SAR: 0.0135,
+  INR: 0.3,
+  NZD: 0.00594,
+  SGD: 0.00484,
+  JPY: 0.54,
+  CNY: 0.02612,
+  CHF: 0.00316,
+  PKR: 1.0,
 };
+
+const ZERO_DECIMAL: Set<string> = new Set(["JPY", "KRW", "IDR", "TWD"]);
+
+// Convert raw PKR amount to target currency amount
+function convertPKR(pkrAmount: number, targetCurrency: string): number {
+  const rate = PKR_RATES[targetCurrency] ?? PKR_RATES["USD"];
+  const raw = pkrAmount * rate;
+  if (ZERO_DECIMAL.has(targetCurrency)) return Math.max(1, Math.round(raw));
+  return Math.max(0.01, parseFloat(raw.toFixed(2)));
+}
 
 export default function PaymentSection({
   totalAmount,
-  currency = "USD",
   orderNumber,
   formData,
   subtotal,
@@ -124,14 +129,20 @@ export default function PaymentSection({
   >("card");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isLoadingStripe, setIsLoadingStripe] = useState(false);
-  const [paymentProcessing, setPaymentProcessing] = useState(false);
 
-  const { formatPrice, currency: currencyObj } = useCurrency();
-  const conversionRate = currencyObj?.rate || 1;
-  const convertedTotal = parseFloat((totalAmount * conversionRate).toFixed(2));
+  // ✅ Track if success was already called (prevent double-fire)
+  const successCalledRef = useRef(false);
 
-  const stripeCurrency = getStripeCurrency(currency);
-  const paypalCurrency = getPayPalCurrency(currency);
+  // ✅ Currency context — only for display/formatting, NOT for conversion math
+  const { formatPrice, currency: detectedCurrency } = useCurrency();
+
+  const userCurrencyCode = detectedCurrency?.code || "USD";
+  // ✅ Determine Stripe currency based on user's country
+  const stripeCurrencyCode =
+    userCurrencyCode === "PKR" ? "USD" : userCurrencyCode;
+  const stripeCurrency = getStripeCurrency(userCurrencyCode);
+  // ✅ Convert PKR → target currency using our own rate table (single conversion, no double)
+  const convertedTotal = convertPKR(totalAmount, stripeCurrencyCode);
 
   const handleMethodChange = (method: "card" | "paypal") => {
     setSelectedPaymentMethod(method);
@@ -140,12 +151,12 @@ export default function PaymentSection({
     }
   };
 
+  // ✅ Create Stripe Payment Intent only when card is selected
   useEffect(() => {
     if (
       selectedPaymentMethod === "card" &&
       convertedTotal > 0 &&
-      !clientSecret &&
-      !paymentProcessing
+      !clientSecret
     ) {
       const createPaymentIntent = async () => {
         setIsLoadingStripe(true);
@@ -162,6 +173,8 @@ export default function PaymentSection({
                 customerName: formData
                   ? `${formData.firstName} ${formData.lastName}`
                   : "",
+                originalCurrency: "PKR",
+                originalAmount: totalAmount,
               },
             }),
           });
@@ -191,11 +204,13 @@ export default function PaymentSection({
     formData?.lastName,
     clientSecret,
     onPaymentError,
-    paymentProcessing,
   ]);
 
+  // ✅ FIXED: handlePaymentSuccess — calls parent immediately, no blocking state
   const handlePaymentSuccess = () => {
-    setPaymentProcessing(true);
+    if (successCalledRef.current) return;
+    successCalledRef.current = true;
+    // Call parent's onPaymentSuccess directly — parent handles toast + success page
     onPaymentSuccess();
   };
 
@@ -215,6 +230,7 @@ export default function PaymentSection({
         <em>02.</em> Payment Details
       </h2>
 
+      {/* Payment method selector */}
       <div className="ps-payment-method-selector">
         <button
           className={`ps-method-btn ${
@@ -293,24 +309,16 @@ export default function PaymentSection({
 
       {selectedPaymentMethod === "paypal" && (
         <div className="ps-paypal-container">
-          {!paymentProcessing ? (
-            <PayPalPayment
-              amount={convertedTotal}
-              currency={paypalCurrency}
-              orderNumber={orderNumber}
-              formData={formData}
-              subtotal={parseFloat((subtotal * conversionRate).toFixed(2))}
-              shipping={parseFloat((shipping * conversionRate).toFixed(2))}
-              total={convertedTotal}
-              onSuccess={handlePaymentSuccess}
-              onError={onPaymentError}
-            />
-          ) : (
-            <div className="ps-loading">
-              <div className="co-spinner" />
-              <span>Completing your order...</span>
-            </div>
-          )}
+          <PayPalPayment
+            amount={totalAmount}
+            orderNumber={orderNumber}
+            formData={formData}
+            subtotal={subtotal}
+            shipping={shipping}
+            total={total}
+            onSuccess={handlePaymentSuccess}
+            onError={onPaymentError}
+          />
         </div>
       )}
 

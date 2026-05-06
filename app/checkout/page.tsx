@@ -1,7 +1,7 @@
 // app/checkout/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cartStore";
@@ -40,6 +40,75 @@ interface FormErrors {
   apartment?: string;
   city?: string;
   zip?: string;
+}
+
+// ✅ Toast component — inline so no extra file needed
+function PaymentToast({ visible }: { visible: boolean }) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: "24px",
+        left: "50%",
+        transform: `translateX(-50%) translateY(${visible ? "0" : "-120px"})`,
+        opacity: visible ? 1 : 0,
+        transition: "all 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        zIndex: 9999,
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          background: "linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)",
+          color: "#fff",
+          padding: "14px 24px",
+          borderRadius: "50px",
+          boxShadow:
+            "0 8px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(218,165,32,0.3)",
+          fontSize: "15px",
+          fontWeight: 600,
+          letterSpacing: "0.01em",
+          whiteSpace: "nowrap",
+          border: "1px solid rgba(218,165,32,0.4)",
+        }}
+      >
+        {/* Animated checkmark circle */}
+        <div
+          style={{
+            width: "28px",
+            height: "28px",
+            borderRadius: "50%",
+            background: "linear-gradient(135deg, #22c55e, #16a34a)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            boxShadow: "0 0 12px rgba(34,197,94,0.5)",
+          }}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#fff"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+        <span style={{ color: "#daa520" }}>Payment Successful!</span>
+        <span style={{ color: "#aaa", fontWeight: 400, fontSize: "14px" }}>
+          — Your order is confirmed
+        </span>
+      </div>
+    </div>
+  );
 }
 
 // Currency code → country code mapping
@@ -119,6 +188,17 @@ export default function Checkout() {
     whatsapp: boolean | null;
   }>({ email: null, whatsapp: null });
 
+  // ✅ Toast state
+  const [showToast, setShowToast] = useState(false);
+
+  // ✅ Snapshot: cart data saved at payment success time — survives clearCart()
+  const [snapshotItems, setSnapshotItems] = useState<typeof items>([]);
+  const [snapshotSubtotal, setSnapshotSubtotal] = useState(0);
+  const [snapshotCartCount, setSnapshotCartCount] = useState(0);
+
+  // ✅ Session key for persisting success state across Stripe redirect
+  const ORDER_SESSION_KEY = "checkout_order_success";
+
   // Step management: "shipping" | "payment"
   const [checkoutStep, setCheckoutStep] = useState<"shipping" | "payment">(
     "shipping"
@@ -148,6 +228,39 @@ export default function Checkout() {
   // ✅ Handle mounting and hydration
   useEffect(() => {
     setIsMounted(true);
+
+    // ✅ STRIPE REDIRECT RECOVERY: Check if returning from Stripe 3DS redirect
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const isStripeReturn = params.get("payment_success") === "true";
+      const savedOrder = sessionStorage.getItem("checkout_order_success");
+
+      if (isStripeReturn && savedOrder) {
+        try {
+          const orderData = JSON.parse(savedOrder);
+          // Restore form data from session
+          setForm((prev) => ({ ...prev, ...orderData.form }));
+          setPaymentMethod(orderData.paymentMethod || "card");
+          setNotifStatus(
+            orderData.notifStatus || { email: null, whatsapp: null }
+          );
+          // Restore cart snapshot
+          if (orderData.snapItems?.length) {
+            setSnapshotItems(orderData.snapItems);
+            setSnapshotSubtotal(orderData.snapSubtotal || 0);
+            setSnapshotCartCount(orderData.snapCount || 0);
+          }
+          // Show toast then success page
+          setShowToast(true);
+          setTimeout(() => {
+            setPlaced(true);
+            setShowToast(false);
+            // Clean URL without reload
+            window.history.replaceState({}, "", window.location.pathname);
+          }, 1500);
+        } catch {}
+      }
+    }
   }, []);
 
   // ✅ Handle cart fetching after hydration
@@ -275,8 +388,8 @@ export default function Checkout() {
   // Prices in PKR (base) — CartSummary/PaymentSection will convert via formatPrice
   const subtotal = getSubtotal(); // PKR
   const cartCount = getCartCount();
-  const shipping = subtotal >= 3000 ? 0 : 250; // PKR
-  const total = subtotal + shipping; // PKR
+  const shipping = 0; // ✅ Free shipping always — matches CartSummary display
+  const total = subtotal; // Since shipping = 0, total = subtotal
   const validItems = items;
 
   // Full phone with country code from detected currency
@@ -303,9 +416,46 @@ export default function Checkout() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Called after Stripe/PayPal payment success — send notifications + save order
-  const handlePaymentSuccess = async () => {
-    setSubmitting(true);
+  // ✅ FIXED: Called after Stripe/PayPal payment success
+  // Sets placed=true FIRST, then clears cart — prevents loading spinner trap
+  const handlePaymentSuccess = useCallback(async () => {
+    // ✅ STEP 1: Snapshot cart data NOW — before clearCart wipes the store
+    const snapItems = [...items];
+    const snapSubtotal = getSubtotal();
+    const snapCount = getCartCount();
+    setSnapshotItems(snapItems);
+    setSnapshotSubtotal(snapSubtotal);
+    setSnapshotCartCount(snapCount);
+
+    // ✅ STEP 2: Save order data to sessionStorage — survives Stripe redirect
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(
+        "checkout_order_success",
+        JSON.stringify({
+          form,
+          paymentMethod,
+          notifStatus: { email: null, whatsapp: null },
+          snapItems,
+          snapSubtotal,
+          snapCount,
+        })
+      );
+    }
+
+    // ✅ STEP 3: Show toast INSTANTLY
+    setShowToast(true);
+
+    // ✅ STEP 4: Show success page — BEFORE clearCart
+    setTimeout(() => {
+      setPlaced(true);
+      setShowToast(false);
+      sessionStorage.removeItem("checkout_order_success");
+      // ✅ STEP 5: Clear cart AFTER success page is shown
+      clearCart().catch(() => {});
+      localStorage.removeItem(STORAGE_KEY);
+    }, 1200);
+
+    // ✅ STEP 4: Fire notifications + DB save in background — NEVER block success page
     try {
       const orderItems = validItems.map((item) => {
         const product = item.product ?? {
@@ -324,8 +474,8 @@ export default function Checkout() {
         };
       });
 
-      // Send email + WhatsApp notifications
-      const response = await fetch("/api/send-order-notification", {
+      // Fire-and-forget: send notification
+      fetch("/api/send-order-notification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -342,17 +492,23 @@ export default function Checkout() {
             paymentMethod === "card" ? "Credit/Debit Card (Stripe)" : "PayPal",
           currency: currency.code,
         }),
-      });
+      })
+        .then((r) => r.json())
+        .then((result) => {
+          setNotifStatus({
+            email: result.emailSent ?? false,
+            whatsapp: result.whatsappSent ?? false,
+          });
+        })
+        .catch((err) => {
+          console.warn("⚠️ Notification failed (non-blocking):", err);
+          setNotifStatus({ email: false, whatsapp: false });
+        });
 
-      const result = await response.json();
-      setNotifStatus({
-        email: result.emailSent ?? false,
-        whatsapp: result.whatsappSent ?? false,
-      });
-
-      // Save order to Supabase
-      try {
-        await supabase.from("orders").insert({
+      // Fire-and-forget: save to Supabase
+      supabase
+        .from("orders")
+        .insert({
           order_number: orderNumber,
           customer_name: customerName,
           customer_email: form.email,
@@ -366,34 +522,48 @@ export default function Checkout() {
           currency: currency.code,
           status: "confirmed",
           created_at: new Date().toISOString(),
+        })
+        .then(({ error }) => {
+          if (error) console.warn("⚠️ DB save failed (non-blocking):", error);
         });
-      } catch (dbError) {
-        console.warn("⚠️ Database save skipped:", dbError);
-      }
-
-      await clearCart();
-      localStorage.removeItem(STORAGE_KEY);
-      setPlaced(true);
-    } catch (error) {
-      console.error("❌ Order error:", error);
-      alert("Something went wrong. Please try again.");
-    } finally {
-      setSubmitting(false);
+    } catch (err) {
+      // Background errors never affect success page
+      console.warn("⚠️ Background tasks error (non-blocking):", err);
     }
-  };
+
+    return () => {};
+  }, [
+    validItems,
+    orderNumber,
+    form,
+    fullPhone,
+    customerName,
+    subtotal,
+    shipping,
+    total,
+    shippingAddress,
+    paymentMethod,
+    currency.code,
+    clearCart,
+    items,
+    getSubtotal,
+    getCartCount,
+  ]);
 
   const handlePaymentError = (error: string) => {
     console.error("Payment error:", error);
+    // Optionally show an error toast here too
   };
 
   // ============================================
   // LOADING STATE - Wait for hydration and cart fetch
   // ============================================
   if (
-    !isMounted ||
-    !isHydrated ||
-    !cartFetched ||
-    (loading && items.length === 0)
+    !placed &&
+    (!isMounted ||
+      !isHydrated ||
+      !cartFetched ||
+      (loading && items.length === 0))
   ) {
     return (
       <div className="co-root">
@@ -443,6 +613,12 @@ export default function Checkout() {
   // SUCCESS STATE — OrderSuccess Component
   // ============================================
   if (placed) {
+    // Use snapshot values — live store is already cleared by now
+    const displayItems = snapshotItems.length > 0 ? snapshotItems : validItems;
+    const displaySubtotal = snapshotSubtotal > 0 ? snapshotSubtotal : subtotal;
+    const displayCartCount =
+      snapshotCartCount > 0 ? snapshotCartCount : cartCount;
+
     return (
       <OrderSuccess
         firstName={form.firstName}
@@ -456,11 +632,11 @@ export default function Checkout() {
         country={phoneInfo.name}
         orderNumber={orderNumber}
         paymentMethod={paymentMethod}
-        items={validItems}
-        subtotal={subtotal}
-        shipping={shipping}
-        total={total}
-        cartCount={cartCount}
+        items={displayItems}
+        subtotal={displaySubtotal}
+        shipping={0}
+        total={displaySubtotal}
+        cartCount={displayCartCount}
         notifStatus={notifStatus}
         fullPhone={fullPhone}
         shippingAddress={shippingAddress}
@@ -473,151 +649,155 @@ export default function Checkout() {
   // MAIN CHECKOUT UI — 2 Steps
   // ============================================
   return (
-    <div className="co-root">
-      <div className="co-grain" aria-hidden="true" />
-      <div className="co-lines" aria-hidden="true">
-        {[...Array(5)].map((_, i) => (
-          <span key={i} />
-        ))}
-      </div>
-      <div className="co-ambient" aria-hidden="true" />
-      <div className="co-corner co-corner--tl" aria-hidden="true" />
-      <div className="co-corner co-corner--tr" aria-hidden="true" />
+    <>
+      {/* ✅ Toast — always rendered, animates in/out */}
+      <PaymentToast visible={showToast} />
 
-      <div className="co-wrap">
-        {/* Header */}
-        <div className="co-header">
-          <p className="co-eyebrow">
-            <span className="co-ey-line" />
-            Secure Checkout
-            <span className="co-ey-line" />
-          </p>
-          <h1 className="co-title">
-            Complete <em>Your Order</em>
-          </h1>
-
-          {/* Step Indicator */}
-          <div className="co-steps">
-            <div
-              className={`co-step ${
-                checkoutStep === "shipping"
-                  ? "co-step--active"
-                  : "co-step--done"
-              }`}
-            >
-              <div className="co-step-circle">
-                {checkoutStep === "payment" ? (
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    width="14"
-                    height="14"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                ) : (
-                  "1"
-                )}
-              </div>
-              <span>Shipping</span>
-            </div>
-            <div className="co-step-line" />
-            <div
-              className={`co-step ${
-                checkoutStep === "payment" ? "co-step--active" : ""
-              }`}
-            >
-              <div className="co-step-circle">2</div>
-              <span>Payment</span>
-            </div>
-          </div>
+      <div className="co-root">
+        <div className="co-grain" aria-hidden="true" />
+        <div className="co-lines" aria-hidden="true">
+          {[...Array(5)].map((_, i) => (
+            <span key={i} />
+          ))}
         </div>
+        <div className="co-ambient" aria-hidden="true" />
+        <div className="co-corner co-corner--tl" aria-hidden="true" />
+        <div className="co-corner co-corner--tr" aria-hidden="true" />
 
-        <div className="co-layout">
-          <div className="co-form-col">
-            {/* STEP 1: SHIPPING */}
-            {checkoutStep === "shipping" && (
-              <>
-                <ShippingSection
-                  form={form}
-                  setFormField={setFormField}
-                  getFieldError={getFieldError}
-                  handleBlur={handleBlur}
-                  focused={focused}
-                  setFocused={setFocused}
-                  selectedFlag={phoneInfo.flag}
-                  selectedCountryCode={phoneInfo.code}
-                  phoneExample={phoneInfo.example}
-                  selectedCountry={detectedCountryCode}
-                  onCountryChange={(code) =>
-                    setForm((f) => ({ ...f, country: code, phone: "" }))
-                  }
-                />
+        <div className="co-wrap">
+          {/* Header */}
+          <div className="co-header">
+            <p className="co-eyebrow">
+              <span className="co-ey-line" />
+              Secure Checkout
+              <span className="co-ey-line" />
+            </p>
+            <h1 className="co-title">
+              Complete <em>Your Order</em>
+            </h1>
 
-                <div className="co-nav-btns">
-                  <Link href="/cart" className="co-back-btn">
-                    ← Cart
-                  </Link>
-                  <button
-                    className="co-next-btn co-continue-btn"
-                    onClick={handleContinueToPayment}
-                  >
-                    Continue to Payment →
-                  </button>
+            {/* Step Indicator */}
+            <div className="co-steps">
+              <div
+                className={`co-step ${
+                  checkoutStep === "shipping"
+                    ? "co-step--active"
+                    : "co-step--done"
+                }`}
+              >
+                <div className="co-step-circle">
+                  {checkoutStep === "payment" ? (
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      width="14"
+                      height="14"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    "1"
+                  )}
                 </div>
-              </>
-            )}
-
-            {/* STEP 2: PAYMENT */}
-            {checkoutStep === "payment" && (
-              <>
-                <button
-                  className="co-back-step-btn"
-                  onClick={() => setCheckoutStep("shipping")}
-                >
-                  ← Back to Shipping
-                </button>
-
-                <PaymentSection
-                  totalAmount={total}
-                  currency={currency?.code || "USD"}
-                  orderNumber={orderNumber}
-                  formData={{
-                    firstName: form.firstName,
-                    lastName: form.lastName,
-                    email: form.email,
-                    phone: form.phone,
-                    address: form.address,
-                    apartment: form.apartment,
-                    city: form.city,
-                    zip: form.zip,
-                  }}
-                  subtotal={subtotal}
-                  shipping={shipping}
-                  total={total}
-                  onPaymentSuccess={handlePaymentSuccess}
-                  onPaymentError={handlePaymentError}
-                  onPaymentMethodChange={setPaymentMethod}
-                />
-              </>
-            )}
+                <span>Shipping</span>
+              </div>
+              <div className="co-step-line" />
+              <div
+                className={`co-step ${
+                  checkoutStep === "payment" ? "co-step--active" : ""
+                }`}
+              >
+                <div className="co-step-circle">2</div>
+                <span>Payment</span>
+              </div>
+            </div>
           </div>
 
-          {/* Cart Summary Sidebar */}
-          <div className="co-summary-col">
-            <CartSummary
-              items={validItems}
-              subtotal={subtotal}
-              shipping={shipping}
-              total={total}
-              cartCount={cartCount}
-              formatPrice={formatPrice}
-            />
+          <div className="co-layout">
+            <div className="co-form-col">
+              {/* STEP 1: SHIPPING */}
+              {checkoutStep === "shipping" && (
+                <>
+                  <ShippingSection
+                    form={form}
+                    setFormField={setFormField}
+                    getFieldError={getFieldError}
+                    handleBlur={handleBlur}
+                    focused={focused}
+                    setFocused={setFocused}
+                    selectedFlag={phoneInfo.flag}
+                    selectedCountryCode={phoneInfo.code}
+                    phoneExample={phoneInfo.example}
+                    selectedCountry={detectedCountryCode}
+                    onCountryChange={(code) =>
+                      setForm((f) => ({ ...f, country: code, phone: "" }))
+                    }
+                  />
+
+                  <div className="co-nav-btns">
+                    <Link href="/cart" className="co-back-btn">
+                      ← Cart
+                    </Link>
+                    <button
+                      className="co-next-btn co-continue-btn"
+                      onClick={handleContinueToPayment}
+                    >
+                      Continue to Payment →
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* STEP 2: PAYMENT */}
+              {checkoutStep === "payment" && (
+                <>
+                  <button
+                    className="co-back-step-btn"
+                    onClick={() => setCheckoutStep("shipping")}
+                  >
+                    ← Back to Shipping
+                  </button>
+
+                  <PaymentSection
+                    totalAmount={total}
+                    orderNumber={orderNumber}
+                    formData={{
+                      firstName: form.firstName,
+                      lastName: form.lastName,
+                      email: form.email,
+                      phone: form.phone,
+                      address: form.address,
+                      apartment: form.apartment,
+                      city: form.city,
+                      zip: form.zip,
+                    }}
+                    subtotal={subtotal}
+                    shipping={shipping}
+                    total={total}
+                    onPaymentSuccess={handlePaymentSuccess}
+                    onPaymentError={handlePaymentError}
+                    onPaymentMethodChange={setPaymentMethod}
+                  />
+                </>
+              )}
+            </div>
+
+            {/* Cart Summary Sidebar */}
+            <div className="co-summary-col">
+              <CartSummary
+                items={validItems}
+                subtotal={subtotal}
+                shipping={shipping}
+                total={total}
+                cartCount={cartCount}
+                formatPrice={formatPrice}
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

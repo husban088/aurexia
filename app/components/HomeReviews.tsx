@@ -17,65 +17,133 @@ interface HomeReview {
   product_name?: string;
 }
 
-// ── Star Icons ────────────────────────────────────────────────
-function StarIcon({ filled, size = 14 }: { filled: boolean; size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24">
-      <polygon
-        points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
-        fill={filled ? "#b8963e" : "none"}
-        stroke="#b8963e"
-        strokeWidth="1.5"
-        opacity={filled ? 1 : 0.35}
-      />
-    </svg>
-  );
-}
-
-function StarDisplay({ rating, size = 13 }: { rating: number; size?: number }) {
+// ── Stars ─────────────────────────────────────────────────────
+function StarDisplay({ rating }: { rating: number }) {
   return (
     <div className="hr-stars">
       {[1, 2, 3, 4, 5].map((i) => (
-        <StarIcon key={i} filled={i <= Math.round(rating)} size={size} />
+        <svg
+          key={i}
+          className={`hr-star${
+            i <= Math.round(rating) ? " hr-star--filled" : ""
+          }`}
+          viewBox="0 0 24 24"
+        >
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+        </svg>
       ))}
     </div>
   );
 }
 
-// ── Quote SVG ────────────────────────────────────────────────
-function QuoteIcon() {
+// ── Single Review Card ─────────────────────────────────────────
+function ReviewCard({ review }: { review: HomeReview }) {
+  const firstImage =
+    review.images && review.images.length > 0 ? review.images[0] : null;
+  const initial = review.name.charAt(0).toUpperCase();
+
   return (
-    <svg
-      className="hr-quote-icon"
-      viewBox="0 0 48 36"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M0 36V22.5C0 16.5 1.5 11.5 4.5 7.5C7.5 3.5 11.5 1 16.5 0L18 3C14.5 4 11.75 6 9.75 9C7.75 12 6.75 15.5 6.75 19.5H13.5V36H0ZM27 36V22.5C27 16.5 28.5 11.5 31.5 7.5C34.5 3.5 38.5 1 43.5 0L45 3C41.5 4 38.75 6 36.75 9C34.75 12 33.75 15.5 33.75 19.5H40.5V36H27Z"
-        fill="currentColor"
-      />
-    </svg>
+    <div className="hr-card">
+      {/* Gold shimmer top */}
+      <div className="hr-card-shine" />
+
+      {/* Quote mark decoration */}
+      <div className="hr-card-quote">&ldquo;</div>
+
+      {/* ── Avatar / Image — top, round, one image ── */}
+      <div className="hr-card-avatar-wrap">
+        {firstImage ? (
+          <img
+            src={firstImage}
+            alt={review.name}
+            className="hr-card-avatar-img"
+            draggable={false}
+          />
+        ) : (
+          <div className="hr-card-avatar-fallback">{initial}</div>
+        )}
+        {/* Verified badge on avatar */}
+        <div className="hr-card-badge">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+      </div>
+
+      {/* ── Name — center ── */}
+      <h4 className="hr-card-name">{review.name}</h4>
+
+      {/* ── Stars ── */}
+      <StarDisplay rating={review.rating} />
+
+      {/* ── Title ── */}
+      <h3 className="hr-card-title">&ldquo;{review.title}&rdquo;</h3>
+
+      {/* ── Description ── */}
+      <p className="hr-card-body">{review.body}</p>
+
+      {/* ── Product tag ── */}
+      {review.product_name && (
+        <div className="hr-card-product">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          >
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
+            <line x1="7" y1="7" x2="7.01" y2="7" />
+          </svg>
+          {review.product_name}
+        </div>
+      )}
+
+      {/* ── Bottom gold line ── */}
+      <div className="hr-card-bottom-line" />
+    </div>
   );
 }
 
+// ── Main Component ─────────────────────────────────────────────
 export default function HomeReviews() {
   const [reviews, setReviews] = useState<HomeReview[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [progress, setProgress] = useState(0);
 
-  const autoplayRef = useRef<NodeJS.Timeout | null>(null);
-  const progressRef = useRef<NodeJS.Timeout | null>(null);
-  const dragStart = useRef<{ x: number; y: number } | null>(null);
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
-  const progressStart = useRef<number>(0);
-  const AUTOPLAY_DURATION = 5000;
+  // How many cards visible at once (responsive)
+  const [visibleCount, setVisibleCount] = useState(3);
 
-  // ── Fetch all reviews ─────────────────────────────────────
+  // Track the offset index (how far we've scrolled)
+  const [offset, setOffset] = useState(0);
+
+  // Animation state — "idle" | "left" | "right"
+  const [animDir, setAnimDir] = useState<"idle" | "left" | "right">("idle");
+
+  // Drag / swipe
+  const dragStart = useRef<number | null>(null);
+  const touchStart = useRef<number | null>(null);
+  const isDragging = useRef(false);
+
+  // Autoplay
+  const autoTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Responsive: update visible count ─────────────────────────
+  useEffect(() => {
+    const update = () => {
+      if (window.innerWidth >= 1024) setVisibleCount(3);
+      else if (window.innerWidth >= 640) setVisibleCount(2);
+      else setVisibleCount(1);
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  // ── Fetch reviews ─────────────────────────────────────────────
   useEffect(() => {
     async function fetchAll() {
       setLoading(true);
@@ -92,7 +160,6 @@ export default function HomeReviews() {
           return;
         }
 
-        // Fetch product names
         const productIds = [...new Set(reviewData.map((r) => r.product_id))];
         const { data: products } = await supabase
           .from("products")
@@ -104,14 +171,14 @@ export default function HomeReviews() {
           productMap[p.id] = p.name;
         });
 
-        const enriched = reviewData.map((r) => ({
-          ...r,
-          product_name: productMap[r.product_id] || "Our Product",
-        }));
-
-        setReviews(enriched);
+        setReviews(
+          reviewData.map((r) => ({
+            ...r,
+            product_name: productMap[r.product_id] || "Our Product",
+          }))
+        );
       } catch (err) {
-        console.error("HomeReviews fetch error:", err);
+        console.error("HomeReviews fetch:", err);
       } finally {
         setLoading(false);
       }
@@ -119,110 +186,109 @@ export default function HomeReviews() {
     fetchAll();
   }, []);
 
-  // ── Progress bar animation ─────────────────────────────────
-  const startProgress = useCallback(() => {
-    setProgress(0);
-    progressStart.current = Date.now();
-    if (progressRef.current) clearInterval(progressRef.current);
-    progressRef.current = setInterval(() => {
-      const elapsed = Date.now() - progressStart.current;
-      const pct = Math.min((elapsed / AUTOPLAY_DURATION) * 100, 100);
-      setProgress(pct);
-    }, 30);
-  }, []);
+  // ── Navigation ─────────────────────────────────────────────────
+  const totalSlides = reviews.length;
 
-  const stopProgress = useCallback(() => {
-    if (progressRef.current) clearInterval(progressRef.current);
-  }, []);
+  const canPrev = offset > 0;
+  const canNext = offset + visibleCount < totalSlides;
 
-  // ── Navigate ───────────────────────────────────────────────
-  const goTo = useCallback(
-    (idx: number) => {
-      if (isTransitioning || reviews.length === 0) return;
-      setIsTransitioning(true);
+  const go = useCallback(
+    (dir: "left" | "right") => {
+      if (animDir !== "idle") return;
+
+      if (dir === "right" && !canNext) {
+        // Loop back to start
+        setAnimDir("right");
+        setTimeout(() => {
+          setOffset(0);
+          setAnimDir("idle");
+        }, 420);
+        return;
+      }
+      if (dir === "left" && !canPrev) {
+        // Loop to end
+        setAnimDir("left");
+        setTimeout(() => {
+          setOffset(Math.max(0, totalSlides - visibleCount));
+          setAnimDir("idle");
+        }, 420);
+        return;
+      }
+
+      setAnimDir(dir);
       setTimeout(() => {
-        setActiveIdx(
-          ((idx % reviews.length) + reviews.length) % reviews.length
+        setOffset((prev) =>
+          dir === "right"
+            ? Math.min(prev + 1, totalSlides - visibleCount)
+            : Math.max(prev - 1, 0)
         );
-        setIsTransitioning(false);
-      }, 350);
+        setAnimDir("idle");
+      }, 420);
     },
-    [isTransitioning, reviews.length]
+    [animDir, canNext, canPrev, totalSlides, visibleCount]
   );
 
-  const next = useCallback(() => {
-    goTo(activeIdx + 1);
-    startProgress();
-  }, [activeIdx, goTo, startProgress]);
+  const next = useCallback(() => go("right"), [go]);
+  const prev = useCallback(() => go("left"), [go]);
 
-  const prev = useCallback(() => {
-    goTo(activeIdx - 1);
-    startProgress();
-  }, [activeIdx, goTo, startProgress]);
+  // ── Autoplay ──────────────────────────────────────────────────
+  const startAutoplay = useCallback(() => {
+    if (autoTimer.current) clearInterval(autoTimer.current);
+    autoTimer.current = setInterval(() => next(), 4500);
+  }, [next]);
 
-  // ── Autoplay ───────────────────────────────────────────────
+  const stopAutoplay = useCallback(() => {
+    if (autoTimer.current) clearInterval(autoTimer.current);
+  }, []);
+
   useEffect(() => {
-    if (reviews.length === 0 || isPaused) return;
-    startProgress();
-    autoplayRef.current = setInterval(() => {
-      setActiveIdx((i) => (i + 1) % reviews.length);
-      startProgress();
-    }, AUTOPLAY_DURATION);
-    return () => {
-      if (autoplayRef.current) clearInterval(autoplayRef.current);
-      stopProgress();
-    };
-  }, [reviews.length, isPaused, startProgress, stopProgress]);
+    if (reviews.length > visibleCount) startAutoplay();
+    return stopAutoplay;
+  }, [reviews.length, visibleCount, startAutoplay, stopAutoplay]);
 
-  // ── Mouse drag ─────────────────────────────────────────────
+  // ── Mouse drag ────────────────────────────────────────────────
   const handleMouseDown = (e: React.MouseEvent) => {
-    dragStart.current = { x: e.clientX, y: e.clientY };
-    setIsDragging(false);
+    dragStart.current = e.clientX;
+    isDragging.current = false;
+    stopAutoplay();
   };
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!dragStart.current) return;
-    if (Math.abs(e.clientX - dragStart.current.x) > 5) setIsDragging(true);
+    if (dragStart.current === null) return;
+    if (Math.abs(e.clientX - dragStart.current) > 8) isDragging.current = true;
   };
   const handleMouseUp = (e: React.MouseEvent) => {
-    if (!dragStart.current) return;
-    const dx = e.clientX - dragStart.current.x;
-    if (Math.abs(dx) > 60) {
-      dx > 0 ? prev() : next();
-    }
+    if (dragStart.current === null) return;
+    const dx = e.clientX - dragStart.current;
+    if (Math.abs(dx) > 55) dx > 0 ? prev() : next();
     dragStart.current = null;
-    setTimeout(() => setIsDragging(false), 50);
+    setTimeout(() => {
+      isDragging.current = false;
+    }, 60);
+    startAutoplay();
+  };
+  const handleMouseLeave = () => {
+    dragStart.current = null;
+    isDragging.current = false;
+    startAutoplay();
   };
 
-  // ── Touch swipe ────────────────────────────────────────────
+  // ── Touch swipe ────────────────────────────────────────────────
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    touchStart.current = e.touches[0].clientX;
+    stopAutoplay();
   };
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStart.current) return;
-    const dx = e.changedTouches[0].clientX - touchStart.current.x;
-    if (Math.abs(dx) > 50) {
-      dx > 0 ? prev() : next();
-    }
+    if (touchStart.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStart.current;
+    if (Math.abs(dx) > 50) dx > 0 ? prev() : next();
     touchStart.current = null;
+    startAutoplay();
   };
 
-  // ── Format date ────────────────────────────────────────────
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+  // ── Visible reviews ───────────────────────────────────────────
+  const visibleReviews = reviews.slice(offset, offset + visibleCount);
 
-  // ── Visible cards (prev, active, next) ────────────────────
-  const getCard = (offset: number) => {
-    if (reviews.length === 0) return null;
-    return reviews[
-      (((activeIdx + offset) % reviews.length) + reviews.length) %
-        reviews.length
-    ];
-  };
-
+  // Loading
   if (loading) {
     return (
       <section className="hr-section">
@@ -231,16 +297,23 @@ export default function HomeReviews() {
             <p className="hr-eyebrow">
               <span className="hr-eye-line" />
               Customer Voices
-              <span className="hr-eye-line hr-eye-line--right" />
+              <span className="hr-eye-line" />
             </p>
             <h2 className="hr-title">
               What Our Customers <em>Say</em>
             </h2>
           </div>
-          <div className="hr-loading">
-            <div className="hr-loading-dot" />
-            <div className="hr-loading-dot" />
-            <div className="hr-loading-dot" />
+          <div className="hr-skeleton-row">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="hr-skeleton-card">
+                <div className="hr-skeleton-circle" />
+                <div className="hr-skeleton-line hr-skeleton-line--short" />
+                <div className="hr-skeleton-stars" />
+                <div className="hr-skeleton-line" />
+                <div className="hr-skeleton-line" />
+                <div className="hr-skeleton-line hr-skeleton-line--short" />
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -249,250 +322,135 @@ export default function HomeReviews() {
 
   if (reviews.length === 0) return null;
 
-  const current = reviews[activeIdx];
-  const prevCard = getCard(-1);
-  const nextCard = getCard(1);
+  const avgRating = (
+    reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
+  ).toFixed(1);
+  const showNav = totalSlides > visibleCount;
 
   return (
     <section className="hr-section">
-      {/* ── Decorative Background ── */}
+      {/* Decorative background */}
       <div className="hr-bg-orb hr-bg-orb--1" />
       <div className="hr-bg-orb hr-bg-orb--2" />
-      <div className="hr-bg-lines">
-        {[...Array(6)].map((_, i) => (
-          <span key={i} className="hr-bg-line" />
-        ))}
-      </div>
+      <div className="hr-bg-grid" />
 
       <div className="hr-content">
-        {/* ── Section Header ── */}
+        {/* ── Header ── */}
         <div className="hr-header">
           <p className="hr-eyebrow">
             <span className="hr-eye-line" />
             Customer Voices
-            <span className="hr-eye-line hr-eye-line--right" />
+            <span className="hr-eye-line" />
           </p>
           <h2 className="hr-title">
             What Our Customers <em>Say</em>
           </h2>
           <p className="hr-subtitle">
-            Real experiences from real people who love what they bought
+            Real experiences from people who love what they bought
           </p>
         </div>
 
-        {/* ── Stats Row ── */}
-        <div className="hr-stats-row">
+        {/* ── Stats ── */}
+        <div className="hr-stats">
           <div className="hr-stat">
             <span className="hr-stat-num">{reviews.length}+</span>
             <span className="hr-stat-label">Verified Reviews</span>
           </div>
-          <div className="hr-stat-divider" />
+          <div className="hr-stat-sep" />
           <div className="hr-stat">
-            <span className="hr-stat-num">
-              {(
-                reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
-              ).toFixed(1)}
-            </span>
+            <span className="hr-stat-num">{avgRating}</span>
             <span className="hr-stat-label">Average Rating</span>
           </div>
-          <div className="hr-stat-divider" />
+          <div className="hr-stat-sep" />
           <div className="hr-stat">
             <span className="hr-stat-num">98%</span>
-            <span className="hr-stat-label">Satisfied Customers</span>
+            <span className="hr-stat-label">Happy Customers</span>
           </div>
         </div>
 
-        {/* ── Swiper Stage ── */}
+        {/* ── Slider Stage ── */}
         <div
-          className="hr-stage"
-          onMouseEnter={() => {
-            setIsPaused(true);
-            stopProgress();
-          }}
-          onMouseLeave={() => {
-            setIsPaused(false);
-          }}
+          className="hr-stage-wrap"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
-          style={{ cursor: isDragging ? "grabbing" : "grab" }}
+          style={{ cursor: isDragging.current ? "grabbing" : "grab" }}
         >
-          {/* Side ghost cards */}
-          {reviews.length > 2 && prevCard && (
-            <div
-              className="hr-ghost-card hr-ghost-card--left"
+          {/* Left arrow */}
+          {showNav && (
+            <button
+              className="hr-arrow hr-arrow--prev"
               onClick={prev}
-              aria-label="Previous review"
+              aria-label="Previous"
             >
-              <div className="hr-ghost-inner">
-                <div className="hr-ghost-avatar">
-                  {prevCard.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="hr-ghost-info">
-                  <span className="hr-ghost-name">{prevCard.name}</span>
-                  <StarDisplay rating={prevCard.rating} size={10} />
-                </div>
-              </div>
-            </div>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
           )}
 
-          {/* Main Active Card */}
+          {/* Cards grid — KEY FIX: no opacity trick, always visible */}
           <div
-            className={`hr-main-card${
-              isTransitioning ? " hr-main-card--exit" : ""
-            }`}
-            onClick={(e) => e.stopPropagation()}
+            className={`hr-cards-grid hr-cards-grid--${visibleCount} hr-cards-grid--anim-${animDir}`}
           >
-            {/* Gold accent top bar */}
-            <div className="hr-card-accent" />
-
-            {/* Quote Icon */}
-            <QuoteIcon />
-
-            {/* Stars */}
-            <StarDisplay rating={current.rating} size={16} />
-
-            {/* Review Title */}
-            <h3 className="hr-card-title">&ldquo;{current.title}&rdquo;</h3>
-
-            {/* Review Body */}
-            <p className="hr-card-body">{current.body}</p>
-
-            {/* Review Images */}
-            {current.images && current.images.length > 0 && (
-              <div className="hr-card-images">
-                {current.images.slice(0, 3).map((img, idx) => (
-                  <div key={idx} className="hr-card-img-wrap">
-                    <img
-                      src={img}
-                      alt={`Review photo ${idx + 1}`}
-                      className="hr-card-img"
-                      draggable={false}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Author Row */}
-            <div className="hr-card-author">
-              <div className="hr-avatar">
-                {current.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="hr-author-info">
-                <span className="hr-author-name">{current.name}</span>
-                <span className="hr-author-meta">
-                  Reviewed{" "}
-                  <em className="hr-product-tag">{current.product_name}</em>
-                  &nbsp;·&nbsp;{formatDate(current.created_at)}
-                </span>
-              </div>
-              <div className="hr-verified-badge">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Verified
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div className="hr-progress-track">
-              <div
-                className="hr-progress-fill"
-                style={{
-                  width: `${progress}%`,
-                  transition: isPaused ? "none" : "width 0.03s linear",
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Right ghost card */}
-          {reviews.length > 2 && nextCard && (
-            <div
-              className="hr-ghost-card hr-ghost-card--right"
-              onClick={next}
-              aria-label="Next review"
-            >
-              <div className="hr-ghost-inner">
-                <div className="hr-ghost-avatar">
-                  {nextCard.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="hr-ghost-info">
-                  <span className="hr-ghost-name">{nextCard.name}</span>
-                  <StarDisplay rating={nextCard.rating} size={10} />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ── Navigation Controls ── */}
-        <div className="hr-controls">
-          <button
-            className="hr-arrow hr-arrow--prev"
-            onClick={prev}
-            aria-label="Previous review"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
-
-          {/* Dot indicators */}
-          <div className="hr-dots">
-            {reviews.map((_, i) => (
-              <button
-                key={i}
-                className={`hr-dot${i === activeIdx ? " hr-dot--active" : ""}`}
-                onClick={() => {
-                  if (autoplayRef.current) clearInterval(autoplayRef.current);
-                  goTo(i);
-                  startProgress();
-                }}
-                aria-label={`Go to review ${i + 1}`}
-              />
+            {visibleReviews.map((review) => (
+              <ReviewCard key={review.id} review={review} />
             ))}
           </div>
 
-          <button
-            className="hr-arrow hr-arrow--next"
-            onClick={next}
-            aria-label="Next review"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
+          {/* Right arrow */}
+          {showNav && (
+            <button
+              className="hr-arrow hr-arrow--next"
+              onClick={next}
+              aria-label="Next"
             >
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        {/* ── Counter ── */}
-        <p className="hr-counter">
-          <span className="hr-counter-current">
-            {String(activeIdx + 1).padStart(2, "0")}
-          </span>
-          <span className="hr-counter-sep">/</span>
-          <span className="hr-counter-total">
-            {String(reviews.length).padStart(2, "0")}
-          </span>
-        </p>
+        {/* ── Dot indicators ── */}
+        {showNav && (
+          <div className="hr-dots">
+            {Array.from({ length: Math.ceil(totalSlides / visibleCount) }).map(
+              (_, i) => {
+                const pageOffset = i * visibleCount;
+                const isActive =
+                  offset >= pageOffset && offset < pageOffset + visibleCount;
+                return (
+                  <button
+                    key={i}
+                    className={`hr-dot${isActive ? " hr-dot--active" : ""}`}
+                    onClick={() => {
+                      stopAutoplay();
+                      setOffset(
+                        Math.min(pageOffset, totalSlides - visibleCount)
+                      );
+                      startAutoplay();
+                    }}
+                    aria-label={`Page ${i + 1}`}
+                  />
+                );
+              }
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

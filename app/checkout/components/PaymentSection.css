@@ -362,3 +362,25 @@
   font-family: "Josefin Sans", sans-serif;
   font-size: 0.75rem;
 }
+
+/* Add this to your PaymentSection.css file */
+
+.ps-paypal-currency-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.6rem;
+  background: rgba(218, 165, 32, 0.06);
+  border-radius: 30px;
+  font-family: "Russo One", sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  color: var(--pd-grey-dim, #666666);
+}
+
+.ps-paypal-currency-info svg {
+  flex-shrink: 0;
+  color: var(--pd-gold, #daa520);
+}
