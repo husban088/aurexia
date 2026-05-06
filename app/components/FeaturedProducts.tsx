@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Navigation, A11y } from "swiper/modules";
 import type { Swiper as SwiperType } from "swiper";
@@ -335,6 +336,7 @@ function ProductCard({
   ) => void;
 }) {
   const { formatPrice } = useCurrency();
+  const router = useRouter();
 
   const [isHovered, setIsHovered] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -383,7 +385,6 @@ function ProductCard({
 
   const handleMouseEnter = () => {
     setIsHovered(true);
-    if (currentImages.length > 1) setCurrentImageIndex(1);
   };
 
   const handleMouseLeave = () => {
@@ -391,10 +392,7 @@ function ProductCard({
     setCurrentImageIndex(0);
   };
 
-  const displayImage =
-    isHovered && currentImages.length > 1
-      ? currentImages[1]
-      : currentImages[currentImageIndex] ?? null;
+  const displayImage = currentImages[0] ?? null;
 
   const discount =
     selectedVariant?.original_price &&
@@ -499,7 +497,7 @@ function ProductCard({
   return (
     <div
       onClick={() => {
-        window.location.href = `/product/${product.id}`;
+        router.push(`/product/${product.id}`);
       }}
       className="fp-card"
       style={{ cursor: "pointer" }}
@@ -717,8 +715,33 @@ export default function FeaturedProducts() {
     }
 
     loadInitialTab();
+
+    // Fix: Chrome back/forward (bfcache) — pageshow fires when page is restored from cache
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted && isMounted) {
+        // Page was restored from bfcache — re-apply cached data immediately
+        const cached = MODULE_CACHE[activeTab];
+        if (cached) {
+          setProducts(cached.products);
+          setVariantsMap(cached.variantsMap);
+          setVariantImagesMap(cached.variantImagesMap);
+        } else {
+          ensureTabCached(activeTab).then((data) => {
+            if (isMounted && data) {
+              setProducts(data.products);
+              setVariantsMap(data.variantsMap);
+              setVariantImagesMap(data.variantImagesMap);
+            }
+          });
+        }
+      }
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+
     return () => {
       isMounted = false;
+      window.removeEventListener("pageshow", handlePageShow);
     };
   }, []);
 

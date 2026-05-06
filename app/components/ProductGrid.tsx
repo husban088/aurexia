@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useCartStore } from "@/lib/cartStore";
 import "@/app/styles/product-grid.css";
@@ -444,6 +445,7 @@ function ProductCardComponent({
     maxStock?: number
   ) => Promise<void>;
 }) {
+  const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     productData.variants && productData.variants.length > 0
@@ -513,7 +515,6 @@ function ProductCardComponent({
 
   const getDisplayImage = () => {
     if (currentImages.length === 0) return null;
-    if (isHovered && currentImages.length > 1) return currentImages[1];
     return currentImages[0];
   };
 
@@ -639,7 +640,7 @@ function ProductCardComponent({
   return (
     <div
       onClick={() => {
-        window.location.href = `/product/${productData.id}`;
+        router.push(`/product/${productData.id}`);
       }}
       className="pg-card"
       style={{ cursor: "pointer" }}
@@ -857,8 +858,33 @@ export default function ProductGrid({
     }
 
     loadData();
+
+    // Fix: Chrome back/forward (bfcache) — pageshow fires when page restored from bfcache
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted && isMounted) {
+        const cached = MODULE_CACHE[key];
+        if (cached && cached.length > 0) {
+          setProducts(cached);
+          setLoading(false);
+        } else {
+          setLoading(true);
+          ensureCategoryCached(category, subcategory, limit, featured).then(
+            (data) => {
+              if (isMounted) {
+                setProducts(data);
+                setLoading(false);
+              }
+            }
+          );
+        }
+      }
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+
     return () => {
       isMounted = false;
+      window.removeEventListener("pageshow", handlePageShow);
     };
   }, [key, category, subcategory, limit, featured]);
 

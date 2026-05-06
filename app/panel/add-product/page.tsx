@@ -198,6 +198,7 @@ const TABS = [
   },
 ];
 
+// ─── Toast ────────────────────────────────────────────────────────────────────
 function ToastContainer({
   toasts,
   onRemove,
@@ -269,6 +270,7 @@ function ToastContainer({
   );
 }
 
+// ─── Stock Status ─────────────────────────────────────────────────────────────
 function StockStatusSelector({
   value,
   onChange,
@@ -284,60 +286,41 @@ function StockStatusSelector({
   return (
     <div>
       <div className="ap-stock-radio-group">
-        <div
-          className={`ap-stock-radio-option ${
-            value === "in_stock" ? "active-in-stock" : ""
-          }`}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onChange("in_stock");
-          }}
-        >
-          <input
-            type="radio"
-            name={uniqueId}
-            checked={value === "in_stock"}
-            readOnly
-          />
-          <span>In Stock</span>
-        </div>
-        <div
-          className={`ap-stock-radio-option ${
-            value === "out_of_stock" ? "active-out-stock" : ""
-          }`}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onChange("out_of_stock");
-          }}
-        >
-          <input
-            type="radio"
-            name={uniqueId}
-            checked={value === "out_of_stock"}
-            readOnly
-          />
-          <span>Out of Stock</span>
-        </div>
-        <div
-          className={`ap-stock-radio-option ${
-            value === "low_stock" ? "active-low-stock" : ""
-          }`}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onChange("low_stock");
-          }}
-        >
-          <input
-            type="radio"
-            name={uniqueId}
-            checked={value === "low_stock"}
-            readOnly
-          />
-          <span>Low Stock Alert</span>
-        </div>
+        {(["in_stock", "out_of_stock", "low_stock"] as StockStatus[]).map(
+          (s) => (
+            <div
+              key={s}
+              className={`ap-stock-radio-option ${
+                value === s
+                  ? s === "in_stock"
+                    ? "active-in-stock"
+                    : s === "out_of_stock"
+                    ? "active-out-stock"
+                    : "active-low-stock"
+                  : ""
+              }`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onChange(s);
+              }}
+            >
+              <input
+                type="radio"
+                name={uniqueId}
+                checked={value === s}
+                readOnly
+              />
+              <span>
+                {s === "in_stock"
+                  ? "In Stock"
+                  : s === "out_of_stock"
+                  ? "Out of Stock"
+                  : "Low Stock Alert"}
+              </span>
+            </div>
+          )
+        )}
       </div>
       {value === "low_stock" && (
         <div className="ap-low-stock-threshold">
@@ -360,6 +343,7 @@ function StockStatusSelector({
   );
 }
 
+// ─── FAQ Builder ──────────────────────────────────────────────────────────────
 function FAQBuilder({
   faqs,
   setFaqs,
@@ -388,7 +372,7 @@ function FAQBuilder({
     return (
       <div className="ap-faq-section">
         <div className="ap-faq-empty">
-          <p>No FAQs added yet. Click the button below to add.</p>
+          <p>No FAQs added yet.</p>
         </div>
         <button type="button" className="ap-add-faq-btn" onClick={addFAQ}>
           <svg
@@ -405,7 +389,6 @@ function FAQBuilder({
       </div>
     );
   }
-
   return (
     <div className="ap-faq-section">
       <div className="ap-faq-list">
@@ -463,6 +446,7 @@ function FAQBuilder({
   );
 }
 
+// ─── Multi Image Uploader (used in Simple Mode) ───────────────────────────────
 function MultiImageUploader({
   images,
   onImagesChange,
@@ -569,8 +553,169 @@ function MultiImageUploader({
   );
 }
 
-// ─── Color Detection Helpers ─────────────────────────────────────────────────
+// ─── Single Image Uploader (used per variant in Detailed Mode) ────────────────
+// ✅ Sirf EK image upload hogi — variant ki thumbnail
+function SingleImageUploader({
+  image,
+  onImageChange,
+  onError,
+}: {
+  image: string | null;
+  onImageChange: (url: string | null) => void;
+  onError: (msg: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      onError(`"${file.name}" is not an image file`);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    setUploading(true);
+    try {
+      const url = await uploadToCloudinary(file);
+      onImageChange(url);
+    } catch (err) {
+      onError(`Failed to upload ${file.name}`);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        flexWrap: "wrap",
+      }}
+    >
+      {image ? (
+        <div
+          style={{
+            position: "relative",
+            width: "80px",
+            height: "80px",
+            flexShrink: 0,
+          }}
+        >
+          <img
+            src={image}
+            alt="Variant"
+            style={{
+              width: "80px",
+              height: "80px",
+              objectFit: "cover",
+              borderRadius: "8px",
+              border: "2px solid rgba(218,165,32,0.3)",
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => onImageChange(null)}
+            style={{
+              position: "absolute",
+              top: "-6px",
+              right: "-6px",
+              width: "20px",
+              height: "20px",
+              borderRadius: "50%",
+              background: "#ef4444",
+              border: "none",
+              color: "#fff",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "11px",
+              fontWeight: 700,
+              lineHeight: 1,
+            }}
+          >
+            ×
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          style={{
+            width: "80px",
+            height: "80px",
+            border: "2px dashed rgba(218,165,32,0.4)",
+            borderRadius: "8px",
+            background: "rgba(218,165,32,0.04)",
+            cursor: uploading ? "default" : "pointer",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "4px",
+            color: "#8b6914",
+            fontFamily: "var(--ap-sans)",
+            fontSize: "0.65rem",
+            fontWeight: 600,
+            letterSpacing: "0.05em",
+            transition: "all 0.2s",
+          }}
+        >
+          {uploading ? (
+            <div
+              className="ap-spinner"
+              style={{ width: "18px", height: "18px" }}
+            />
+          ) : (
+            <>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                width="20"
+                height="20"
+              >
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <span>Add Image</span>
+            </>
+          )}
+        </button>
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        style={{ display: "none" }}
+      />
+      <div
+        style={{
+          fontFamily: "var(--ap-sans)",
+          fontSize: "0.7rem",
+          color: "#888",
+          lineHeight: 1.5,
+        }}
+      >
+        <p style={{ margin: 0, fontWeight: 600, color: "#8b6914" }}>
+          Variant Image
+        </p>
+        <p style={{ margin: 0 }}>1 image per variant</p>
+        <p style={{ margin: 0, color: "#aaa" }}>Auto-added to main gallery</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Color Map ────────────────────────────────────────────────────────────────
 const COLOR_MAP: Record<string, { bg: string; text: string; border: string }> =
   {
     black: { bg: "#1a1a1a", text: "#ffffff", border: "#444" },
@@ -614,7 +759,10 @@ function getAttributeTypeLabel(type: string) {
   return labels[type] || type.charAt(0).toUpperCase() + type.slice(1);
 }
 
-// VariantFormItem with Rich Text Description
+// ─── VariantFormItem ──────────────────────────────────────────────────────────
+// ✅ CHANGED: images state → single image (string | null)
+// ✅ onUpdate mein variantImage pass hota hai
+// ✅ onVariantImageChange callback se parent (DetailedModeForm) ko batata hai
 function VariantFormItem({
   attributeType,
   attributeValue,
@@ -625,6 +773,7 @@ function VariantFormItem({
   currencyCode,
   currencySymbol,
   isFirstItem,
+  onVariantImageChange,
 }: {
   attributeType: string;
   attributeValue: string;
@@ -635,6 +784,11 @@ function VariantFormItem({
   currencyCode: string;
   currencySymbol: string;
   isFirstItem?: boolean;
+  // ✅ NEW: jab variant image change ho toh parent ko batao
+  onVariantImageChange?: (
+    attributeValue: string,
+    imageUrl: string | null
+  ) => void;
 }) {
   const [priceDisplay, setPriceDisplay] = useState("");
   const [originalPriceDisplay, setOriginalPriceDisplay] = useState("");
@@ -644,7 +798,8 @@ function VariantFormItem({
   const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
     null
   );
-  const [images, setImages] = useState<string[]>([]);
+  // ✅ CHANGED: Multiple images → single image
+  const [variantImage, setVariantImage] = useState<string | null>(null);
   const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>([]);
   const expandedRef = useRef(isFirstItem !== false);
   const [, forceUpdate] = useState(0);
@@ -677,7 +832,6 @@ function VariantFormItem({
   ) => {
     setDescription(newValue);
     setDescriptionImages(imagesInDesc);
-    // Immediately update parent with both description text and images
     onUpdateRef.current({
       attributeType,
       attributeValue,
@@ -691,7 +845,9 @@ function VariantFormItem({
       descriptionImages: imagesInDesc,
       stock: getStockValue(),
       lowStockThreshold: stockStatus === "low_stock" ? lowStockThreshold : null,
-      images,
+      // ✅ variant image array — single image as array for DB compatibility
+      images: variantImage ? [variantImage] : [],
+      variantImage,
       stockStatus,
       bulkPricingTiers: bulkTiers.map((tier) => ({
         ...tier,
@@ -704,12 +860,19 @@ function VariantFormItem({
     });
   };
 
+  // ✅ Handle single image change — notify parent too
+  const handleVariantImageChange = (url: string | null) => {
+    setVariantImage(url);
+    if (onVariantImageChange) {
+      onVariantImageChange(attributeValue, url);
+    }
+  };
+
   useEffect(() => {
     const pricePKR = getPriceInPKRFast(priceDisplay);
     const originalPricePKR = originalPriceDisplay
       ? getPriceInPKRFast(originalPriceDisplay)
       : null;
-
     onUpdateRef.current({
       attributeType,
       attributeValue,
@@ -721,7 +884,8 @@ function VariantFormItem({
       descriptionImages,
       stock: getStockValue(),
       lowStockThreshold: stockStatus === "low_stock" ? lowStockThreshold : null,
-      images,
+      images: variantImage ? [variantImage] : [],
+      variantImage,
       stockStatus,
       bulkPricingTiers: bulkTiers.map((tier) => ({
         ...tier,
@@ -739,7 +903,7 @@ function VariantFormItem({
     descriptionImages,
     stockStatus,
     lowStockThreshold,
-    images,
+    variantImage,
     bulkTiers,
     currencyRate,
     currencyCode,
@@ -748,9 +912,7 @@ function VariantFormItem({
   ]);
 
   const currentUnitPrice = parseFloat(priceDisplay) || 0;
-  // Use the symbol passed from currency prop directly — covers ALL currencies (AED, SAR, CAD, AUD, INR, etc.)
   const getSymbol = () => currencySymbol || currencyCode;
-
   const getStatusLabel = () => {
     if (stockStatus === "out_of_stock") return "Out of Stock";
     if (stockStatus === "low_stock")
@@ -759,14 +921,12 @@ function VariantFormItem({
     if (stockVal === 999999) return "In Stock (Unlimited)";
     return `In Stock (${stockVal} pcs)`;
   };
-
   const colorStyle =
     attributeType === "color" ? getColorStyle(attributeValue) : null;
 
   return (
     <div className="ap-variant-form-item">
       <div className="ap-variant-form-header" onClick={toggleExpanded}>
-        {/* Attribute Type Label */}
         <span
           style={{
             fontFamily: "var(--ap-sans)",
@@ -785,7 +945,6 @@ function VariantFormItem({
           {getAttributeTypeLabel(attributeType)}
         </span>
 
-        {/* Attribute Value — colored swatch for colors, plain badge for others */}
         {colorStyle ? (
           <span
             style={{
@@ -849,12 +1008,13 @@ function VariantFormItem({
             {bulkTiers.length} Bulk Tiers
           </span>
         )}
-        {images.length > 0 && (
+        {/* ✅ Single variant image badge */}
+        {variantImage && (
           <span
             className="ap-variant-form-badge"
             style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}
           >
-            {images.length} Images
+            ✅ 1 Image
           </span>
         )}
         {descriptionImages.length > 0 && (
@@ -865,7 +1025,7 @@ function VariantFormItem({
             📷 {descriptionImages.length} Desc Images
           </span>
         )}
-        {/* Expand/collapse arrow */}
+
         <span
           style={{
             marginLeft: "auto",
@@ -878,6 +1038,7 @@ function VariantFormItem({
         >
           ▼
         </span>
+
         <button
           type="button"
           className="ap-variant-form-remove"
@@ -949,13 +1110,27 @@ function VariantFormItem({
           />
         </div>
 
+        {/* ✅ CHANGED: Single Image Uploader (1 image per variant) */}
         <div className="ap-field">
-          <label className="ap-label">Gallery Images (Max 20)</label>
-          <MultiImageUploader
-            images={images}
-            onImagesChange={setImages}
+          <label className="ap-label">
+            Variant Image
+            <span
+              style={{
+                color: "#888",
+                fontWeight: 400,
+                marginLeft: "6px",
+                textTransform: "none",
+                letterSpacing: 0,
+                fontSize: "0.65rem",
+              }}
+            >
+              (1 image — auto-added to main gallery)
+            </span>
+          </label>
+          <SingleImageUploader
+            image={variantImage}
+            onImageChange={handleVariantImageChange}
             onError={onError}
-            maxImages={20}
           />
         </div>
 
@@ -972,6 +1147,7 @@ function VariantFormItem({
   );
 }
 
+// ─── Attribute Selector ───────────────────────────────────────────────────────
 function AttributeSelector({
   label,
   type,
@@ -984,6 +1160,7 @@ function AttributeSelector({
   currencyRate,
   currencyCode,
   currencySymbol,
+  onVariantImageChange,
 }: {
   label: string;
   type: string;
@@ -996,6 +1173,10 @@ function AttributeSelector({
   currencyRate: number;
   currencyCode: string;
   currencySymbol: string;
+  onVariantImageChange?: (
+    attributeValue: string,
+    imageUrl: string | null
+  ) => void;
 }) {
   const [inputValue, setInputValue] = useState("");
 
@@ -1013,6 +1194,7 @@ function AttributeSelector({
         stock: 999999,
         lowStockThreshold: null,
         images: [],
+        variantImage: null,
         stockStatus: "in_stock" as StockStatus,
         bulkPricingTiers: [],
       };
@@ -1032,9 +1214,8 @@ function AttributeSelector({
     (index: number, data: any) => {
       setVariants((prev: any[]) => {
         const newVariants = [...prev];
-        if (newVariants[index]) {
+        if (newVariants[index])
           newVariants[index] = { ...newVariants[index], ...data };
-        }
         return newVariants;
       });
     },
@@ -1094,6 +1275,7 @@ function AttributeSelector({
                 currencyCode={currencyCode}
                 currencySymbol={currencySymbol}
                 isFirstItem={idx === 0}
+                onVariantImageChange={onVariantImageChange}
               />
             );
           })}
@@ -1103,9 +1285,56 @@ function AttributeSelector({
   );
 }
 
-// ============================================================
-// SIMPLE MODE - WITH RICH TEXT EDITOR
-// ============================================================
+// ─── DB Helpers ───────────────────────────────────────────────────────────────
+async function dbInsert(
+  supabaseUrl: string,
+  supabaseKey: string,
+  table: string,
+  body: object
+) {
+  const res = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const errMsg = Array.isArray(data)
+      ? data[0]?.message
+      : data?.message || data?.error || JSON.stringify(data);
+    throw new Error(`${table} insert failed (${res.status}): ${errMsg}`);
+  }
+  return Array.isArray(data) ? data[0] : data;
+}
+
+async function dbInsertMany(
+  supabaseUrl: string,
+  supabaseKey: string,
+  table: string,
+  body: object[]
+) {
+  const res = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    console.error(`${table} bulk insert error:`, data);
+  }
+}
+
+// ─── Simple Mode Form ─────────────────────────────────────────────────────────
 function SimpleModeForm({
   tab,
   onSuccess,
@@ -1199,48 +1428,9 @@ function SimpleModeForm({
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  const dbInsert = async (table: string, body: object) => {
-    const res = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      const errMsg = Array.isArray(data)
-        ? data[0]?.message
-        : data?.message || data?.error || JSON.stringify(data);
-      throw new Error(`${table} insert failed (${res.status}): ${errMsg}`);
-    }
-    return Array.isArray(data) ? data[0] : data;
-  };
-
-  const dbInsertMany = async (table: string, body: object[]) => {
-    const res = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      console.error(`${table} bulk insert error:`, data);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (!name.trim()) {
       onError("Product name is required");
       return;
@@ -1249,78 +1439,72 @@ function SimpleModeForm({
       onError("Sale price is required and must be greater than 0");
       return;
     }
-
     if (isSubmitting) {
       onError("Product is already being saved...");
       return;
     }
-
     setIsSubmitting(true);
     console.log("🚀 Starting product save...");
-
     try {
       const currentCurrency = currency;
       const currentRate = currency.rate;
       const priceNum = parseFloat(priceDisplay);
       const originalPriceNum = parseFloat(originalPriceDisplay) || 0;
-
       let pricePKR = priceNum;
       let originalPricePKR: number | null =
         originalPriceNum > 0 ? originalPriceNum : null;
-
       if (currentCurrency.code !== "PKR" && currentRate > 0) {
         pricePKR = Number((priceNum / currentRate).toFixed(2));
-        if (originalPricePKR) {
+        if (originalPricePKR)
           originalPricePKR = Number(
             (originalPriceNum / currentRate).toFixed(2)
           );
-        }
       }
-
-      // 1. Insert Product with rich text description and images
       console.log("📦 Inserting product...");
-      const productData = await dbInsert("products", {
+      const productData = await dbInsert(supabaseUrl, supabaseKey, "products", {
         name: name.trim(),
         description: description || null,
         description_images: descriptionImages,
         category: tab.category,
         subcategory: tab.sub,
         brand: brand.trim() || null,
-        condition: condition,
+        condition,
         is_featured: isFeatured,
         is_active: isActive,
         price: pricePKR,
         stock: getStockValue(),
-        images: images,
+        images,
         original_price: originalPricePKR,
       });
       console.log("✅ Product inserted:", productData.id);
-
-      // 2. Insert Variant with description images
       console.log("📦 Inserting variant...");
-      const variantData = await dbInsert("product_variants", {
-        product_id: productData.id,
-        attribute_type: "standard",
-        attribute_value: "Standard",
-        price: pricePKR,
-        original_price: originalPricePKR,
-        description_rich: description || null,
-        description_images: descriptionImages,
-        description: description ? description.substring(0, 500) : null,
-        stock: getStockValue(),
-        low_stock_threshold:
-          stockStatus === "low_stock" ? lowStockThreshold : null,
-        is_active: true,
-      });
+      const variantData = await dbInsert(
+        supabaseUrl,
+        supabaseKey,
+        "product_variants",
+        {
+          product_id: productData.id,
+          attribute_type: "standard",
+          attribute_value: "Standard",
+          price: pricePKR,
+          original_price: originalPricePKR,
+          description_rich: description || null,
+          description_images: descriptionImages,
+          description: description ? description.substring(0, 500) : null,
+          stock: getStockValue(),
+          low_stock_threshold:
+            stockStatus === "low_stock" ? lowStockThreshold : null,
+          is_active: true,
+        }
+      );
       console.log("✅ Variant inserted:", variantData.id);
-
       console.log("✅ Product saved successfully!");
       resetForm();
       onSuccess();
-
-      // 3. Background: Insert Images
       if (images.length > 0) {
         dbInsertMany(
+          supabaseUrl,
+          supabaseKey,
           "variant_images",
           images.map((url, idx) => ({
             variant_id: variantData.id,
@@ -1329,13 +1513,13 @@ function SimpleModeForm({
           }))
         ).catch((err) => console.error("Image insert error:", err));
       }
-
-      // 4. Background: Insert Bulk Tiers
       const validTiers = bulkTiers.filter(
         (t) => t.min_quantity && t.tier_price > 0
       );
       if (validTiers.length > 0) {
         dbInsertMany(
+          supabaseUrl,
+          supabaseKey,
           "bulk_pricing_tiers",
           validTiers.map((t) => ({
             variant_id: variantData.id,
@@ -1350,11 +1534,11 @@ function SimpleModeForm({
           }))
         ).catch((err) => console.error("Tier insert error:", err));
       }
-
-      // 5. Background: Insert FAQs
       const validFaqs = faqs.filter((f) => f.question.trim());
       if (validFaqs.length > 0) {
         dbInsertMany(
+          supabaseUrl,
+          supabaseKey,
           "product_faqs",
           validFaqs.map((f, idx) => ({
             product_id: productData.id,
@@ -1364,7 +1548,6 @@ function SimpleModeForm({
           }))
         ).catch((err) => console.error("FAQ insert error:", err));
       }
-
       setTimeout(() => {
         window.location.href = "/panel";
       }, 1500);
@@ -1666,9 +1849,7 @@ function SimpleModeForm({
   );
 }
 
-// ============================================================
-// DETAILED MODE - WITH RICH TEXT EDITOR FOR EACH VARIANT
-// ============================================================
+// ─── Detailed Mode Form ───────────────────────────────────────────────────────
 function DetailedModeForm({
   tab,
   onSuccess,
@@ -1699,12 +1880,98 @@ function DetailedModeForm({
   const [materialVariants, setMaterialVariants] = useState<any[]>([]);
   const [capacityVariants, setCapacityVariants] = useState<any[]>([]);
 
+  // ✅ MAIN IMAGES — 20 tak images, variant images auto-sync hongi
+  const [mainImages, setMainImages] = useState<string[]>([]);
+  // ✅ Track karo ki kon si variant image kahan hai main gallery mein
+  // { attributeValue: imageUrl } map
+  const variantImageMapRef = useRef<Record<string, string>>({});
+
+  const mainImagesUploading = useRef(false);
+  const mainFileRef = useRef<HTMLInputElement>(null);
+  const [mainUploading, setMainUploading] = useState(false);
+
   const handleDescriptionChange = (
     newValue: string,
     imagesInDesc: string[]
   ) => {
     setDescription(newValue);
     setDescriptionImages(imagesInDesc);
+  };
+
+  // ✅ Jab koi variant image change ho — main gallery update karo
+  const handleVariantImageChange = useCallback(
+    (attributeValue: string, imageUrl: string | null) => {
+      setMainImages((prevMainImages) => {
+        const oldUrl = variantImageMapRef.current[attributeValue];
+        let newImages = [...prevMainImages];
+
+        // Purani variant image hata do main gallery se
+        if (oldUrl) {
+          newImages = newImages.filter((img) => img !== oldUrl);
+        }
+
+        // Nayi image add karo (agar hai toh)
+        if (imageUrl) {
+          // Duplicate check
+          if (!newImages.includes(imageUrl)) {
+            if (newImages.length < 20) {
+              newImages = [...newImages, imageUrl];
+            } else {
+              // Agar 20 se zyada hain toh add nahi hoga — error show nahi karte kyunki
+              // user khud main gallery se manage kar sakta hai
+            }
+          }
+          variantImageMapRef.current[attributeValue] = imageUrl;
+        } else {
+          // Image remove ki toh map se bhi hata do
+          delete variantImageMapRef.current[attributeValue];
+        }
+
+        return newImages;
+      });
+    },
+    []
+  );
+
+  // ✅ Main images mein manually add karna
+  const handleMainImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    if (mainImages.length + files.length > 20) {
+      onError("Maximum 20 images allowed in main gallery");
+      if (mainFileRef.current) mainFileRef.current.value = "";
+      return;
+    }
+    setMainUploading(true);
+    const newUrls: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.type.startsWith("image/")) {
+        onError(`"${file.name}" is not an image file`);
+        continue;
+      }
+      try {
+        const url = await uploadToCloudinary(file);
+        newUrls.push(url);
+      } catch (err) {
+        onError(`Failed to upload ${file.name}`);
+      }
+    }
+    setMainImages((prev) => [...prev, ...newUrls]);
+    setMainUploading(false);
+    if (mainFileRef.current) mainFileRef.current.value = "";
+  };
+
+  const removeMainImage = (index: number) => {
+    const urlToRemove = mainImages[index];
+    setMainImages(mainImages.filter((_, i) => i !== index));
+    // Agar yeh kisi variant ki image thi toh map se bhi hata do
+    const map = variantImageMapRef.current;
+    for (const key of Object.keys(map)) {
+      if (map[key] === urlToRemove) {
+        delete map[key];
+        break;
+      }
+    }
   };
 
   const resetForm = () => {
@@ -1721,29 +1988,30 @@ function DetailedModeForm({
     setMaterialVariants([]);
     setCapacityVariants([]);
     setFaqs([]);
+    setMainImages([]);
+    variantImageMapRef.current = {};
   };
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (!name.trim()) {
       onError("Product name is required");
       return;
     }
-
     const allVariants = [
       ...colorVariants,
       ...sizeVariants,
       ...materialVariants,
       ...capacityVariants,
     ];
-
     if (allVariants.length === 0) {
       onError("Please add at least one attribute");
       return;
     }
-
     let hasValidPrice = false;
     for (const v of allVariants) {
       const priceVal = parseFloat(v.priceDisplay);
@@ -1756,141 +2024,108 @@ function DetailedModeForm({
       onError("Please set a valid price for at least one variant");
       return;
     }
-
     if (isSubmitting) {
       onError("Product is already being saved...");
       return;
     }
-
     setIsSubmitting(true);
     console.log("🚀 Starting detailed product save...");
-
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-    const dbInsert = async (table: string, body: object) => {
-      const res = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-          Prefer: "return=representation",
-        },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        const errMsg = Array.isArray(data)
-          ? data[0]?.message
-          : data?.message || data?.error || JSON.stringify(data);
-        throw new Error(`${table} insert failed (${res.status}): ${errMsg}`);
-      }
-      return Array.isArray(data) ? data[0] : data;
-    };
-
-    const dbInsertMany = async (table: string, body: object[]) => {
-      const res = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        console.error(`${table} bulk insert error:`, data);
-      }
-    };
 
     try {
       const currentCurrency = currency;
       const currentRate = currency.rate;
 
-      // 1. Insert Product with rich text description and images
+      // ✅ Product mein mainImages save ho — yeh poori gallery hai
       console.log("📦 Inserting product...");
-      const productData = await dbInsert("products", {
+      const productData = await dbInsert(supabaseUrl, supabaseKey, "products", {
         name: name.trim(),
         description: description || null,
         description_images: descriptionImages,
         category: tab.category,
         subcategory: tab.sub,
         brand: brand.trim() || null,
-        condition: condition,
+        condition,
         is_featured: isFeatured,
         is_active: isActive,
+        // ✅ Main images (variant images + manually added images)
+        images: mainImages,
       });
       console.log("✅ Product inserted:", productData.id);
 
-      // 2. Insert each variant with rich text description and images
+      // ✅ Variants insert karo
       for (const variant of allVariants) {
         const priceNum = parseFloat(variant.priceDisplay);
         if (isNaN(priceNum) || priceNum <= 0) continue;
-
         const originalPriceNum = variant.originalPriceDisplay
           ? parseFloat(variant.originalPriceDisplay)
           : 0;
-
         let pricePKR = priceNum;
         let originalPricePKR: number | null =
           originalPriceNum > 0 ? originalPriceNum : null;
-
         if (currentCurrency.code !== "PKR" && currentRate > 0) {
           pricePKR = Number((priceNum / currentRate).toFixed(2));
-          if (originalPricePKR) {
+          if (originalPricePKR)
             originalPricePKR = Number(
               (originalPriceNum / currentRate).toFixed(2)
             );
-          }
         }
         if (pricePKR <= 0) pricePKR = 0.01;
 
         console.log(`📦 Inserting variant: ${variant.attributeValue}...`);
         let variantData: any;
         try {
-          variantData = await dbInsert("product_variants", {
-            product_id: productData.id,
-            attribute_type: variant.attributeType,
-            attribute_value: variant.attributeValue,
-            price: pricePKR,
-            original_price: originalPricePKR,
-            description_rich: variant.description || null,
-            description_images: variant.descriptionImages || [],
-            description: variant.description
-              ? variant.description.substring(0, 500)
-              : null,
-            stock: variant.stock || 999999,
-            low_stock_threshold: variant.lowStockThreshold || null,
-            is_active: true,
-          });
+          // ✅ Variant ki single image save karo
+          const variantImages = variant.variantImage
+            ? [variant.variantImage]
+            : variant.images || [];
+          variantData = await dbInsert(
+            supabaseUrl,
+            supabaseKey,
+            "product_variants",
+            {
+              product_id: productData.id,
+              attribute_type: variant.attributeType,
+              attribute_value: variant.attributeValue,
+              price: pricePKR,
+              original_price: originalPricePKR,
+              description_rich: variant.description || null,
+              description_images: variant.descriptionImages || [],
+              description: variant.description
+                ? variant.description.substring(0, 500)
+                : null,
+              stock: variant.stock || 999999,
+              low_stock_threshold: variant.lowStockThreshold || null,
+              is_active: true,
+            }
+          );
           console.log(`✅ Variant inserted: ${variantData.id}`);
         } catch (varErr: any) {
           console.error("Variant insert error:", varErr.message);
           continue;
         }
 
-        // Background: Insert images
-        if (variant.images && variant.images.length > 0) {
-          dbInsertMany(
-            "variant_images",
-            variant.images.map((url: string, idx: number) => ({
+        // ✅ Variant ki image variant_images table mein save karo
+        const variantImageUrl =
+          variant.variantImage || (variant.images && variant.images[0]);
+        if (variantImageUrl) {
+          dbInsertMany(supabaseUrl, supabaseKey, "variant_images", [
+            {
               variant_id: variantData.id,
-              image_url: url,
-              display_order: idx,
-            }))
-          ).catch((err) => console.error("Image error:", err));
+              image_url: variantImageUrl,
+              display_order: 0,
+            },
+          ]).catch((err) => console.error("Image error:", err));
         }
 
-        // Background: Insert bulk tiers
+        // Bulk tiers
         if (variant.bulkPricingTiers && variant.bulkPricingTiers.length > 0) {
           const validTiers = variant.bulkPricingTiers.filter(
             (t: any) => t.min_quantity && t.tier_price > 0
           );
           if (validTiers.length > 0) {
             dbInsertMany(
+              supabaseUrl,
+              supabaseKey,
               "bulk_pricing_tiers",
               validTiers.map((t: any) => ({
                 variant_id: variantData.id,
@@ -1909,10 +2144,12 @@ function DetailedModeForm({
       resetForm();
       onSuccess();
 
-      // Background: Insert FAQs
+      // FAQs
       const validFaqs = faqs.filter((f) => f.question.trim());
       if (validFaqs.length > 0) {
         dbInsertMany(
+          supabaseUrl,
+          supabaseKey,
           "product_faqs",
           validFaqs.map((f, idx) => ({
             product_id: productData.id,
@@ -1946,6 +2183,7 @@ function DetailedModeForm({
     <form onSubmit={handleSubmit}>
       <div className="ap-form-grid-detailed">
         <div className="ap-detailed-left">
+          {/* Basic Info */}
           <div className="ap-card">
             <div className="ap-card-header">
               <div className="ap-card-icon">
@@ -2021,6 +2259,217 @@ function DetailedModeForm({
               </div>
             </div>
           </div>
+
+          {/* ✅ MAIN IMAGES SECTION — 20 tak, variant images auto-attach */}
+          <div className="ap-card">
+            <div className="ap-card-header">
+              <div className="ap-card-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+              </div>
+              <h3 className="ap-card-title">Main Product Images (Max 20)</h3>
+            </div>
+            <div className="ap-card-body">
+              {/* Info banner */}
+              <div
+                style={{
+                  background: "rgba(218,165,32,0.06)",
+                  border: "1px solid rgba(218,165,32,0.2)",
+                  borderRadius: "10px",
+                  padding: "12px 14px",
+                  marginBottom: "8px",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "10px",
+                }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#8b6914"
+                  strokeWidth="1.5"
+                  width="18"
+                  height="18"
+                  style={{ flexShrink: 0, marginTop: "1px" }}
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <div
+                  style={{
+                    fontFamily: "var(--ap-sans)",
+                    fontSize: "0.72rem",
+                    color: "#8b6914",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  <strong>Auto-Sync:</strong> Har variant ki image automatically
+                  yahan add hoti hai. Aap additional images bhi manually add kar
+                  sakte hain (max 20 total).
+                </div>
+              </div>
+
+              {/* Upload button */}
+              {mainImages.length < 20 && (
+                <div
+                  className="ap-img-upload"
+                  onClick={() => !mainUploading && mainFileRef.current?.click()}
+                  style={{ marginBottom: "12px" }}
+                >
+                  <input
+                    ref={mainFileRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => handleMainImageUpload(e.target.files)}
+                    style={{ display: "none" }}
+                  />
+                  <div className="ap-img-upload-icon">
+                    {mainUploading ? (
+                      <div className="ap-spinner" />
+                    ) : (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                      </svg>
+                    )}
+                  </div>
+                  <p className="ap-img-upload-title">
+                    {mainUploading ? "Uploading..." : "Add More Images"}
+                  </p>
+                  <p className="ap-img-upload-sub">
+                    {mainImages.length > 0
+                      ? `${mainImages.length} / 20 images`
+                      : "JPG, PNG, WEBP (Max 20 images)"}
+                  </p>
+                </div>
+              )}
+
+              {/* Images grid */}
+              {mainImages.length > 0 ? (
+                <div className="ap-img-previews">
+                  {mainImages.map((url, i) => {
+                    // Check karo yeh variant ki auto-synced image hai ya manually added
+                    const isVariantImg = Object.values(
+                      variantImageMapRef.current
+                    ).includes(url);
+                    const variantName = isVariantImg
+                      ? Object.entries(variantImageMapRef.current).find(
+                          ([, v]) => v === url
+                        )?.[0]
+                      : null;
+                    return (
+                      <div
+                        key={i}
+                        className="ap-img-thumb"
+                        style={{ position: "relative" }}
+                      >
+                        <img src={url} alt={`Main ${i + 1}`} />
+                        {/* Variant badge */}
+                        {variantName && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              bottom: "4px",
+                              left: "4px",
+                              background: "rgba(99,102,241,0.9)",
+                              color: "#fff",
+                              fontSize: "0.5rem",
+                              fontFamily: "var(--ap-sans)",
+                              fontWeight: 700,
+                              padding: "2px 5px",
+                              borderRadius: "4px",
+                              letterSpacing: "0.05em",
+                              maxWidth: "calc(100% - 8px)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {variantName}
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          className="ap-img-thumb-remove"
+                          onClick={() => removeMainImage(i)}
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                  <div
+                    className="ap-image-count"
+                    style={{ width: "100%", marginTop: "4px" }}
+                  >
+                    {mainImages.length} / 20 images
+                    {Object.keys(variantImageMapRef.current).length > 0 && (
+                      <span
+                        style={{
+                          marginLeft: "8px",
+                          color: "#6366f1",
+                          fontSize: "0.65rem",
+                        }}
+                      >
+                        ({Object.keys(variantImageMapRef.current).length}{" "}
+                        auto-synced from variants)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    padding: "24px",
+                    textAlign: "center",
+                    color: "#aaa",
+                    fontFamily: "var(--ap-sans)",
+                    fontSize: "0.78rem",
+                    background: "rgba(0,0,0,0.02)",
+                    borderRadius: "8px",
+                    border: "1px dashed rgba(0,0,0,0.1)",
+                  }}
+                >
+                  <p style={{ margin: 0 }}>Abhi koi image nahi hai.</p>
+                  <p
+                    style={{
+                      margin: "4px 0 0",
+                      fontSize: "0.68rem",
+                      color: "#ccc",
+                    }}
+                  >
+                    Variant image add karo ya upar se manually upload karo.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Attributes */}
           <div className="ap-card">
             <div className="ap-card-header">
               <div className="ap-card-icon">
@@ -2035,7 +2484,7 @@ function DetailedModeForm({
                 </svg>
               </div>
               <h3 className="ap-card-title">
-                Product Attributes (Each with Rich Text Description)
+                Product Attributes (Each with 1 Image)
               </h3>
             </div>
             <div className="ap-card-body">
@@ -2051,6 +2500,7 @@ function DetailedModeForm({
                 currencyRate={currency.rate}
                 currencyCode={currency.code}
                 currencySymbol={currency.symbol}
+                onVariantImageChange={handleVariantImageChange}
               />
               <AttributeSelector
                 label="Sizes"
@@ -2064,6 +2514,7 @@ function DetailedModeForm({
                 currencyRate={currency.rate}
                 currencyCode={currency.code}
                 currencySymbol={currency.symbol}
+                onVariantImageChange={handleVariantImageChange}
               />
               <AttributeSelector
                 label="Materials"
@@ -2077,6 +2528,7 @@ function DetailedModeForm({
                 currencyRate={currency.rate}
                 currencyCode={currency.code}
                 currencySymbol={currency.symbol}
+                onVariantImageChange={handleVariantImageChange}
               />
               <AttributeSelector
                 label="Capacities"
@@ -2090,9 +2542,12 @@ function DetailedModeForm({
                 currencyRate={currency.rate}
                 currencyCode={currency.code}
                 currencySymbol={currency.symbol}
+                onVariantImageChange={handleVariantImageChange}
               />
             </div>
           </div>
+
+          {/* FAQs */}
           <div className="ap-card">
             <div className="ap-card-header">
               <div className="ap-card-icon">
@@ -2114,6 +2569,8 @@ function DetailedModeForm({
             </div>
           </div>
         </div>
+
+        {/* Right column — Summary */}
         <div className="ap-detailed-right">
           <div className="ap-card">
             <div className="ap-card-header">
@@ -2144,6 +2601,13 @@ function DetailedModeForm({
                   capacities.length > 0 ? capacities.join(", ") : "—",
                 ],
                 ["Total Variants", totalVariants.toString()],
+                ["Main Images", `${mainImages.length} / 20`],
+                [
+                  "Variant Images",
+                  `${
+                    Object.keys(variantImageMapRef.current).length
+                  } auto-synced`,
+                ],
                 ["FAQs", `${faqs.length} added`],
                 ["Currency", currency.code],
               ].map(([k, v]) => (
@@ -2199,7 +2663,7 @@ function DetailedModeForm({
                         height: "16px",
                         marginRight: "8px",
                       }}
-                    />{" "}
+                    />
                     Saving {totalVariants} variant(s)...
                   </>
                 ) : (
@@ -2226,6 +2690,7 @@ function DetailedModeForm({
   );
 }
 
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AddProductPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(0);
@@ -2266,9 +2731,8 @@ export default function AddProductPage() {
       <div className="ap-content">
         <div className="ap-page-header">
           <p className="ap-eyebrow">
-            <span className="ap-ey-line" />
-            Inventory Management - {currency.code}
-            <span className="ap-ey-line" />
+            <span className="ap-ey-line" /> Inventory Management -{" "}
+            {currency.code} <span className="ap-ey-line" />
           </p>
           <h1 className="ap-page-title">
             Add <em>Product</em> in {currency.code}
@@ -2282,6 +2746,7 @@ export default function AddProductPage() {
             </span>
           </p>
         </div>
+
         <div className="ap-mode-buttons">
           <button
             type="button"
@@ -2323,6 +2788,7 @@ export default function AddProductPage() {
             </span>
           </button>
         </div>
+
         <div className="ap-tabs">
           {TABS.map((t, i) => (
             <button
@@ -2335,6 +2801,7 @@ export default function AddProductPage() {
             </button>
           ))}
         </div>
+
         {mode === "simple" ? (
           <SimpleModeForm
             key={`simple-${mode}`}

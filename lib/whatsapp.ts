@@ -1,24 +1,47 @@
 // lib/whatsapp.ts
 // ✅ GREEN API version — Next.js me perfectly kaam karta hai
-// Baileys remove kar diya — woh serverless me crash karta tha
-// Green API: https://green-api.com (free account banao)
+// ✅ FIXED: International phone formatting for ALL countries
+// Green API: https://green-api.com
 
 // ============================================
-// PHONE NUMBER FORMATTER
-// Sab countries handle karta hai:
-// Pakistan (+92), UK (+44), USA (+1), Australia (+61)
+// ✅ FIXED: PHONE NUMBER FORMATTER
+// Handles ALL countries correctly:
+// "+923001234567" → "923001234567@c.us"  ✅ Pakistan (with code)
+// "03001234567"   → "923001234567@c.us"  ✅ Pakistan (local format)
+// "+61412345678"  → "61412345678@c.us"   ✅ Australia
+// "+12125551234"  → "12125551234@c.us"   ✅ USA
+// "+447123456789" → "447123456789@c.us"  ✅ UK
+// "+971501234567" → "971501234567@c.us"  ✅ UAE
+// "+966501234567" → "966501234567@c.us"  ✅ Saudi Arabia
+// "+491512345678" → "491512345678@c.us"  ✅ Germany/Europe
 // ============================================
 function formatPhoneForWhatsApp(phoneNumber: string): string {
-  // Sirf digits rakhein — +, spaces, dashes sab hata do
-  let clean = phoneNumber.replace(/\D/g, "");
+  // Step 1: Remove spaces, dashes, brackets, dots
+  let clean = phoneNumber.replace(/[\s\-\(\)\.]/g, "");
 
-  // Agar local Pakistan format ho (03XX...) to 92 add karo
-  if (clean.startsWith("0") && clean.length === 11) {
+  // Step 2: If starts with +, just remove the + sign
+  // The country code digits stay intact
+  if (clean.startsWith("+")) {
+    clean = clean.slice(1);
+    // e.g. "+61412345678" → "61412345678" ✅
+  }
+  // Step 3: ONLY apply Pakistan local format fix
+  // STRICT check: starts with "0" AND total is exactly 11 digits
+  // AND remaining 10 digits start with "3" (Pakistani mobile prefix)
+  // This prevents Australian "0412345678" (10 digits) from being misidentified
+  else if (
+    clean.startsWith("0") &&
+    clean.length === 11 &&
+    clean[1] === "3" // Pakistani mobile numbers always start with 03XX
+  ) {
     clean = "92" + clean.slice(1);
+    // e.g. "03001234567" → "923001234567" ✅
   }
 
-  // Green API format: number@c.us
-  return `${clean}@c.us`;
+  // Step 4: Green API chatId format
+  const chatId = `${clean}@c.us`;
+  console.log(`📱 Phone format: "${phoneNumber}" → chatId: "${chatId}"`);
+  return chatId;
 }
 
 // ============================================
@@ -31,7 +54,6 @@ export async function sendWhatsAppMessage(
   const instanceId = process.env.GREEN_API_INSTANCE_ID;
   const apiToken = process.env.GREEN_API_TOKEN;
 
-  // Credentials check
   if (!instanceId || !apiToken) {
     console.warn("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     console.warn("⚠️  WHATSAPP NOT CONFIGURED");
@@ -43,7 +65,6 @@ export async function sendWhatsAppMessage(
     return false;
   }
 
-  // Format the number for WhatsApp
   const chatId = formatPhoneForWhatsApp(to);
 
   console.log(`📱 Sending WhatsApp to: ${to} → chatId: ${chatId}`);
@@ -66,11 +87,11 @@ export async function sendWhatsAppMessage(
 
     if (response.ok && result.idMessage) {
       console.log("✅ WhatsApp sent successfully!");
-      console.log(`   To: ${to}`);
+      console.log(`   To: ${to} (chatId: ${chatId})`);
       console.log(`   Message ID: ${result.idMessage}`);
       return true;
     } else {
-      console.error("❌ Green API error response:", result);
+      console.error("❌ Green API error response:", JSON.stringify(result));
       return false;
     }
   } catch (error) {
@@ -80,53 +101,72 @@ export async function sendWhatsAppMessage(
 }
 
 // ============================================
-// ORDER CONFIRMATION — WhatsApp pe bhejne ka message
-// Pakistan, UK, USA, Australia — sab countries support
+// ✅ FIXED: ORDER CONFIRMATION MESSAGE
+// Now supports ALL currencies — not just PKR
 // ============================================
 export async function sendOrderWhatsApp(
-  phoneNumber: string, // e.g. "+923001234567" ya "+61412345678"
+  phoneNumber: string, // e.g. "+923001234567" or "+61412345678"
   orderNumber: string,
   name: string,
-  total: number,
+  total: number, // Raw PKR amount
   items: Array<{
     name: string;
     variant?: string;
     quantity: number;
-    price: number;
+    price: number; // PKR amount
     piecesPerUnit?: number;
+  }>,
+  // ✅ Optional: pass formatted price strings from frontend
+  // so currency is already converted (e.g. "A$5.48" for Australia)
+  formattedTotal?: string,
+  formattedItems?: Array<{
+    name: string;
+    variant?: string;
+    quantity: number;
+    formattedPrice: string;
   }>
 ): Promise<boolean> {
-  // Items list banana
-  const itemsList = items
-    .map(
-      (item) =>
-        `• ${item.name}${item.variant ? ` (${item.variant})` : ""} x${
-          item.quantity
-        } — PKR ${item.price.toLocaleString()}`
-    )
-    .join("\n");
+  // ✅ Use pre-formatted prices if provided (from route.ts which has currency context)
+  // Otherwise fall back to PKR
+  const itemsList =
+    formattedItems && formattedItems.length > 0
+      ? formattedItems
+          .map(
+            (item) =>
+              `• ${item.name}${item.variant ? ` (${item.variant})` : ""} x${
+                item.quantity
+              } — ${item.formattedPrice}`
+          )
+          .join("\n")
+      : items
+          .map(
+            (item) =>
+              `• ${item.name}${item.variant ? ` (${item.variant})` : ""} x${
+                item.quantity
+              } — PKR ${item.price.toLocaleString()}`
+          )
+          .join("\n");
 
+  const displayTotal = formattedTotal || `PKR ${total.toLocaleString()}`;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-  const message = `🛍️ *TECH4U — Order Confirmed!*
+  const message = `✅ Order Confirmed — Tech4U
 
-Dear *${name}*,
+Hello *${name}*! Thank you for your purchase 🎉
 
-✅ Aapka order successfully place ho gaya hai!
+📦 Order Number: ${orderNumber}
+💰 Total Amount: ${displayTotal}
 
-━━━━━━━━━━━━━━━━━━━━
-📦 *Order #:* ${orderNumber}
-💰 *Total:* PKR ${total.toLocaleString()}
-━━━━━━━━━━━━━━━━━━━━
-
-🛒 *Items:*
+🛒 Items Ordered:
 ${itemsList}
 
-🔗 Track your order:
-${appUrl}/orders/${orderNumber}
+Your order is being processed and will be shipped soon. You'll receive tracking info here on WhatsApp once shipped.
 
-Shukriya Tech4U se shopping karne ka! ✨
-Koi sawal ho to reply karein.`;
+For any questions:
+📧 info@tech4ru.com
+🌐 tech4ru.com
+
+Thank you for choosing Tech4U! ✨`;
 
   return sendWhatsAppMessage(phoneNumber, message);
 }

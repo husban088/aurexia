@@ -2,19 +2,61 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Navigation, FreeMode } from "swiper/modules";
+import type { Swiper as SwiperType } from "swiper";
+import "swiper/css";
+import "swiper/css/navigation";
+import "swiper/css/free-mode";
 import "./ProductGallery.css";
 
+// ─── Types ─────────────────────────────────────────────────────────────────────
 interface ProductGalleryProps {
-  images: string[];
+  images: string[]; // selected variant images (active variant)
   productName: string;
+  mainImages?: string[]; // product-level main images (always show)
 }
 
 export default function ProductGallery({
   images,
   productName,
+  mainImages = [],
 }: ProductGalleryProps) {
-  const [activeImg, setActiveImg] = useState(0);
+  // ─── Build combined thumbnail list ─────────────────────────────────────────
+  // Priority: selected variant images first, then main product images (deduped)
+  const buildThumbnailList = useCallback((): string[] => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+
+    // First: selected variant images
+    if (images && images.length > 0) {
+      images.forEach((img) => {
+        if (img && !seen.has(img)) {
+          seen.add(img);
+          result.push(img);
+        }
+      });
+    }
+
+    // Then: main product images
+    if (mainImages && mainImages.length > 0) {
+      mainImages.forEach((img) => {
+        if (img && !seen.has(img)) {
+          seen.add(img);
+          result.push(img);
+        }
+      });
+    }
+
+    return result;
+  }, [images, mainImages]);
+
+  const allThumbs = buildThumbnailList();
+
+  const [activeIdx, setActiveIdx] = useState(0);
   const [imgEntering, setImgEntering] = useState(false);
+
+  // Lightbox state
   const [lightbox, setLightbox] = useState(false);
   const [lbClosing, setLbClosing] = useState(false);
   const [lbZoom, setLbZoom] = useState(1);
@@ -22,11 +64,12 @@ export default function ProductGallery({
   const [lbDragging, setLbDragging] = useState(false);
   const [portalRoot, setPortalRoot] = useState<Element | null>(null);
 
-  // Touch/mouse swipe refs
-  const mainSwipeStart = useRef<{ x: number; y: number } | null>(null);
-  const mainSwipeEnd = useRef<{ x: number; y: number } | null>(null);
+  // Swiper refs
+  const thumbSwiperRef = useRef<SwiperType | null>(null);
+  const lbThumbSwiperRef = useRef<SwiperType | null>(null);
 
-  // Lightbox drag refs
+  // Swipe refs
+  const mainSwipeStart = useRef<{ x: number; y: number } | null>(null);
   const lbDragStart = useRef<{
     x: number;
     y: number;
@@ -39,26 +82,37 @@ export default function ProductGallery({
     px: number;
     py: number;
   } | null>(null);
-
-  // Lightbox swipe refs (when not zoomed)
   const lbSwipeStart = useRef<{ x: number; y: number } | null>(null);
 
-  const mainContainerRef = useRef<HTMLDivElement>(null);
   const lightboxRef = useRef<HTMLDivElement>(null);
   const lbStageRef = useRef<HTMLDivElement>(null);
   const lbImgContainerRef = useRef<HTMLDivElement>(null);
 
-  // ─── Image switch helper ───────────────────────────────────
-  function switchImg(idx: number) {
-    if (idx === activeImg) return;
-    setImgEntering(true);
+  // ─── Reset to 0 when variant images change ─────────────────────────────────
+  useEffect(() => {
+    setActiveIdx(0);
     setTimeout(() => {
-      setActiveImg(idx);
-      setImgEntering(false);
-    }, 80);
-  }
+      thumbSwiperRef.current?.slideTo(0);
+      lbThumbSwiperRef.current?.slideTo(0);
+    }, 50);
+  }, [images]);
 
-  // ─── Smooth close with animation ──────────────────────────
+  // ─── Image switch ──────────────────────────────────────────────────────────
+  const switchImg = useCallback(
+    (idx: number) => {
+      if (idx === activeIdx || allThumbs.length === 0) return;
+      setImgEntering(true);
+      setTimeout(() => {
+        setActiveIdx(idx);
+        setImgEntering(false);
+      }, 80);
+      thumbSwiperRef.current?.slideTo(idx);
+      lbThumbSwiperRef.current?.slideTo(idx);
+    },
+    [activeIdx, allThumbs.length]
+  );
+
+  // ─── Lightbox close ────────────────────────────────────────────────────────
   const closeLightbox = useCallback(() => {
     setLbClosing(true);
     setTimeout(() => {
@@ -74,75 +128,61 @@ export default function ProductGallery({
     }, 320);
   }, []);
 
-  // ─── Main gallery: mouse swipe ────────────────────────────
+  // ─── Main gallery mouse swipe ──────────────────────────────────────────────
   const handleMainMouseDown = (e: React.MouseEvent) => {
     mainSwipeStart.current = { x: e.clientX, y: e.clientY };
   };
-
   const handleMainMouseUp = (e: React.MouseEvent) => {
     if (!mainSwipeStart.current) return;
     const deltaX = e.clientX - mainSwipeStart.current.x;
-    if (Math.abs(deltaX) > 50 && images.length > 1) {
-      if (deltaX > 0) {
-        switchImg((activeImg - 1 + images.length) % images.length);
-      } else {
-        switchImg((activeImg + 1) % images.length);
-      }
+    if (Math.abs(deltaX) > 50 && allThumbs.length > 1) {
+      if (deltaX > 0)
+        switchImg((activeIdx - 1 + allThumbs.length) % allThumbs.length);
+      else switchImg((activeIdx + 1) % allThumbs.length);
     }
     mainSwipeStart.current = null;
-    mainSwipeEnd.current = null;
   };
 
-  // ─── Main gallery: touch swipe ────────────────────────────
+  // ─── Main gallery touch swipe ─────────────────────────────────────────────
   const handleMainTouchStart = (e: React.TouchEvent) => {
     mainSwipeStart.current = {
       x: e.touches[0].clientX,
       y: e.touches[0].clientY,
     };
   };
-
   const handleMainTouchEnd = (e: React.TouchEvent) => {
     if (!mainSwipeStart.current) return;
     const deltaX = e.changedTouches[0].clientX - mainSwipeStart.current.x;
-    if (Math.abs(deltaX) > 50 && images.length > 1) {
-      if (deltaX > 0) {
-        switchImg((activeImg - 1 + images.length) % images.length);
-      } else {
-        switchImg((activeImg + 1) % images.length);
-      }
+    if (Math.abs(deltaX) > 50 && allThumbs.length > 1) {
+      if (deltaX > 0)
+        switchImg((activeIdx - 1 + allThumbs.length) % allThumbs.length);
+      else switchImg((activeIdx + 1) % allThumbs.length);
     }
     mainSwipeStart.current = null;
   };
 
-  // ─── Constrained pan — image stays within viewport ────────
+  // ─── Constrained pan ──────────────────────────────────────────────────────
   const getConstrainedPan = (
     newPan: { x: number; y: number },
     zoom: number
   ) => {
     if (!lbStageRef.current || !lbImgContainerRef.current) return newPan;
-
     const stageRect = lbStageRef.current.getBoundingClientRect();
     const imgEl = lbImgContainerRef.current.querySelector(
       "img"
     ) as HTMLImageElement;
     if (!imgEl) return newPan;
-
-    const naturalW = imgEl.offsetWidth;
-    const naturalH = imgEl.offsetHeight;
-
-    const overflowX = Math.max(0, naturalW * zoom - stageRect.width);
-    const overflowY = Math.max(0, naturalH * zoom - stageRect.height);
-
+    const overflowX = Math.max(0, imgEl.offsetWidth * zoom - stageRect.width);
+    const overflowY = Math.max(0, imgEl.offsetHeight * zoom - stageRect.height);
     const maxPanX = overflowX / 2;
     const maxPanY = overflowY / 2;
-
     return {
       x: Math.min(maxPanX, Math.max(-maxPanX, newPan.x)),
       y: Math.min(maxPanY, Math.max(-maxPanY, newPan.y)),
     };
   };
 
-  // ─── Lightbox: mouse events ───────────────────────────────
+  // ─── Lightbox mouse events ─────────────────────────────────────────────────
   const handleLbMouseDown = (e: React.MouseEvent) => {
     if (lbZoom > 1) {
       e.preventDefault();
@@ -157,7 +197,6 @@ export default function ProductGallery({
       lbSwipeStart.current = { x: e.clientX, y: e.clientY };
     }
   };
-
   const handleLbMouseMove = (e: React.MouseEvent) => {
     if (lbZoom > 1 && lbDragging && lbDragStart.current) {
       const newPan = {
@@ -167,7 +206,6 @@ export default function ProductGallery({
       setLbPan(getConstrainedPan(newPan, lbZoom));
     }
   };
-
   const handleLbMouseUp = (e: React.MouseEvent) => {
     if (lbZoom > 1) {
       setLbDragging(false);
@@ -175,15 +213,15 @@ export default function ProductGallery({
     } else if (lbSwipeStart.current) {
       const deltaX = e.clientX - lbSwipeStart.current.x;
       const deltaY = e.clientY - lbSwipeStart.current.y;
-
       if (deltaY > 80 && Math.abs(deltaY) > Math.abs(deltaX)) {
         closeLightbox();
-      } else if (Math.abs(deltaX) > 50 && images.length > 1) {
-        if (deltaX > 0) {
-          setActiveImg((i) => (i - 1 + images.length) % images.length);
-        } else {
-          setActiveImg((i) => (i + 1) % images.length);
-        }
+      } else if (Math.abs(deltaX) > 50 && allThumbs.length > 1) {
+        const newIdx =
+          deltaX > 0
+            ? (activeIdx - 1 + allThumbs.length) % allThumbs.length
+            : (activeIdx + 1) % allThumbs.length;
+        setActiveIdx(newIdx);
+        lbThumbSwiperRef.current?.slideTo(newIdx);
         setLbZoom(1);
         setLbPan({ x: 0, y: 0 });
       }
@@ -191,7 +229,7 @@ export default function ProductGallery({
     }
   };
 
-  // ─── Lightbox: touch events ───────────────────────────────
+  // ─── Lightbox touch events ─────────────────────────────────────────────────
   const handleLbTouchStart = (e: React.TouchEvent) => {
     const touch = e.touches[0];
     if (lbZoom > 1) {
@@ -205,26 +243,30 @@ export default function ProductGallery({
       lbSwipeStart.current = { x: touch.clientX, y: touch.clientY };
     }
   };
-
   const handleLbTouchMove = (e: React.TouchEvent) => {
     if (lbZoom > 1 && lbTouchStart.current) {
       const touch = e.touches[0];
-      const newPan = {
-        x: lbTouchStart.current.px + (touch.clientX - lbTouchStart.current.x),
-        y: lbTouchStart.current.py + (touch.clientY - lbTouchStart.current.y),
-      };
-      setLbPan(getConstrainedPan(newPan, lbZoom));
+      setLbPan(
+        getConstrainedPan(
+          {
+            x:
+              lbTouchStart.current.px +
+              (touch.clientX - lbTouchStart.current.x),
+            y:
+              lbTouchStart.current.py +
+              (touch.clientY - lbTouchStart.current.y),
+          },
+          lbZoom
+        )
+      );
     } else if (lbSwipeStart.current && lbImgContainerRef.current) {
-      // Live swipe-down visual feedback
       const touch = e.touches[0];
       const deltaY = touch.clientY - lbSwipeStart.current.y;
       if (deltaY > 0) {
-        if (lbImgContainerRef.current) {
-          lbImgContainerRef.current.style.transform = `translateY(${
-            deltaY * 0.4
-          }px) scale(${Math.max(0.85, 1 - deltaY * 0.001)})`;
-          lbImgContainerRef.current.style.transition = "none";
-        }
+        lbImgContainerRef.current.style.transform = `translateY(${
+          deltaY * 0.4
+        }px) scale(${Math.max(0.85, 1 - deltaY * 0.001)})`;
+        lbImgContainerRef.current.style.transition = "none";
         if (lightboxRef.current) {
           lightboxRef.current.style.background = `rgba(8,6,4,${Math.max(
             0.35,
@@ -234,7 +276,6 @@ export default function ProductGallery({
       }
     }
   };
-
   const handleLbTouchEnd = (e: React.TouchEvent) => {
     if (lbZoom > 1) {
       lbTouchStart.current = null;
@@ -242,24 +283,20 @@ export default function ProductGallery({
       const touch = e.changedTouches[0];
       const deltaX = touch.clientX - lbSwipeStart.current.x;
       const deltaY = touch.clientY - lbSwipeStart.current.y;
-
-      // Reset live visual feedback
       if (lbImgContainerRef.current) {
         lbImgContainerRef.current.style.transform = "";
         lbImgContainerRef.current.style.transition = "";
       }
-      if (lightboxRef.current) {
-        lightboxRef.current.style.background = "";
-      }
-
+      if (lightboxRef.current) lightboxRef.current.style.background = "";
       if (deltaY > 80 && Math.abs(deltaY) > Math.abs(deltaX)) {
         closeLightbox();
-      } else if (Math.abs(deltaX) > 50 && images.length > 1) {
-        if (deltaX > 0) {
-          setActiveImg((i) => (i - 1 + images.length) % images.length);
-        } else {
-          setActiveImg((i) => (i + 1) % images.length);
-        }
+      } else if (Math.abs(deltaX) > 50 && allThumbs.length > 1) {
+        const newIdx =
+          deltaX > 0
+            ? (activeIdx - 1 + allThumbs.length) % allThumbs.length
+            : (activeIdx + 1) % allThumbs.length;
+        setActiveIdx(newIdx);
+        lbThumbSwiperRef.current?.slideTo(newIdx);
         setLbZoom(1);
         setLbPan({ x: 0, y: 0 });
       }
@@ -267,18 +304,16 @@ export default function ProductGallery({
     }
   };
 
-  // ─── Double click to toggle zoom ──────────────────────────
+  // ─── Double click zoom ─────────────────────────────────────────────────────
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (lbZoom > 1) {
       setLbZoom(1);
       setLbPan({ x: 0, y: 0 });
-    } else {
-      setLbZoom(2.5);
-    }
+    } else setLbZoom(2.5);
   };
 
-  // ─── Mouse wheel zoom ─────────────────────────────────────
+  // ─── Mouse wheel zoom ──────────────────────────────────────────────────────
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -287,95 +322,85 @@ export default function ProductGallery({
     if (newZoom === 1) {
       setLbPan({ x: 0, y: 0 });
     } else {
-      const scaleFactor = newZoom / lbZoom;
+      const sf = newZoom / lbZoom;
       setLbPan(
-        getConstrainedPan(
-          {
-            x: lbPan.x * scaleFactor,
-            y: lbPan.y * scaleFactor,
-          },
-          newZoom
-        )
+        getConstrainedPan({ x: lbPan.x * sf, y: lbPan.y * sf }, newZoom)
       );
     }
     setLbZoom(newZoom);
   };
 
-  // ─── Click black backdrop to close ───────────────────────
-  // Fires when clicking the stage (dark area) but NOT when dragging
+  // ─── Backdrop click ────────────────────────────────────────────────────────
   const handleLightboxBackdropClick = (e: React.MouseEvent) => {
-    // Close if clicking the root lightbox div OR the stage background (not the image)
     if (e.target === lightboxRef.current || e.target === lbStageRef.current) {
       closeLightbox();
     }
   };
 
-  // ─── Keyboard navigation ──────────────────────────────────
+  // ─── Keyboard nav ─────────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!lightbox) return;
-      if (e.key === "Escape") closeLightbox();
-      if (e.key === "ArrowRight") {
-        setActiveImg((i) => (images.length > 0 ? (i + 1) % images.length : 0));
+      if (e.key === "Escape") {
+        closeLightbox();
+        return;
+      }
+      if (e.key === "ArrowRight" && allThumbs.length > 0) {
+        const ni = (activeIdx + 1) % allThumbs.length;
+        setActiveIdx(ni);
+        lbThumbSwiperRef.current?.slideTo(ni);
         setLbZoom(1);
         setLbPan({ x: 0, y: 0 });
       }
-      if (e.key === "ArrowLeft") {
-        setActiveImg((i) =>
-          images.length > 0 ? (i - 1 + images.length) % images.length : 0
-        );
+      if (e.key === "ArrowLeft" && allThumbs.length > 0) {
+        const ni = (activeIdx - 1 + allThumbs.length) % allThumbs.length;
+        setActiveIdx(ni);
+        lbThumbSwiperRef.current?.slideTo(ni);
         setLbZoom(1);
         setLbPan({ x: 0, y: 0 });
       }
-      if (e.key === "+" || e.key === "=") {
+      if (e.key === "+" || e.key === "=")
         setLbZoom((z) => Math.min(4, z + 0.5));
-      }
-      if (e.key === "-") {
+      if (e.key === "-")
         setLbZoom((z) => {
           const nz = Math.max(1, z - 0.5);
           if (nz === 1) setLbPan({ x: 0, y: 0 });
           return nz;
         });
-      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [lightbox, images.length, closeLightbox]);
+  }, [lightbox, allThumbs.length, activeIdx, closeLightbox]);
 
-  // ─── Reset zoom on image change ───────────────────────────
+  // ─── Reset zoom on image change ────────────────────────────────────────────
   useEffect(() => {
     if (lightbox) {
       setLbZoom(1);
       setLbPan({ x: 0, y: 0 });
     }
-  }, [activeImg, lightbox]);
+  }, [activeIdx, lightbox]);
 
-  // ─── Body scroll lock ─────────────────────────────────────
+  // ─── Body scroll lock ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (lightbox) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = lightbox ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
   }, [lightbox]);
 
-  // ─── Portal root (SSR-safe) ───────────────────────────────
-  // Lightbox ko document.body pe render karo taake kisi bhi
-  // parent stacking context se azaad rahe aur navbar ke upar aaye
+  // ─── Portal root ───────────────────────────────────────────────────────────
   useEffect(() => {
     setPortalRoot(document.body);
   }, []);
 
-  // ─── Open lightbox ────────────────────────────────────────
   const openLightbox = (e: React.MouseEvent) => {
     e.stopPropagation();
     setLightbox(true);
+    setTimeout(() => lbThumbSwiperRef.current?.slideTo(activeIdx), 80);
   };
 
-  if (!images || images.length === 0) {
+  // ─── Empty state ───────────────────────────────────────────────────────────
+  if (!allThumbs || allThumbs.length === 0) {
     return (
       <div className="pg-gallery">
         <div className="pg-main-img-wrap">
@@ -396,23 +421,25 @@ export default function ProductGallery({
     );
   }
 
+  // Variant image = first image in images array (currently selected variant)
+  const variantImg = images && images.length > 0 ? images[0] : null;
+
   return (
     <>
       <div className="pg-gallery">
-        {/* MAIN IMAGE WITH SWIPE SUPPORT */}
+        {/* ══════════════════════════════════════════════
+            BIG MAIN IMAGE
+        ══════════════════════════════════════════════ */}
         <div
           className="pg-swiper-wrap"
-          ref={mainContainerRef}
           onMouseDown={handleMainMouseDown}
           onMouseUp={handleMainMouseUp}
           onTouchStart={handleMainTouchStart}
           onTouchEnd={handleMainTouchEnd}
         >
-          {/* Big image — click does NOT open lightbox. Only expand btn does. */}
           <div
             className="pg-main-img-wrap"
             onMouseMove={(e) => {
-              // Tiny internal parallax — image stays within bounds
               const rect = e.currentTarget.getBoundingClientRect();
               const x = ((e.clientX - rect.left) / rect.width - 0.5) * 4;
               const y = ((e.clientY - rect.top) / rect.height - 0.5) * 4;
@@ -430,7 +457,7 @@ export default function ProductGallery({
             }}
           >
             <img
-              src={images[activeImg]}
+              src={allThumbs[activeIdx]}
               alt={productName}
               className={imgEntering ? "pg-img-entering" : ""}
               style={{
@@ -438,14 +465,12 @@ export default function ProductGallery({
               }}
               draggable={false}
             />
-            {images.length > 1 && (
+            {allThumbs.length > 1 && (
               <div className="pg-img-counter">
-                {activeImg + 1} / {images.length}
+                {activeIdx + 1} / {allThumbs.length}
               </div>
             )}
-
-            {/* Swipe hint (mobile) */}
-            {images.length > 1 && (
+            {allThumbs.length > 1 && (
               <div className="pg-swipe-hint">
                 <svg
                   viewBox="0 0 24 24"
@@ -459,15 +484,12 @@ export default function ProductGallery({
                 Swipe to browse
               </div>
             )}
-
-            {/* ── UNIQUE EXPAND BUTTON — bottom-right corner ── */}
             <button
               className="pg-expand-btn"
               onClick={openLightbox}
               aria-label="View full image"
               title="Open fullscreen view"
             >
-              {/* Expand arrows icon */}
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -482,75 +504,133 @@ export default function ProductGallery({
             </button>
           </div>
 
-          {/* Swiper prev/next arrows */}
-          {images.length > 1 && (
+          {/* Prev / Next arrows on big image */}
+          {allThumbs.length > 1 && (
+            <>
+              <button
+                className="pg-swiper-arrow pg-swiper-prev"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  switchImg(
+                    (activeIdx - 1 + allThumbs.length) % allThumbs.length
+                  );
+                }}
+                aria-label="Previous image"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <button
+                className="pg-swiper-arrow pg-swiper-next"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  switchImg((activeIdx + 1) % allThumbs.length);
+                }}
+                aria-label="Next image"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* ══════════════════════════════════════════════
+            THUMBNAIL SWIPER STRIP (below big image)
+        ══════════════════════════════════════════════ */}
+        {allThumbs.length > 1 && (
+          <div className="pg-thumbs-swiper-wrap">
             <button
-              className="pg-swiper-arrow pg-swiper-prev"
-              onClick={(e) => {
-                e.stopPropagation();
-                switchImg((activeImg - 1 + images.length) % images.length);
-              }}
-              aria-label="Previous image"
+              className="pg-thumb-nav pg-thumb-nav--prev"
+              onClick={() => thumbSwiperRef.current?.slidePrev()}
+              aria-label="Scroll thumbnails left"
             >
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="2.5"
               >
                 <polyline points="15 18 9 12 15 6" />
               </svg>
             </button>
-          )}
 
-          {images.length > 1 && (
-            <button
-              className="pg-swiper-arrow pg-swiper-next"
-              onClick={(e) => {
-                e.stopPropagation();
-                switchImg((activeImg + 1) % images.length);
+            <Swiper
+              modules={[Navigation, FreeMode]}
+              spaceBetween={6}
+              slidesPerView="auto"
+              freeMode={{ enabled: true, momentum: true }}
+              watchSlidesProgress={true}
+              onSwiper={(swiper) => {
+                thumbSwiperRef.current = swiper;
               }}
-              aria-label="Next image"
+              className="pg-thumbs-swiper"
+            >
+              {allThumbs.map((src, idx) => {
+                const isActive = idx === activeIdx;
+                const isVariantImg = src === variantImg;
+                return (
+                  <SwiperSlide key={idx} className="pg-thumb-slide">
+                    <button
+                      className={`pg-thumb${isActive ? " active" : ""}${
+                        isVariantImg ? " pg-thumb--variant" : ""
+                      }`}
+                      onClick={() => switchImg(idx)}
+                      title={
+                        isVariantImg
+                          ? "Selected color image"
+                          : `Image ${idx + 1}`
+                      }
+                    >
+                      <img
+                        src={src}
+                        alt={`${productName} ${idx + 1}`}
+                        draggable={false}
+                      />
+                      {isVariantImg && (
+                        <span className="pg-thumb-variant-dot" />
+                      )}
+                    </button>
+                  </SwiperSlide>
+                );
+              })}
+            </Swiper>
+
+            <button
+              className="pg-thumb-nav pg-thumb-nav--next"
+              onClick={() => thumbSwiperRef.current?.slideNext()}
+              aria-label="Scroll thumbnails right"
             >
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="2.5"
               >
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>
-          )}
-        </div>
-
-        {/* THUMBNAIL STRIP */}
-        {images.length > 1 && (
-          <div className="pg-thumbs">
-            {images.map((src, idx) => (
-              <button
-                key={idx}
-                className={`pg-thumb${activeImg === idx ? " active" : ""}`}
-                onClick={() => switchImg(idx)}
-              >
-                <img src={src} alt="" />
-              </button>
-            ))}
           </div>
         )}
       </div>
 
-      {/* ══════════════════════════════════════════════════════════
-          LIGHTBOX — Portal pe render hota hai (document.body)
-          Isliye kisi bhi parent stacking context se azaad hai
-          aur navbar (z-index:100) ke upar hamesha dikhega
-          z-index: 99999 — sabse upar
-          Click black backdrop → close
-          Swipe down → close with animation
-          Zoom in → constrained pan (image stays in bounds)
-          ══════════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════
+          LIGHTBOX PORTAL
+      ══════════════════════════════════════════════ */}
       {lightbox &&
-        images[activeImg] &&
+        allThumbs[activeIdx] &&
         portalRoot &&
         createPortal(
           <div
@@ -561,12 +641,13 @@ export default function ProductGallery({
             {/* HEADER BAR */}
             <div className="pg-lb-header" onClick={(e) => e.stopPropagation()}>
               <div className="pg-lb-numbering">
-                {images.map((_, i) => (
+                {allThumbs.map((_, i) => (
                   <button
                     key={i}
-                    className={`pg-lb-dot${activeImg === i ? " active" : ""}`}
+                    className={`pg-lb-dot${activeIdx === i ? " active" : ""}`}
                     onClick={() => {
-                      setActiveImg(i);
+                      setActiveIdx(i);
+                      lbThumbSwiperRef.current?.slideTo(i);
                       setLbZoom(1);
                       setLbPan({ x: 0, y: 0 });
                     }}
@@ -575,7 +656,7 @@ export default function ProductGallery({
                 ))}
               </div>
               <span className="pg-lb-counter">
-                {activeImg + 1} / {images.length}
+                {activeIdx + 1} / {allThumbs.length}
               </span>
               <div className="pg-lb-zoom-controls">
                 <button
@@ -676,57 +757,60 @@ export default function ProductGallery({
                 }}
               >
                 <img
-                  src={images[activeImg]}
+                  src={allThumbs[activeIdx]}
                   alt="Product zoom"
                   draggable={false}
                 />
               </div>
             </div>
 
-            {/* LEFT NAV ARROW */}
-            {images.length > 1 && (
-              <button
-                className="pg-lb-arrow pg-lb-arrow--prev"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveImg((i) => (i - 1 + images.length) % images.length);
-                  setLbZoom(1);
-                  setLbPan({ x: 0, y: 0 });
-                }}
-                aria-label="Previous image"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
+            {/* LEFT / RIGHT ARROWS */}
+            {allThumbs.length > 1 && (
+              <>
+                <button
+                  className="pg-lb-arrow pg-lb-arrow--prev"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const ni =
+                      (activeIdx - 1 + allThumbs.length) % allThumbs.length;
+                    setActiveIdx(ni);
+                    lbThumbSwiperRef.current?.slideTo(ni);
+                    setLbZoom(1);
+                    setLbPan({ x: 0, y: 0 });
+                  }}
+                  aria-label="Previous image"
                 >
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-              </button>
-            )}
-
-            {/* RIGHT NAV ARROW */}
-            {images.length > 1 && (
-              <button
-                className="pg-lb-arrow pg-lb-arrow--next"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveImg((i) => (i + 1) % images.length);
-                  setLbZoom(1);
-                  setLbPan({ x: 0, y: 0 });
-                }}
-                aria-label="Next image"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+                <button
+                  className="pg-lb-arrow pg-lb-arrow--next"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const ni = (activeIdx + 1) % allThumbs.length;
+                    setActiveIdx(ni);
+                    lbThumbSwiperRef.current?.slideTo(ni);
+                    setLbZoom(1);
+                    setLbPan({ x: 0, y: 0 });
+                  }}
+                  aria-label="Next image"
                 >
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </>
             )}
 
             {/* SWIPE DOWN HINT */}
@@ -743,26 +827,78 @@ export default function ProductGallery({
               Swipe down to close
             </div>
 
-            {/* BOTTOM THUMBNAIL STRIP */}
-            {images.length > 1 && (
+            {/* ── LIGHTBOX THUMBNAIL SWIPER STRIP ── */}
+            {allThumbs.length > 1 && (
               <div
-                className="pg-lb-thumbs"
+                className="pg-lb-thumbs-wrap"
                 onClick={(e) => e.stopPropagation()}
               >
-                {images.map((src, i) => (
-                  <button
-                    key={i}
-                    className={`pg-lb-thumb${activeImg === i ? " active" : ""}`}
-                    onClick={() => {
-                      setActiveImg(i);
-                      setLbZoom(1);
-                      setLbPan({ x: 0, y: 0 });
-                    }}
+                <button
+                  className="pg-lb-thumb-nav pg-lb-thumb-nav--prev"
+                  onClick={() => lbThumbSwiperRef.current?.slidePrev()}
+                  aria-label="Previous thumbnails"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
                   >
-                    <img src={src} alt="" />
-                    <span className="pg-lb-thumb-num">{i + 1}</span>
-                  </button>
-                ))}
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+
+                <Swiper
+                  modules={[Navigation, FreeMode]}
+                  spaceBetween={6}
+                  slidesPerView="auto"
+                  freeMode={{ enabled: true, momentum: true }}
+                  watchSlidesProgress={true}
+                  onSwiper={(swiper) => {
+                    lbThumbSwiperRef.current = swiper;
+                  }}
+                  className="pg-lb-thumbs-swiper"
+                >
+                  {allThumbs.map((src, i) => {
+                    const isVariantImgLb = src === variantImg;
+                    return (
+                      <SwiperSlide key={i} className="pg-lb-thumb-slide">
+                        <button
+                          className={`pg-lb-thumb${
+                            activeIdx === i ? " active" : ""
+                          }${isVariantImgLb ? " pg-lb-thumb--variant" : ""}`}
+                          onClick={() => {
+                            setActiveIdx(i);
+                            lbThumbSwiperRef.current?.slideTo(i);
+                            setLbZoom(1);
+                            setLbPan({ x: 0, y: 0 });
+                          }}
+                        >
+                          <img src={src} alt="" draggable={false} />
+                          <span className="pg-lb-thumb-num">{i + 1}</span>
+                          {isVariantImgLb && (
+                            <span className="pg-thumb-variant-dot pg-lb-variant-dot" />
+                          )}
+                        </button>
+                      </SwiperSlide>
+                    );
+                  })}
+                </Swiper>
+
+                <button
+                  className="pg-lb-thumb-nav pg-lb-thumb-nav--next"
+                  onClick={() => lbThumbSwiperRef.current?.slideNext()}
+                  aria-label="Next thumbnails"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
               </div>
             )}
           </div>,

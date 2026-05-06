@@ -195,6 +195,312 @@
   padding-bottom: 2px;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   THUMBNAIL SWIPER STRIP — Below big image
+   Ye classes ProductGallery.css ke existing .pg-thumbs ke baad add karo
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Hide old static thumbs if swiper is present ── */
+.pg-thumbs {
+  display: none !important;
+}
+
+/* ── Swiper thumb strip wrapper ── */
+.pg-thumbs-swiper-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  width: 100%;
+  position: relative;
+}
+
+/* ── Swiper container inside wrap ── */
+.pg-thumbs-swiper {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ── Each slide has auto width ── */
+.pg-thumb-slide {
+  width: auto !important;
+  flex-shrink: 0;
+}
+
+/* ── Each thumb button ── */
+.pg-thumb {
+  display: block;
+  width: 70px;
+  height: 70px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0;
+  transition: border-color 0.2s, transform 0.15s, opacity 0.2s;
+  position: relative;
+  opacity: 0.65;
+}
+
+.pg-thumb:hover {
+  border-color: rgba(218, 165, 32, 0.5);
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.pg-thumb.active {
+  border-color: #daa520;
+  opacity: 1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(218, 165, 32, 0.35);
+}
+
+.pg-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  transition: transform 0.3s ease;
+}
+
+.pg-thumb:hover img {
+  transform: scale(1.06);
+}
+
+/* ── Variant image indicator dot ── */
+.pg-thumb-variant-dot {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #daa520;
+  border: 1.5px solid #fff;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── Variant thumb highlight ── */
+.pg-thumb--variant {
+  border-color: rgba(218, 165, 32, 0.4);
+}
+.pg-thumb--variant.active {
+  border-color: #daa520;
+}
+
+/* ── Thumb navigation arrows ── */
+.pg-thumb-nav {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(218, 165, 32, 0.3);
+  background: rgba(20, 16, 10, 0.8);
+  color: #c8a84b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  padding: 0;
+}
+
+.pg-thumb-nav:hover {
+  background: rgba(218, 165, 32, 0.15);
+  border-color: #daa520;
+  transform: scale(1.1);
+}
+
+.pg-thumb-nav svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── Mobile tweaks for thumb strip ── */
+@media (max-width: 600px) {
+  .pg-thumb {
+    width: 56px;
+    height: 56px;
+  }
+  .pg-thumb-nav {
+    width: 24px;
+    height: 24px;
+  }
+  .pg-thumb-nav svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIGHTBOX THUMBNAIL SWIPER STRIP
+   Ye lightbox ke bottom mein render hoga — replace old .pg-lb-thumbs
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Hide old static lightbox thumbs ── */
+.pg-lb-thumbs {
+  display: none !important;
+}
+
+/* ── Lightbox thumb strip wrapper ── */
+.pg-lb-thumbs-wrap {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100002;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px 14px;
+  background: linear-gradient(to top, rgba(8, 6, 4, 0.98) 60%, transparent);
+}
+
+/* ── Swiper inside lb wrap ── */
+.pg-lb-thumbs-swiper {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.pg-lb-thumb-slide {
+  width: auto !important;
+  flex-shrink: 0;
+}
+
+/* ── Lightbox thumb button ── */
+.pg-lb-thumb {
+  position: relative;
+  display: block;
+  width: 68px;
+  height: 68px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid rgba(218, 165, 32, 0.2);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0;
+  transition: border-color 0.2s, transform 0.15s, opacity 0.2s;
+  opacity: 0.55;
+}
+
+.pg-lb-thumb:hover {
+  border-color: rgba(218, 165, 32, 0.6);
+  opacity: 0.85;
+  transform: translateY(-2px);
+}
+
+.pg-lb-thumb.active {
+  border-color: #daa520;
+  opacity: 1;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 16px rgba(218, 165, 32, 0.4);
+}
+
+.pg-lb-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.pg-lb-thumb-num {
+  position: absolute;
+  bottom: 2px;
+  left: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* ── Variant indicator in lightbox thumbs ── */
+.pg-lb-variant-dot {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #daa520;
+  border: 1.5px solid #fff;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.pg-lb-thumb--variant {
+  border-color: rgba(218, 165, 32, 0.4);
+}
+.pg-lb-thumb--variant.active {
+  border-color: #daa520;
+}
+
+/* ── Lightbox thumb nav arrows ── */
+.pg-lb-thumb-nav {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(218, 165, 32, 0.3);
+  background: rgba(20, 16, 10, 0.9);
+  color: #c8a84b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  padding: 0;
+  z-index: 1;
+}
+
+.pg-lb-thumb-nav:hover {
+  background: rgba(218, 165, 32, 0.2);
+  border-color: #daa520;
+  transform: scale(1.12);
+}
+
+.pg-lb-thumb-nav svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── Mobile tweaks for lightbox strip ── */
+@media (max-width: 600px) {
+  .pg-lb-thumbs-wrap {
+    padding: 8px 8px 10px;
+    gap: 4px;
+  }
+  .pg-lb-thumb {
+    width: 54px;
+    height: 54px;
+  }
+  .pg-lb-thumb-nav {
+    width: 26px;
+    height: 26px;
+  }
+  .pg-lb-thumb-nav svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+/* ── Adjust lightbox stage bottom so thumbs don't overlap image ── */
+.pg-lb-stage {
+  padding-bottom: 96px !important;
+}
+
+@media (max-width: 600px) {
+  .pg-lb-stage {
+    padding-bottom: 82px !important;
+  }
+}
+
 .pg-thumb {
   flex-shrink: 0;
   width: 72px;

@@ -728,7 +728,33 @@ export default function ProductDetail() {
 
         <div className="pd-grid">
           {/* ── GALLERY ── */}
-          <ProductGallery images={images} productName={product.name} />
+          {/* allVariantImages: sab variants ki saari images ek flat deduped array mein */}
+          {(() => {
+            const seen = new Set<string>();
+            const allVariantImages: string[] = [];
+            Object.values(variantImagesMap).forEach((imgs) => {
+              imgs.forEach((img) => {
+                if (img && !seen.has(img)) {
+                  seen.add(img);
+                  allVariantImages.push(img);
+                }
+              });
+            });
+            const productLevelImgs: string[] = (product as any)?.images || [];
+            productLevelImgs.forEach((img) => {
+              if (img && !seen.has(img)) {
+                seen.add(img);
+                allVariantImages.push(img);
+              }
+            });
+            return (
+              <ProductGallery
+                images={images}
+                productName={product.name}
+                mainImages={allVariantImages}
+              />
+            );
+          })()}
 
           {/* ── PRODUCT INFO ── */}
           <div className="pd-info">

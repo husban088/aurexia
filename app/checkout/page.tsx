@@ -42,7 +42,7 @@ interface FormErrors {
   zip?: string;
 }
 
-// ✅ Toast component — inline so no extra file needed
+// ✅ Toast component
 function PaymentToast({ visible }: { visible: boolean }) {
   return (
     <div
@@ -75,7 +75,6 @@ function PaymentToast({ visible }: { visible: boolean }) {
           border: "1px solid rgba(218,165,32,0.4)",
         }}
       >
-        {/* Animated checkmark circle */}
         <div
           style={{
             width: "28px",
@@ -124,25 +123,90 @@ const currencyToCountry: Record<string, string> = {
   INR: "IN",
 };
 
-// Currency code → phone info mapping
+// ✅ FIXED: Complete phone info with min/max digits per country
 const currencyToPhone: Record<
   string,
-  { code: string; flag: string; example: string; name: string }
+  {
+    code: string;
+    flag: string;
+    example: string;
+    name: string;
+    minDigits: number;
+    maxDigits: number;
+  }
 > = {
-  PKR: { code: "+92", flag: "🇵🇰", example: "3001234567", name: "Pakistan" },
-  USD: { code: "+1", flag: "🇺🇸", example: "2125551234", name: "United States" },
+  PKR: {
+    code: "+92",
+    flag: "🇵🇰",
+    example: "3001234567",
+    name: "Pakistan",
+    minDigits: 10,
+    maxDigits: 11,
+  },
+  USD: {
+    code: "+1",
+    flag: "🇺🇸",
+    example: "2125551234",
+    name: "United States",
+    minDigits: 10,
+    maxDigits: 10,
+  },
   GBP: {
     code: "+44",
     flag: "🇬🇧",
     example: "7123456789",
     name: "United Kingdom",
+    minDigits: 10,
+    maxDigits: 11,
   },
-  EUR: { code: "+49", flag: "🇪🇺", example: "15123456789", name: "Europe" },
-  AUD: { code: "+61", flag: "🇦🇺", example: "412345678", name: "Australia" },
-  CAD: { code: "+1", flag: "🇨🇦", example: "4165551234", name: "Canada" },
-  AED: { code: "+971", flag: "🇦🇪", example: "501234567", name: "UAE" },
-  SAR: { code: "+966", flag: "🇸🇦", example: "501234567", name: "Saudi Arabia" },
-  INR: { code: "+91", flag: "🇮🇳", example: "9876543210", name: "India" },
+  EUR: {
+    code: "+49",
+    flag: "🇪🇺",
+    example: "15123456789",
+    name: "Europe",
+    minDigits: 9,
+    maxDigits: 12,
+  },
+  AUD: {
+    code: "+61",
+    flag: "🇦🇺",
+    example: "412345678",
+    name: "Australia",
+    minDigits: 9,
+    maxDigits: 9,
+  },
+  CAD: {
+    code: "+1",
+    flag: "🇨🇦",
+    example: "4165551234",
+    name: "Canada",
+    minDigits: 10,
+    maxDigits: 10,
+  },
+  AED: {
+    code: "+971",
+    flag: "🇦🇪",
+    example: "501234567",
+    name: "UAE",
+    minDigits: 9,
+    maxDigits: 9,
+  },
+  SAR: {
+    code: "+966",
+    flag: "🇸🇦",
+    example: "501234567",
+    name: "Saudi Arabia",
+    minDigits: 9,
+    maxDigits: 9,
+  },
+  INR: {
+    code: "+91",
+    flag: "🇮🇳",
+    example: "9876543210",
+    name: "India",
+    minDigits: 10,
+    maxDigits: 10,
+  },
 };
 
 const STORAGE_KEY = "checkout_form_data";
@@ -169,10 +233,8 @@ export default function Checkout() {
     refreshCart,
   } = useCartStore();
 
-  // Currency context — auto-detected from user's IP/country
   const { formatPrice, currency } = useCurrency();
 
-  // ✅ CRITICAL: Hydration state to prevent flash and disappearing items
   const [isHydrated, setIsHydrated] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [cartFetched, setCartFetched] = useState(false);
@@ -188,18 +250,14 @@ export default function Checkout() {
     whatsapp: boolean | null;
   }>({ email: null, whatsapp: null });
 
-  // ✅ Toast state
   const [showToast, setShowToast] = useState(false);
 
-  // ✅ Snapshot: cart data saved at payment success time — survives clearCart()
   const [snapshotItems, setSnapshotItems] = useState<typeof items>([]);
   const [snapshotSubtotal, setSnapshotSubtotal] = useState(0);
   const [snapshotCartCount, setSnapshotCartCount] = useState(0);
 
-  // ✅ Session key for persisting success state across Stripe redirect
   const ORDER_SESSION_KEY = "checkout_order_success";
 
-  // Step management: "shipping" | "payment"
   const [checkoutStep, setCheckoutStep] = useState<"shipping" | "payment">(
     "shipping"
   );
@@ -225,11 +283,9 @@ export default function Checkout() {
     cvv: "",
   });
 
-  // ✅ Handle mounting and hydration
   useEffect(() => {
     setIsMounted(true);
 
-    // ✅ STRIPE REDIRECT RECOVERY: Check if returning from Stripe 3DS redirect
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const isStripeReturn = params.get("payment_success") === "true";
@@ -238,24 +294,20 @@ export default function Checkout() {
       if (isStripeReturn && savedOrder) {
         try {
           const orderData = JSON.parse(savedOrder);
-          // Restore form data from session
           setForm((prev) => ({ ...prev, ...orderData.form }));
           setPaymentMethod(orderData.paymentMethod || "card");
           setNotifStatus(
             orderData.notifStatus || { email: null, whatsapp: null }
           );
-          // Restore cart snapshot
           if (orderData.snapItems?.length) {
             setSnapshotItems(orderData.snapItems);
             setSnapshotSubtotal(orderData.snapSubtotal || 0);
             setSnapshotCartCount(orderData.snapCount || 0);
           }
-          // Show toast then success page
           setShowToast(true);
           setTimeout(() => {
             setPlaced(true);
             setShowToast(false);
-            // Clean URL without reload
             window.history.replaceState({}, "", window.location.pathname);
           }, 1500);
         } catch {}
@@ -263,13 +315,9 @@ export default function Checkout() {
     }
   }, []);
 
-  // ✅ Handle cart fetching after hydration
   useEffect(() => {
     if (!isMounted) return;
-
     setIsHydrated(true);
-
-    // Fetch cart only if not initialized or items are empty
     if (!initialized || items.length === 0) {
       fetchCart().then(() => {
         setCartFetched(true);
@@ -279,7 +327,6 @@ export default function Checkout() {
     }
   }, [isMounted, initialized, items.length, fetchCart]);
 
-  // When currency changes (auto-detected), update country in form too
   useEffect(() => {
     if (isMounted) {
       setForm((prev) => ({ ...prev, country: detectedCountryCode }));
@@ -323,6 +370,7 @@ export default function Checkout() {
     return touched[field] ? errors[field as keyof FormErrors] : undefined;
   };
 
+  // ✅ FIXED: Phone validation uses country-specific digit rules
   const validateField = (
     field: keyof FormData,
     value: string
@@ -338,14 +386,24 @@ export default function Checkout() {
         return undefined;
       case "email":
         if (!value.trim()) return "Email is required";
-        if (!/^[^\s@]+@([^\s@]+\.)+[^\s@]+$/.test(value))
+        // ✅ Accepts ALL email providers: Gmail, Hotmail, Yahoo, info@, etc.
+        if (!/^[^\s@]+@([^\s@]+\.)+[^\s@]{2,}$/.test(value.trim()))
           return "Enter a valid email address";
         return undefined;
-      case "phone":
+      case "phone": {
         if (!value.trim()) return "Phone number is required";
-        if (value.trim().length < 7)
-          return `Enter a valid number (e.g. ${phoneInfo.example})`;
+        // Strip spaces and dashes for digit count
+        const digitsOnly = value.replace(/[\s\-\(\)]/g, "");
+        const { minDigits, maxDigits, example } = phoneInfo;
+        if (digitsOnly.length < minDigits || digitsOnly.length > maxDigits) {
+          return `Enter a valid ${phoneInfo.name} number (e.g. ${example})`;
+        }
+        // Must be digits only (after stripping spaces/dashes)
+        if (!/^\d+$/.test(digitsOnly)) {
+          return "Phone number must contain digits only";
+        }
         return undefined;
+      }
       case "address":
         if (!value.trim()) return "Address is required";
         return undefined;
@@ -354,7 +412,7 @@ export default function Checkout() {
         return undefined;
       case "zip":
         if (!value.trim()) return "ZIP/Postal code is required";
-        if (value.length < 3) return "Enter a valid ZIP code";
+        if (value.trim().length < 3) return "Enter a valid ZIP code";
         return undefined;
       default:
         return undefined;
@@ -385,14 +443,12 @@ export default function Checkout() {
     return valid;
   };
 
-  // Prices in PKR (base) — CartSummary/PaymentSection will convert via formatPrice
-  const subtotal = getSubtotal(); // PKR
+  const subtotal = getSubtotal();
   const cartCount = getCartCount();
-  const shipping = 0; // ✅ Free shipping always — matches CartSummary display
-  const total = subtotal; // Since shipping = 0, total = subtotal
+  const shipping = 0;
+  const total = subtotal;
   const validItems = items;
 
-  // Full phone with country code from detected currency
   const fullPhone = `${phoneInfo.code}${form.phone}`;
   const customerName = `${form.firstName} ${form.lastName}`;
   const shippingAddress = [
@@ -405,7 +461,6 @@ export default function Checkout() {
     .filter(Boolean)
     .join(", ");
 
-  // Step 1 → Step 2: Continue to Payment
   const handleContinueToPayment = () => {
     if (!validateAll()) return;
     if (validItems.length === 0) {
@@ -416,10 +471,9 @@ export default function Checkout() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // ✅ FIXED: Called after Stripe/PayPal payment success
-  // Sets placed=true FIRST, then clears cart — prevents loading spinner trap
+  // ✅ FIXED: handlePaymentSuccess — shows success page immediately,
+  // then fires notifications in background and updates notifStatus when done
   const handlePaymentSuccess = useCallback(async () => {
-    // ✅ STEP 1: Snapshot cart data NOW — before clearCart wipes the store
     const snapItems = [...items];
     const snapSubtotal = getSubtotal();
     const snapCount = getCartCount();
@@ -427,7 +481,6 @@ export default function Checkout() {
     setSnapshotSubtotal(snapSubtotal);
     setSnapshotCartCount(snapCount);
 
-    // ✅ STEP 2: Save order data to sessionStorage — survives Stripe redirect
     if (typeof window !== "undefined") {
       sessionStorage.setItem(
         "checkout_order_success",
@@ -442,20 +495,19 @@ export default function Checkout() {
       );
     }
 
-    // ✅ STEP 3: Show toast INSTANTLY
+    // Show toast
     setShowToast(true);
 
-    // ✅ STEP 4: Show success page — BEFORE clearCart
+    // Show success page after 1.2s
     setTimeout(() => {
       setPlaced(true);
       setShowToast(false);
       sessionStorage.removeItem("checkout_order_success");
-      // ✅ STEP 5: Clear cart AFTER success page is shown
       clearCart().catch(() => {});
       localStorage.removeItem(STORAGE_KEY);
     }, 1200);
 
-    // ✅ STEP 4: Fire notifications + DB save in background — NEVER block success page
+    // ✅ Fire notifications in background — update notifStatus when complete
     try {
       const orderItems = validItems.map((item) => {
         const product = item.product ?? {
@@ -474,7 +526,7 @@ export default function Checkout() {
         };
       });
 
-      // Fire-and-forget: send notification
+      // ✅ Await notification — update status when done (shows on success page)
       fetch("/api/send-order-notification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -495,17 +547,17 @@ export default function Checkout() {
       })
         .then((r) => r.json())
         .then((result) => {
+          // ✅ Update notifStatus — success page will re-render with correct values
           setNotifStatus({
             email: result.emailSent ?? false,
             whatsapp: result.whatsappSent ?? false,
           });
         })
-        .catch((err) => {
-          console.warn("⚠️ Notification failed (non-blocking):", err);
+        .catch(() => {
           setNotifStatus({ email: false, whatsapp: false });
         });
 
-      // Fire-and-forget: save to Supabase
+      // Save to Supabase
       supabase
         .from("orders")
         .insert({
@@ -524,11 +576,10 @@ export default function Checkout() {
           created_at: new Date().toISOString(),
         })
         .then(({ error }) => {
-          if (error) console.warn("⚠️ DB save failed (non-blocking):", error);
+          if (error) console.warn("⚠️ DB save failed:", error);
         });
     } catch (err) {
-      // Background errors never affect success page
-      console.warn("⚠️ Background tasks error (non-blocking):", err);
+      console.warn("⚠️ Background tasks error:", err);
     }
 
     return () => {};
@@ -552,11 +603,10 @@ export default function Checkout() {
 
   const handlePaymentError = (error: string) => {
     console.error("Payment error:", error);
-    // Optionally show an error toast here too
   };
 
   // ============================================
-  // LOADING STATE - Wait for hydration and cart fetch
+  // LOADING STATE
   // ============================================
   if (
     !placed &&
@@ -610,10 +660,9 @@ export default function Checkout() {
   }
 
   // ============================================
-  // SUCCESS STATE — OrderSuccess Component
+  // SUCCESS STATE
   // ============================================
   if (placed) {
-    // Use snapshot values — live store is already cleared by now
     const displayItems = snapshotItems.length > 0 ? snapshotItems : validItems;
     const displaySubtotal = snapshotSubtotal > 0 ? snapshotSubtotal : subtotal;
     const displayCartCount =
@@ -646,11 +695,10 @@ export default function Checkout() {
   }
 
   // ============================================
-  // MAIN CHECKOUT UI — 2 Steps
+  // MAIN CHECKOUT UI
   // ============================================
   return (
     <>
-      {/* ✅ Toast — always rendered, animates in/out */}
       <PaymentToast visible={showToast} />
 
       <div className="co-root">
