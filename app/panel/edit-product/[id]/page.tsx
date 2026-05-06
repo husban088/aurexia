@@ -1209,11 +1209,17 @@ function SimpleModeEditForm({
 }) {
   const { currency } = useCurrency();
   const [name, setName] = useState(initialProduct?.name || "");
+  // Load rich description from variant first, fall back to product-level
   const [description, setDescription] = useState(
-    initialProduct?.description || ""
+    initialVariant?.description_rich ||
+      initialVariant?.description ||
+      initialProduct?.description ||
+      ""
   );
   const [descriptionImages, setDescriptionImages] = useState<string[]>(
-    initialProduct?.description_images || []
+    initialVariant?.description_images ||
+      initialProduct?.description_images ||
+      []
   );
   const [brand, setBrand] = useState(initialProduct?.brand || "");
   const [priceDisplay, setPriceDisplay] = useState(() => {
@@ -1842,6 +1848,37 @@ function DetailedModeEditForm({
   const [isActive, setIsActive] = useState(initialProduct?.is_active !== false);
   const [faqs, setFaqs] = useState<FAQ[]>(initialFaqs);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [mainImages, setMainImages] = useState<string[]>(
+    initialProduct?.main_images ||
+      initialVariants
+        .filter((v) => v.attribute_type === "standard")
+        .flatMap((v) =>
+          (v.variant_images || [])
+            .sort((a: any, b: any) => a.display_order - b.display_order)
+            .map((i: any) => i.image_url)
+        ) ||
+      []
+  );
+  const [mainUploading, setMainUploading] = useState(false);
+  const mainFileRef = useRef<HTMLInputElement>(null);
+
+  const handleMainImageUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      onError("Only image files are allowed");
+      return;
+    }
+    setMainUploading(true);
+    try {
+      const url = await uploadToCloudinary(file);
+      setMainImages((prev) => [...prev, url]);
+    } catch (err) {
+      onError(
+        "Upload failed: " +
+          (err instanceof Error ? err.message : "Unknown error")
+      );
+    }
+    setMainUploading(false);
+  };
 
   const buildInitial = (type: string) =>
     initialVariants
@@ -1944,6 +1981,7 @@ function DetailedModeEditForm({
         name: name.trim(),
         description: description,
         description_images: descriptionImages,
+        main_images: mainImages,
         category: tab.category,
         subcategory: tab.sub,
         brand: brand.trim() || null,
@@ -2254,6 +2292,108 @@ function DetailedModeEditForm({
                   stroke="currentColor"
                   strokeWidth="1.5"
                 >
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+              </div>
+              <h3 className="ap-card-title">Main Product Gallery Images</h3>
+            </div>
+            <div className="ap-card-body">
+              <div
+                className="ap-img-upload"
+                onClick={() => !mainUploading && mainFileRef.current?.click()}
+              >
+                <input
+                  ref={mainFileRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) =>
+                    e.target.files?.[0] &&
+                    handleMainImageUpload(e.target.files[0])
+                  }
+                  style={{ display: "none" }}
+                />
+                <div className="ap-img-upload-icon">
+                  {mainUploading ? (
+                    <div className="ap-spinner" />
+                  ) : (
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                  )}
+                </div>
+                <p className="ap-img-upload-title">
+                  {mainUploading ? "Uploading..." : "Click to Upload Main Images"}
+                </p>
+                <p className="ap-img-upload-sub">JPG, PNG, WEBP · First image = Main</p>
+              </div>
+              {mainImages.length > 0 && (
+                <div className="ap-img-previews">
+                  {mainImages.map((url, i) => (
+                    <div key={i} className="ap-img-thumb">
+                      {i === 0 && (
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: "4px",
+                            left: "4px",
+                            background: "#8b6914",
+                            color: "#fff",
+                            fontSize: "0.55rem",
+                            fontWeight: 700,
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            padding: "1px 5px",
+                            borderRadius: "3px",
+                            zIndex: 2,
+                            fontFamily: "var(--ap-sans)",
+                          }}
+                        >
+                          Main
+                        </span>
+                      )}
+                      <img src={url} alt={`Main ${i + 1}`} />
+                      <button
+                        type="button"
+                        className="ap-img-thumb-remove"
+                        onClick={() =>
+                          setMainImages(mainImages.filter((_, j) => j !== i))
+                        }
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="ap-card" style={{ marginTop: "1.5rem" }}>
+            <div className="ap-card-header">
+              <div className="ap-card-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
@@ -2274,6 +2414,7 @@ function DetailedModeEditForm({
                   capacities.length > 0 ? capacities.join(", ") : "—",
                 ],
                 ["Total Variants", totalVariants.toString()],
+                ["Main Images", `${mainImages.length} uploaded`],
                 ["FAQs", `${faqs.length} added`],
                 ["Currency", currency.code],
                 ["Description Images", `${descriptionImages.length} images`],
