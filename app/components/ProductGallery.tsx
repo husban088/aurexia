@@ -14,7 +14,7 @@ import "./ProductGallery.css";
 interface ProductGalleryProps {
   images: string[]; // selected variant images (active variant)
   productName: string;
-  mainImages?: string[]; // product-level main images (always show)
+  mainImages?: string[]; // product-level main_images (always show, from DB)
 }
 
 export default function ProductGallery({
@@ -23,12 +23,15 @@ export default function ProductGallery({
   mainImages = [],
 }: ProductGalleryProps) {
   // ─── Build combined thumbnail list ─────────────────────────────────────────
-  // Priority: selected variant images first, then main product images (deduped)
+  // Order:
+  //   1. Selected variant images (shown first — the ones for the clicked detail)
+  //   2. main_images from product table (product-level gallery, always visible)
+  // All deduped so no image appears twice.
   const buildThumbnailList = useCallback((): string[] => {
     const seen = new Set<string>();
     const result: string[] = [];
 
-    // First: selected variant images
+    // 1. Selected variant images (color/size/material/capacity that was clicked)
     if (images && images.length > 0) {
       images.forEach((img) => {
         if (img && !seen.has(img)) {
@@ -38,7 +41,7 @@ export default function ProductGallery({
       });
     }
 
-    // Then: main product images
+    // 2. Main product-level images (from products.main_images column)
     if (mainImages && mainImages.length > 0) {
       mainImages.forEach((img) => {
         if (img && !seen.has(img)) {
@@ -89,13 +92,16 @@ export default function ProductGallery({
   const lbImgContainerRef = useRef<HTMLDivElement>(null);
 
   // ─── Reset to 0 when variant images change ─────────────────────────────────
+  // Use JSON.stringify so array reference changes don't cause unnecessary resets
+  const imagesKey = JSON.stringify(images);
   useEffect(() => {
     setActiveIdx(0);
+    setImgEntering(false);
     setTimeout(() => {
       thumbSwiperRef.current?.slideTo(0);
       lbThumbSwiperRef.current?.slideTo(0);
     }, 50);
-  }, [images]);
+  }, [imagesKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Image switch ──────────────────────────────────────────────────────────
   const switchImg = useCallback(
@@ -109,7 +115,7 @@ export default function ProductGallery({
       thumbSwiperRef.current?.slideTo(idx);
       lbThumbSwiperRef.current?.slideTo(idx);
     },
-    [activeIdx, allThumbs.length]
+    [activeIdx, allThumbs.length],
   );
 
   // ─── Lightbox close ────────────────────────────────────────────────────────
@@ -164,12 +170,12 @@ export default function ProductGallery({
   // ─── Constrained pan ──────────────────────────────────────────────────────
   const getConstrainedPan = (
     newPan: { x: number; y: number },
-    zoom: number
+    zoom: number,
   ) => {
     if (!lbStageRef.current || !lbImgContainerRef.current) return newPan;
     const stageRect = lbStageRef.current.getBoundingClientRect();
     const imgEl = lbImgContainerRef.current.querySelector(
-      "img"
+      "img",
     ) as HTMLImageElement;
     if (!imgEl) return newPan;
     const overflowX = Math.max(0, imgEl.offsetWidth * zoom - stageRect.width);
@@ -256,8 +262,8 @@ export default function ProductGallery({
               lbTouchStart.current.py +
               (touch.clientY - lbTouchStart.current.y),
           },
-          lbZoom
-        )
+          lbZoom,
+        ),
       );
     } else if (lbSwipeStart.current && lbImgContainerRef.current) {
       const touch = e.touches[0];
@@ -270,7 +276,7 @@ export default function ProductGallery({
         if (lightboxRef.current) {
           lightboxRef.current.style.background = `rgba(8,6,4,${Math.max(
             0.35,
-            0.97 - deltaY * 0.003
+            0.97 - deltaY * 0.003,
           )})`;
         }
       }
@@ -324,7 +330,7 @@ export default function ProductGallery({
     } else {
       const sf = newZoom / lbZoom;
       setLbPan(
-        getConstrainedPan({ x: lbPan.x * sf, y: lbPan.y * sf }, newZoom)
+        getConstrainedPan({ x: lbPan.x * sf, y: lbPan.y * sf }, newZoom),
       );
     }
     setLbZoom(newZoom);
@@ -421,7 +427,10 @@ export default function ProductGallery({
     );
   }
 
-  // Variant image = first image in images array (currently selected variant)
+  // All selected variant images (for thumbnail badge highlighting)
+  const variantImgSet = new Set<string>(
+    images && images.length > 0 ? images : [],
+  );
   const variantImg = images && images.length > 0 ? images[0] : null;
 
   return (
@@ -444,14 +453,14 @@ export default function ProductGallery({
               const x = ((e.clientX - rect.left) / rect.width - 0.5) * 4;
               const y = ((e.clientY - rect.top) / rect.height - 0.5) * 4;
               const img = e.currentTarget.querySelector(
-                "img"
+                "img",
               ) as HTMLImageElement;
               if (img)
                 img.style.transform = `scale(1.04) translate(${x}px, ${y}px)`;
             }}
             onMouseLeave={(e) => {
               const img = e.currentTarget.querySelector(
-                "img"
+                "img",
               ) as HTMLImageElement;
               if (img) img.style.transform = "";
             }}
@@ -512,7 +521,7 @@ export default function ProductGallery({
                 onClick={(e) => {
                   e.stopPropagation();
                   switchImg(
-                    (activeIdx - 1 + allThumbs.length) % allThumbs.length
+                    (activeIdx - 1 + allThumbs.length) % allThumbs.length,
                   );
                 }}
                 aria-label="Previous image"
@@ -580,18 +589,49 @@ export default function ProductGallery({
             >
               {allThumbs.map((src, idx) => {
                 const isActive = idx === activeIdx;
-                const isVariantImg = src === variantImg;
+                // Mark ALL selected variant images (not just the first one)
+                const isVariantImg = variantImgSet.has(src);
+                // Detect section separator: first main image starts after variant images
+                const isFirstMainImg =
+                  mainImages.length > 0 &&
+                  src === mainImages[0] &&
+                  !variantImgSet.has(src);
                 return (
-                  <SwiperSlide key={idx} className="pg-thumb-slide">
+                  <SwiperSlide
+                    key={idx}
+                    className="pg-thumb-slide"
+                    style={{
+                      position: "relative",
+                      paddingTop:
+                        isFirstMainImg && variantImgSet.size > 0 ? "20px" : "0",
+                    }}
+                  >
+                    {isFirstMainImg && variantImgSet.size > 0 && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "-16px",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          fontSize: "0.45rem",
+                          fontWeight: 700,
+                          letterSpacing: "0.1em",
+                          textTransform: "uppercase",
+                          color: "rgba(218,165,32,0.65)",
+                          whiteSpace: "nowrap",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        Gallery
+                      </div>
+                    )}
                     <button
                       className={`pg-thumb${isActive ? " active" : ""}${
                         isVariantImg ? " pg-thumb--variant" : ""
                       }`}
                       onClick={() => switchImg(idx)}
                       title={
-                        isVariantImg
-                          ? "Selected color image"
-                          : `Image ${idx + 1}`
+                        isVariantImg ? "Variant image" : `Image ${idx + 1}`
                       }
                     >
                       <img
@@ -860,7 +900,8 @@ export default function ProductGallery({
                   className="pg-lb-thumbs-swiper"
                 >
                   {allThumbs.map((src, i) => {
-                    const isVariantImgLb = src === variantImg;
+                    // Mark ALL selected variant images in lightbox too
+                    const isVariantImgLb = variantImgSet.has(src);
                     return (
                       <SwiperSlide key={i} className="pg-lb-thumb-slide">
                         <button
@@ -902,7 +943,7 @@ export default function ProductGallery({
               </div>
             )}
           </div>,
-          portalRoot
+          portalRoot,
         )}
     </>
   );

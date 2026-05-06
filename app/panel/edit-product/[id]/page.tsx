@@ -200,7 +200,7 @@ const TABS = [
 
 function detectStockStatus(
   stock: number,
-  lowStockThreshold: number | null
+  lowStockThreshold: number | null,
 ): StockStatus {
   if (stock === 0) return "out_of_stock";
   if (lowStockThreshold && lowStockThreshold > 0 && stock <= lowStockThreshold)
@@ -410,7 +410,7 @@ function StockStatusSelector({
             value={lowStockThreshold || ""}
             onChange={(e) =>
               onThresholdChange(
-                e.target.value ? parseInt(e.target.value) : null
+                e.target.value ? parseInt(e.target.value) : null,
               )
             }
             placeholder="e.g., 5"
@@ -553,7 +553,7 @@ function MultiImageUploader({
     } catch (err) {
       onError(
         "Upload failed: " +
-          (err instanceof Error ? err.message : "Unknown error")
+          (err instanceof Error ? err.message : "Unknown error"),
       );
     }
     setUploading(false);
@@ -763,23 +763,23 @@ function VariantFormItem({
     return pkrPrice ? convertPriceFromPKR(pkrPrice, currency).toFixed(2) : "";
   });
   const [description, setDescription] = useState(
-    initialData?.description || ""
+    initialData?.description || "",
   );
   const [descriptionImages, setDescriptionImages] = useState<string[]>(
-    initialData?.descriptionImages || []
+    initialData?.descriptionImages || [],
   );
 
   const initStatus = detectStockStatus(
     initialData?.stock ?? 999999,
-    initialData?.lowStockThreshold ?? null
+    initialData?.lowStockThreshold ?? null,
   );
   const [stockStatus, setStockStatus] = useState<StockStatus>(initStatus);
   const initStock = initialData?.stock ?? 999999;
   const [stockPieces, setStockPieces] = useState<number>(
-    initStock === 0 ? 0 : initStock
+    initStock === 0 ? 0 : initStock,
   );
   const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
-    initialData?.lowStockThreshold ?? null
+    initialData?.lowStockThreshold ?? null,
   );
   const [images, setImages] = useState<string[]>(initialData?.images || []);
   const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>(() => {
@@ -816,7 +816,7 @@ function VariantFormItem({
 
   const handleDescriptionChange = (
     newValue: string,
-    imagesInDesc: string[]
+    imagesInDesc: string[],
   ) => {
     setDescription(newValue);
     setDescriptionImages(imagesInDesc);
@@ -1101,31 +1101,45 @@ function AttributeSelector({
 }) {
   const { currency } = useCurrency();
 
-  const convertVariantData = (v: any) => ({
-    id: v.id,
-    attributeType: type,
-    attributeValue: v.attribute_value,
-    price: v.price || 0,
-    originalPrice: v.original_price || null,
-    description: v.description_rich || v.description || "",
-    descriptionImages: v.description_images || [],
-    stock: v.stock ?? 999999,
-    lowStockThreshold: v.low_stock_threshold || null,
-    images: (v.variant_images || [])
-      .sort((a: any, b: any) => a.display_order - b.display_order)
-      .map((i: any) => i.image_url),
-    stockStatus: detectStockStatus(
-      v.stock ?? 999999,
-      v.low_stock_threshold ?? null
-    ),
-    bulkPricingTiers: (v.bulk_pricing_tiers || []).map((tier: any) => ({
-      ...tier,
-      tier_price: convertPriceFromPKR(tier.tier_price, currency),
-      discount_price: tier.discount_price
-        ? convertPriceFromPKR(tier.discount_price, currency)
-        : null,
-    })),
-  });
+  const convertVariantData = (v: any) => {
+    // v.images may already be a string[] (processed by loadAll),
+    // or v.variant_images may be the raw DB array — handle both
+    let imageUrls: string[] = [];
+    if (
+      Array.isArray(v.images) &&
+      v.images.length > 0 &&
+      typeof v.images[0] === "string"
+    ) {
+      imageUrls = v.images; // already processed
+    } else if (Array.isArray(v.variant_images) && v.variant_images.length > 0) {
+      imageUrls = (v.variant_images as any[])
+        .sort((a: any, b: any) => a.display_order - b.display_order)
+        .map((i: any) => i.image_url);
+    }
+    return {
+      id: v.id,
+      attributeType: type,
+      attributeValue: v.attribute_value,
+      price: v.price || 0,
+      originalPrice: v.original_price || null,
+      description: v.description_rich || v.description || "",
+      descriptionImages: v.description_images || [],
+      stock: v.stock ?? 999999,
+      lowStockThreshold: v.low_stock_threshold || null,
+      images: imageUrls,
+      stockStatus: detectStockStatus(
+        v.stock ?? 999999,
+        v.low_stock_threshold ?? null,
+      ),
+      bulkPricingTiers: (v.bulk_pricing_tiers || []).map((tier: any) => ({
+        ...tier,
+        tier_price: convertPriceFromPKR(tier.tier_price, currency),
+        discount_price: tier.discount_price
+          ? convertPriceFromPKR(tier.discount_price, currency)
+          : null,
+      })),
+    };
+  };
 
   const [inputValue, setInputValue] = useState("");
 
@@ -1134,7 +1148,7 @@ function AttributeSelector({
     if (trimmed && !values.includes(trimmed)) {
       setValues([...values, trimmed]);
       const existingVariant = initialVariantsData?.find(
-        (v) => v.attribute_value === trimmed && v.attribute_type === type
+        (v) => v.attribute_value === trimmed && v.attribute_type === type,
       );
       if (existingVariant) {
         setVariants([...variants, convertVariantData(existingVariant)]);
@@ -1170,16 +1184,16 @@ function AttributeSelector({
     (attributeValue: string, data: any) => {
       setVariants((prev: any[]) =>
         prev.map((v) =>
-          v.attributeValue === attributeValue ? { ...v, ...data } : v
-        )
+          v.attributeValue === attributeValue ? { ...v, ...data } : v,
+        ),
       );
     },
-    [setVariants]
+    [setVariants],
   );
 
   const filteredSuggestions = suggestions.filter(
     (s) =>
-      !values.includes(s) && s.toLowerCase().includes(inputValue.toLowerCase())
+      !values.includes(s) && s.toLowerCase().includes(inputValue.toLowerCase()),
   );
 
   return (
@@ -1269,12 +1283,12 @@ function SimpleModeEditForm({
     initialVariant?.description_rich ||
       initialVariant?.description ||
       initialProduct?.description ||
-      ""
+      "",
   );
   const [descriptionImages, setDescriptionImages] = useState<string[]>(
     initialVariant?.description_images ||
       initialProduct?.description_images ||
-      []
+      [],
   );
   const [brand, setBrand] = useState(initialProduct?.brand || "");
   const [priceDisplay, setPriceDisplay] = useState(() => {
@@ -1286,23 +1300,23 @@ function SimpleModeEditForm({
     return pkrPrice ? convertPriceFromPKR(pkrPrice, currency).toFixed(2) : "";
   });
   const [condition, setCondition] = useState(
-    initialProduct?.condition || "new"
+    initialProduct?.condition || "new",
   );
   const [isFeatured, setIsFeatured] = useState(
-    initialProduct?.is_featured || false
+    initialProduct?.is_featured || false,
   );
   const [isActive, setIsActive] = useState(initialProduct?.is_active !== false);
 
   const initStock = initialVariant?.stock ?? 999999;
   const initThreshold = initialVariant?.low_stock_threshold ?? null;
   const [stockStatus, setStockStatus] = useState<StockStatus>(
-    detectStockStatus(initStock, initThreshold)
+    detectStockStatus(initStock, initThreshold),
   );
   const [stockPieces, setStockPieces] = useState<number>(
-    initStock === 0 ? 0 : initStock
+    initStock === 0 ? 0 : initStock,
   );
   const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
-    initThreshold
+    initThreshold,
   );
 
   const [images, setImages] = useState<string[]>(initialImages);
@@ -1314,7 +1328,7 @@ function SimpleModeEditForm({
       discount_price: tier.discount_price
         ? convertPriceFromPKR(tier.discount_price, currency)
         : null,
-    }))
+    })),
   );
 
   const [uploading, setUploading] = useState(false);
@@ -1341,7 +1355,7 @@ function SimpleModeEditForm({
 
   const handleDescriptionChange = (
     newValue: string,
-    imagesInDesc: string[]
+    imagesInDesc: string[],
   ) => {
     setDescription(newValue);
     setDescriptionImages(imagesInDesc);
@@ -1359,7 +1373,7 @@ function SimpleModeEditForm({
     } catch (err) {
       onError(
         "Upload failed: " +
-          (err instanceof Error ? err.message : "Unknown error")
+          (err instanceof Error ? err.message : "Unknown error"),
       );
     }
     setUploading(false);
@@ -1470,7 +1484,7 @@ function SimpleModeEditForm({
           variant_id: variantId,
           image_url: url,
           display_order: idx,
-        }))
+        })),
       );
       if (imgErr) console.error("Image save error:", imgErr);
     }
@@ -1482,7 +1496,7 @@ function SimpleModeEditForm({
       .eq("variant_id", variantId);
     if (bulkTiers.length > 0) {
       const validTiers = bulkTiers.filter(
-        (t) => t.min_quantity && t.tier_price
+        (t) => t.min_quantity && t.tier_price,
       );
       if (validTiers.length > 0) {
         await supabase.from("bulk_pricing_tiers").insert(
@@ -1497,7 +1511,7 @@ function SimpleModeEditForm({
               : null,
             currency_code: currency.code,
             base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
-          }))
+          })),
         );
       }
     }
@@ -1513,7 +1527,7 @@ function SimpleModeEditForm({
             question: f.question.trim(),
             answer: f.answer.trim() || null,
             display_order: idx,
-          }))
+          })),
         );
       }
     }
@@ -1888,23 +1902,23 @@ function DetailedModeEditForm({
   const { currency } = useCurrency();
   const [name, setName] = useState(initialProduct?.name || "");
   const [description, setDescription] = useState(
-    initialProduct?.description || ""
+    initialProduct?.description || "",
   );
   const [descriptionImages, setDescriptionImages] = useState<string[]>(
-    initialProduct?.description_images || []
+    initialProduct?.description_images || [],
   );
   const [brand, setBrand] = useState(initialProduct?.brand || "");
   const [condition, setCondition] = useState(
-    initialProduct?.condition || "new"
+    initialProduct?.condition || "new",
   );
   const [isFeatured, setIsFeatured] = useState(
-    initialProduct?.is_featured || false
+    initialProduct?.is_featured || false,
   );
   const [isActive, setIsActive] = useState(initialProduct?.is_active !== false);
   const [faqs, setFaqs] = useState<FAQ[]>(initialFaqs);
   const [isUpdating, setIsUpdating] = useState(false);
   const [mainImages, setMainImages] = useState<string[]>(() => {
-    // First priority: main_images column from DB
+    // main_images column in products table — set by add-product detailed mode
     if (
       initialProduct?.main_images &&
       Array.isArray(initialProduct.main_images) &&
@@ -1912,16 +1926,7 @@ function DetailedModeEditForm({
     ) {
       return initialProduct.main_images;
     }
-    // Second priority: images from any non-standard variant (fallback)
-    const nonStandardImages = initialVariants
-      .filter((v) => v.attribute_type !== "standard")
-      .flatMap((v) =>
-        (v.variant_images || [])
-          .sort((a: any, b: any) => a.display_order - b.display_order)
-          .map((i: any) => i.image_url)
-      );
-    if (nonStandardImages.length > 0) return nonStandardImages.slice(0, 5);
-    // Empty array — user will upload
+    // Empty — user will upload fresh
     return [];
   });
 
@@ -1933,37 +1938,51 @@ function DetailedModeEditForm({
   const [colors, setColors] = useState<string[]>(buildInitial("color"));
   const [sizes, setSizes] = useState<string[]>(buildInitial("size"));
   const [materials, setMaterials] = useState<string[]>(
-    buildInitial("material")
+    buildInitial("material"),
   );
   const [capacities, setCapacities] = useState<string[]>(
-    buildInitial("capacity")
+    buildInitial("capacity"),
   );
 
-  const convertVariantData = (v: any) => ({
-    id: v.id,
-    attributeType: v.attribute_type,
-    attributeValue: v.attribute_value,
-    price: v.price || 0,
-    originalPrice: v.original_price || null,
-    description: v.description_rich || v.description || "",
-    descriptionImages: v.description_images || [],
-    stock: v.stock ?? 999999,
-    lowStockThreshold: v.low_stock_threshold ?? null,
-    images: (v.variant_images || [])
-      .sort((a: any, b: any) => a.display_order - b.display_order)
-      .map((i: any) => i.image_url),
-    stockStatus: detectStockStatus(
-      v.stock ?? 999999,
-      v.low_stock_threshold ?? null
-    ),
-    bulkPricingTiers: (v.bulk_pricing_tiers || []).map((tier: any) => ({
-      ...tier,
-      tier_price: convertPriceFromPKR(tier.tier_price, currency),
-      discount_price: tier.discount_price
-        ? convertPriceFromPKR(tier.discount_price, currency)
-        : null,
-    })),
-  });
+  const convertVariantData = (v: any) => {
+    // v.images may already be a string[] (processed by loadAll),
+    // or v.variant_images may be the raw DB array — handle both
+    let imageUrls: string[] = [];
+    if (
+      Array.isArray(v.images) &&
+      v.images.length > 0 &&
+      typeof v.images[0] === "string"
+    ) {
+      imageUrls = v.images; // already processed
+    } else if (Array.isArray(v.variant_images) && v.variant_images.length > 0) {
+      imageUrls = (v.variant_images as any[])
+        .sort((a: any, b: any) => a.display_order - b.display_order)
+        .map((i: any) => i.image_url);
+    }
+    return {
+      id: v.id,
+      attributeType: v.attribute_type,
+      attributeValue: v.attribute_value,
+      price: v.price || 0,
+      originalPrice: v.original_price || null,
+      description: v.description_rich || v.description || "",
+      descriptionImages: v.description_images || [],
+      stock: v.stock ?? 999999,
+      lowStockThreshold: v.low_stock_threshold ?? null,
+      images: imageUrls,
+      stockStatus: detectStockStatus(
+        v.stock ?? 999999,
+        v.low_stock_threshold ?? null,
+      ),
+      bulkPricingTiers: (v.bulk_pricing_tiers || []).map((tier: any) => ({
+        ...tier,
+        tier_price: convertPriceFromPKR(tier.tier_price, currency),
+        discount_price: tier.discount_price
+          ? convertPriceFromPKR(tier.discount_price, currency)
+          : null,
+      })),
+    };
+  };
 
   const buildInitialVariants = (type: string) =>
     initialVariants
@@ -1971,16 +1990,16 @@ function DetailedModeEditForm({
       .map(convertVariantData);
 
   const [colorVariants, setColorVariants] = useState<any[]>(
-    buildInitialVariants("color")
+    buildInitialVariants("color"),
   );
   const [sizeVariants, setSizeVariants] = useState<any[]>(
-    buildInitialVariants("size")
+    buildInitialVariants("size"),
   );
   const [materialVariants, setMaterialVariants] = useState<any[]>(
-    buildInitialVariants("material")
+    buildInitialVariants("material"),
   );
   const [capacityVariants, setCapacityVariants] = useState<any[]>(
-    buildInitialVariants("capacity")
+    buildInitialVariants("capacity"),
   );
 
   const totalVariants =
@@ -1991,7 +2010,7 @@ function DetailedModeEditForm({
 
   const handleDescriptionChange = (
     newValue: string,
-    imagesInDesc: string[]
+    imagesInDesc: string[],
   ) => {
     setDescription(newValue);
     setDescriptionImages(imagesInDesc);
@@ -2012,7 +2031,7 @@ function DetailedModeEditForm({
     ];
     if (allVariants.length === 0) {
       onError(
-        "Please add at least one attribute (color, size, material, or capacity)"
+        "Please add at least one attribute (color, size, material, or capacity)",
       );
       return;
     }
@@ -2111,13 +2130,13 @@ function DetailedModeEditForm({
             variant_id: variantData.id,
             image_url: url,
             display_order: idx,
-          }))
+          })),
         );
       }
 
       if (variant.bulkPricingTiers?.length > 0) {
         const validTiers = variant.bulkPricingTiers.filter(
-          (t: BulkPricingTier) => t.min_quantity && t.tier_price
+          (t: BulkPricingTier) => t.min_quantity && t.tier_price,
         );
         if (validTiers.length > 0) {
           await supabase.from("bulk_pricing_tiers").insert(
@@ -2130,7 +2149,7 @@ function DetailedModeEditForm({
               discount_price: t.discount_price ?? null, // already PKR
               currency_code: currency.code,
               base_tier_price_pkr: t.tier_price, // already PKR
-            }))
+            })),
           );
         }
       }
@@ -2147,7 +2166,7 @@ function DetailedModeEditForm({
             question: f.question.trim(),
             answer: f.answer.trim() || null,
             display_order: idx,
-          }))
+          })),
         );
       }
     }
@@ -2508,9 +2527,9 @@ export default function EditProduct() {
     setTimeout(
       () =>
         setToasts((p) =>
-          p.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+          p.map((t) => (t.id === id ? { ...t, exiting: true } : t)),
         ),
-      4000
+      4000,
     );
     setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 4500);
   };
@@ -2587,7 +2606,7 @@ export default function EditProduct() {
             question: f.question,
             answer: f.answer || "",
             display_order: f.display_order,
-          }))
+          })),
         );
 
         const allVariants = variants || [];
@@ -2619,7 +2638,7 @@ export default function EditProduct() {
 
         if (prod) {
           const tabIdx = TABS.findIndex(
-            (t) => t.category === prod.category && t.sub === prod.subcategory
+            (t) => t.category === prod.category && t.sub === prod.subcategory,
           );
           if (tabIdx !== -1) setActiveTab(tabIdx);
         }
@@ -2666,8 +2685,8 @@ export default function EditProduct() {
             {checking
               ? "Verifying access..."
               : currencyLoading
-              ? "Loading currency..."
-              : "Loading product..."}
+                ? "Loading currency..."
+                : "Loading product..."}
           </p>
         </div>
       </div>
@@ -2682,7 +2701,7 @@ export default function EditProduct() {
       "Product Updated",
       `${productData.name || "Product"} has been updated successfully in ${
         currency.code
-      }!`
+      }!`,
     );
     setTimeout(() => router.push("/panel"), 1500);
   };
@@ -2690,7 +2709,7 @@ export default function EditProduct() {
   const handleDelete = async () => {
     if (
       !confirm(
-        "Are you sure you want to delete this product? This action cannot be undone."
+        "Are you sure you want to delete this product? This action cannot be undone.",
       )
     )
       return;
@@ -2720,7 +2739,7 @@ export default function EditProduct() {
       addToast(
         "success",
         "Product Deleted",
-        "Product has been removed from store. Redirecting..."
+        "Product has been removed from store. Redirecting...",
       );
       setTimeout(() => router.push("/panel"), 1500);
     }

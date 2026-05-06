@@ -113,11 +113,11 @@ function useToast() {
     setToasts((prev) => [...prev, { id, msg, type }]);
     setTimeout(() => {
       setToasts((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+        prev.map((t) => (t.id === id ? { ...t, exiting: true } : t)),
       );
       setTimeout(
         () => setToasts((prev) => prev.filter((t) => t.id !== id)),
-        350
+        350,
       );
     }, 2800);
   }, []);
@@ -333,23 +333,23 @@ export default function ProductDetail() {
 
   // ── Sync-init from cache — instant render if already cached ──
   const [product, setProduct] = useState<Product | null>(() =>
-    id ? _productCache.get(id) ?? null : null
+    id ? (_productCache.get(id) ?? null) : null,
   );
   const [variants, setVariants] = useState<VariantWithDetails[]>([]);
   const [variantImagesMap, setVariantImagesMap] = useState<VariantImagesMap>(
-    {}
+    {},
   );
   const [selectedVariant, setSelectedVariant] =
     useState<VariantWithDetails | null>(null);
   const [loading, setLoading] = useState(() =>
-    id ? !_productCache.has(id) : true
+    id ? !_productCache.has(id) : true,
   );
   const [qty, setQty] = useState(1);
   const [wishlist, setWishlist] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("description");
   const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>([]);
   const [selectedTier, setSelectedTier] = useState<BulkPricingTier | null>(
-    null
+    null,
   );
   const [loadingTiers, setLoadingTiers] = useState(false);
   const [liveRating, setLiveRating] = useState<number | null>(null);
@@ -505,7 +505,7 @@ export default function ProductDetail() {
             setLiveRating(data.rating);
             setLiveReviewCount(data.reviews_count);
           }
-        }
+        },
       )
       .subscribe();
     return () => {
@@ -519,9 +519,9 @@ export default function ProductDetail() {
     const obs = new IntersectionObserver(
       (entries) =>
         entries.forEach(
-          (e) => e.isIntersecting && e.target.classList.add("visible")
+          (e) => e.isIntersecting && e.target.classList.add("visible"),
         ),
-      { threshold: 0.12 }
+      { threshold: 0.12 },
     );
     els.forEach((el) => obs.observe(el));
     return () => obs.disconnect();
@@ -560,7 +560,7 @@ export default function ProductDetail() {
       ? Math.round(
           ((currentOriginalPrice - currentPerPiecePrice) /
             currentOriginalPrice) *
-            100
+            100,
         )
       : 0;
   const savings =
@@ -573,8 +573,8 @@ export default function ProductDetail() {
     currentStock === 0
       ? "Out of Stock"
       : currentStock < 5
-      ? `Only ${currentStock} Left`
-      : "In Stock";
+        ? `Only ${currentStock} Left`
+        : "In Stock";
 
   const variantsByType: Record<string, VariantWithDetails[]> = {};
   variants.forEach((v) => {
@@ -618,7 +618,7 @@ export default function ProductDetail() {
     if (selectedTier) {
       showToast(
         `${quantityToAdd} × ${product.name} (bulk) added to cart`,
-        "success"
+        "success",
       );
     } else {
       showToast(`${quantityToAdd} × ${product.name} added to cart`, "success");
@@ -730,28 +730,13 @@ export default function ProductDetail() {
           {/* ── GALLERY ── */}
           {/* allVariantImages: sab variants ki saari images ek flat deduped array mein */}
           {(() => {
-            const seen = new Set<string>();
-            const allVariantImages: string[] = [];
-            Object.values(variantImagesMap).forEach((imgs) => {
-              imgs.forEach((img) => {
-                if (img && !seen.has(img)) {
-                  seen.add(img);
-                  allVariantImages.push(img);
-                }
-              });
-            });
-            const productLevelImgs: string[] = (product as any)?.images || [];
-            productLevelImgs.forEach((img) => {
-              if (img && !seen.has(img)) {
-                seen.add(img);
-                allVariantImages.push(img);
-              }
-            });
+            // mainImages = product.main_images (set in detailed mode add-product)
+            const mainImgs: string[] = (product as any)?.main_images || [];
             return (
               <ProductGallery
-                images={images}
+                images={currentImages}
                 productName={product.name}
-                mainImages={allVariantImages}
+                mainImages={mainImgs}
               />
             );
           })()}
@@ -821,7 +806,7 @@ export default function ProductDetail() {
             {Object.entries(variantsByType).map(([type, typeVariants]) => {
               // Find the selected variant for this type
               const selectedForType = typeVariants.find(
-                (v) => v.id === selectedVariant?.id
+                (v) => v.id === selectedVariant?.id,
               );
               return (
                 <div key={type} className="pd-attr">
@@ -954,8 +939,8 @@ export default function ProductDetail() {
                   {currentStock === 0
                     ? "Out of Stock"
                     : selectedTier
-                    ? `Add to Cart (${selectedTier.min_quantity} pcs)`
-                    : `Add to Cart (${qty} pc${qty > 1 ? "s" : ""})`}
+                      ? `Add to Cart (${selectedTier.min_quantity} pcs)`
+                      : `Add to Cart (${qty} pc${qty > 1 ? "s" : ""})`}
                 </button>
 
                 <button
@@ -964,7 +949,7 @@ export default function ProductDetail() {
                     setWishlist((w) => !w);
                     showToast(
                       wishlist ? "Removed from wishlist" : "Added to wishlist",
-                      "success"
+                      "success",
                     );
                   }}
                 >
