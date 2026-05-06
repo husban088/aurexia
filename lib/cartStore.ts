@@ -45,7 +45,7 @@ interface CartStore {
     product: Product,
     variant?: ProductVariant | null,
     quantity?: number,
-    piecesPerUnit?: number
+    piecesPerUnit?: number,
   ) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   removeFromCart: (itemId: string) => Promise<void>;
@@ -79,7 +79,7 @@ function getSessionId(): string {
 
 function deriveStockStatus(
   stock: number,
-  threshold?: number | null
+  threshold?: number | null,
 ): "in_stock" | "out_of_stock" | "low_stock" {
   if (stock === 0) return "out_of_stock";
   if (stock >= 999999) return "in_stock";
@@ -113,7 +113,7 @@ function processBatchUpdates() {
           }
           break;
       }
-    })
+    }),
   ).catch(console.error);
 }
 
@@ -150,7 +150,7 @@ async function fetchCartItems(cartId: string): Promise<CartItemWithDetails[]> {
         pieces_per_unit,
         created_at,
         updated_at
-      `
+      `,
       )
       .eq("cart_id", cartId);
 
@@ -216,10 +216,24 @@ async function fetchCartItems(cartId: string): Promise<CartItemWithDetails[]> {
         null;
       const stockStatus = deriveStockStatus(stock, threshold);
 
+      // ✅ FIX: Build images array — variant_image first, then product images
+      const baseImages = product?.images ?? [];
+      const variantImg = item.variant_image;
+      const mergedImages =
+        variantImg && !baseImages.includes(variantImg)
+          ? [variantImg, ...baseImages]
+          : baseImages;
+
       return {
         ...item,
         pieces_per_unit: item.pieces_per_unit ?? 1,
-        product: product,
+        product: product
+          ? {
+              ...product,
+              // ✅ Ensure images always includes variant_image so display never breaks
+              images: mergedImages,
+            }
+          : undefined,
         variantStock: stock,
         variantLowStockThreshold: threshold,
         variantStockStatus: stockStatus,
@@ -432,7 +446,7 @@ export const useCartStore = create<CartStore>()(
         product: Product,
         variant: ProductVariant | null = null,
         quantity: number = 1,
-        piecesPerUnit: number = 1
+        piecesPerUnit: number = 1,
       ) => {
         if (addToCartDebounce) clearTimeout(addToCartDebounce);
 
@@ -457,16 +471,16 @@ export const useCartStore = create<CartStore>()(
 
               const rawStock =
                 variant != null
-                  ? variant.stock ?? 999999
-                  : (product as any).stock ?? 999999;
+                  ? (variant.stock ?? 999999)
+                  : ((product as any).stock ?? 999999);
               const lowStockThreshold =
                 variant != null
-                  ? variant.low_stock_threshold ?? null
-                  : (product as any).low_stock_threshold ?? null;
+                  ? (variant.low_stock_threshold ?? null)
+                  : ((product as any).low_stock_threshold ?? null);
 
               const stockStatus = deriveStockStatus(
                 rawStock,
-                lowStockThreshold
+                lowStockThreshold,
               );
 
               if (stockStatus === "out_of_stock") {
@@ -484,7 +498,7 @@ export const useCartStore = create<CartStore>()(
                 (i) =>
                   i.product_id === product.id &&
                   i.variant_id === variantId &&
-                  (i.pieces_per_unit ?? 1) === piecesPerUnit
+                  (i.pieces_per_unit ?? 1) === piecesPerUnit,
               );
 
               const newQuantity = existingItem
@@ -496,7 +510,7 @@ export const useCartStore = create<CartStore>()(
                 if (totalPhysical > rawStock) {
                   const maxUnits = Math.floor(rawStock / piecesPerUnit);
                   alert(
-                    `Only ${rawStock} items in stock. Max ${maxUnits} unit(s) of ${piecesPerUnit}-piece size.`
+                    `Only ${rawStock} items in stock. Max ${maxUnits} unit(s) of ${piecesPerUnit}-piece size.`,
                   );
                   reject(new Error("Stock limit exceeded"));
                   return;
@@ -509,7 +523,7 @@ export const useCartStore = create<CartStore>()(
                   items: get().items.map((i) =>
                     i.id === existingItem.id
                       ? { ...i, quantity: newQuantity }
-                      : i
+                      : i,
                   ),
                 });
               } else {
@@ -585,10 +599,11 @@ export const useCartStore = create<CartStore>()(
                             !(
                               i.id.startsWith("temp_") &&
                               i.product_id === product.id
-                            )
+                            ),
                         ),
                       });
                     } else {
+                      // ✅ FIX: Preserve product object so name/brand/images are never lost
                       set({
                         items: get().items.map((i) =>
                           i.id.startsWith("temp_") &&
@@ -597,8 +612,18 @@ export const useCartStore = create<CartStore>()(
                                 ...inserted,
                                 pieces_per_unit:
                                   inserted.pieces_per_unit ?? piecesPerUnit,
+                                variantStock: rawStock,
+                                variantLowStockThreshold: lowStockThreshold,
+                                variantStockStatus: stockStatus,
+                                // ✅ Always attach product so name/brand/images survive
+                                product: {
+                                  ...product,
+                                  price: variantPrice,
+                                  original_price: variantOriginalPrice,
+                                  stock: rawStock,
+                                },
                               }
-                            : i
+                            : i,
                         ),
                         cartId,
                       });
@@ -644,7 +669,7 @@ export const useCartStore = create<CartStore>()(
           if (totalPhysical > rawStock) {
             const maxUnits = Math.floor(rawStock / ppu);
             alert(
-              `Only ${rawStock} items in stock. Max ${maxUnits} unit(s) allowed.`
+              `Only ${rawStock} items in stock. Max ${maxUnits} unit(s) allowed.`,
             );
             if (maxUnits <= 0) {
               await get().removeFromCart(itemId);
@@ -656,7 +681,7 @@ export const useCartStore = create<CartStore>()(
 
         set({
           items: items.map((i) =>
-            i.id === itemId ? { ...i, quantity: finalQuantity } : i
+            i.id === itemId ? { ...i, quantity: finalQuantity } : i,
           ),
         });
 
@@ -712,7 +737,7 @@ export const useCartStore = create<CartStore>()(
       getTotalPieces: () => {
         return get().items.reduce(
           (t, i) => t + (i.pieces_per_unit ?? 1) * i.quantity,
-          0
+          0,
         );
       },
     }),
@@ -721,43 +746,54 @@ export const useCartStore = create<CartStore>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         // ✅ Store complete items with all data
-        items: state.items.map((item) => ({
-          id: item.id,
-          cart_id: item.cart_id,
-          product_id: item.product_id,
-          variant_id: item.variant_id,
-          variant_name: item.variant_name,
-          variant_price: item.variant_price,
-          variant_original_price: item.variant_original_price,
-          variant_image: item.variant_image,
-          quantity: item.quantity,
-          pieces_per_unit: item.pieces_per_unit ?? 1,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          variantStock: item.variantStock,
-          variantLowStockThreshold: item.variantLowStockThreshold,
-          variantStockStatus: item.variantStockStatus,
-          product: item.product
-            ? {
-                id: item.product.id,
-                name: item.product.name,
-                description: item.product.description,
-                category: item.product.category,
-                subcategory: item.product.subcategory,
-                images: item.product.images,
-                brand: item.product.brand,
-                condition: item.product.condition,
-                is_featured: item.product.is_featured,
-                is_active: item.product.is_active,
-                price: item.variant_price ?? item.product.price,
-                original_price:
-                  item.variant_original_price ?? item.product.original_price,
-                stock: item.variantStock ?? item.product.stock,
-                created_at: item.product.created_at,
-                updated_at: item.product.updated_at,
-              }
-            : undefined,
-        })),
+        items: state.items.map((item) => {
+          // ✅ Build merged images: variant_image + product images (no duplicates)
+          const prodImages = item.product?.images ?? [];
+          const vImg = item.variant_image;
+          const mergedImages =
+            vImg && !prodImages.includes(vImg)
+              ? [vImg, ...prodImages]
+              : prodImages;
+
+          return {
+            id: item.id,
+            cart_id: item.cart_id,
+            product_id: item.product_id,
+            variant_id: item.variant_id,
+            variant_name: item.variant_name,
+            variant_price: item.variant_price,
+            variant_original_price: item.variant_original_price,
+            variant_image: item.variant_image,
+            quantity: item.quantity,
+            pieces_per_unit: item.pieces_per_unit ?? 1,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+            variantStock: item.variantStock,
+            variantLowStockThreshold: item.variantLowStockThreshold,
+            variantStockStatus: item.variantStockStatus,
+            product: item.product
+              ? {
+                  id: item.product.id,
+                  name: item.product.name,
+                  description: item.product.description,
+                  category: item.product.category,
+                  subcategory: item.product.subcategory,
+                  // ✅ Always include variant_image in saved images
+                  images: mergedImages,
+                  brand: item.product.brand,
+                  condition: item.product.condition,
+                  is_featured: item.product.is_featured,
+                  is_active: item.product.is_active,
+                  price: item.variant_price ?? item.product.price,
+                  original_price:
+                    item.variant_original_price ?? item.product.original_price,
+                  stock: item.variantStock ?? item.product.stock,
+                  created_at: item.product.created_at,
+                  updated_at: item.product.updated_at,
+                }
+              : undefined,
+          };
+        }),
         cartId: state.cartId,
         sessionId: state.sessionId,
         initialized: state.initialized,
@@ -766,15 +802,15 @@ export const useCartStore = create<CartStore>()(
         console.log("🔄 Cart rehydrating...");
         if (state?.items?.length) {
           console.log(
-            `✅ Cart rehydrated: ${state.items.length} items from localStorage`
+            `✅ Cart rehydrated: ${state.items.length} items from localStorage`,
           );
         }
         // ✅ Don't auto-fetch immediately - let component decide
         // This prevents race conditions and disappearing items
       },
       skipHydration: false,
-    }
-  )
+    },
+  ),
 );
 
 // ============================================================
@@ -783,7 +819,7 @@ export const useCartStore = create<CartStore>()(
 
 async function mergeGuestCart(
   guestCartId: string,
-  userCartId: string
+  userCartId: string,
 ): Promise<void> {
   try {
     const guestItems = await fetchCartItems(guestCartId);
@@ -794,7 +830,7 @@ async function mergeGuestCart(
         (u) =>
           u.product_id === guestItem.product_id &&
           u.variant_id === guestItem.variant_id &&
-          (u.pieces_per_unit ?? 1) === (guestItem.pieces_per_unit ?? 1)
+          (u.pieces_per_unit ?? 1) === (guestItem.pieces_per_unit ?? 1),
       );
 
       if (existing) {

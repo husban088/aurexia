@@ -85,7 +85,7 @@ const truncateProductName = (name: string, maxLength = 50) =>
 
 const getStockStatus = (
   stock: number,
-  threshold?: number | null
+  threshold?: number | null,
 ): "in_stock" | "out_of_stock" | "low_stock" => {
   if (stock === 0) return "out_of_stock";
   if (stock >= 999999) return "in_stock";
@@ -118,7 +118,7 @@ async function fetchFeaturedTabDataFast(tab: string): Promise<CachedData> {
       condition: item.condition || "new",
       is_featured: item.is_featured || false,
       is_active: item.is_active || true,
-    })
+    }),
   );
 
   const variantsByProduct: Record<string, ProductVariant[]> = {};
@@ -332,7 +332,7 @@ function ProductCard({
     productStock: number,
     stockStatus: "in_stock" | "out_of_stock" | "low_stock",
     lowStockThreshold: number | null | undefined,
-    variantImages: VariantImagesMap
+    variantImages: VariantImagesMap,
   ) => void;
 }) {
   const { formatPrice } = useCurrency();
@@ -341,7 +341,7 @@ function ProductCard({
   const [isHovered, setIsHovered] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
-    variants.length > 0 ? variants[0] : null
+    variants.length > 0 ? variants[0] : null,
   );
   const [currentImages, setCurrentImages] = useState<string[]>(() => {
     const firstVariant = variants[0];
@@ -357,10 +357,10 @@ function ProductCard({
   const colorVariants = variants.filter((v) => v.attribute_type === "color");
   const sizeVariants = variants.filter((v) => v.attribute_type === "size");
   const materialVariants = variants.filter(
-    (v) => v.attribute_type === "material"
+    (v) => v.attribute_type === "material",
   );
   const capacityVariants = variants.filter(
-    (v) => v.attribute_type === "capacity"
+    (v) => v.attribute_type === "capacity",
   );
 
   const getVariantImage = useCallback(
@@ -368,12 +368,12 @@ function ProductCard({
       const images = variantImagesMap[variantId];
       return images && images.length > 0 ? images[0] : null;
     },
-    [variantImagesMap]
+    [variantImagesMap],
   );
 
   const getVariantImages = useCallback(
     (variantId: string): string[] => variantImagesMap[variantId] || [],
-    [variantImagesMap]
+    [variantImagesMap],
   );
 
   const handleVariantSelect = (variant: ProductVariant) => {
@@ -400,13 +400,13 @@ function ProductCard({
       ? Math.round(
           ((selectedVariant.original_price - selectedVariant.price) /
             selectedVariant.original_price) *
-            100
+            100,
         )
       : null;
 
   const stockStatus = getStockStatus(
     selectedVariant?.stock || 0,
-    selectedVariant?.low_stock_threshold
+    selectedVariant?.low_stock_threshold,
   );
   const isLowStock = stockStatus === "low_stock";
   const isOutOfStock = stockStatus === "out_of_stock";
@@ -438,7 +438,6 @@ function ProductCard({
     if (addToCartLoading) return;
     setAddToCartLoading(true);
     try {
-      // Create a clean product object without low_stock_threshold to avoid type issues
       const productToAdd = {
         id: product.id,
         name: product.name,
@@ -449,7 +448,8 @@ function ProductCard({
         condition: product.condition,
         is_featured: product.is_featured,
         is_active: product.is_active,
-        images: currentImages,
+        // ✅ FIX: currentImages has variant images; also pass all variant images as fallback
+        images: currentImages.length > 0 ? currentImages : [],
         price: selectedVariant.price,
         original_price: selectedVariant.original_price,
         stock: selectedVariant.stock,
@@ -467,7 +467,7 @@ function ProductCard({
   };
 
   const handleQuickViewClick = async (
-    e: React.MouseEvent<HTMLButtonElement>
+    e: React.MouseEvent<HTMLButtonElement>,
   ) => {
     e.preventDefault();
     e.stopPropagation();
@@ -482,7 +482,7 @@ function ProductCard({
       selectedVariant?.stock || 0,
       stockStatus,
       selectedVariant?.low_stock_threshold,
-      variantImagesMap
+      variantImagesMap,
     );
     setQuickViewLoading(false);
   };
@@ -656,7 +656,7 @@ export default function FeaturedProducts() {
   const [activeTab, setActiveTab] = useState("Accessories");
 
   const [products, setProducts] = useState<FeaturedProduct[]>(
-    () => MODULE_CACHE["Accessories"]?.products ?? []
+    () => MODULE_CACHE["Accessories"]?.products ?? [],
   );
   const [variantsMap, setVariantsMap] = useState<
     Record<string, ProductVariant[]>
@@ -668,7 +668,7 @@ export default function FeaturedProducts() {
   const [quickViewProduct, setQuickViewProduct] =
     useState<QuickViewProduct | null>(null);
   const [quickViewVariants, setQuickViewVariants] = useState<ProductVariant[]>(
-    []
+    [],
   );
   const [quickViewSelectedVariant, setQuickViewSelectedVariant] =
     useState<ProductVariant | null>(null);
@@ -786,7 +786,7 @@ export default function FeaturedProducts() {
     productStock: number,
     stockStatus: "in_stock" | "out_of_stock" | "low_stock",
     lowStockThreshold: number | null | undefined,
-    variantImages: VariantImagesMap
+    variantImages: VariantImagesMap,
   ) => {
     setQuickViewProduct({
       id: product.id,
@@ -873,7 +873,7 @@ export default function FeaturedProducts() {
                 >
                   {tab}
                 </button>
-              )
+              ),
             )}
           </div>
         </div>

@@ -11,8 +11,7 @@ interface CartSidebarProps {
   onClose: () => void;
 }
 
-// ✅ NO SHIPPING CHARGES - FREE SHIPPING ALWAYS
-const SHIPPING_COST_PKR = 0; // Set to 0 for free shipping
+const SHIPPING_COST_PKR = 0;
 
 export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const [mounted, setMounted] = useState(false);
@@ -23,27 +22,24 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
 
-  // subtotalPKR — always in PKR (raw database value)
   const subtotalPKR = useCartStore((state) =>
     state.items.reduce((t, i) => {
       const price = i.variant_price ?? i.product?.price ?? 0;
       const ppu = i.pieces_per_unit ?? 1;
       return t + price * ppu * i.quantity;
-    }, 0)
+    }, 0),
   );
 
   const cartUnitCount = useCartStore((state) =>
-    state.items.reduce((t, i) => t + i.quantity, 0)
+    state.items.reduce((t, i) => t + i.quantity, 0),
   );
 
   const totalPieces = useCartStore((state) =>
-    state.items.reduce((t, i) => t + (i.pieces_per_unit ?? 1) * i.quantity, 0)
+    state.items.reduce((t, i) => t + (i.pieces_per_unit ?? 1) * i.quantity, 0),
   );
 
-  // currency hook — formatPrice(pkrValue) handles conversion internally
   const { formatPrice, currency } = useCurrency();
   const sidebarRef = useRef<HTMLDivElement>(null);
-
   const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -60,7 +56,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             console.log(
               "📦 CartSidebar - Loaded from storage:",
               parsed.state.items.length,
-              "items"
+              "items",
             );
           }
         }
@@ -93,28 +89,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     return () => document.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose, mounted]);
 
-  // ✅ NO SHIPPING CHARGES - Always free
-  const shippingPKR = 0; // Always free shipping
-  const totalPKR = subtotalPKR + shippingPKR; // Same as subtotal
-
-  const handleSidebarClick = (e: React.MouseEvent) => e.stopPropagation();
-
-  const handleCheckoutClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    onClose();
-    setTimeout(() => {
-      window.location.href = "/checkout";
-    }, 150);
-  };
-
-  const handleViewCartClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    onClose();
-    setTimeout(() => {
-      window.location.href = "/cart";
-    }, 150);
-  };
-
   // Auto remove out of stock items
   useEffect(() => {
     if (!items.length) return;
@@ -136,6 +110,27 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
       }
     });
   }, [items, removeFromCart, removingItems]);
+
+  const shippingPKR = 0;
+  const totalPKR = subtotalPKR + shippingPKR;
+
+  const handleSidebarClick = (e: React.MouseEvent) => e.stopPropagation();
+
+  const handleCheckoutClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onClose();
+    setTimeout(() => {
+      window.location.href = "/checkout";
+    }, 150);
+  };
+
+  const handleViewCartClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onClose();
+    setTimeout(() => {
+      window.location.href = "/cart";
+    }, 150);
+  };
 
   const showSpinner = loading && items.length === 0;
 
@@ -200,7 +195,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           </button>
         </div>
 
-        {/* ✅ FREE SHIPPING BANNER - Always showing free shipping */}
+        {/* FREE SHIPPING BANNER */}
         {cartUnitCount > 0 && (
           <div className="cs-shipping-bar cs-shipping-bar--achieved">
             <p className="cs-shipping-text">
@@ -266,36 +261,38 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           ) : (
             <ul className="cs-item-list">
               {items.map((item, i) => {
-                const product = item.product ?? {
-                  id: item.product_id,
-                  name: item.variant_name || "Product",
-                  description: "",
-                  category: "",
-                  subcategory: "",
-                  condition: "new",
-                  is_featured: false,
-                  is_active: true,
-                  price: item.variant_price || 0,
-                  original_price: item.variant_original_price || undefined,
-                  images: item.variant_image ? [item.variant_image] : [],
-                  stock: item.variantStock ?? 0,
-                };
+                // ✅ FIX: Properly resolve product name — product.name is always first priority
+                const productName =
+                  item.product?.name ||
+                  (item.variant_name && item.variant_name !== "Standard"
+                    ? item.variant_name
+                    : null) ||
+                  "Product";
+
+                const productBrand = item.product?.brand || null;
+                const productSubcategory = item.product?.subcategory || null;
+                const productImages = item.product?.images || [];
 
                 const ppu = item.pieces_per_unit ?? 1;
                 const pricePerPiecePKR =
-                  item.variant_price ?? product.price ?? 0;
+                  item.variant_price ?? item.product?.price ?? 0;
                 const itemTotalPKR = pricePerPiecePKR * ppu * item.quantity;
                 const rowPhysicalPieces = ppu * item.quantity;
 
+                // ✅ FIX: Image — variant_image first, then product images array, then null
                 const displayImage =
-                  item.variant_image || product.images?.[0] || null;
+                  item.variant_image ||
+                  (productImages.length > 0 ? productImages[0] : null);
 
                 const tierLabel = ppu > 1 ? ` (${ppu}-Piece)` : "";
+                // ✅ Show variant name (color/size/etc) but not "Standard"
                 const variantSuffix =
-                  item.variant_name && item.variant_name !== "Standard"
+                  item.variant_name &&
+                  item.variant_name !== "Standard" &&
+                  item.variant_name !== "standard"
                     ? ` — ${item.variant_name}`
                     : "";
-                const displayName = `${product.name}${tierLabel}${variantSuffix}`;
+                const displayName = `${productName}${tierLabel}${variantSuffix}`;
 
                 const stockStatus = item.variantStockStatus ?? "in_stock";
                 const variantStock = item.variantStock ?? 999999;
@@ -305,15 +302,15 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 const stockLabel = isOutOfStock
                   ? "Out of Stock"
                   : isLowStock
-                  ? `Only ${variantStock} left`
-                  : "In Stock";
+                    ? `Only ${variantStock} left`
+                    : "In Stock";
 
                 const maxUnits =
                   stockStatus === "in_stock"
                     ? 999999
                     : stockStatus === "out_of_stock"
-                    ? 0
-                    : Math.max(1, Math.floor(variantStock / ppu));
+                      ? 0
+                      : Math.max(1, Math.floor(variantStock / ppu));
 
                 const canIncrement = !isOutOfStock && item.quantity < maxUnits;
                 const canDecrement = item.quantity > 1;
@@ -334,12 +331,14 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
                 const handleQuantityUpdate = async (newQuantity: number) => {
                   if (isOutOfStock) return;
-                  const maxAllowed = Math.floor(variantStock / ppu);
-                  if (newQuantity > maxAllowed && maxAllowed > 0) {
-                    alert(
-                      `Only ${variantStock} items in stock. Max ${maxAllowed} unit(s) of ${ppu}-piece size.`
-                    );
-                    return;
+                  if (stockStatus !== "in_stock" && variantStock < 999999) {
+                    const maxAllowed = Math.floor(variantStock / ppu);
+                    if (newQuantity > maxAllowed && maxAllowed > 0) {
+                      alert(
+                        `Only ${variantStock} items in stock. Max ${maxAllowed} unit(s) of ${ppu}-piece size.`,
+                      );
+                      return;
+                    }
                   }
                   await updateQuantity(item.id, newQuantity);
                 };
@@ -356,7 +355,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                       {displayImage ? (
                         <img
                           src={displayImage}
-                          alt={product.name}
+                          alt={productName}
                           style={{
                             objectFit: "cover",
                             width: "100%",
@@ -383,12 +382,17 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                     </div>
 
                     <div className="cs-item-info">
-                      {product.brand && (
-                        <p className="cs-item-brand">{product.brand}</p>
+                      {/* ✅ FIX: Show brand from resolved productBrand */}
+                      {productBrand && (
+                        <p className="cs-item-brand">{productBrand}</p>
                       )}
+
+                      {/* ✅ FIX: Show correct product name */}
                       <p className="cs-item-name">{displayName}</p>
-                      {product.subcategory && (
-                        <p className="cs-item-variant">{product.subcategory}</p>
+
+                      {/* ✅ FIX: Show subcategory from resolved source */}
+                      {productSubcategory && (
+                        <p className="cs-item-variant">{productSubcategory}</p>
                       )}
 
                       <p className="cs-item-breakdown">
@@ -470,7 +474,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                     <button
                       className="cs-item-remove"
                       onClick={handleRemoveClick}
-                      aria-label={`Remove ${product.name}`}
+                      aria-label={`Remove ${productName}`}
                       disabled={isBeingRemoved}
                     >
                       {isBeingRemoved ? (
@@ -496,7 +500,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           )}
         </div>
 
-        {/* ✅ Footer totals - NO SHIPPING CHARGES */}
+        {/* Footer totals */}
         {cartUnitCount > 0 && (
           <div className="cs-footer">
             <div className="cs-summary">
@@ -508,7 +512,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 <span>{formatPrice(subtotalPKR)}</span>
               </div>
 
-              {/* ✅ Shipping row - Always Free */}
               <div className="cs-summary-row">
                 <span>Shipping</span>
                 <span className="free-shipping-text">Free</span>
