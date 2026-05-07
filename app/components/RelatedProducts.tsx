@@ -67,7 +67,7 @@ const truncateProductName = (name: string, maxLength = 45): string => {
 
 const getStockStatus = (
   stock: number,
-  threshold?: number | null
+  threshold?: number | null,
 ): "in_stock" | "out_of_stock" | "low_stock" => {
   if (stock === 0) return "out_of_stock";
   if (stock >= 999999) return "in_stock";
@@ -234,7 +234,7 @@ function VariantThumbnails({
 async function fetchRelatedProducts(
   productId: string,
   category: string,
-  limit = 4
+  limit = 4,
 ): Promise<ExtendedProduct[]> {
   try {
     const { data, error } = await supabase
@@ -276,17 +276,17 @@ async function fetchRelatedProducts(
             images: variantImages,
             stockStatus: getStockStatus(
               variant.stock,
-              variant.low_stock_threshold
+              variant.low_stock_threshold,
             ),
           };
-        }
+        },
       );
 
       // Sort variants by priority
       const sortedVariants = [...variants].sort(
         (a, b) =>
           (typePriority[a.attribute_type] ?? 5) -
-          (typePriority[b.attribute_type] ?? 5)
+          (typePriority[b.attribute_type] ?? 5),
       );
 
       // Build variant images map
@@ -353,13 +353,13 @@ function RelatedProductCard({
     product: any,
     variant: any,
     quantity: number,
-    maxStock?: number
+    maxStock?: number,
   ) => Promise<void>;
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
-    product.variants.length > 0 ? product.variants[0] : null
+    product.variants.length > 0 ? product.variants[0] : null,
   );
   const [currentImages, setCurrentImages] = useState<string[]>(() => {
     if (
@@ -372,23 +372,68 @@ function RelatedProductCard({
   });
   const [addToCartLoading, setAddToCartLoading] = useState(false);
 
+  /* ── Live rating state ── */
+  const [liveRating, setLiveRating] = useState<number | null>(
+    product.rating != null && product.rating > 0 ? product.rating : null,
+  );
+  const [liveReviewCount, setLiveReviewCount] = useState<number | null>(
+    product.reviews_count != null && product.reviews_count > 0
+      ? product.reviews_count
+      : null,
+  );
+
+  /* ── Realtime subscription for new reviews ── */
+  useEffect(() => {
+    const channel = supabase
+      .channel(`rp-live-${product.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "product_reviews",
+          filter: `product_id=eq.${product.id}`,
+        },
+        async () => {
+          const { data } = await supabase
+            .from("products")
+            .select("rating, reviews_count")
+            .eq("id", product.id)
+            .single();
+          if (data) {
+            if (data.rating != null && data.rating > 0) {
+              setLiveRating(data.rating);
+            }
+            if (data.reviews_count != null && data.reviews_count > 0) {
+              setLiveReviewCount(data.reviews_count);
+            }
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [product.id]);
+
   // Filter variants by type
   const colorVariants = product.variants.filter(
-    (v) => v.attribute_type === "color"
+    (v) => v.attribute_type === "color",
   );
   const sizeVariants = product.variants.filter(
-    (v) => v.attribute_type === "size"
+    (v) => v.attribute_type === "size",
   );
   const materialVariants = product.variants.filter(
-    (v) => v.attribute_type === "material"
+    (v) => v.attribute_type === "material",
   );
   const capacityVariants = product.variants.filter(
-    (v) => v.attribute_type === "capacity"
+    (v) => v.attribute_type === "capacity",
   );
 
   const getVariantImages = useCallback(
     (variantId: string): string[] => product.variantImagesMap[variantId] || [],
-    [product.variantImagesMap]
+    [product.variantImagesMap],
   );
 
   const handleVariantSelect = (variant: ProductVariant) => {
@@ -428,7 +473,7 @@ function RelatedProductCard({
   const discount =
     currentOriginalPrice && currentOriginalPrice > currentPrice
       ? Math.round(
-          ((currentOriginalPrice - currentPrice) / currentOriginalPrice) * 100
+          ((currentOriginalPrice - currentPrice) / currentOriginalPrice) * 100,
         )
       : 0;
 
@@ -447,7 +492,7 @@ function RelatedProductCard({
   const truncatedName = truncateProductName(product.name, 45);
 
   const handleAddToCartClick = async (
-    e: React.MouseEvent<HTMLButtonElement>
+    e: React.MouseEvent<HTMLButtonElement>,
   ) => {
     e.preventDefault();
     e.stopPropagation();
@@ -575,12 +620,12 @@ function RelatedProductCard({
         </div>
 
         {/* Rating */}
-        {product.rating &&
-          product.reviews_count &&
-          product.reviews_count > 0 && (
+        {liveRating !== null &&
+          liveReviewCount !== null &&
+          liveReviewCount > 0 && (
             <div className="rp-rating">
-              <StarDisplay rating={product.rating} size={11} />
-              <span className="rp-rating-count">({product.reviews_count})</span>
+              <StarDisplay rating={liveRating} size={11} />
+              <span className="rp-rating-count">({liveReviewCount})</span>
             </div>
           )}
 
@@ -680,7 +725,7 @@ export default function RelatedProducts({
           }
         });
       },
-      { threshold: 0.05 }
+      { threshold: 0.05 },
     );
 
     observer.observe(el);

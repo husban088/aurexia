@@ -8,6 +8,9 @@
   top: calc(var(--pd-nav-h, 68px) + 1rem);
   max-width: 100%;
   width: 100%;
+  /* Prevent ANY child from bleeding outside */
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* Main image viewer */
@@ -43,7 +46,9 @@
   height: 100%;
   object-fit: cover;
   /* overflow:hidden on parent clips any transform — image can't escape container */
-  transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease;
+  transition:
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.4s ease;
   display: block;
   pointer-events: none;
   user-select: none;
@@ -212,14 +217,22 @@
   gap: 6px;
   margin-top: 10px;
   width: 100%;
+  max-width: 100%;
   position: relative;
+  box-sizing: border-box;
+  /* CRITICAL: Prevent overflow bleeding to right side of page */
+  overflow: hidden;
 }
 
 /* ── Swiper container inside wrap ── */
 .pg-thumbs-swiper {
-  flex: 1;
+  /* flex: 1 1 0% forces the swiper to take remaining space 
+     but never exceed the parent, preventing right overflow */
+  flex: 1 1 0%;
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
+  width: 0; /* Combined with flex:1 1 0% this is the fix */
 }
 
 /* ── Each slide has auto width ── */
@@ -239,7 +252,10 @@
   cursor: pointer;
   background: rgba(255, 255, 255, 0.04);
   padding: 0;
-  transition: border-color 0.2s, transform 0.15s, opacity 0.2s;
+  transition:
+    border-color 0.2s,
+    transform 0.15s,
+    opacity 0.2s;
   position: relative;
   opacity: 0.65;
 }
@@ -305,7 +321,10 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.15s;
   padding: 0;
 }
 
@@ -329,10 +348,16 @@
   .pg-thumb-nav {
     width: 24px;
     height: 24px;
+    /* Always visible on mobile - no hover available */
+    opacity: 1 !important;
+    flex-shrink: 0;
   }
   .pg-thumb-nav svg {
     width: 12px;
     height: 12px;
+  }
+  .pg-thumbs-swiper-wrap {
+    gap: 4px;
   }
 }
 
@@ -384,7 +409,10 @@
   cursor: pointer;
   background: rgba(255, 255, 255, 0.04);
   padding: 0;
-  transition: border-color 0.2s, transform 0.15s, opacity 0.2s;
+  transition:
+    border-color 0.2s,
+    transform 0.15s,
+    opacity 0.2s;
   opacity: 0.55;
 }
 
@@ -454,7 +482,10 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.15s;
   padding: 0;
   z-index: 1;
 }
@@ -510,7 +541,8 @@
   overflow: hidden;
   cursor: pointer;
   position: relative;
-  transition: border-color var(--pd-ease-fast, 0.35s),
+  transition:
+    border-color var(--pd-ease-fast, 0.35s),
     transform var(--pd-ease-fast, 0.35s);
   background: var(--pd-light-bg, #ffffff);
 }
@@ -534,7 +566,8 @@
 
 .pg-thumb.active {
   border-color: var(--pd-gold, #daa520);
-  box-shadow: 0 0 0 2px var(--pd-gold, #daa520),
+  box-shadow:
+    0 0 0 2px var(--pd-gold, #daa520),
     0 4px 20px rgba(218, 165, 32, 0.15);
 }
 
@@ -929,7 +962,8 @@
 
 .pg-lb-thumb.active {
   border-color: var(--pd-gold, #daa520);
-  box-shadow: 0 0 0 2px var(--pd-gold, #daa520),
+  box-shadow:
+    0 0 0 2px var(--pd-gold, #daa520),
     0 4px 16px rgba(218, 165, 32, 0.3);
 }
 
@@ -1002,6 +1036,7 @@
     position: static;
     max-width: 100%;
     width: 100%;
+    overflow: hidden; /* prevent thumbnails from hiding right side */
   }
 
   .pg-lb-header {
@@ -1088,5 +1123,112 @@
 @media (min-width: 769px) {
   .pg-lb-swipe-hint {
     display: flex;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THUMBNAIL STRIP OVERFLOW FIX - Complete solution
+   Problem was: zyada images hone pe thumbnails page ke right se bahar jaati thi
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Gallery wrapper ko contain karo - koi bhi child bahar nahi jayega */
+.pg-gallery {
+  contain: layout style;
+}
+
+/* Thumb strip wrapper — strict width constraint */
+.pg-thumbs-swiper-wrap {
+  /* Nav buttons ko fixed size do, swiper baaki sab le le */
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden; /* THE KEY FIX */
+  box-sizing: border-box;
+}
+
+/* Nav buttons ki fixed width ensure karo */
+.pg-thumb-nav {
+  flex: 0 0 28px; /* grow:0, shrink:0, basis:28px — NEVER changes size */
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  max-width: 28px;
+}
+
+/* Swiper exactly uses the remaining space */
+.pg-thumbs-swiper {
+  flex: 1 1 auto;
+  min-width: 0; /* CRITICAL: allow flex child to shrink below content width */
+  overflow: hidden;
+  width: 100%;
+}
+
+/* Swiper inner wrapper must also not overflow */
+.pg-thumbs-swiper .swiper-wrapper {
+  /* Swiper's internal element — ensure it doesn't cause horizontal scroll */
+  display: flex;
+  flex-wrap: nowrap;
+}
+
+/* ── Responsive: small screens ── */
+@media (max-width: 480px) {
+  .pg-thumb {
+    width: 52px;
+    height: 52px;
+  }
+
+  .pg-thumb-nav {
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    max-width: 26px;
+  }
+
+  .pg-thumbs-swiper-wrap {
+    gap: 4px;
+  }
+}
+
+@media (max-width: 360px) {
+  .pg-thumb {
+    width: 46px;
+    height: 46px;
+  }
+
+  .pg-thumb-nav {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    max-width: 22px;
+  }
+
+  .pg-thumbs-swiper-wrap {
+    gap: 3px;
+  }
+}
+
+/* ── Ensure swiper-slide widths are correct inside our container ── */
+.pg-thumbs-swiper .swiper-slide {
+  width: auto !important;
+  flex-shrink: 0;
+}
+
+/* ── Main image wrap should never overflow ── */
+.pg-swiper-wrap {
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* ── On responsive breakpoints ensure gallery column never overflows its grid cell ── */
+@media (max-width: 1024px) {
+  .pg-gallery {
+    position: static !important;
+    max-width: 100%;
+    width: 100%;
+    overflow: hidden;
   }
 }

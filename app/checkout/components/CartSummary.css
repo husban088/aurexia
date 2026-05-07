@@ -238,3 +238,138 @@
 .free-shipping-banner {
   animation: subtlePulse 2s ease-in-out infinite;
 }
+/* Add to CartSummary.css */
+
+/* Coupon Section */
+.cs-coupon-section {
+  margin: 1rem 0 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(218, 165, 32, 0.15);
+  border-radius: 12px;
+  background: rgba(218, 165, 32, 0.03);
+}
+
+.cs-coupon-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #888;
+  margin: 0 0 0.6rem;
+}
+
+.cs-coupon-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.cs-coupon-input {
+  flex: 1;
+  background: #f5f0e8;
+  border: 1px solid rgba(218, 165, 32, 0.3);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  color: #1a1a1a;
+  font-size: 0.78rem;
+  font-family: monospace;
+  letter-spacing: 0.05em;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.cs-coupon-input:focus {
+  border-color: rgba(218, 165, 32, 0.7);
+}
+
+.cs-coupon-input::placeholder {
+  color: #aaa;
+  font-size: 0.7rem;
+}
+
+.cs-coupon-btn {
+  padding: 0.5rem 1rem;
+  background: rgba(218, 165, 32, 0.15);
+  border: 1px solid rgba(218, 165, 32, 0.4);
+  border-radius: 8px;
+  color: #b8860b;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.cs-coupon-btn:hover:not(:disabled) {
+  background: rgba(218, 165, 32, 0.25);
+  border-color: #daa520;
+}
+
+.cs-coupon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cs-coupon-applied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cs-coupon-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  background: rgba(46, 125, 50, 0.1);
+  border: 1px solid rgba(46, 125, 50, 0.3);
+  border-radius: 8px;
+  color: #2e7d32;
+  font-size: 0.78rem;
+  flex: 1;
+}
+
+.cs-coupon-remove {
+  background: none;
+  border: 1px solid rgba(180, 0, 0, 0.25);
+  border-radius: 6px;
+  color: #c62828;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.35rem 0.6rem;
+  transition: all 0.2s;
+}
+
+.cs-coupon-remove:hover {
+  background: rgba(180, 0, 0, 0.08);
+}
+
+.cs-coupon-success {
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(46, 125, 50, 0.08);
+  border: 1px solid rgba(46, 125, 50, 0.2);
+  border-radius: 8px;
+  color: #2e7d32;
+  font-size: 0.72rem;
+}
+
+.cs-coupon-error {
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(198, 40, 40, 0.08);
+  border: 1px solid rgba(198, 40, 40, 0.2);
+  border-radius: 8px;
+  color: #c62828;
+  font-size: 0.72rem;
+}
+
+.cs-summary-row--discount {
+  color: #2e7d32;
+}
+
+.cs-discount-value {
+  color: #2e7d32;
+  font-weight: 600;
+}

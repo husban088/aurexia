@@ -16,8 +16,6 @@ import QuickView from "./QuickView";
 
 /* ─────────────────────────────────────────────────────────────
    MODULE-LEVEL CACHE
-   Lives for the entire browser session (not per-component).
-   Navigation back/forward never refetches — data is instant.
 ───────────────────────────────────────────────────────────── */
 interface CachedData {
   products: FeaturedProduct[];
@@ -26,8 +24,6 @@ interface CachedData {
 }
 
 const MODULE_CACHE: Record<string, CachedData> = {};
-
-/* Tracks in-flight promises so two mounts don't double-fetch */
 const FETCH_IN_FLIGHT: Record<string, Promise<CachedData>> = {};
 
 /* ── Types ── */
@@ -59,6 +55,9 @@ interface FeaturedProduct {
   condition: string;
   is_featured: boolean;
   is_active: boolean;
+  /* ── NEW: rating fields ── */
+  rating?: number;
+  reviews_count?: number;
 }
 
 interface ProductVariant {
@@ -118,6 +117,12 @@ async function fetchFeaturedTabDataFast(tab: string): Promise<CachedData> {
       condition: item.condition || "new",
       is_featured: item.is_featured || false,
       is_active: item.is_active || true,
+      /* ── NEW: only set when valid > 0 ── */
+      rating: item.rating != null && item.rating > 0 ? item.rating : undefined,
+      reviews_count:
+        item.reviews_count != null && item.reviews_count > 0
+          ? item.reviews_count
+          : undefined,
     }),
   );
 
@@ -158,23 +163,12 @@ async function fetchFeaturedTabDataFast(tab: string): Promise<CachedData> {
 /* ── Prefetch all tabs into module cache ── */
 const ALL_TABS = ["Accessories", "Watches", "Automotive", "Home Decor"];
 
-/* 
-  Returns a promise that resolves when the given tab is fully cached.
-  Safe to call multiple times — deduped via FETCH_IN_FLIGHT. 
-*/
 async function ensureTabCached(tab: string): Promise<CachedData> {
-  // If already cached, return cached data
-  if (MODULE_CACHE[tab]) {
-    return MODULE_CACHE[tab];
-  }
+  if (MODULE_CACHE[tab]) return MODULE_CACHE[tab];
 
-  // If fetch already in flight, wait for it
   const inFlight = FETCH_IN_FLIGHT[tab];
-  if (inFlight) {
-    return await inFlight;
-  }
+  if (inFlight) return await inFlight;
 
-  // Start new fetch
   const promise = fetchFeaturedTabDataFast(tab).then((data) => {
     MODULE_CACHE[tab] = data;
     delete FETCH_IN_FLIGHT[tab];
@@ -196,6 +190,53 @@ function prefetchAllTabs() {
       FETCH_IN_FLIGHT[tab] = promise;
     }
   });
+}
+
+/* ─────────────────────────────────────────────────────────────
+   STAR COMPONENTS
+───────────────────────────────────────────────────────────── */
+function StarIcon({ filled, size = 11 }: { filled: boolean; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24">
+      <polygon
+        points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+        fill={filled ? "#b8963e" : "none"}
+        stroke="#b8963e"
+        strokeWidth="1.5"
+        opacity={filled ? 1 : 0.35}
+      />
+    </svg>
+  );
+}
+
+function StarDisplay({ rating, size = 11 }: { rating: number; size?: number }) {
+  return (
+    <div style={{ display: "flex", gap: "2px" }}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <StarIcon key={i} filled={i <= Math.round(rating)} size={size} />
+      ))}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   SKELETON CARD
+───────────────────────────────────────────────────────────── */
+function SkeletonCard() {
+  return (
+    <div className="fp-card fp-card--skeleton">
+      <div className="fp-card-img fp-skel-img" style={{ paddingTop: "100%" }} />
+      <div className="fp-card-body">
+        <div
+          className="fp-skel-line"
+          style={{ width: "45%", marginBottom: 8 }}
+        />
+        <div className="fp-skel-line" style={{ width: "85%" }} />
+        <div className="fp-skel-line" style={{ width: "65%" }} />
+        <div className="fp-skel-line" style={{ width: "40%", marginTop: 12 }} />
+      </div>
+    </div>
+  );
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -260,6 +301,10 @@ function VariantThumbnails({
         {displayVariants.map((variant) => {
           const variantImage = getVariantImage(variant.id);
           const isActive = currentValue === variant.attribute_value;
+          const labelText =
+            variant.attribute_value.length > 10
+              ? variant.attribute_value.slice(0, 9) + "…"
+              : variant.attribute_value;
           return (
             <button
               key={variant.id}
@@ -278,11 +323,7 @@ function VariantThumbnails({
                   {variant.attribute_value.charAt(0)}
                 </span>
               )}
-              <span className="fp-variant-label-text">
-                {variant.attribute_value.length > 10
-                  ? variant.attribute_value.slice(0, 8) + "..."
-                  : variant.attribute_value}
-              </span>
+              <span className="fp-variant-name">{labelText}</span>
             </button>
           );
         })}
@@ -294,6 +335,9 @@ function VariantThumbnails({
   );
 }
 
+/* ─────────────────────────────────────────────────────────────
+   LOADING SPINNER
+───────────────────────────────────────────────────────────── */
 function LoadingSpinner({ size = 18 }: { size?: number }) {
   return (
     <div
@@ -354,6 +398,51 @@ function ProductCard({
   const [addToCartLoading, setAddToCartLoading] = useState(false);
   const { addToCart } = useCartStore();
 
+  /* ── NEW: Live rating state — starts from fetched data ── */
+  const [liveRating, setLiveRating] = useState<number | null>(
+    product.rating != null && product.rating > 0 ? product.rating : null,
+  );
+  const [liveReviewCount, setLiveReviewCount] = useState<number | null>(
+    product.reviews_count != null && product.reviews_count > 0
+      ? product.reviews_count
+      : null,
+  );
+
+  /* ── NEW: Realtime subscription — updates rating instantly on new review ── */
+  useEffect(() => {
+    const channel = supabase
+      .channel(`fp-rating-${product.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "product_reviews",
+          filter: `product_id=eq.${product.id}`,
+        },
+        async () => {
+          const { data } = await supabase
+            .from("products")
+            .select("rating, reviews_count")
+            .eq("id", product.id)
+            .single();
+          if (data) {
+            if (data.rating != null && data.rating > 0) {
+              setLiveRating(data.rating);
+            }
+            if (data.reviews_count != null && data.reviews_count > 0) {
+              setLiveReviewCount(data.reviews_count);
+            }
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [product.id]);
+
   const colorVariants = variants.filter((v) => v.attribute_type === "color");
   const sizeVariants = variants.filter((v) => v.attribute_type === "size");
   const materialVariants = variants.filter(
@@ -383,10 +472,7 @@ function ProductCard({
     setIsHovered(false);
   };
 
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-  };
-
+  const handleMouseEnter = () => setIsHovered(true);
   const handleMouseLeave = () => {
     setIsHovered(false);
     setCurrentImageIndex(0);
@@ -448,7 +534,6 @@ function ProductCard({
         condition: product.condition,
         is_featured: product.is_featured,
         is_active: product.is_active,
-        // ✅ FIX: currentImages has variant images; also pass all variant images as fallback
         images: currentImages.length > 0 ? currentImages : [],
         price: selectedVariant.price,
         original_price: selectedVariant.original_price,
@@ -457,7 +542,6 @@ function ProductCard({
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-
       await addToCart(productToAdd, selectedVariant, 1, 1);
     } catch (err) {
       console.error("Add to cart error:", err);
@@ -494,11 +578,17 @@ function ProductCard({
     ? formatPrice(selectedVariant.original_price)
     : null;
 
+  const productSlug = product.name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .substring(0, 60);
+
   return (
     <div
-      onClick={() => {
-        router.push(`/product/${product.id}`);
-      }}
+      onClick={() => router.push(`/product/${productSlug}--${product.id}`)}
       className="fp-card"
       style={{ cursor: "pointer" }}
     >
@@ -508,7 +598,12 @@ function ProductCard({
         onMouseLeave={handleMouseLeave}
       >
         {displayImage ? (
-          <img src={displayImage} alt={product.name} loading="eager" />
+          <img
+            src={displayImage}
+            alt={product.name}
+            loading="eager"
+            decoding="async"
+          />
         ) : (
           <div className="fp-card-placeholder">
             <svg
@@ -590,6 +685,17 @@ function ProductCard({
             <span className="fp-card-discount">-{discount}%</span>
           )}
         </div>
+
+        {/* ── NEW: Rating — sirf tab show hoga jab valid rating aur reviews dono hain ── */}
+        {liveRating !== null &&
+          liveReviewCount !== null &&
+          liveReviewCount > 0 && (
+            <div className="fp-card-rating">
+              <StarDisplay rating={liveRating} size={11} />
+              <span className="fp-card-rating-count">({liveReviewCount})</span>
+            </div>
+          )}
+
         {colorVariants.length > 0 && (
           <VariantThumbnails
             variants={colorVariants}
@@ -644,6 +750,63 @@ function ProductCard({
             transform: rotate(360deg);
           }
         }
+        :global(.fp-card-rating) {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          margin-top: 4px;
+          margin-bottom: 2px;
+        }
+        :global(.fp-card-rating-count) {
+          font-size: 11px;
+          color: rgba(255, 255, 255, 0.55);
+          font-weight: 400;
+          letter-spacing: 0.01em;
+        }
+        :global(.fp-variant-thumb) {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          gap: 3px !important;
+          padding: 3px 4px 4px !important;
+        }
+        :global(.fp-variant-thumb img) {
+          width: 32px !important;
+          height: 32px !important;
+          object-fit: cover !important;
+          border-radius: 4px !important;
+          display: block !important;
+        }
+        :global(.fp-variant-name) {
+          display: block !important;
+          font-size: 9px !important;
+          line-height: 1.2 !important;
+          text-align: center !important;
+          color: rgba(255, 255, 255, 0.75) !important;
+          max-width: 40px !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+          margin-top: 1px !important;
+          font-weight: 500 !important;
+          letter-spacing: 0.01em !important;
+        }
+        :global(.fp-variant-thumb.active .fp-variant-name) {
+          color: #daa520 !important;
+          font-weight: 600 !important;
+        }
+        :global(.fp-variant-text) {
+          width: 32px !important;
+          height: 32px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          font-size: 13px !important;
+          font-weight: 600 !important;
+          border-radius: 4px !important;
+          background: rgba(218, 165, 32, 0.15) !important;
+          color: #daa520 !important;
+        }
       `}</style>
     </div>
   );
@@ -665,6 +828,10 @@ export default function FeaturedProducts() {
     Record<string, string[]>
   >(() => MODULE_CACHE["Accessories"]?.variantImagesMap ?? {});
 
+  const [isLoading, setIsLoading] = useState<boolean>(
+    () => !MODULE_CACHE["Accessories"],
+  );
+
   const [quickViewProduct, setQuickViewProduct] =
     useState<QuickViewProduct | null>(null);
   const [quickViewVariants, setQuickViewVariants] = useState<ProductVariant[]>(
@@ -677,60 +844,64 @@ export default function FeaturedProducts() {
   >({});
   const [quickViewOpen, setQuickViewOpen] = useState(false);
 
+  const [swiperKey, setSwiperKey] = useState(0);
+
   const prevRef = useRef<HTMLButtonElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
   const swiperRef = useRef<SwiperType | null>(null);
   const { currency } = useCurrency();
 
-  /* ── On mount: load initial "Accessories" tab + prefetch all others ── */
   useEffect(() => {
     let isMounted = true;
 
     async function loadInitialTab() {
-      // If already in cache, state was already set via initializer
       if (MODULE_CACHE["Accessories"]) {
-        // Make sure state is updated
+        const d = MODULE_CACHE["Accessories"];
         if (isMounted) {
-          const d = MODULE_CACHE["Accessories"];
           setProducts(d.products);
           setVariantsMap(d.variantsMap);
           setVariantImagesMap(d.variantImagesMap);
+          setIsLoading(false);
         }
-        // Still kick off background prefetch for other tabs
         prefetchAllTabs();
         return;
       }
 
-      // Not cached yet — fetch now
+      setIsLoading(true);
       const data = await ensureTabCached("Accessories");
 
       if (isMounted && data) {
         setProducts(data.products);
         setVariantsMap(data.variantsMap);
         setVariantImagesMap(data.variantImagesMap);
+        setIsLoading(false);
       }
 
-      // Prefetch remaining tabs in background after initial tab is ready
       prefetchAllTabs();
     }
 
     loadInitialTab();
 
-    // Fix: Chrome back/forward (bfcache) — pageshow fires when page is restored from cache
     const handlePageShow = (e: PageTransitionEvent) => {
       if (e.persisted && isMounted) {
-        // Page was restored from bfcache — re-apply cached data immediately
         const cached = MODULE_CACHE[activeTab];
         if (cached) {
           setProducts(cached.products);
           setVariantsMap(cached.variantsMap);
           setVariantImagesMap(cached.variantImagesMap);
+          setIsLoading(false);
+          setTimeout(() => {
+            swiperRef.current?.update();
+            swiperRef.current?.slideTo(0, 0);
+          }, 50);
         } else {
+          setIsLoading(true);
           ensureTabCached(activeTab).then((data) => {
             if (isMounted && data) {
               setProducts(data.products);
               setVariantsMap(data.variantsMap);
               setVariantImagesMap(data.variantImagesMap);
+              setIsLoading(false);
             }
           });
         }
@@ -743,37 +914,39 @@ export default function FeaturedProducts() {
       isMounted = false;
       window.removeEventListener("pageshow", handlePageShow);
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── Tab change — instant from cache, fetch only if missing ── */
   const handleTabChange = useCallback(async (tab: string) => {
     setActiveTab(tab);
 
     if (MODULE_CACHE[tab]) {
-      // Instant — already cached
       const d = MODULE_CACHE[tab];
       setProducts(d.products);
       setVariantsMap(d.variantsMap);
       setVariantImagesMap(d.variantImagesMap);
-      setTimeout(() => swiperRef.current?.update(), 50);
+      setIsLoading(false);
+      setSwiperKey((k) => k + 1);
       return;
     }
 
-    // Not cached — fetch
+    setIsLoading(true);
+    setProducts([]);
+
     const data = await ensureTabCached(tab);
     if (data) {
       setProducts(data.products);
       setVariantsMap(data.variantsMap);
       setVariantImagesMap(data.variantImagesMap);
+      setIsLoading(false);
+      setSwiperKey((k) => k + 1);
     }
-
-    setTimeout(() => swiperRef.current?.update(), 50);
   }, []);
 
-  /* ── Update swiper when products change ── */
   useEffect(() => {
     if (swiperRef.current && products.length > 0) {
-      setTimeout(() => swiperRef.current?.update(), 50);
+      setTimeout(() => {
+        swiperRef.current?.update();
+      }, 50);
     }
   }, [products]);
 
@@ -818,10 +991,7 @@ export default function FeaturedProducts() {
     { key: "Home Decor", label: "Home Decor", href: "/home-decor" },
   ].find((t) => t.key === activeTab);
 
-  const getCurrencyText = () =>
-    currency.code === "PKR"
-      ? "PKR (₨)"
-      : `${currency.code} (${currency.symbol})`;
+  const SKELETON_COUNT = 4;
 
   return (
     <>
@@ -866,9 +1036,7 @@ export default function FeaturedProducts() {
               (tab) => (
                 <button
                   key={tab}
-                  className={`fp-tab${
-                    activeTab === tab ? " fp-tab--active" : ""
-                  }`}
+                  className={`fp-tab${activeTab === tab ? " fp-tab--active" : ""}`}
                   onClick={() => handleTabChange(tab)}
                 >
                   {tab}
@@ -902,42 +1070,63 @@ export default function FeaturedProducts() {
             </button>
           </div>
 
-          <Swiper
-            modules={[Pagination, Navigation, A11y]}
-            onSwiper={(swiper) => {
-              swiperRef.current = swiper;
-              if (
-                swiper.params.navigation &&
-                typeof swiper.params.navigation !== "boolean"
-              ) {
-                swiper.params.navigation.prevEl = prevRef.current;
-                swiper.params.navigation.nextEl = nextRef.current;
-                swiper.navigation.init();
-                swiper.navigation.update();
-              }
-            }}
-            navigation={{ prevEl: prevRef.current, nextEl: nextRef.current }}
-            pagination={{ clickable: true }}
-            spaceBetween={1}
-            slidesPerView={1}
-            breakpoints={{
-              480: { slidesPerView: 2, spaceBetween: 1 },
-              768: { slidesPerView: 3, spaceBetween: 1 },
-              1024: { slidesPerView: 4, spaceBetween: 1 },
-            }}
-            className="fp-swiper"
-          >
-            {products.map((product) => (
-              <SwiperSlide key={product.id}>
-                <ProductCard
-                  product={product}
-                  variants={variantsMap[product.id] || []}
-                  variantImagesMap={variantImagesMap}
-                  onQuickView={handleQuickView}
-                />
-              </SwiperSlide>
-            ))}
-          </Swiper>
+          {isLoading ? (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: "1px",
+                paddingBottom: "3.5rem",
+              }}
+              className="fp-skeleton-grid"
+            >
+              {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          ) : products.length === 0 ? (
+            <div className="fp-empty">
+              <p>No featured products found in this category.</p>
+            </div>
+          ) : (
+            <Swiper
+              key={swiperKey}
+              modules={[Pagination, Navigation, A11y]}
+              onSwiper={(swiper) => {
+                swiperRef.current = swiper;
+                if (
+                  swiper.params.navigation &&
+                  typeof swiper.params.navigation !== "boolean"
+                ) {
+                  swiper.params.navigation.prevEl = prevRef.current;
+                  swiper.params.navigation.nextEl = nextRef.current;
+                  swiper.navigation.init();
+                  swiper.navigation.update();
+                }
+              }}
+              navigation={{ prevEl: prevRef.current, nextEl: nextRef.current }}
+              pagination={{ clickable: true }}
+              spaceBetween={1}
+              slidesPerView={1}
+              breakpoints={{
+                480: { slidesPerView: 2, spaceBetween: 1 },
+                768: { slidesPerView: 3, spaceBetween: 1 },
+                1024: { slidesPerView: 4, spaceBetween: 1 },
+              }}
+              className="fp-swiper"
+            >
+              {products.map((product) => (
+                <SwiperSlide key={product.id}>
+                  <ProductCard
+                    product={product}
+                    variants={variantsMap[product.id] || []}
+                    variantImagesMap={variantImagesMap}
+                    onQuickView={handleQuickView}
+                  />
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          )}
 
           <div className="fp-view-all-wrap">
             <Link href={activeTabData?.href || "/"} className="fp-view-all">

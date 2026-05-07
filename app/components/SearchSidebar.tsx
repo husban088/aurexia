@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -22,6 +22,7 @@ interface SearchResult {
   original_price?: number;
   images: string[];
   slug?: string;
+  stockStatus?: "in_stock" | "out_of_stock" | "low_stock";
 }
 
 const trendingSearches = [
@@ -44,11 +45,206 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [trendingProducts, setTrendingProducts] = useState<SearchResult[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const [allProductsCache, setAllProductsCache] = useState<SearchResult[]>([]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { formatPrice } = useCurrency();
+
+  // ============================================================
+  // FETCH ALL PRODUCTS ONCE FOR CACHING (for faster search)
+  // ============================================================
+  useEffect(() => {
+    async function fetchAllProducts() {
+      try {
+        // Fetch all active products
+        const { data: products, error: productsError } = await supabase
+          .from("products")
+          .select("id, name, brand, category, subcategory, images, is_active")
+          .eq("is_active", true);
+
+        if (productsError) {
+          console.error("Error fetching products:", productsError);
+          return;
+        }
+
+        if (!products || products.length === 0) return;
+
+        // Fetch all variants with images
+        const productIds = products.map((p) => p.id);
+        const { data: variants, error: variantsError } = await supabase
+          .from("product_variants")
+          .select(
+            `
+            id,
+            product_id,
+            price,
+            original_price,
+            attribute_type,
+            stock,
+            variant_images (
+              image_url,
+              display_order
+            )
+          `,
+          )
+          .in("product_id", productIds)
+          .eq("is_active", true);
+
+        if (variantsError) {
+          console.error("Error fetching variants:", variantsError);
+        }
+
+        // Build variant map with images
+        const variantMap: Record<string, any> = {};
+        variants?.forEach((variant) => {
+          if (
+            !variantMap[variant.product_id] ||
+            variant.attribute_type === "standard"
+          ) {
+            // Get the first image from variant_images
+            let variantImage = null;
+            if (variant.variant_images && variant.variant_images.length > 0) {
+              const sortedImages = [...variant.variant_images].sort(
+                (a, b) => (a.display_order || 0) - (b.display_order || 0),
+              );
+              variantImage = sortedImages[0]?.image_url;
+            }
+
+            variantMap[variant.product_id] = {
+              price: variant.price,
+              original_price: variant.original_price,
+              stock: variant.stock,
+              variantImage: variantImage,
+            };
+          }
+        });
+
+        // Format products with their images
+        const formattedProducts: SearchResult[] = products.map((product) => {
+          // Get product images from product.images array first
+          let productImages: string[] = [];
+
+          if (
+            product.images &&
+            Array.isArray(product.images) &&
+            product.images.length > 0
+          ) {
+            productImages = product.images;
+          } else {
+            // Try to get from variant
+            const variantData = variantMap[product.id];
+            if (variantData?.variantImage) {
+              productImages = [variantData.variantImage];
+            }
+          }
+
+          return {
+            id: product.id,
+            name: product.name,
+            brand: product.brand,
+            category: product.category,
+            subcategory: product.subcategory,
+            price: variantMap[product.id]?.price || 0,
+            original_price: variantMap[product.id]?.original_price,
+            images: productImages,
+          };
+        });
+
+        setAllProductsCache(formattedProducts);
+
+        // Also set trending products (featured)
+        const { data: featuredProducts } = await supabase
+          .from("products")
+          .select("id, name, brand, category, subcategory, images")
+          .eq("is_active", true)
+          .eq("is_featured", true)
+          .limit(4);
+
+        if (featuredProducts && featuredProducts.length > 0) {
+          const featuredIds = featuredProducts.map((p) => p.id);
+          const featuredFormatted: SearchResult[] = featuredProducts.map(
+            (p) => {
+              let featuredImages: string[] = [];
+              if (p.images && Array.isArray(p.images) && p.images.length > 0) {
+                featuredImages = p.images;
+              } else {
+                const variantData = variantMap[p.id];
+                if (variantData?.variantImage) {
+                  featuredImages = [variantData.variantImage];
+                }
+              }
+
+              return {
+                id: p.id,
+                name: p.name,
+                brand: p.brand,
+                category: p.category,
+                subcategory: p.subcategory,
+                price: variantMap[p.id]?.price || 0,
+                original_price: variantMap[p.id]?.original_price,
+                images: featuredImages,
+              };
+            },
+          );
+          setTrendingProducts(featuredFormatted);
+        }
+      } catch (err) {
+        console.error("Error in fetchAllProducts:", err);
+      }
+    }
+
+    fetchAllProducts();
+  }, []);
+
+  // ============================================================
+  // REAL-TIME SEARCH FROM CACHE (INSTANT RESULTS)
+  // ============================================================
+  const performSearch = useCallback(
+    (searchQuery: string) => {
+      if (!searchQuery.trim()) {
+        setResults([]);
+        setShowResults(false);
+        return;
+      }
+
+      setLoading(true);
+      setShowResults(true);
+
+      // Search in cached products (instant, no delay)
+      const searchTerm = searchQuery.trim().toLowerCase();
+
+      const filteredResults = allProductsCache.filter((product) => {
+        return (
+          product.name.toLowerCase().includes(searchTerm) ||
+          (product.brand && product.brand.toLowerCase().includes(searchTerm)) ||
+          product.category.toLowerCase().includes(searchTerm) ||
+          product.subcategory.toLowerCase().includes(searchTerm)
+        );
+      });
+
+      // Limit to 20 results
+      setResults(filteredResults.slice(0, 20));
+      setLoading(false);
+    },
+    [allProductsCache],
+  );
+
+  // Debounced search - triggers as user types
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    const delayDebounce = setTimeout(() => {
+      performSearch(query);
+    }, 200); // 200ms debounce for smooth experience
+
+    return () => clearTimeout(delayDebounce);
+  }, [query, performSearch]);
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -67,7 +263,7 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
     if (!searchTerm.trim()) return;
     setRecentSearches((prev) => {
       const filtered = prev.filter(
-        (s) => s.toLowerCase() !== searchTerm.toLowerCase()
+        (s) => s.toLowerCase() !== searchTerm.toLowerCase(),
       );
       const updated = [searchTerm, ...filtered].slice(0, MAX_RECENT);
       localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
@@ -80,144 +276,6 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
     setRecentSearches([]);
     localStorage.removeItem(RECENT_SEARCHES_KEY);
   }, []);
-
-  // Fetch trending products (featured products)
-  useEffect(() => {
-    async function fetchTrending() {
-      try {
-        const { data, error } = await supabase
-          .from("products")
-          .select("id, name, brand, category, subcategory, images")
-          .eq("is_active", true)
-          .eq("is_featured", true)
-          .limit(4);
-
-        if (error) {
-          console.error("Error fetching trending products:", error);
-          return;
-        }
-
-        if (data && data.length > 0) {
-          const productIds = data.map((p) => p.id);
-          const { data: variants } = await supabase
-            .from("product_variants")
-            .select("product_id, price, original_price, attribute_type")
-            .in("product_id", productIds)
-            .eq("is_active", true);
-
-          const variantMap: Record<string, any> = {};
-          variants?.forEach((v) => {
-            if (!variantMap[v.product_id] || v.attribute_type === "standard") {
-              variantMap[v.product_id] = v;
-            }
-          });
-
-          const formatted: SearchResult[] = data.map((p) => ({
-            id: p.id,
-            name: p.name,
-            brand: p.brand,
-            category: p.category,
-            subcategory: p.subcategory,
-            price: variantMap[p.id]?.price || 0,
-            original_price: variantMap[p.id]?.original_price,
-            images: p.images || [],
-          }));
-          setTrendingProducts(formatted);
-        }
-      } catch (err) {
-        console.error("Error fetching trending products:", err);
-      }
-    }
-    fetchTrending();
-  }, []);
-
-  // Search products - FIXED: Better search with multiple fields
-  const performSearch = useCallback(async (searchQuery: string) => {
-    if (!searchQuery.trim()) {
-      setResults([]);
-      setShowResults(false);
-      return;
-    }
-
-    setLoading(true);
-    setShowResults(true);
-
-    try {
-      const searchTerm = searchQuery.trim().toLowerCase();
-
-      // Search in products table with multiple conditions
-      const { data: products, error } = await supabase
-        .from("products")
-        .select("id, name, brand, category, subcategory, images, is_active")
-        .eq("is_active", true)
-        .or(
-          `name.ilike.%${searchTerm}%,` +
-            `brand.ilike.%${searchTerm}%,` +
-            `category.ilike.%${searchTerm}%,` +
-            `subcategory.ilike.%${searchTerm}%`
-        )
-        .limit(20);
-
-      if (error) {
-        console.error("Search error:", error);
-        setResults([]);
-        setLoading(false);
-        return;
-      }
-
-      if (products && products.length > 0) {
-        // Get variants for pricing
-        const productIds = products.map((p) => p.id);
-        const { data: variants } = await supabase
-          .from("product_variants")
-          .select("product_id, price, original_price, attribute_type")
-          .in("product_id", productIds)
-          .eq("is_active", true);
-
-        const variantMap: Record<string, any> = {};
-        variants?.forEach((v) => {
-          if (!variantMap[v.product_id] || v.attribute_type === "standard") {
-            variantMap[v.product_id] = v;
-          }
-        });
-
-        const searchResults: SearchResult[] = products.map((p) => ({
-          id: p.id,
-          name: p.name,
-          brand: p.brand,
-          category: p.category,
-          subcategory: p.subcategory,
-          price: variantMap[p.id]?.price || 0,
-          original_price: variantMap[p.id]?.original_price,
-          images: p.images || [],
-        }));
-
-        setResults(searchResults);
-      } else {
-        setResults([]);
-      }
-    } catch (err) {
-      console.error("Search failed:", err);
-      setResults([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Debounced search - triggers as user types
-  useEffect(() => {
-    if (!query.trim()) {
-      setResults([]);
-      setShowResults(false);
-      return;
-    }
-
-    const delayDebounce = setTimeout(() => {
-      performSearch(query);
-    }, 300);
-
-    return () => clearTimeout(delayDebounce);
-  }, [query, performSearch]);
 
   // Handle search submit (Enter key or View All button)
   const handleSearch = useCallback(() => {
@@ -234,7 +292,7 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
       onClose();
       router.push(`/product/${productId}`);
     },
-    [saveRecentSearch, onClose, router]
+    [saveRecentSearch, onClose, router],
   );
 
   // Handle trending/quick link click
@@ -246,17 +304,16 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
       onClose();
       router.push(`/search?q=${encodeURIComponent(term)}`);
     },
-    [saveRecentSearch, onClose, router, performSearch]
+    [saveRecentSearch, onClose, router, performSearch],
   );
 
   // Focus input when sidebar opens
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 300);
-    } else {
       setQuery("");
-      setShowResults(false);
       setResults([]);
+      setShowResults(false);
     }
   }, [isOpen]);
 
@@ -338,9 +395,7 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
         </div>
 
         <div
-          className={`ss-input-wrap${focused ? " focused" : ""}${
-            query ? " filled" : ""
-          }`}
+          className={`ss-input-wrap${focused ? " focused" : ""}${query ? " filled" : ""}`}
         >
           <span className="ss-input-icon" aria-hidden="true">
             <svg
@@ -407,8 +462,31 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
                         }
                       >
                         <div className="ss-result-img">
-                          {product.images?.[0] ? (
-                            <img src={product.images[0]} alt={product.name} />
+                          {product.images &&
+                          product.images.length > 0 &&
+                          product.images[0] ? (
+                            <img
+                              src={product.images[0]}
+                              alt={product.name}
+                              onError={(e) => {
+                                // Fallback if image fails to load
+                                (e.target as HTMLImageElement).style.display =
+                                  "none";
+                                const parent = (e.target as HTMLImageElement)
+                                  .parentElement;
+                                if (parent) {
+                                  parent.innerHTML = `
+                                    <div class="ss-result-placeholder">
+                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                                        <polyline points="21 15 16 10 5 21"/>
+                                      </svg>
+                                    </div>
+                                  `;
+                                }
+                              }}
+                            />
                           ) : (
                             <div className="ss-result-placeholder">
                               <svg
@@ -595,8 +673,29 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
                         }
                       >
                         <div className="ss-featured-img">
-                          {product.images?.[0] ? (
-                            <img src={product.images[0]} alt={product.name} />
+                          {product.images &&
+                          product.images.length > 0 &&
+                          product.images[0] ? (
+                            <img
+                              src={product.images[0]}
+                              alt={product.name}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display =
+                                  "none";
+                                const parent = (e.target as HTMLImageElement)
+                                  .parentElement;
+                                if (parent) {
+                                  parent.innerHTML = `
+                                    <div class="ss-featured-placeholder">
+                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                                      </svg>
+                                    </div>
+                                  `;
+                                }
+                              }}
+                            />
                           ) : (
                             <div className="ss-featured-placeholder">
                               <svg

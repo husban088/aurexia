@@ -30,6 +30,8 @@ export interface Product {
   low_stock_threshold?: number | null;
   stockStatus?: "in_stock" | "out_of_stock" | "low_stock";
   variantId?: string;
+  rating?: number;
+  reviews_count?: number;
 }
 
 interface ProductVariant {
@@ -72,7 +74,7 @@ function cacheKey(
   category: string,
   subcategory?: string,
   limit?: number,
-  featured?: boolean
+  featured?: boolean,
 ) {
   return `${category}|${subcategory ?? ""}|${limit ?? ""}|${
     featured ? "1" : "0"
@@ -119,7 +121,7 @@ async function ensureCategoryCached(
   category: string,
   subcategory?: string,
   limit?: number,
-  featured?: boolean
+  featured?: boolean,
 ): Promise<ExtendedProduct[]> {
   const key = cacheKey(category, subcategory, limit, featured);
 
@@ -136,7 +138,7 @@ async function ensureCategoryCached(
     category,
     subcategory,
     limit,
-    featured
+    featured,
   );
   FETCH_IN_FLIGHT[key] = promise;
 
@@ -153,7 +155,7 @@ const truncateProductName = (name: string, maxLength: number = 45): string => {
 
 const getStockStatus = (
   stock: number,
-  threshold?: number | null
+  threshold?: number | null,
 ): "in_stock" | "out_of_stock" | "low_stock" => {
   if (stock === 0) return "out_of_stock";
   if (stock >= 999999) return "in_stock";
@@ -163,7 +165,7 @@ const getStockStatus = (
 
 const getStockLabel = (
   status: "in_stock" | "out_of_stock" | "low_stock",
-  stock: number
+  stock: number,
 ) => {
   if (status === "out_of_stock") return "Out of Stock";
   if (status === "low_stock") return `Only ${stock} left`;
@@ -180,7 +182,7 @@ async function fetchProductsWithVariants(
   category: string,
   subcategory?: string,
   limit?: number,
-  featured?: boolean
+  featured?: boolean,
 ): Promise<ExtendedProduct[]> {
   let query = supabase
     .from("products")
@@ -228,7 +230,7 @@ async function fetchProductsWithVariants(
     const sortedVariants = [...variants].sort(
       (a, b) =>
         (typePriority[a.attribute_type] || 5) -
-        (typePriority[b.attribute_type] || 5)
+        (typePriority[b.attribute_type] || 5),
     );
     const bestVariant = sortedVariants[0];
 
@@ -265,15 +267,45 @@ async function fetchProductsWithVariants(
         bestVariant?.stockStatus ||
         getStockStatus(
           bestVariant?.stock ?? item.stock ?? 0,
-          bestVariant?.low_stock_threshold ?? item.low_stock_threshold
+          bestVariant?.low_stock_threshold ?? item.low_stock_threshold,
         ),
       variantId: bestVariant?.id,
       variants: sortedVariants,
       variantImagesMap,
+      rating: item.rating != null && item.rating > 0 ? item.rating : undefined,
+      reviews_count:
+        item.reviews_count != null && item.reviews_count > 0
+          ? item.reviews_count
+          : undefined,
     };
   });
 
   return result;
+}
+
+/* ─── Star Components ─────────────────────────────────────────────────────── */
+function StarIcon({ filled, size = 11 }: { filled: boolean; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24">
+      <polygon
+        points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+        fill={filled ? "#b8963e" : "none"}
+        stroke="#b8963e"
+        strokeWidth="1.5"
+        opacity={filled ? 1 : 0.35}
+      />
+    </svg>
+  );
+}
+
+function StarDisplay({ rating, size = 11 }: { rating: number; size?: number }) {
+  return (
+    <div style={{ display: "flex", gap: "2px" }}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <StarIcon key={i} filled={i <= Math.round(rating)} size={size} />
+      ))}
+    </div>
+  );
 }
 
 function VariantThumbnails({
@@ -335,6 +367,10 @@ function VariantThumbnails({
         {displayVariants.map((variant) => {
           const variantImage = getVariantImage(variant.id);
           const isActive = currentValue === variant.attribute_value;
+          const labelText =
+            variant.attribute_value.length > 10
+              ? variant.attribute_value.slice(0, 9) + "…"
+              : variant.attribute_value;
           return (
             <button
               key={variant.id}
@@ -353,11 +389,7 @@ function VariantThumbnails({
                   {variant.attribute_value.charAt(0)}
                 </span>
               )}
-              <span className="pg-variant-label-text">
-                {variant.attribute_value.length > 10
-                  ? variant.attribute_value.slice(0, 8) + "..."
-                  : variant.attribute_value}
-              </span>
+              <span className="pg-variant-name">{labelText}</span>
             </button>
           );
         })}
@@ -442,7 +474,7 @@ function ProductCardComponent({
     product: any,
     variant: any,
     quantity: number,
-    maxStock?: number
+    maxStock?: number,
   ) => Promise<void>;
 }) {
   const router = useRouter();
@@ -450,7 +482,7 @@ function ProductCardComponent({
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     productData.variants && productData.variants.length > 0
       ? productData.variants[0]
-      : null
+      : null,
   );
   const [currentImages, setCurrentImages] = useState<string[]>(() => {
     if (
@@ -466,6 +498,53 @@ function ProductCardComponent({
     return productData.images || [];
   });
   const [addToCartLoading, setAddToCartLoading] = useState(false);
+
+  /* ── Live rating state ── */
+  const [liveRating, setLiveRating] = useState<number | null>(
+    productData.rating != null && productData.rating > 0
+      ? productData.rating
+      : null,
+  );
+  const [liveReviewCount, setLiveReviewCount] = useState<number | null>(
+    productData.reviews_count != null && productData.reviews_count > 0
+      ? productData.reviews_count
+      : null,
+  );
+
+  /* ── Realtime subscription for new reviews ── */
+  useEffect(() => {
+    const channel = supabase
+      .channel(`pg-rating-${productData.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "product_reviews",
+          filter: `product_id=eq.${productData.id}`,
+        },
+        async () => {
+          const { data } = await supabase
+            .from("products")
+            .select("rating, reviews_count")
+            .eq("id", productData.id)
+            .single();
+          if (data) {
+            if (data.rating != null && data.rating > 0) {
+              setLiveRating(data.rating);
+            }
+            if (data.reviews_count != null && data.reviews_count > 0) {
+              setLiveReviewCount(data.reviews_count);
+            }
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [productData.id]);
 
   const colorVariants =
     productData.variants?.filter((v) => v.attribute_type === "color") || [];
@@ -487,7 +566,7 @@ function ProductCardComponent({
       }
       return null;
     },
-    [productData.variantImagesMap]
+    [productData.variantImagesMap],
   );
 
   const getVariantImages = useCallback(
@@ -500,7 +579,7 @@ function ProductCardComponent({
       }
       return [];
     },
-    [productData.variantImagesMap]
+    [productData.variantImagesMap],
   );
 
   const handleVariantSelect = (variant: ProductVariant) => {
@@ -526,16 +605,16 @@ function ProductCardComponent({
       ? Math.round(
           ((selectedVariant.original_price - selectedVariant.price) /
             selectedVariant.original_price) *
-            100
+            100,
         )
       : productData.original_price &&
-        productData.original_price > productData.price
-      ? Math.round(
-          ((productData.original_price - productData.price) /
-            productData.original_price) *
-            100
-        )
-      : null;
+          productData.original_price > productData.price
+        ? Math.round(
+            ((productData.original_price - productData.price) /
+              productData.original_price) *
+              100,
+          )
+        : null;
 
   const stockStatus = selectedVariant
     ? getStockStatus(selectedVariant.stock, selectedVariant.low_stock_threshold)
@@ -565,12 +644,12 @@ function ProductCardComponent({
   const displayOriginalPrice = selectedVariant?.original_price
     ? formatPrice(selectedVariant.original_price)
     : productData.original_price &&
-      productData.original_price > productData.price
-    ? formatPrice(productData.original_price)
-    : null;
+        productData.original_price > productData.price
+      ? formatPrice(productData.original_price)
+      : null;
 
   const handleAddToCartClick = async (
-    e: React.MouseEvent<HTMLButtonElement>
+    e: React.MouseEvent<HTMLButtonElement>,
   ) => {
     e.preventDefault();
     e.stopPropagation();
@@ -640,7 +719,14 @@ function ProductCardComponent({
   return (
     <div
       onClick={() => {
-        router.push(`/product/${productData.id}`);
+        const slug = productData.name
+          .toLowerCase()
+          .trim()
+          .replace(/[^\w\s-]/g, "")
+          .replace(/[\s_]+/g, "-")
+          .replace(/-+/g, "-")
+          .substring(0, 60);
+        router.push(`/product/${slug}--${productData.id}`);
       }}
       className="pg-card"
       style={{ cursor: "pointer" }}
@@ -728,6 +814,15 @@ function ProductCardComponent({
             <span className="pg-card-discount">-{discount}%</span>
           )}
         </div>
+        {/* ── Rating — sirf tab show hoga jab valid reviews hon ── */}
+        {liveRating !== null &&
+          liveReviewCount !== null &&
+          liveReviewCount > 0 && (
+            <div className="pg-card-rating">
+              <StarDisplay rating={liveRating} size={11} />
+              <span className="pg-card-rating-count">({liveReviewCount})</span>
+            </div>
+          )}
         {colorVariants.length > 0 && (
           <VariantThumbnails
             variants={colorVariants}
@@ -791,7 +886,7 @@ export default function ProductGrid({
   const hasInFlight = !!FETCH_IN_FLIGHT[key];
 
   const [products, setProducts] = useState<ExtendedProduct[]>(
-    () => MODULE_CACHE[key] ?? []
+    () => MODULE_CACHE[key] ?? [],
   );
   const [loading, setLoading] = useState(() => {
     if (MODULE_CACHE[key]) return false;
@@ -845,7 +940,7 @@ export default function ProductGrid({
           category,
           subcategory,
           limit,
-          featured
+          featured,
         );
         if (isMounted) {
           setProducts(data);
@@ -874,7 +969,7 @@ export default function ProductGrid({
                 setProducts(data);
                 setLoading(false);
               }
-            }
+            },
           );
         }
       }
@@ -927,12 +1022,12 @@ export default function ProductGrid({
 
     if (selectedFilters.category !== "All") {
       filtered = filtered.filter(
-        (p) => p.category === selectedFilters.category
+        (p) => p.category === selectedFilters.category,
       );
     }
     if (selectedFilters.subcategory !== "All") {
       filtered = filtered.filter(
-        (p) => p.subcategory === selectedFilters.subcategory
+        (p) => p.subcategory === selectedFilters.subcategory,
       );
     }
     if (selectedFilters.color !== "All") {
@@ -940,8 +1035,8 @@ export default function ProductGrid({
         p.variants?.some(
           (v) =>
             v.attribute_type === "color" &&
-            v.attribute_value === selectedFilters.color
-        )
+            v.attribute_value === selectedFilters.color,
+        ),
       );
     }
     if (selectedFilters.size !== "All") {
@@ -949,8 +1044,8 @@ export default function ProductGrid({
         p.variants?.some(
           (v) =>
             v.attribute_type === "size" &&
-            v.attribute_value === selectedFilters.size
-        )
+            v.attribute_value === selectedFilters.size,
+        ),
       );
     }
     if (selectedFilters.capacity !== "All") {
@@ -958,8 +1053,8 @@ export default function ProductGrid({
         p.variants?.some(
           (v) =>
             v.attribute_type === "capacity" &&
-            v.attribute_value === selectedFilters.capacity
-        )
+            v.attribute_value === selectedFilters.capacity,
+        ),
       );
     }
     if (selectedFilters.material !== "All") {
@@ -967,8 +1062,8 @@ export default function ProductGrid({
         p.variants?.some(
           (v) =>
             v.attribute_type === "material" &&
-            v.attribute_value === selectedFilters.material
-        )
+            v.attribute_value === selectedFilters.material,
+        ),
       );
     }
 
@@ -983,7 +1078,7 @@ export default function ProductGrid({
         (p) =>
           p.name.toLowerCase().includes(s) ||
           (p.brand && p.brand.toLowerCase().includes(s)) ||
-          p.subcategory.toLowerCase().includes(s)
+          p.subcategory.toLowerCase().includes(s),
       );
     }
     switch (sort) {
@@ -995,13 +1090,13 @@ export default function ProductGrid({
         break;
       case "featured":
         filtered.sort(
-          (a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0)
+          (a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0),
         );
         break;
       default:
         filtered.sort(
           (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
         );
     }
     return filtered;
@@ -1023,7 +1118,7 @@ export default function ProductGrid({
   };
 
   const activeFilterCount = Object.values(selectedFilters).filter(
-    (v) => v !== "All"
+    (v) => v !== "All",
   ).length;
 
   if (loading && products.length === 0) {
@@ -1089,7 +1184,65 @@ export default function ProductGrid({
 
   return (
     <>
-      <style>{`@keyframes pg-spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes pg-spin { to { transform: rotate(360deg); } }
+        .pg-variant-thumb {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          gap: 3px !important;
+          padding: 3px 4px 4px !important;
+        }
+        .pg-variant-thumb img {
+          width: 32px !important;
+          height: 32px !important;
+          object-fit: cover !important;
+          border-radius: 4px !important;
+          display: block !important;
+        }
+        .pg-variant-name {
+          display: block !important;
+          font-size: 9px !important;
+          line-height: 1.2 !important;
+          text-align: center !important;
+          color: rgba(0, 0, 0, 0.6) !important;
+          max-width: 40px !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+          margin-top: 1px !important;
+          font-weight: 500 !important;
+          letter-spacing: 0.01em !important;
+        }
+        .pg-variant-thumb.active .pg-variant-name {
+          color: #b8963e !important;
+          font-weight: 600 !important;
+        }
+        .pg-variant-text {
+          width: 32px !important;
+          height: 32px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          font-size: 13px !important;
+          font-weight: 600 !important;
+          border-radius: 4px !important;
+          background: rgba(184, 150, 62, 0.12) !important;
+          color: #b8963e !important;
+        }
+              .pg-card-rating {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          margin-top: 4px;
+          margin-bottom: 2px;
+        }
+        .pg-card-rating-count {
+          font-size: 11px;
+          color: rgba(0, 0, 0, 0.5);
+          font-weight: 400;
+          letter-spacing: 0.01em;
+        }
+        `}</style>
       {!limit && (
         <>
           <div className="grid-controls-bar">

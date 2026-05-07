@@ -18,54 +18,167 @@ import TrustBadges from "@/app/components/TrustBadges";
 import ProductGallery from "@/app/components/ProductGallery";
 import RelatedProducts from "@/app/components/RelatedProducts";
 import DescriptionModal from "@/app/components/DescriptionModal";
+import ProductFAQSection from "@/app/components/ProductFAQSection";
+import type { ProductFAQItem } from "@/app/components/ProductFAQSection";
 
 // ─── MODULE-LEVEL CACHE ───────────────────────────────────────────────────────
-// productId → product data — survives Next.js client-side navigation
-// Back/forward karne pe Supabase call nahi hogi, data instantly milega
 const _productCache = new Map<string, any>();
 const _inFlight = new Map<string, Promise<any>>();
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function fetchProductCached(id: string): Promise<any | null> {
-  // 1. Cached — return instantly
-  if (_productCache.has(id)) return _productCache.get(id)!;
+/* ── URL slug helper: "Apple Watch Ultra 2" → "apple-watch-ultra-2" ── */
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .substring(0, 60);
+}
 
-  // 2. In-flight — wait for same promise (duplicate calls prevent karta hai)
-  if (_inFlight.has(id)) return _inFlight.get(id)!;
+/* ── Extract product ID from URL param ──
+   URL format:  /product/product-name--UUID
+   OR:          /product/UUID  (old format, still supported)
+   OR:          /product/product-name  (slug only — fallback to slug search)
+*/
+function extractIdFromSlug(raw: string): { id: string | null; slug: string } {
+  if (!raw) return { id: null, slug: "" };
 
-  // 3. Fresh fetch
-  const promise = (async () => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*, product_variants(*, variant_images(*))")
-      .eq("id", id)
-      .eq("is_active", true)
-      .single();
+  // UUID regex pattern
+  const uuidRe =
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
-    _inFlight.delete(id);
+  // Case 1: entire string is UUID
+  if (uuidRe.test(raw) && raw.trim().length === 36) {
+    return { id: raw.trim(), slug: raw.trim() };
+  }
 
-    if (error || !data) return null;
+  // Case 2: "slug--UUID" format (double dash separator)
+  const doubleDashIdx = raw.lastIndexOf("--");
+  if (doubleDashIdx !== -1) {
+    const possibleId = raw.slice(doubleDashIdx + 2);
+    if (uuidRe.test(possibleId)) {
+      return { id: possibleId, slug: raw.slice(0, doubleDashIdx) };
+    }
+  }
 
-    // Process variants — images sort karke attach karo
-    const variants = (data.product_variants || []).map((variant: any) => {
-      const variantImages = (variant.variant_images || [])
-        .sort((a: any, b: any) => a.display_order - b.display_order)
-        .map((img: any) => img.image_url);
-      return {
-        ...variant,
-        images: variantImages,
-        description_images: variant.description_images || [],
-        description_rich: variant.description_rich || variant.description || "",
-        variant_images: variant.variant_images || [],
-      };
-    });
+  // Case 3: last segment after last "-" might be start of UUID (split URL)
+  // Handle: params.slug = ["product-name", "uuid"] for [...slug] folder
+  const uuidMatch = raw.match(uuidRe);
+  if (uuidMatch) {
+    return {
+      id: uuidMatch[0],
+      slug: raw.replace(uuidMatch[0], "").replace(/-+$/, ""),
+    };
+  }
 
-    const result = { ...data, product_variants: variants };
-    _productCache.set(id, result);
-    return result;
-  })();
+  // Case 4: pure slug, no UUID — will fall back to slug-based search
+  return { id: null, slug: raw };
+}
 
-  _inFlight.set(id, promise);
+/* ── Process raw supabase product data ── */
+function processProductData(data: any): any {
+  const variants = (data.product_variants || []).map((variant: any) => {
+    const variantImages = (variant.variant_images || [])
+      .sort((a: any, b: any) => a.display_order - b.display_order)
+      .map((img: any) => img.image_url);
+    return {
+      ...variant,
+      images: variantImages,
+      description_images: variant.description_images || [],
+      description_rich: variant.description_rich || variant.description || "",
+      variant_images: variant.variant_images || [],
+    };
+  });
+  return { ...data, product_variants: variants };
+}
+
+/* ── Fetch by ID — direct, fast, 100% reliable ── */
+async function fetchById(id: string, retries = 3): Promise<any | null> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*, product_variants(*, variant_images(*))")
+        .eq("id", id)
+        .eq("is_active", true)
+        .single();
+
+      if (error || !data) {
+        if (attempt === retries - 1) return null;
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+        continue;
+      }
+
+      const result = processProductData(data);
+      _productCache.set(id, result);
+      // Also cache by slug for future navigations
+      const slug = slugify(result.name);
+      _productCache.set(slug, result);
+      return result;
+    } catch (err) {
+      if (attempt === retries - 1) return null;
+      await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+    }
+  }
+  return null;
+}
+
+/* ── Fetch by slug — fallback when no UUID in URL ── */
+async function fetchBySlugSearch(
+  slug: string,
+  retries = 3,
+): Promise<any | null> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*, product_variants(*, variant_images(*))")
+        .eq("is_active", true);
+
+      if (error || !data) {
+        if (attempt === retries - 1) return null;
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+        continue;
+      }
+
+      // Try exact match first, then startsWith for truncated slugs
+      const matched =
+        data.find((item: any) => slugify(item.name) === slug) ||
+        data.find(
+          (item: any) =>
+            slugify(item.name).startsWith(slug) ||
+            slug.startsWith(slugify(item.name)),
+        );
+
+      if (!matched) return null;
+
+      const result = processProductData(matched);
+      _productCache.set(slug, result);
+      _productCache.set(matched.id, result);
+      _productCache.set(slugify(matched.name), result);
+      return result;
+    } catch (err) {
+      if (attempt === retries - 1) return null;
+      await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+    }
+  }
+  return null;
+}
+
+/* ── Unified cached fetch ── */
+async function fetchProductCached(key: string): Promise<any | null> {
+  if (_productCache.has(key)) return _productCache.get(key)!;
+  if (_inFlight.has(key)) return _inFlight.get(key)!;
+
+  const { id, slug } = extractIdFromSlug(key);
+
+  const promise = (id ? fetchById(id) : fetchBySlugSearch(slug)).finally(() => {
+    _inFlight.delete(key);
+  });
+
+  _inFlight.set(key, promise);
   return promise;
 }
 
@@ -329,11 +442,31 @@ const categoryLabel: Record<string, string> = {
 export default function ProductDetail() {
   const params = useParams();
   const router = useRouter();
-  const id = params?.id as string;
+
+  // ── Flexible routing — works with ALL Next.js folder structures ──
+  // app/product/[slug]/page.tsx      → params.slug = "name--uuid"
+  // app/product/[...slug]/page.tsx   → params.slug = ["name--uuid"] or ["name", "uuid"]
+  // app/product/[id]/page.tsx        → params.id = "uuid"
+  const rawParams = params as any;
+  const rawKey: string = (() => {
+    if (rawParams?.id) return (rawParams.id as string).toLowerCase();
+    if (!rawParams?.slug) return "";
+    if (Array.isArray(rawParams.slug)) {
+      // [...slug] — could be ["name--uuid"] or ["name", "uuid"]
+      const joined = rawParams.slug.join("--");
+      return joined.toLowerCase();
+    }
+    return (rawParams.slug as string).toLowerCase();
+  })();
+
+  // Extract ID (if present in URL) or use as slug
+  const { id: urlId, slug: urlSlug } = extractIdFromSlug(rawKey);
+  // cacheKey: prefer ID for cache lookup (more stable), fallback to raw
+  const cacheKey = urlId || rawKey;
 
   // ── Sync-init from cache — instant render if already cached ──
   const [product, setProduct] = useState<Product | null>(() =>
-    id ? (_productCache.get(id) ?? null) : null,
+    cacheKey ? (_productCache.get(cacheKey) ?? null) : null,
   );
   const [variants, setVariants] = useState<VariantWithDetails[]>([]);
   const [variantImagesMap, setVariantImagesMap] = useState<VariantImagesMap>(
@@ -342,8 +475,10 @@ export default function ProductDetail() {
   const [selectedVariant, setSelectedVariant] =
     useState<VariantWithDetails | null>(null);
   const [loading, setLoading] = useState(() =>
-    id ? !_productCache.has(id) : true,
+    cacheKey ? !_productCache.has(cacheKey) : true,
   );
+  // notFound: SIRF tab true hoga jab fetch mukammal ho aur data na aaye
+  const [notFound, setNotFound] = useState(false);
   const [qty, setQty] = useState(1);
   const [wishlist, setWishlist] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("description");
@@ -359,6 +494,7 @@ export default function ProductDetail() {
   const [currentDescriptionImages, setCurrentDescriptionImages] = useState<
     string[]
   >([]);
+  const [faqs, setFaqs] = useState<ProductFAQItem[]>([]);
 
   const { toasts, show: showToast } = useToast();
   const { addToCart } = useCartStore();
@@ -366,8 +502,8 @@ export default function ProductDetail() {
 
   // ── If cache already had the product, hydrate variants too ──
   useEffect(() => {
-    if (!id) return;
-    const cached = _productCache.get(id);
+    if (!cacheKey) return;
+    const cached = _productCache.get(cacheKey);
     if (cached && !loading) {
       hydrateFromData(cached);
     }
@@ -376,10 +512,12 @@ export default function ProductDetail() {
   // ── Helper: hydrate all state from a product data object ──
   function hydrateFromData(productData: any) {
     setProduct(productData);
+    setNotFound(false);
     setLiveRating(productData.rating || null);
     setLiveReviewCount(productData.reviews_count || null);
     setCurrentDescription(productData.description || "");
     setCurrentDescriptionImages(productData.description_images || []);
+
     document.title = `${productData.name} | Tech4U`;
 
     const variantsData: VariantWithDetails[] =
@@ -415,30 +553,59 @@ export default function ProductDetail() {
 
   // ── Main fetch effect ──
   useEffect(() => {
-    if (!id) return;
+    if (!cacheKey) return;
 
     // Already cached? Hydrate instantly without fetch
-    if (_productCache.has(id)) {
-      hydrateFromData(_productCache.get(id));
+    if (_productCache.has(cacheKey)) {
+      hydrateFromData(_productCache.get(cacheKey));
       setLoading(false);
+      setNotFound(false);
       return;
     }
 
     let active = true;
     setLoading(true);
+    setNotFound(false);
 
-    fetchProductCached(id).then((data) => {
+    fetchProductCached(cacheKey).then((data) => {
       if (!active) return;
       if (data) {
         hydrateFromData(data);
+        setLoading(false);
+      } else {
+        setLoading(false);
+        setNotFound(true);
       }
-      setLoading(false);
     });
 
     return () => {
       active = false;
     };
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cacheKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Wifi reconnect: agar notFound tha aur dobara online ho jaayein toh retry ──
+  useEffect(() => {
+    if (!cacheKey) return;
+    function handleOnline() {
+      if (notFound || (!product && !loading)) {
+        _productCache.delete(cacheKey);
+        _inFlight.delete(cacheKey);
+        setLoading(true);
+        setNotFound(false);
+        fetchProductCached(cacheKey).then((data) => {
+          if (data) {
+            hydrateFromData(data);
+            setLoading(false);
+          } else {
+            setLoading(false);
+            setNotFound(true);
+          }
+        });
+      }
+    }
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [cacheKey, notFound, product, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Update description/images when variant changes ──
   // ALWAYS use product-level main description and images regardless of variant selected
@@ -484,22 +651,23 @@ export default function ProductDetail() {
 
   // ── Realtime rating updates ──
   useEffect(() => {
-    if (!id) return;
+    const productId = (product as any)?.id;
+    if (!productId) return;
     const channel = supabase
-      .channel(`product-rating-${id}`)
+      .channel(`product-rating-${productId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "product_reviews",
-          filter: `product_id=eq.${id}`,
+          filter: `product_id=eq.${productId}`,
         },
         async () => {
           const { data } = await supabase
             .from("products")
             .select("rating, reviews_count")
-            .eq("id", id)
+            .eq("id", productId)
             .single();
           if (data) {
             setLiveRating(data.rating);
@@ -511,7 +679,34 @@ export default function ProductDetail() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [id]);
+  }, [product]);
+
+  // ── Fetch FAQs when product loads ──
+  useEffect(() => {
+    async function fetchFAQs() {
+      const productId = (product as any)?.id;
+      if (!productId) {
+        setFaqs([]);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from("product_faqs")
+          .select("id, question, answer, display_order")
+          .eq("product_id", productId)
+          .order("display_order", { ascending: true });
+        if (!error && data) {
+          setFaqs(data as ProductFAQItem[]);
+        } else {
+          setFaqs([]);
+        }
+      } catch (err) {
+        console.error("Error fetching FAQs:", err);
+        setFaqs([]);
+      }
+    }
+    fetchFAQs();
+  }, [product]);
 
   // ── IntersectionObserver for reveal animations ──
   useEffect(() => {
@@ -634,58 +829,169 @@ export default function ProductDetail() {
   // ── Loading skeleton ──
   if (loading) {
     return (
-      <div style={{ padding: "2rem", maxWidth: 1200, margin: "0 auto" }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "2rem",
-            animation: "skeleton-pulse 1.4s ease-in-out infinite",
-          }}
-        >
-          {/* Image skeleton */}
-          <div
-            style={{
-              aspectRatio: "1",
-              background: "rgba(255,255,255,0.06)",
-              borderRadius: 12,
-            }}
-          />
-          {/* Details skeleton */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {[80, 55, 40, 30, 60, 100].map((w, i) => (
-              <div
-                key={i}
-                style={{
-                  height: i === 0 ? 28 : i === 4 ? 20 : 16,
-                  width: `${w}%`,
-                  background:
-                    i === 4 ? "rgba(218,165,32,0.2)" : "rgba(255,255,255,0.06)",
-                  borderRadius: 6,
-                }}
-              />
-            ))}
-          </div>
-        </div>
+      <div className="pd-root" style={{ minHeight: "80vh" }}>
         <style>{`
           @keyframes skeleton-pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+            50% { opacity: 0.35; }
           }
+          .pd-skel { animation: skeleton-pulse 1.5s ease-in-out infinite; background: rgba(255,255,255,0.07); border-radius: 8px; }
         `}</style>
+        <div
+          style={{ maxWidth: 1200, margin: "0 auto", padding: "2rem 1.5rem" }}
+        >
+          {/* Breadcrumb skeleton */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 32 }}>
+            {[60, 20, 90, 20, 70].map((w, i) => (
+              <div
+                key={i}
+                className="pd-skel"
+                style={{ width: w, height: 14 }}
+              />
+            ))}
+          </div>
+          {/* Main grid skeleton */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "2.5rem",
+            }}
+          >
+            {/* Gallery skeleton */}
+            <div>
+              <div
+                className="pd-skel"
+                style={{ aspectRatio: "1", borderRadius: 16, marginBottom: 12 }}
+              />
+              <div style={{ display: "flex", gap: 8 }}>
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="pd-skel"
+                    style={{ width: 64, height: 64, borderRadius: 8 }}
+                  />
+                ))}
+              </div>
+            </div>
+            {/* Info skeleton */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 18,
+                paddingTop: 8,
+              }}
+            >
+              <div className="pd-skel" style={{ width: "35%", height: 14 }} />
+              <div className="pd-skel" style={{ width: "85%", height: 28 }} />
+              <div className="pd-skel" style={{ width: "60%", height: 22 }} />
+              <div
+                style={{ height: 1, background: "rgba(255,255,255,0.08)" }}
+              />
+              <div
+                className="pd-skel"
+                style={{ width: "45%", height: 38, borderRadius: 6 }}
+              />
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="pd-skel"
+                    style={{ width: 72, height: 36, borderRadius: 8 }}
+                  />
+                ))}
+              </div>
+              <div className="pd-skel" style={{ width: "30%", height: 18 }} />
+              <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                <div
+                  className="pd-skel"
+                  style={{ flex: 1, height: 52, borderRadius: 10 }}
+                />
+                <div
+                  className="pd-skel"
+                  style={{ width: 52, height: 52, borderRadius: 10 }}
+                />
+              </div>
+              <div
+                className="pd-skel"
+                style={{ width: "100%", height: 52, borderRadius: 10 }}
+              />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!product) {
-    return (
-      <div style={{ padding: "4rem", textAlign: "center" }}>
-        <h2>Product not found</h2>
-        <a href="/watches" style={{ color: "#daa520" }}>
-          ← Continue Shopping
-        </a>
-      </div>
-    );
+    // Wifi off/on retry button dikhao
+    if (notFound) {
+      return (
+        <div style={{ padding: "4rem", textAlign: "center", color: "#fff" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
+          <h2 style={{ marginBottom: 8 }}>Product not found</h2>
+          <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 24 }}>
+            Product mil nahi raha. Check karein ke ID sahi hai ya dobara try
+            karein.
+          </p>
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              onClick={() => {
+                _productCache.delete(cacheKey);
+                _inFlight.delete(cacheKey);
+                setLoading(true);
+                setNotFound(false);
+                fetchProductCached(cacheKey).then((data) => {
+                  if (data) {
+                    hydrateFromData(data);
+                    setLoading(false);
+                  } else {
+                    setLoading(false);
+                    setNotFound(true);
+                  }
+                });
+              }}
+              style={{
+                padding: "10px 24px",
+                background: "#b8963e",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                fontSize: 14,
+              }}
+            >
+              🔄 Dobara Try Karein
+            </button>
+            <a
+              href="/"
+              style={{
+                padding: "10px 24px",
+                background: "rgba(255,255,255,0.08)",
+                color: "#daa520",
+                border: "1px solid rgba(218,165,32,0.3)",
+                borderRadius: 8,
+                textDecoration: "none",
+                fontSize: 14,
+              }}
+            >
+              ← Shopping Continue Karein
+            </a>
+          </div>
+        </div>
+      );
+    }
+    // Loading chal rahi hai — skeleton dikhao (notFound false hai)
+    return null;
   }
 
   const catHref = categoryRoute[(product as any).category] || "/";
@@ -1116,6 +1422,9 @@ export default function ProductDetail() {
             </div>
           )}
         </div>
+
+        {/* ── FAQ Section ── */}
+        {faqs.length > 0 && <ProductFAQSection faqs={faqs} />}
 
         {/* ── Estimated Delivery ── */}
         <EstimatedDelivery />

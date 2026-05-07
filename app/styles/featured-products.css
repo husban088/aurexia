@@ -155,7 +155,9 @@
   border-radius: 50px;
   overflow: hidden;
   background: white;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(201, 168, 76, 0.06);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(201, 168, 76, 0.06);
 }
 
 .fp-tab {
@@ -171,7 +173,9 @@
   text-transform: uppercase;
   color: var(--fp-ink-muted);
   cursor: pointer;
-  transition: color 0.3s ease, background 0.3s ease;
+  transition:
+    color 0.3s ease,
+    background 0.3s ease;
   white-space: nowrap;
   z-index: 1;
   overflow: hidden;
@@ -318,8 +322,10 @@
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  transition: transform 0.5s var(--fp-ease-out),
-    box-shadow 0.5s var(--fp-ease-out), border-color 0.4s ease;
+  transition:
+    transform 0.5s var(--fp-ease-out),
+    box-shadow 0.5s var(--fp-ease-out),
+    border-color 0.4s ease;
   width: 100%;
   /* ✅ No min-height or max-height — card grows with content */
   text-decoration: none;
@@ -340,7 +346,9 @@
   );
   background-size: 200% 200%;
   opacity: 0;
-  transition: opacity 0.4s ease, background-position 0.6s ease;
+  transition:
+    opacity 0.4s ease,
+    background-position 0.6s ease;
   pointer-events: none;
   border-radius: 20px;
   z-index: 1;
@@ -364,7 +372,8 @@
 
 .fp-card:hover {
   transform: translateY(-10px);
-  box-shadow: 0 28px 55px rgba(201, 168, 76, 0.14),
+  box-shadow:
+    0 28px 55px rgba(201, 168, 76, 0.14),
     0 8px 20px rgba(0, 0, 0, 0.06);
   border-color: var(--fp-gold-border-h);
 }
@@ -396,7 +405,9 @@
   height: 100%;
   object-fit: cover; /* ✅ covers fully — no stretch, no white gap */
   object-position: center center;
-  transition: transform 0.75s var(--fp-ease-out), opacity 0.3s ease;
+  transition:
+    transform 0.75s var(--fp-ease-out),
+    opacity 0.3s ease;
 }
 
 .fp-card:hover .fp-card-img img {
@@ -496,7 +507,9 @@
   z-index: 4;
   transform: translateY(6px);
   opacity: 0;
-  transition: transform 0.35s var(--fp-ease-out), opacity 0.3s ease;
+  transition:
+    transform 0.35s var(--fp-ease-out),
+    opacity 0.3s ease;
 }
 
 .fp-card:hover .fp-icon-buttons {
@@ -835,8 +848,11 @@
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  transition: color 0.4s ease, border-color 0.4s ease,
-    transform 0.35s var(--fp-ease-out), box-shadow 0.4s ease;
+  transition:
+    color 0.4s ease,
+    border-color 0.4s ease,
+    transform 0.35s var(--fp-ease-out),
+    box-shadow 0.4s ease;
 }
 
 .fp-view-all::before {
@@ -1074,5 +1090,30 @@
   .fp-card:hover .fp-icon-buttons {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+      SKELETON GRID — matches Swiper breakpoints exactly
+   ═══════════════════════════════════════════════════════ */
+.fp-skeleton-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 1023px) {
+  .fp-skeleton-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .fp-skeleton-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 479px) {
+  .fp-skeleton-grid {
+    grid-template-columns: repeat(1, 1fr);
   }
 }

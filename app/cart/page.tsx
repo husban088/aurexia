@@ -1,9 +1,10 @@
-// app/cart/page.tsx - NO SHIPPING CHARGES (FREE SHIPPING ALWAYS)
+// app/cart/page.tsx - WITH COUPON CODE SYSTEM
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCartStore } from "@/lib/cartStore";
+import { useCouponStore } from "@/lib/couponStore"; // ✅ Coupon store import
 import "./cart.css";
 import { useCurrency } from "../context/CurrencyContext";
 
@@ -20,6 +21,24 @@ export default function Cart() {
   } = useCartStore();
 
   const { formatPrice, currency, loading: currencyLoading } = useCurrency();
+
+  // ✅ Coupon store
+  const {
+    appliedCode,
+    discountPercent,
+    discountLabel,
+    applyCoupon,
+    removeCoupon,
+    getDiscountAmount,
+    getFinalTotal,
+  } = useCouponStore();
+
+  // ✅ Coupon UI state
+  const [couponInput, setCouponInput] = useState("");
+  const [couponMessage, setCouponMessage] = useState<{
+    text: string;
+    success: boolean;
+  } | null>(null);
 
   // Track hydration to prevent flash
   const [isHydrated, setIsHydrated] = useState(false);
@@ -45,11 +64,37 @@ export default function Cart() {
   const subtotalPKR = getSubtotal();
   const cartCount = getCartCount();
 
-  // ✅ NO SHIPPING CHARGES - Always free
-  const discountPKR = 0;
-  const afterDiscountPKR = subtotalPKR - discountPKR;
-  const shippingPKR = 0; // ✅ FREE SHIPPING ALWAYS
-  const totalPKR = afterDiscountPKR + shippingPKR; // Same as afterDiscountPKR
+  // ✅ Coupon calculations
+  const discountAmountPKR = getDiscountAmount(subtotalPKR);
+  const shippingPKR = 0; // FREE SHIPPING ALWAYS
+  const totalPKR = getFinalTotal(subtotalPKR) + shippingPKR;
+
+  // ✅ Handle coupon apply
+  const handleApplyCoupon = () => {
+    if (!couponInput.trim()) {
+      setCouponMessage({ text: "Please enter a coupon code.", success: false });
+      return;
+    }
+    const result = applyCoupon(couponInput);
+    setCouponMessage({ text: result.message, success: result.success });
+    if (result.success) {
+      setCouponInput(""); // Clear input after successful apply
+    }
+  };
+
+  // ✅ Handle coupon remove
+  const handleRemoveCoupon = () => {
+    removeCoupon();
+    setCouponMessage(null);
+    setCouponInput("");
+  };
+
+  // ✅ Handle Enter key in coupon input
+  const handleCouponKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleApplyCoupon();
+    }
+  };
 
   // Show loading until mounted and initialized
   if (!isMounted || !isHydrated || (!initialized && loading)) {
@@ -160,7 +205,7 @@ export default function Cart() {
           </h1>
         </div>
 
-        {/* ✅ FREE SHIPPING BANNER - Always showing free shipping */}
+        {/* ✅ FREE SHIPPING BANNER */}
         {items.length > 0 && (
           <div className="cart-ship-bar cart-ship-bar--done">
             <p className="cart-ship-text cart-ship-text--done">
@@ -217,23 +262,22 @@ export default function Cart() {
                     : "";
                 const displayName = `${product.name}${tierLabel}${variantSuffix}`;
 
+                const rawStock = item.variantStock ?? 999999;
                 const stockStatus = item.variantStockStatus ?? "in_stock";
-                const variantStock = item.variantStock ?? 999999;
-                const isOutOfStock = stockStatus === "out_of_stock";
+                const isOutOfStock =
+                  stockStatus === "out_of_stock" || rawStock === 0;
                 const isLowStock = stockStatus === "low_stock";
+
+                const canDecrement = item.quantity > 1 && !isOutOfStock;
+                const canIncrement =
+                  !isOutOfStock &&
+                  (rawStock >= 999999 || item.quantity * ppu < rawStock);
 
                 const getStockLabel = () => {
                   if (isOutOfStock) return "Out of Stock";
-                  if (isLowStock) return `Only ${variantStock} left`;
+                  if (isLowStock) return `Low Stock (${rawStock} left)`;
                   return "In Stock";
                 };
-
-                const maxUnits =
-                  stockStatus === "in_stock"
-                    ? 999999
-                    : Math.floor(variantStock / ppu);
-                const canIncrement = !isOutOfStock && item.quantity < maxUnits;
-                const canDecrement = !isOutOfStock && item.quantity > 1;
 
                 const handleRemoveClick = async () => {
                   await removeFromCart(item.id);
@@ -242,14 +286,14 @@ export default function Cart() {
                 return (
                   <li
                     key={item.id}
-                    className="cart-item"
-                    style={{ animationDelay: `${i * 0.07}s` }}
+                    className={`cart-item${i > 0 ? " cart-item--sep" : ""}`}
                   >
-                    <div className="cart-item-img">
+                    <div className="cart-item-img-wrap">
                       {displayImage ? (
                         <img
                           src={displayImage}
-                          alt={product.name}
+                          alt={product.name ?? "Product"}
+                          className="cart-item-img"
                           style={{
                             objectFit: "cover",
                             width: "100%",
@@ -257,7 +301,7 @@ export default function Cart() {
                           }}
                         />
                       ) : (
-                        <div className="cart-item-img-inner" aria-hidden="true">
+                        <div className="cart-item-img-placeholder">
                           <svg
                             viewBox="0 0 24 24"
                             fill="none"
@@ -410,7 +454,7 @@ export default function Cart() {
             </Link>
           </div>
 
-          {/* Order Summary - NO SHIPPING CHARGES */}
+          {/* ✅ Order Summary with Coupon Code */}
           <div className="cart-summary-col">
             <div className="cart-summary-card">
               <p className="cart-summary-heading">
@@ -419,13 +463,99 @@ export default function Cart() {
                 <span className="cart-ey-line" />
               </p>
 
+              {/* ✅ COUPON CODE SECTION */}
+              <div className="cart-coupon-section">
+                <p className="cart-coupon-label">Have a coupon code?</p>
+
+                {!appliedCode ? (
+                  // Show input when no coupon is applied
+                  <div className="cart-coupon-row">
+                    <input
+                      type="text"
+                      className="cart-coupon-input"
+                      placeholder="Enter code"
+                      value={couponInput}
+                      onChange={(e) => {
+                        setCouponInput(e.target.value.toUpperCase());
+                        setCouponMessage(null); // Clear message on type
+                      }}
+                      onKeyDown={handleCouponKeyDown}
+                      maxLength={20}
+                    />
+                    <button
+                      className="cart-coupon-btn"
+                      onClick={handleApplyCoupon}
+                      disabled={!couponInput.trim()}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                ) : (
+                  // Show applied coupon badge
+                  <div className="cart-coupon-applied">
+                    <div className="cart-coupon-badge">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        width="14"
+                        height="14"
+                      >
+                        <polyline
+                          points="20 6 9 17 4 12"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <span>
+                        <strong>{appliedCode}</strong> — {discountLabel}
+                      </span>
+                    </div>
+                    <button
+                      className="cart-coupon-remove"
+                      onClick={handleRemoveCoupon}
+                      aria-label="Remove coupon"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                {/* ✅ Success / Error Message */}
+                {couponMessage && (
+                  <p
+                    className={
+                      couponMessage.success
+                        ? "cart-coupon-success"
+                        : "cart-coupon-error"
+                    }
+                  >
+                    {couponMessage.text}
+                  </p>
+                )}
+              </div>
+
+              {/* ✅ Price Breakdown */}
               <div className="cart-breakdown">
                 <div className="cart-breakdown-row">
                   <span>Subtotal ({cartCount} items)</span>
                   <span>{formatPrice(subtotalPKR)}</span>
                 </div>
 
-                {/* ✅ Shipping row - Always Free */}
+                {/* ✅ Discount Row - Only when coupon applied */}
+                {appliedCode && discountAmountPKR > 0 && (
+                  <div className="cart-breakdown-row cart-breakdown-row--discount">
+                    <span>
+                      Discount ({discountPercent}% off — {appliedCode})
+                    </span>
+                    <span className="cart-discount-value">
+                      − {formatPrice(discountAmountPKR)}
+                    </span>
+                  </div>
+                )}
+
+                {/* ✅ Shipping Row - Always Free */}
                 <div className="cart-breakdown-row">
                   <span>Shipping</span>
                   <span className="free-shipping-text">Free</span>
@@ -433,6 +563,7 @@ export default function Cart() {
 
                 <div className="cart-breakdown-divider" />
 
+                {/* ✅ Total Row */}
                 <div className="cart-breakdown-row cart-breakdown-row--total">
                   <span>Total</span>
                   <span>{formatPrice(totalPKR)}</span>
@@ -474,6 +605,156 @@ export default function Cart() {
           </div>
         </div>
       </div>
+
+      {/* ✅ Coupon CSS Styles */}
+      <style jsx>{`
+        /* === COUPON SECTION === */
+        .cart-coupon-section {
+          margin-bottom: 1.25rem;
+          padding: 1rem;
+          border: 1px solid rgba(218, 165, 32, 0.2);
+          border-radius: 8px;
+          background: rgba(218, 165, 32, 0.03);
+        }
+
+        .cart-coupon-label {
+          font-size: 0.72rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #888;
+          margin: 0 0 0.6rem;
+        }
+
+        .cart-coupon-row {
+          display: flex;
+          gap: 0.5rem;
+          align-items: center;
+        }
+
+        .cart-coupon-input {
+          flex: 1;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(218, 165, 32, 0.3);
+          border-radius: 6px;
+          padding: 0.5rem 0.75rem;
+          color: inherit;
+          font-size: 0.82rem;
+          font-family: monospace;
+          letter-spacing: 0.05em;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+
+        .cart-coupon-input:focus {
+          border-color: rgba(218, 165, 32, 0.7);
+        }
+
+        .cart-coupon-input::placeholder {
+          color: #555;
+          font-size: 0.75rem;
+          letter-spacing: 0.02em;
+        }
+
+        .cart-coupon-btn {
+          padding: 0.5rem 1rem;
+          background: rgba(218, 165, 32, 0.15);
+          border: 1px solid rgba(218, 165, 32, 0.4);
+          border-radius: 6px;
+          color: #daa520;
+          font-size: 0.78rem;
+          font-weight: 600;
+          letter-spacing: 0.05em;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+
+        .cart-coupon-btn:hover:not(:disabled) {
+          background: rgba(218, 165, 32, 0.25);
+          border-color: rgba(218, 165, 32, 0.7);
+        }
+
+        .cart-coupon-btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
+        /* Applied coupon badge */
+        .cart-coupon-applied {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.5rem;
+        }
+
+        .cart-coupon-badge {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.4rem 0.75rem;
+          background: rgba(46, 125, 50, 0.12);
+          border: 1px solid rgba(46, 125, 50, 0.3);
+          border-radius: 6px;
+          color: #2e7d32;
+          font-size: 0.8rem;
+          flex: 1;
+        }
+
+        .cart-coupon-remove {
+          background: none;
+          border: 1px solid rgba(180, 0, 0, 0.25);
+          border-radius: 6px;
+          color: #c62828;
+          font-size: 0.75rem;
+          cursor: pointer;
+          padding: 0.35rem 0.6rem;
+          transition: all 0.2s;
+          line-height: 1;
+        }
+
+        .cart-coupon-remove:hover {
+          background: rgba(180, 0, 0, 0.08);
+        }
+
+        /* ✅ SUCCESS message - GREEN */
+        .cart-coupon-success {
+          margin: 0.6rem 0 0;
+          padding: 0.5rem 0.75rem;
+          background: rgba(46, 125, 50, 0.1);
+          border: 1px solid rgba(46, 125, 50, 0.25);
+          border-radius: 6px;
+          color: #2e7d32;
+          font-size: 0.78rem;
+          line-height: 1.5;
+        }
+
+        /* ✅ ERROR message - RED */
+        .cart-coupon-error {
+          margin: 0.6rem 0 0;
+          padding: 0.5rem 0.75rem;
+          background: rgba(198, 40, 40, 0.08);
+          border: 1px solid rgba(198, 40, 40, 0.2);
+          border-radius: 6px;
+          color: #c62828;
+          font-size: 0.78rem;
+          line-height: 1.5;
+        }
+
+        /* ✅ Discount row */
+        .cart-breakdown-row--discount {
+          color: #2e7d32;
+        }
+
+        .cart-discount-value {
+          color: #2e7d32;
+          font-weight: 600;
+        }
+
+        .free-shipping-text {
+          color: #2e7d32;
+          font-weight: 500;
+        }
+      `}</style>
     </div>
   );
 }
