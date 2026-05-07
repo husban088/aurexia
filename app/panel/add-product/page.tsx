@@ -295,8 +295,8 @@ function StockStatusSelector({
                   ? s === "in_stock"
                     ? "active-in-stock"
                     : s === "out_of_stock"
-                    ? "active-out-stock"
-                    : "active-low-stock"
+                      ? "active-out-stock"
+                      : "active-low-stock"
                   : ""
               }`}
               onClick={(e) => {
@@ -315,11 +315,11 @@ function StockStatusSelector({
                 {s === "in_stock"
                   ? "In Stock"
                   : s === "out_of_stock"
-                  ? "Out of Stock"
-                  : "Low Stock Alert"}
+                    ? "Out of Stock"
+                    : "Low Stock Alert"}
               </span>
             </div>
-          )
+          ),
         )}
       </div>
       {value === "low_stock" && (
@@ -331,7 +331,7 @@ function StockStatusSelector({
             value={lowStockThreshold || ""}
             onChange={(e) =>
               onThresholdChange(
-                e.target.value ? parseInt(e.target.value) : null
+                e.target.value ? parseInt(e.target.value) : null,
               )
             }
             placeholder="e.g., 5"
@@ -787,7 +787,7 @@ function VariantFormItem({
   // ✅ NEW: jab variant image change ho toh parent ko batao
   onVariantImageChange?: (
     attributeValue: string,
-    imageUrl: string | null
+    imageUrl: string | null,
   ) => void;
 }) {
   const [priceDisplay, setPriceDisplay] = useState("");
@@ -796,7 +796,7 @@ function VariantFormItem({
   const [descriptionImages, setDescriptionImages] = useState<string[]>([]);
   const [stockStatus, setStockStatus] = useState<StockStatus>("in_stock");
   const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
-    null
+    null,
   );
   // ✅ CHANGED: Multiple images → single image
   const [variantImage, setVariantImage] = useState<string | null>(null);
@@ -828,7 +828,7 @@ function VariantFormItem({
 
   const handleDescriptionChange = (
     newValue: string,
-    imagesInDesc: string[]
+    imagesInDesc: string[],
   ) => {
     setDescription(newValue);
     setDescriptionImages(imagesInDesc);
@@ -1175,7 +1175,7 @@ function AttributeSelector({
   currencySymbol: string;
   onVariantImageChange?: (
     attributeValue: string,
-    imageUrl: string | null
+    imageUrl: string | null,
   ) => void;
 }) {
   const [inputValue, setInputValue] = useState("");
@@ -1206,7 +1206,7 @@ function AttributeSelector({
   const removeValue = (valueToRemove: string) => {
     setValues(values.filter((v) => v !== valueToRemove));
     setVariants((prev: any[]) =>
-      prev.filter((v) => v.attributeValue !== valueToRemove)
+      prev.filter((v) => v.attributeValue !== valueToRemove),
     );
   };
 
@@ -1219,12 +1219,12 @@ function AttributeSelector({
         return newVariants;
       });
     },
-    [setVariants]
+    [setVariants],
   );
 
   const filteredSuggestions = suggestions.filter(
     (s) =>
-      !values.includes(s) && s.toLowerCase().includes(inputValue.toLowerCase())
+      !values.includes(s) && s.toLowerCase().includes(inputValue.toLowerCase()),
   );
 
   return (
@@ -1290,7 +1290,7 @@ async function dbInsert(
   supabaseUrl: string,
   supabaseKey: string,
   table: string,
-  body: object
+  body: object,
 ) {
   const res = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
     method: "POST",
@@ -1316,7 +1316,7 @@ async function dbInsertMany(
   supabaseUrl: string,
   supabaseKey: string,
   table: string,
-  body: object[]
+  body: object[],
 ) {
   const res = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
     method: "POST",
@@ -1358,7 +1358,7 @@ function SimpleModeForm({
   const [isActive, setIsActive] = useState(true);
   const [stockStatus, setStockStatus] = useState<StockStatus>("in_stock");
   const [lowStockThreshold, setLowStockThreshold] = useState<number | null>(
-    null
+    null,
   );
   const [images, setImages] = useState<string[]>([]);
   const [faqs, setFaqs] = useState<FAQ[]>([]);
@@ -1369,7 +1369,7 @@ function SimpleModeForm({
 
   const handleDescriptionChange = (
     newValue: string,
-    imagesInDesc: string[]
+    imagesInDesc: string[],
   ) => {
     setDescription(newValue);
     setDescriptionImages(imagesInDesc);
@@ -1457,7 +1457,7 @@ function SimpleModeForm({
         pricePKR = Number((priceNum / currentRate).toFixed(2));
         if (originalPricePKR)
           originalPricePKR = Number(
-            (originalPriceNum / currentRate).toFixed(2)
+            (originalPriceNum / currentRate).toFixed(2),
           );
       }
       console.log("📦 Inserting product...");
@@ -1495,7 +1495,7 @@ function SimpleModeForm({
           low_stock_threshold:
             stockStatus === "low_stock" ? lowStockThreshold : null,
           is_active: true,
-        }
+        },
       );
       console.log("✅ Variant inserted:", variantData.id);
       console.log("✅ Product saved successfully!");
@@ -1510,11 +1510,11 @@ function SimpleModeForm({
             variant_id: variantData.id,
             image_url: url,
             display_order: idx,
-          }))
+          })),
         ).catch((err) => console.error("Image insert error:", err));
       }
       const validTiers = bulkTiers.filter(
-        (t) => t.min_quantity && t.tier_price > 0
+        (t) => t.min_quantity && t.tier_price > 0,
       );
       if (validTiers.length > 0) {
         dbInsertMany(
@@ -1531,7 +1531,7 @@ function SimpleModeForm({
                 : t.tier_price,
             discount_percentage: t.discount_percentage,
             discount_price: t.discount_price ?? null,
-          }))
+          })),
         ).catch((err) => console.error("Tier insert error:", err));
       }
       const validFaqs = faqs.filter((f) => f.question.trim());
@@ -1545,7 +1545,7 @@ function SimpleModeForm({
             question: f.question.trim(),
             answer: f.answer.trim() || null,
             display_order: idx,
-          }))
+          })),
         ).catch((err) => console.error("FAQ insert error:", err));
       }
       setTimeout(() => {
@@ -1554,7 +1554,7 @@ function SimpleModeForm({
     } catch (err: any) {
       console.error("❌ Submit error:", err);
       onError(
-        err.message || "Failed to save product. Check console for details."
+        err.message || "Failed to save product. Check console for details.",
       );
     } finally {
       setIsSubmitting(false);
@@ -1892,7 +1892,7 @@ function DetailedModeForm({
 
   const handleDescriptionChange = (
     newValue: string,
-    imagesInDesc: string[]
+    imagesInDesc: string[],
   ) => {
     setDescription(newValue);
     setDescriptionImages(imagesInDesc);
@@ -1930,7 +1930,7 @@ function DetailedModeForm({
         return newImages;
       });
     },
-    []
+    [],
   );
 
   // ✅ Main images mein manually add karna
@@ -2048,7 +2048,7 @@ function DetailedModeForm({
         is_featured: isFeatured,
         is_active: isActive,
         // ✅ Main images (variant images + manually added images)
-        images: mainImages,
+        main_images: mainImages,
       });
       console.log("✅ Product inserted:", productData.id);
 
@@ -2066,7 +2066,7 @@ function DetailedModeForm({
           pricePKR = Number((priceNum / currentRate).toFixed(2));
           if (originalPricePKR)
             originalPricePKR = Number(
-              (originalPriceNum / currentRate).toFixed(2)
+              (originalPriceNum / currentRate).toFixed(2),
             );
         }
         if (pricePKR <= 0) pricePKR = 0.01;
@@ -2096,7 +2096,7 @@ function DetailedModeForm({
               stock: variant.stock || 999999,
               low_stock_threshold: variant.lowStockThreshold || null,
               is_active: true,
-            }
+            },
           );
           console.log(`✅ Variant inserted: ${variantData.id}`);
         } catch (varErr: any) {
@@ -2120,7 +2120,7 @@ function DetailedModeForm({
         // Bulk tiers
         if (variant.bulkPricingTiers && variant.bulkPricingTiers.length > 0) {
           const validTiers = variant.bulkPricingTiers.filter(
-            (t: any) => t.min_quantity && t.tier_price > 0
+            (t: any) => t.min_quantity && t.tier_price > 0,
           );
           if (validTiers.length > 0) {
             dbInsertMany(
@@ -2134,7 +2134,7 @@ function DetailedModeForm({
                 tier_price: t.tier_price,
                 discount_percentage: t.discount_percentage ?? null,
                 discount_price: t.discount_price ?? null,
-              }))
+              })),
             ).catch((err) => console.error("Tier error:", err));
           }
         }
@@ -2156,7 +2156,7 @@ function DetailedModeForm({
             question: f.question.trim(),
             answer: f.answer.trim() || null,
             display_order: idx,
-          }))
+          })),
         ).catch((err) => console.error("FAQ error:", err));
       }
 
@@ -2166,7 +2166,7 @@ function DetailedModeForm({
     } catch (err: any) {
       console.error("❌ Submit error:", err);
       onError(
-        err.message || "Failed to save product. Check console for details."
+        err.message || "Failed to save product. Check console for details.",
       );
     } finally {
       setIsSubmitting(false);
@@ -2366,11 +2366,11 @@ function DetailedModeForm({
                   {mainImages.map((url, i) => {
                     // Check karo yeh variant ki auto-synced image hai ya manually added
                     const isVariantImg = Object.values(
-                      variantImageMapRef.current
+                      variantImageMapRef.current,
                     ).includes(url);
                     const variantName = isVariantImg
                       ? Object.entries(variantImageMapRef.current).find(
-                          ([, v]) => v === url
+                          ([, v]) => v === url,
                         )?.[0]
                       : null;
                     return (
@@ -2704,9 +2704,9 @@ export default function AddProduct() {
     setTimeout(
       () =>
         setToasts((p) =>
-          p.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+          p.map((t) => (t.id === id ? { ...t, exiting: true } : t)),
         ),
-      4000
+      4000,
     );
     setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 4500);
   };
@@ -2810,7 +2810,7 @@ export default function AddProduct() {
               addToast(
                 "success",
                 "Product Saved",
-                `${TABS[activeTab].sub} added successfully! Redirecting...`
+                `${TABS[activeTab].sub} added successfully! Redirecting...`,
               )
             }
             onError={(msg) => addToast("error", "Error", msg)}
@@ -2824,7 +2824,7 @@ export default function AddProduct() {
               addToast(
                 "success",
                 "Product Saved",
-                `${TABS[activeTab].sub} with variants added successfully! Redirecting...`
+                `${TABS[activeTab].sub} with variants added successfully! Redirecting...`,
               )
             }
             onError={(msg) => addToast("error", "Error", msg)}

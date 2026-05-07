@@ -50,6 +50,7 @@ export type Product = {
   price?: number;
   stock?: number;
   images?: string[];
+  main_images?: string[];
   original_price?: number;
 };
 

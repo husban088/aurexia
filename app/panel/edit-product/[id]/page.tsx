@@ -1926,8 +1926,33 @@ function DetailedModeEditForm({
     ) {
       return initialProduct.main_images;
     }
-    // Empty — user will upload fresh
-    return [];
+    // Fallback: collect all variant images so existing images are visible in edit mode
+    const allVariantImages: string[] = [];
+    const seen = new Set<string>();
+    for (const v of initialVariants) {
+      let imgs: string[] = [];
+      if (
+        Array.isArray(v.images) &&
+        v.images.length > 0 &&
+        typeof v.images[0] === "string"
+      ) {
+        imgs = v.images;
+      } else if (
+        Array.isArray(v.variant_images) &&
+        v.variant_images.length > 0
+      ) {
+        imgs = (v.variant_images as any[])
+          .sort((a: any, b: any) => a.display_order - b.display_order)
+          .map((i: any) => i.image_url);
+      }
+      for (const url of imgs) {
+        if (url && !seen.has(url)) {
+          seen.add(url);
+          allVariantImages.push(url);
+        }
+      }
+    }
+    return allVariantImages;
   });
 
   const buildInitial = (type: string) =>
@@ -2599,7 +2624,10 @@ export default function EditProduct() {
 
         if (!mounted) return;
 
-        setProductData(prod);
+        setProductData({
+          ...prod,
+          main_images: Array.isArray(prod.main_images) ? prod.main_images : [],
+        });
         setFaqsData(
           (faqs || []).map((f: any) => ({
             id: f.id,
