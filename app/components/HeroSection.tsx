@@ -42,6 +42,17 @@ const slides = [
     imageSrc: "/banner3.webp",
     placeholderClass: "hero-ph-3",
   },
+  {
+    id: 4,
+    badge: "Premium Automotive Gear",
+    headingLine1: "Auto",
+    headingItalic: " Motive",
+    para: "Drive with distinction. Premium car accessories, smart tech integration, and luxury finishes for the modern driver who demands excellence on every road.",
+    cta: { label: "Explore Automotive", href: "/automotive" },
+    ghost: { label: "View Collection", href: "/auto-collection" },
+    imageSrc: "/banner4.png",
+    placeholderClass: "hero-ph-4",
+  },
 ];
 
 /* ── Single shared CDN loader — runs only once per tab session ── */
@@ -152,7 +163,7 @@ export default function HeroSection() {
             setCurrentSlide((swiper.realIndex ?? 0) + 1);
           },
         },
-      }
+      },
     );
 
     setReady(true);

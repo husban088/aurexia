@@ -71,20 +71,6 @@ function getDeliveryStatus(): {
       color: "#f59e0b",
     };
   }
-  return {
-    text: "Express processing available",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      >
-        <path d="M22 12h-4l-3 9-4-18-3 9H2" />
-      </svg>
-    ),
-    color: "#22c55e",
-  };
 }
 
 interface EstimatedDeliveryProps {
@@ -167,7 +153,7 @@ export default function EstimatedDelivery({
           <span className="pd-timeline-date">
             {formatDateRange(
               estimatedDates.deliveryFrom,
-              estimatedDates.deliveryTo
+              estimatedDates.deliveryTo,
             )}
           </span>
         </div>
@@ -205,12 +191,12 @@ export default function EstimatedDelivery({
       </div>
 
       <div className="pd-delivery-status">
-        <span className="pd-delivery-status-text">
+        {/* <span className="pd-delivery-status-text">
           {deliveryStatus.icon}
           {deliveryStatus.text}
-        </span>
+        </span> */}
         <span className="pd-delivery-urgency">
-          Free Shipping over PKR 3,000
+          Free Delivery on All Orders – No Minimum Required
         </span>
       </div>
     </section>

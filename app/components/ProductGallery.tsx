@@ -10,11 +10,10 @@ import "swiper/css/navigation";
 import "swiper/css/free-mode";
 import "./ProductGallery.css";
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
 interface ProductGalleryProps {
-  images: string[]; // selected variant images (active variant)
+  images: string[];
   productName: string;
-  mainImages?: string[]; // product-level main_images (always show, from DB)
+  mainImages?: string[];
 }
 
 export default function ProductGallery({
@@ -22,16 +21,12 @@ export default function ProductGallery({
   productName,
   mainImages = [],
 }: ProductGalleryProps) {
-  // ─── Build combined thumbnail list ─────────────────────────────────────────
-  // Order:
-  //   1. Selected variant images (shown first — the ones for the clicked detail)
-  //   2. main_images from product table (product-level gallery, always visible)
-  // All deduped so no image appears twice.
+  // Build combined thumbnail list: variant images first, then main images, deduped
   const buildThumbnailList = useCallback((): string[] => {
     const seen = new Set<string>();
     const result: string[] = [];
 
-    // 1. Selected variant images (color/size/material/capacity that was clicked)
+    // 1. Selected variant images
     if (images && images.length > 0) {
       images.forEach((img) => {
         if (img && !seen.has(img)) {
@@ -41,7 +36,7 @@ export default function ProductGallery({
       });
     }
 
-    // 2. Main product-level images (from products.main_images column)
+    // 2. Main product-level images
     if (mainImages && mainImages.length > 0) {
       mainImages.forEach((img) => {
         if (img && !seen.has(img)) {
@@ -91,8 +86,6 @@ export default function ProductGallery({
   const lbStageRef = useRef<HTMLDivElement>(null);
   const lbImgContainerRef = useRef<HTMLDivElement>(null);
 
-  // ─── Reset to 0 when variant images change ─────────────────────────────────
-  // Use JSON.stringify so array reference changes don't cause unnecessary resets
   const imagesKey = JSON.stringify(images);
   useEffect(() => {
     setActiveIdx(0);
@@ -101,9 +94,8 @@ export default function ProductGallery({
       thumbSwiperRef.current?.slideTo(0);
       lbThumbSwiperRef.current?.slideTo(0);
     }, 50);
-  }, [imagesKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [imagesKey]);
 
-  // ─── Image switch ──────────────────────────────────────────────────────────
   const switchImg = useCallback(
     (idx: number) => {
       if (idx === activeIdx || allThumbs.length === 0) return;
@@ -118,7 +110,6 @@ export default function ProductGallery({
     [activeIdx, allThumbs.length],
   );
 
-  // ─── Lightbox close ────────────────────────────────────────────────────────
   const closeLightbox = useCallback(() => {
     setLbClosing(true);
     setTimeout(() => {
@@ -134,7 +125,6 @@ export default function ProductGallery({
     }, 320);
   }, []);
 
-  // ─── Main gallery mouse swipe ──────────────────────────────────────────────
   const handleMainMouseDown = (e: React.MouseEvent) => {
     mainSwipeStart.current = { x: e.clientX, y: e.clientY };
   };
@@ -149,7 +139,6 @@ export default function ProductGallery({
     mainSwipeStart.current = null;
   };
 
-  // ─── Main gallery touch swipe ─────────────────────────────────────────────
   const handleMainTouchStart = (e: React.TouchEvent) => {
     mainSwipeStart.current = {
       x: e.touches[0].clientX,
@@ -167,7 +156,6 @@ export default function ProductGallery({
     mainSwipeStart.current = null;
   };
 
-  // ─── Constrained pan ──────────────────────────────────────────────────────
   const getConstrainedPan = (
     newPan: { x: number; y: number },
     zoom: number,
@@ -188,7 +176,6 @@ export default function ProductGallery({
     };
   };
 
-  // ─── Lightbox mouse events ─────────────────────────────────────────────────
   const handleLbMouseDown = (e: React.MouseEvent) => {
     if (lbZoom > 1) {
       e.preventDefault();
@@ -235,7 +222,6 @@ export default function ProductGallery({
     }
   };
 
-  // ─── Lightbox touch events ─────────────────────────────────────────────────
   const handleLbTouchStart = (e: React.TouchEvent) => {
     const touch = e.touches[0];
     if (lbZoom > 1) {
@@ -310,7 +296,6 @@ export default function ProductGallery({
     }
   };
 
-  // ─── Double click zoom ─────────────────────────────────────────────────────
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (lbZoom > 1) {
@@ -319,7 +304,6 @@ export default function ProductGallery({
     } else setLbZoom(2.5);
   };
 
-  // ─── Mouse wheel zoom ──────────────────────────────────────────────────────
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -336,14 +320,12 @@ export default function ProductGallery({
     setLbZoom(newZoom);
   };
 
-  // ─── Backdrop click ────────────────────────────────────────────────────────
   const handleLightboxBackdropClick = (e: React.MouseEvent) => {
     if (e.target === lightboxRef.current || e.target === lbStageRef.current) {
       closeLightbox();
     }
   };
 
-  // ─── Keyboard nav ─────────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!lightbox) return;
@@ -378,7 +360,6 @@ export default function ProductGallery({
     return () => window.removeEventListener("keydown", handler);
   }, [lightbox, allThumbs.length, activeIdx, closeLightbox]);
 
-  // ─── Reset zoom on image change ────────────────────────────────────────────
   useEffect(() => {
     if (lightbox) {
       setLbZoom(1);
@@ -386,7 +367,6 @@ export default function ProductGallery({
     }
   }, [activeIdx, lightbox]);
 
-  // ─── Body scroll lock ──────────────────────────────────────────────────────
   useEffect(() => {
     document.body.style.overflow = lightbox ? "hidden" : "";
     return () => {
@@ -394,7 +374,6 @@ export default function ProductGallery({
     };
   }, [lightbox]);
 
-  // ─── Portal root ───────────────────────────────────────────────────────────
   useEffect(() => {
     setPortalRoot(document.body);
   }, []);
@@ -405,7 +384,6 @@ export default function ProductGallery({
     setTimeout(() => lbThumbSwiperRef.current?.slideTo(activeIdx), 80);
   };
 
-  // ─── Empty state ───────────────────────────────────────────────────────────
   if (!allThumbs || allThumbs.length === 0) {
     return (
       <div className="pg-gallery">
@@ -427,18 +405,14 @@ export default function ProductGallery({
     );
   }
 
-  // All selected variant images (for thumbnail badge highlighting)
   const variantImgSet = new Set<string>(
     images && images.length > 0 ? images : [],
   );
-  const variantImg = images && images.length > 0 ? images[0] : null;
 
   return (
     <>
       <div className="pg-gallery">
-        {/* ══════════════════════════════════════════════
-            BIG MAIN IMAGE
-        ══════════════════════════════════════════════ */}
+        {/* BIG MAIN IMAGE */}
         <div
           className="pg-swiper-wrap"
           onMouseDown={handleMainMouseDown}
@@ -556,9 +530,7 @@ export default function ProductGallery({
           )}
         </div>
 
-        {/* ══════════════════════════════════════════════
-            THUMBNAIL SWIPER STRIP (below big image)
-        ══════════════════════════════════════════════ */}
+        {/* THUMBNAIL STRIP - BELOW BIG IMAGE */}
         {allThumbs.length > 1 && (
           <div className="pg-thumbs-swiper-wrap">
             <button
@@ -589,41 +561,21 @@ export default function ProductGallery({
             >
               {allThumbs.map((src, idx) => {
                 const isActive = idx === activeIdx;
-                // Mark ALL selected variant images (not just the first one)
                 const isVariantImg = variantImgSet.has(src);
-                // Detect section separator: first main image starts after variant images
                 const isFirstMainImg =
                   mainImages.length > 0 &&
                   src === mainImages[0] &&
                   !variantImgSet.has(src);
+                const hasSeparator = isFirstMainImg && variantImgSet.size > 0;
                 return (
                   <SwiperSlide
                     key={idx}
-                    className="pg-thumb-slide"
-                    style={{
-                      position: "relative",
-                      paddingTop:
-                        isFirstMainImg && variantImgSet.size > 0 ? "20px" : "0",
-                    }}
+                    className={`pg-thumb-slide ${
+                      hasSeparator ? "pg-thumb-slide--with-separator" : ""
+                    }`}
                   >
-                    {isFirstMainImg && variantImgSet.size > 0 && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: "-16px",
-                          left: "50%",
-                          transform: "translateX(-50%)",
-                          fontSize: "0.45rem",
-                          fontWeight: 700,
-                          letterSpacing: "0.1em",
-                          textTransform: "uppercase",
-                          color: "rgba(218,165,32,0.65)",
-                          whiteSpace: "nowrap",
-                          pointerEvents: "none",
-                        }}
-                      >
-                        Gallery
-                      </div>
+                    {hasSeparator && (
+                      <div className="pg-thumb-separator-label">Gallery</div>
                     )}
                     <button
                       className={`pg-thumb${isActive ? " active" : ""}${
@@ -666,9 +618,7 @@ export default function ProductGallery({
         )}
       </div>
 
-      {/* ══════════════════════════════════════════════
-          LIGHTBOX PORTAL
-      ══════════════════════════════════════════════ */}
+      {/* LIGHTBOX PORTAL */}
       {lightbox &&
         allThumbs[activeIdx] &&
         portalRoot &&
@@ -678,7 +628,6 @@ export default function ProductGallery({
             ref={lightboxRef}
             onClick={handleLightboxBackdropClick}
           >
-            {/* HEADER BAR */}
             <div className="pg-lb-header" onClick={(e) => e.stopPropagation()}>
               <div className="pg-lb-numbering">
                 {allThumbs.map((_, i) => (
@@ -761,7 +710,6 @@ export default function ProductGallery({
               </button>
             </div>
 
-            {/* IMAGE STAGE */}
             <div
               className="pg-lb-stage"
               ref={lbStageRef}
@@ -804,7 +752,6 @@ export default function ProductGallery({
               </div>
             </div>
 
-            {/* LEFT / RIGHT ARROWS */}
             {allThumbs.length > 1 && (
               <>
                 <button
@@ -853,7 +800,6 @@ export default function ProductGallery({
               </>
             )}
 
-            {/* SWIPE DOWN HINT */}
             <div className="pg-lb-swipe-hint">
               <svg
                 viewBox="0 0 24 24"
@@ -867,7 +813,6 @@ export default function ProductGallery({
               Swipe down to close
             </div>
 
-            {/* ── LIGHTBOX THUMBNAIL SWIPER STRIP ── */}
             {allThumbs.length > 1 && (
               <div
                 className="pg-lb-thumbs-wrap"
@@ -900,7 +845,6 @@ export default function ProductGallery({
                   className="pg-lb-thumbs-swiper"
                 >
                   {allThumbs.map((src, i) => {
-                    // Mark ALL selected variant images in lightbox too
                     const isVariantImgLb = variantImgSet.has(src);
                     return (
                       <SwiperSlide key={i} className="pg-lb-thumb-slide">

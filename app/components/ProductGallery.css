@@ -8,7 +8,6 @@
   top: calc(var(--pd-nav-h, 68px) + 1rem);
   max-width: 100%;
   width: 100%;
-  /* Prevent ANY child from bleeding outside */
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -21,11 +20,11 @@
   border: 1px solid var(--pd-border, rgba(184, 134, 11, 0.18));
   border-radius: 20px;
   overflow: hidden;
-  /* No pointer cursor — clicking image doesn't open lightbox */
   cursor: default;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
   user-select: none;
   -webkit-user-select: none;
+  margin-bottom: 1rem;
 }
 
 .pg-main-img-wrap::before {
@@ -45,7 +44,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* overflow:hidden on parent clips any transform — image can't escape container */
   transition:
     transform 0.8s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.4s ease;
@@ -72,7 +70,7 @@
   }
 }
 
-/* ── EXPAND BUTTON (unique, bottom-right of main image) ── */
+/* ── EXPAND BUTTON (bottom-right of main image) ── */
 .pg-expand-btn {
   position: absolute;
   bottom: 0.9rem;
@@ -92,7 +90,6 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   opacity: 0;
-  /* pointer-events still active so it's clickable */
 }
 
 .pg-main-img-wrap:hover .pg-expand-btn {
@@ -108,7 +105,6 @@
   transform: scale(1.12) !important;
 }
 
-/* Always show on mobile (no hover available) */
 @media (max-width: 768px) {
   .pg-expand-btn {
     opacity: 0.85;
@@ -191,79 +187,105 @@
   height: 60px;
 }
 
-/* Thumbnail strip */
-.pg-thumbs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-  padding-bottom: 2px;
+/* ═══════════════════════════════════════════════════════════════
+   THUMBNAIL STRIP - BELOW BIG IMAGE, PERFECT ALIGNMENT
+   All thumbnails: SAME HEIGHT, SAME WIDTH, SAME POSITION
+═══════════════════════════════════════════════════════════════ */
+
+/* Gallery wrapper */
+.pg-gallery {
+  contain: layout style;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   THUMBNAIL SWIPER STRIP — Below big image
-   Ye classes ProductGallery.css ke existing .pg-thumbs ke baad add karo
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ── Hide old static thumbs if swiper is present ── */
-.pg-thumbs {
-  display: none !important;
-}
-
-/* ── Swiper thumb strip wrapper ── */
+/* Thumb strip wrapper — strict width constraint, NO overflow */
 .pg-thumbs-swiper-wrap {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 10px;
   width: 100%;
   max-width: 100%;
-  position: relative;
+  overflow: hidden;
   box-sizing: border-box;
-  /* CRITICAL: Prevent overflow bleeding to right side of page */
-  overflow: hidden;
+  margin-top: 0;
+  gap: 6px;
 }
 
-/* ── Swiper container inside wrap ── */
+/* Nav buttons - fixed size, never changes */
+.pg-thumb-nav {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(218, 165, 32, 0.3);
+  background: rgba(20, 16, 10, 0.8);
+  color: #c8a84b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.pg-thumb-nav:hover {
+  background: rgba(218, 165, 32, 0.15);
+  border-color: #daa520;
+  transform: scale(1.1);
+}
+
+.pg-thumb-nav svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Swiper exactly uses remaining space */
 .pg-thumbs-swiper {
-  /* flex: 1 1 0% forces the swiper to take remaining space 
-     but never exceed the parent, preventing right overflow */
-  flex: 1 1 0%;
+  flex: 1 1 auto;
   min-width: 0;
-  max-width: 100%;
   overflow: hidden;
-  width: 0; /* Combined with flex:1 1 0% this is the fix */
+  width: 100%;
 }
 
-/* ── Each slide has auto width ── */
-.pg-thumb-slide {
+/* Swiper wrapper */
+.pg-thumbs-swiper .swiper-wrapper {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+/* Each slide - auto width, consistent alignment */
+.pg-thumbs-swiper .swiper-slide {
   width: auto !important;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* ── Each thumb button ── */
+/* Individual thumb button - FIXED SIZE, NO MOVEMENT */
 .pg-thumb {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 70px;
   height: 70px;
-  border-radius: 6px;
+  border-radius: 10px;
   overflow: hidden;
-  border: 2px solid transparent;
+  border: 2px solid rgba(218, 165, 32, 0.2);
   cursor: pointer;
   background: rgba(255, 255, 255, 0.04);
   padding: 0;
-  transition:
-    border-color 0.2s,
-    transform 0.15s,
-    opacity 0.2s;
-  position: relative;
+  transition: all 0.2s ease;
   opacity: 0.65;
+  position: relative;
+  flex-shrink: 0;
 }
 
 .pg-thumb:hover {
-  border-color: rgba(218, 165, 32, 0.5);
+  border-color: rgba(218, 165, 32, 0.6);
   opacity: 0.9;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
 .pg-thumb.active {
@@ -279,20 +301,15 @@
   object-fit: cover;
   display: block;
   pointer-events: none;
-  transition: transform 0.3s ease;
 }
 
-.pg-thumb:hover img {
-  transform: scale(1.06);
-}
-
-/* ── Variant image indicator dot ── */
+/* Variant image indicator dot */
 .pg-thumb-variant-dot {
   position: absolute;
-  bottom: 3px;
-  right: 3px;
-  width: 7px;
-  height: 7px;
+  bottom: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #daa520;
   border: 1.5px solid #fff;
@@ -300,7 +317,7 @@
   z-index: 2;
 }
 
-/* ── Variant thumb highlight ── */
+/* Variant thumb highlight */
 .pg-thumb--variant {
   border-color: rgba(218, 165, 32, 0.4);
 }
@@ -308,49 +325,42 @@
   border-color: #daa520;
 }
 
-/* ── Thumb navigation arrows ── */
-.pg-thumb-nav {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid rgba(218, 165, 32, 0.3);
-  background: rgba(20, 16, 10, 0.8);
-  color: #c8a84b;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition:
-    background 0.2s,
-    border-color 0.2s,
-    transform 0.15s;
-  padding: 0;
+/* Separator "Gallery" label above first main image */
+.pg-thumb-separator-label {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.45rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(218, 165, 32, 0.7);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
-.pg-thumb-nav:hover {
-  background: rgba(218, 165, 32, 0.15);
-  border-color: #daa520;
-  transform: scale(1.1);
+/* Thumb slide with separator spacing */
+.pg-thumb-slide {
+  position: relative;
 }
 
-.pg-thumb-nav svg {
-  width: 14px;
-  height: 14px;
+.pg-thumb-slide--with-separator {
+  padding-top: 20px;
 }
 
-/* ── Mobile tweaks for thumb strip ── */
+/* Mobile tweaks */
 @media (max-width: 600px) {
   .pg-thumb {
     width: 56px;
     height: 56px;
   }
   .pg-thumb-nav {
+    flex: 0 0 24px;
     width: 24px;
     height: 24px;
-    /* Always visible on mobile - no hover available */
-    opacity: 1 !important;
-    flex-shrink: 0;
+    min-width: 24px;
+    max-width: 24px;
   }
   .pg-thumb-nav svg {
     width: 12px;
@@ -361,241 +371,31 @@
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   LIGHTBOX THUMBNAIL SWIPER STRIP
-   Ye lightbox ke bottom mein render hoga — replace old .pg-lb-thumbs
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ── Hide old static lightbox thumbs ── */
-.pg-lb-thumbs {
-  display: none !important;
-}
-
-/* ── Lightbox thumb strip wrapper ── */
-.pg-lb-thumbs-wrap {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 100002;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 12px 14px;
-  background: linear-gradient(to top, rgba(8, 6, 4, 0.98) 60%, transparent);
-}
-
-/* ── Swiper inside lb wrap ── */
-.pg-lb-thumbs-swiper {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.pg-lb-thumb-slide {
-  width: auto !important;
-  flex-shrink: 0;
-}
-
-/* ── Lightbox thumb button ── */
-.pg-lb-thumb {
-  position: relative;
-  display: block;
-  width: 68px;
-  height: 68px;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 2px solid rgba(218, 165, 32, 0.2);
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.04);
-  padding: 0;
-  transition:
-    border-color 0.2s,
-    transform 0.15s,
-    opacity 0.2s;
-  opacity: 0.55;
-}
-
-.pg-lb-thumb:hover {
-  border-color: rgba(218, 165, 32, 0.6);
-  opacity: 0.85;
-  transform: translateY(-2px);
-}
-
-.pg-lb-thumb.active {
-  border-color: #daa520;
-  opacity: 1;
-  transform: translateY(-3px);
-  box-shadow: 0 4px 16px rgba(218, 165, 32, 0.4);
-}
-
-.pg-lb-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  pointer-events: none;
-}
-
-.pg-lb-thumb-num {
-  position: absolute;
-  bottom: 2px;
-  left: 4px;
-  font-size: 9px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
-  line-height: 1;
-  pointer-events: none;
-}
-
-/* ── Variant indicator in lightbox thumbs ── */
-.pg-lb-variant-dot {
-  position: absolute;
-  bottom: 4px;
-  right: 4px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #daa520;
-  border: 1.5px solid #fff;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.pg-lb-thumb--variant {
-  border-color: rgba(218, 165, 32, 0.4);
-}
-.pg-lb-thumb--variant.active {
-  border-color: #daa520;
-}
-
-/* ── Lightbox thumb nav arrows ── */
-.pg-lb-thumb-nav {
-  flex-shrink: 0;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 1px solid rgba(218, 165, 32, 0.3);
-  background: rgba(20, 16, 10, 0.9);
-  color: #c8a84b;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition:
-    background 0.2s,
-    border-color 0.2s,
-    transform 0.15s;
-  padding: 0;
-  z-index: 1;
-}
-
-.pg-lb-thumb-nav:hover {
-  background: rgba(218, 165, 32, 0.2);
-  border-color: #daa520;
-  transform: scale(1.12);
-}
-
-.pg-lb-thumb-nav svg {
-  width: 14px;
-  height: 14px;
-}
-
-/* ── Mobile tweaks for lightbox strip ── */
-@media (max-width: 600px) {
-  .pg-lb-thumbs-wrap {
-    padding: 8px 8px 10px;
-    gap: 4px;
+@media (max-width: 360px) {
+  .pg-thumb {
+    width: 48px;
+    height: 48px;
   }
-  .pg-lb-thumb {
-    width: 54px;
-    height: 54px;
+  .pg-thumb-nav {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    max-width: 22px;
   }
-  .pg-lb-thumb-nav {
-    width: 26px;
-    height: 26px;
-  }
-  .pg-lb-thumb-nav svg {
-    width: 12px;
-    height: 12px;
+  .pg-thumbs-swiper-wrap {
+    gap: 3px;
   }
 }
 
-/* ── Adjust lightbox stage bottom so thumbs don't overlap image ── */
-.pg-lb-stage {
-  padding-bottom: 96px !important;
-}
-
-@media (max-width: 600px) {
-  .pg-lb-stage {
-    padding-bottom: 82px !important;
-  }
-}
-
-.pg-thumb {
-  flex-shrink: 0;
-  width: 72px;
-  height: 72px;
-  border: 1px solid var(--pd-border, rgba(184, 134, 11, 0.18));
-  border-radius: 12px;
-  overflow: hidden;
-  cursor: pointer;
-  position: relative;
-  transition:
-    border-color var(--pd-ease-fast, 0.35s),
-    transform var(--pd-ease-fast, 0.35s);
-  background: var(--pd-light-bg, #ffffff);
-}
-
-.pg-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.4s
-    var(--pd-ease, 0.55s cubic-bezier(0.22, 1, 0.36, 1));
-}
-
-.pg-thumb:hover {
-  transform: translateY(-2px);
-  border-color: var(--pd-gold-dim, rgba(218, 165, 32, 0.08));
-}
-
-.pg-thumb:hover img {
-  transform: scale(1.1);
-}
-
-.pg-thumb.active {
-  border-color: var(--pd-gold, #daa520);
-  box-shadow:
-    0 0 0 2px var(--pd-gold, #daa520),
-    0 4px 20px rgba(218, 165, 32, 0.15);
-}
-
-.pg-thumb::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(218, 165, 32, 0);
-  transition: background 0.3s;
-}
-
-.pg-thumb.active::after {
-  background: rgba(218, 165, 32, 0.04);
-}
-
-/* Swiper Wrap */
+/* Main image wrap should never overflow */
 .pg-swiper-wrap {
-  position: relative;
-  cursor: grab;
-  user-select: none;
-  -webkit-user-select: none;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
-.pg-swiper-wrap:active {
-  cursor: grabbing;
-}
-
-/* Swiper Navigation Arrows */
+/* Main gallery arrows on big image */
 .pg-swiper-arrow {
   position: absolute;
   top: 50%;
@@ -646,9 +446,6 @@
 
 /* ============================================================
    LUXURY LIGHTBOX
-   Portal pe render hota hai (document.body ke direct child)
-   Isliye kisi bhi parent stacking context se azaad hai.
-   z-index: 99999 — navbar (z-100) se hamesha upar rahega
    ============================================================ */
 
 .pg-lightbox {
@@ -664,7 +461,6 @@
   overflow: hidden;
 }
 
-/* Open animation */
 @keyframes pg-lb-in {
   from {
     opacity: 0;
@@ -676,7 +472,6 @@
   }
 }
 
-/* Close animation */
 .pg-lightbox--closing {
   animation: pg-lb-out 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
 }
@@ -832,6 +627,7 @@
   -webkit-user-select: none;
   touch-action: none;
   z-index: 5;
+  padding-bottom: 96px !important;
 }
 
 .pg-lb-img-container {
@@ -911,74 +707,149 @@
   right: 1.5rem;
 }
 
-/* Bottom Thumbnail Strip */
-.pg-lb-thumbs {
+/* Lightbox Thumbnail Strip */
+.pg-lb-thumbs-wrap {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100002;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem 1rem;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
-  overflow-x: auto;
-  scrollbar-width: none;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 15;
+  gap: 6px;
+  padding: 10px 12px 14px;
+  background: linear-gradient(to top, rgba(8, 6, 4, 0.98) 60%, transparent);
 }
 
-.pg-lb-thumbs::-webkit-scrollbar {
-  display: none;
+.pg-lb-thumbs-swiper {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.pg-lb-thumb-slide {
+  width: auto !important;
+  flex-shrink: 0;
 }
 
 .pg-lb-thumb {
   position: relative;
-  width: 56px;
-  height: 56px;
-  flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
+  display: block;
+  width: 68px;
+  height: 68px;
+  border-radius: 6px;
   overflow: hidden;
+  border: 2px solid rgba(218, 165, 32, 0.2);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0;
+  transition: all 0.2s ease;
+  opacity: 0.55;
+}
+
+.pg-lb-thumb:hover {
+  border-color: rgba(218, 165, 32, 0.6);
+  opacity: 0.85;
+  transform: translateY(-2px);
+}
+
+.pg-lb-thumb.active {
+  border-color: #daa520;
+  opacity: 1;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 16px rgba(218, 165, 32, 0.4);
 }
 
 .pg-lb-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.4s
-    var(--pd-ease, 0.55s cubic-bezier(0.22, 1, 0.36, 1));
-}
-
-.pg-lb-thumb:hover {
-  border-color: rgba(255, 255, 255, 0.35);
-  transform: translateY(-3px);
-}
-
-.pg-lb-thumb:hover img {
-  transform: scale(1.1);
-}
-
-.pg-lb-thumb.active {
-  border-color: var(--pd-gold, #daa520);
-  box-shadow:
-    0 0 0 2px var(--pd-gold, #daa520),
-    0 4px 16px rgba(218, 165, 32, 0.3);
+  display: block;
+  pointer-events: none;
 }
 
 .pg-lb-thumb-num {
   position: absolute;
-  bottom: 3px;
-  right: 5px;
-  font-family: var(--pd-sans, "Goldman", "Josefin Sans", sans-serif);
-  font-size: 0.42rem;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.6);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  bottom: 2px;
+  left: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1;
+  pointer-events: none;
 }
 
-/* ── Lightbox Swipe Down Hint ── */
+.pg-lb-variant-dot {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #daa520;
+  border: 1.5px solid #fff;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.pg-lb-thumb--variant {
+  border-color: rgba(218, 165, 32, 0.4);
+}
+.pg-lb-thumb--variant.active {
+  border-color: #daa520;
+}
+
+.pg-lb-thumb-nav {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(218, 165, 32, 0.3);
+  background: rgba(20, 16, 10, 0.9);
+  color: #c8a84b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
+  z-index: 1;
+}
+
+.pg-lb-thumb-nav:hover {
+  background: rgba(218, 165, 32, 0.2);
+  border-color: #daa520;
+  transform: scale(1.12);
+}
+
+.pg-lb-thumb-nav svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 600px) {
+  .pg-lb-thumbs-wrap {
+    padding: 8px 8px 10px;
+    gap: 4px;
+  }
+  .pg-lb-thumb {
+    width: 54px;
+    height: 54px;
+  }
+  .pg-lb-thumb-nav {
+    width: 26px;
+    height: 26px;
+  }
+  .pg-lb-thumb-nav svg {
+    width: 12px;
+    height: 12px;
+  }
+  .pg-lb-stage {
+    padding-bottom: 82px !important;
+  }
+}
+
+/* Swipe down hint */
 .pg-lb-swipe-hint {
   position: absolute;
   bottom: 2rem;
@@ -1021,12 +892,6 @@
   }
 }
 
-.pg-lb-swipe-hint svg {
-  width: 14px;
-  height: 14px;
-  stroke: currentColor;
-}
-
 /* ============================================================
    RESPONSIVE
    ============================================================ */
@@ -1036,7 +901,7 @@
     position: static;
     max-width: 100%;
     width: 100%;
-    overflow: hidden; /* prevent thumbnails from hiding right side */
+    overflow: hidden;
   }
 
   .pg-lb-header {
@@ -1061,49 +926,14 @@
     max-height: 70vh;
   }
 
-  .pg-lb-thumb {
-    width: 44px;
-    height: 44px;
-  }
-
   .pg-lb-swipe-hint {
     display: flex;
     bottom: 4rem;
   }
-
-  .pg-thumbs {
-    gap: 0.4rem;
-  }
-
-  .pg-thumb {
-    width: 58px;
-    height: 58px;
-  }
-
-  .pg-swiper-arrow {
-    width: 36px;
-    height: 36px;
-  }
-
-  .pg-swiper-arrow svg {
-    width: 14px;
-    height: 14px;
-  }
 }
 
 @media (max-width: 480px) {
-  .pg-thumbs {
-    gap: 0.35rem;
-  }
-
-  .pg-thumb {
-    width: 52px;
-    height: 52px;
-    border-radius: 10px;
-  }
-
   .pg-lb-numbering {
-    display: flex;
     gap: 3px;
   }
 
@@ -1120,110 +950,6 @@
   }
 }
 
-@media (min-width: 769px) {
-  .pg-lb-swipe-hint {
-    display: flex;
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   THUMBNAIL STRIP OVERFLOW FIX - Complete solution
-   Problem was: zyada images hone pe thumbnails page ke right se bahar jaati thi
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* Gallery wrapper ko contain karo - koi bhi child bahar nahi jayega */
-.pg-gallery {
-  contain: layout style;
-}
-
-/* Thumb strip wrapper — strict width constraint */
-.pg-thumbs-swiper-wrap {
-  /* Nav buttons ko fixed size do, swiper baaki sab le le */
-  display: flex;
-  align-items: center;
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden; /* THE KEY FIX */
-  box-sizing: border-box;
-}
-
-/* Nav buttons ki fixed width ensure karo */
-.pg-thumb-nav {
-  flex: 0 0 28px; /* grow:0, shrink:0, basis:28px — NEVER changes size */
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  max-width: 28px;
-}
-
-/* Swiper exactly uses the remaining space */
-.pg-thumbs-swiper {
-  flex: 1 1 auto;
-  min-width: 0; /* CRITICAL: allow flex child to shrink below content width */
-  overflow: hidden;
-  width: 100%;
-}
-
-/* Swiper inner wrapper must also not overflow */
-.pg-thumbs-swiper .swiper-wrapper {
-  /* Swiper's internal element — ensure it doesn't cause horizontal scroll */
-  display: flex;
-  flex-wrap: nowrap;
-}
-
-/* ── Responsive: small screens ── */
-@media (max-width: 480px) {
-  .pg-thumb {
-    width: 52px;
-    height: 52px;
-  }
-
-  .pg-thumb-nav {
-    flex: 0 0 26px;
-    width: 26px;
-    height: 26px;
-    min-width: 26px;
-    max-width: 26px;
-  }
-
-  .pg-thumbs-swiper-wrap {
-    gap: 4px;
-  }
-}
-
-@media (max-width: 360px) {
-  .pg-thumb {
-    width: 46px;
-    height: 46px;
-  }
-
-  .pg-thumb-nav {
-    flex: 0 0 22px;
-    width: 22px;
-    height: 22px;
-    min-width: 22px;
-    max-width: 22px;
-  }
-
-  .pg-thumbs-swiper-wrap {
-    gap: 3px;
-  }
-}
-
-/* ── Ensure swiper-slide widths are correct inside our container ── */
-.pg-thumbs-swiper .swiper-slide {
-  width: auto !important;
-  flex-shrink: 0;
-}
-
-/* ── Main image wrap should never overflow ── */
-.pg-swiper-wrap {
-  max-width: 100%;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-
-/* ── On responsive breakpoints ensure gallery column never overflows its grid cell ── */
 @media (max-width: 1024px) {
   .pg-gallery {
     position: static !important;

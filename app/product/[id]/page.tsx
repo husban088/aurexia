@@ -831,79 +831,167 @@ export default function ProductDetail() {
     return (
       <div className="pd-root" style={{ minHeight: "80vh" }}>
         <style>{`
-          @keyframes skeleton-pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.35; }
+          @keyframes pd-skel-shimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
           }
-          .pd-skel { animation: skeleton-pulse 1.5s ease-in-out infinite; background: rgba(255,255,255,0.07); border-radius: 8px; }
+          .pd-skel {
+            border-radius: 8px;
+            background: linear-gradient(
+              90deg,
+              rgba(184,134,11,0.07) 25%,
+              rgba(218,165,32,0.15) 50%,
+              rgba(184,134,11,0.07) 75%
+            );
+            background-size: 200% 100%;
+            animation: pd-skel-shimmer 1.6s infinite;
+          }
+          .pd-skel-wrap {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 2rem 4rem;
+          }
+          .pd-skel-grid {
+            display: grid;
+            grid-template-columns: minmax(0,560px) 1fr;
+            gap: 3.5rem;
+            align-items: start;
+            margin-top: 1.5rem;
+          }
+          .pd-skel-thumbs {
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            margin-top: 10px;
+            overflow: hidden;
+          }
+          .pd-skel-info {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-top: 6px;
+          }
+          .pd-skel-tags {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+          }
+          .pd-skel-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+          }
+          /* Responsive skeleton */
+          @media (max-width: 1024px) {
+            .pd-skel-grid {
+              grid-template-columns: 1fr;
+              gap: 2rem;
+            }
+            .pd-skel-gallery {
+              max-width: 520px;
+              width: 100%;
+              margin: 0 auto;
+            }
+          }
+          @media (max-width: 600px) {
+            .pd-skel-wrap { padding: 1.25rem 1rem 3rem; }
+            .pd-skel-grid { gap: 1.5rem; margin-top: 1rem; }
+            .pd-skel-thumbs { gap: 6px; }
+          }
         `}</style>
-        <div
-          style={{ maxWidth: 1200, margin: "0 auto", padding: "2rem 1.5rem" }}
-        >
+
+        <div className="pd-skel-wrap">
           {/* Breadcrumb skeleton */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 32 }}>
-            {[60, 20, 90, 20, 70].map((w, i) => (
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              marginBottom: 24,
+            }}
+          >
+            {[55, 16, 80, 16, 65].map((w, i) => (
               <div
                 key={i}
                 className="pd-skel"
-                style={{ width: w, height: 14 }}
+                style={{ width: w, height: 12, flexShrink: 0 }}
               />
             ))}
           </div>
-          {/* Main grid skeleton */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "2.5rem",
-            }}
-          >
-            {/* Gallery skeleton */}
-            <div>
+
+          {/* Main grid */}
+          <div className="pd-skel-grid">
+            {/* Gallery column */}
+            <div className="pd-skel-gallery">
+              {/* Main image */}
               <div
                 className="pd-skel"
-                style={{ aspectRatio: "1", borderRadius: 16, marginBottom: 12 }}
+                style={{
+                  width: "100%",
+                  aspectRatio: "1 / 1",
+                  borderRadius: 20,
+                  marginBottom: 10,
+                }}
               />
-              <div style={{ display: "flex", gap: 8 }}>
-                {[1, 2, 3, 4].map((i) => (
+              {/* Thumbnail strip — one horizontal row */}
+              <div className="pd-skel-thumbs">
+                {[1, 2, 3, 4, 5].map((i) => (
                   <div
                     key={i}
                     className="pd-skel"
-                    style={{ width: 64, height: 64, borderRadius: 8 }}
+                    style={{
+                      width: 66,
+                      height: 66,
+                      borderRadius: 10,
+                      flexShrink: 0,
+                    }}
                   />
                 ))}
               </div>
             </div>
-            {/* Info skeleton */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 18,
-                paddingTop: 8,
-              }}
-            >
-              <div className="pd-skel" style={{ width: "35%", height: 14 }} />
-              <div className="pd-skel" style={{ width: "85%", height: 28 }} />
-              <div className="pd-skel" style={{ width: "60%", height: 22 }} />
+
+            {/* Info column */}
+            <div className="pd-skel-info">
+              {/* Brand */}
+              <div className="pd-skel" style={{ width: "30%", height: 11 }} />
+              {/* Title */}
+              <div className="pd-skel" style={{ width: "90%", height: 26 }} />
+              <div className="pd-skel" style={{ width: "70%", height: 26 }} />
+              {/* Rating */}
+              <div className="pd-skel" style={{ width: "45%", height: 16 }} />
+              {/* Divider */}
               <div
-                style={{ height: 1, background: "rgba(255,255,255,0.08)" }}
+                style={{
+                  height: 1,
+                  background: "rgba(184,134,11,0.12)",
+                  borderRadius: 1,
+                }}
               />
+              {/* Price */}
               <div
                 className="pd-skel"
-                style={{ width: "45%", height: 38, borderRadius: 6 }}
+                style={{ width: "50%", height: 40, borderRadius: 10 }}
               />
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                {[1, 2, 3].map((i) => (
+              {/* Variant label */}
+              <div className="pd-skel" style={{ width: "25%", height: 13 }} />
+              {/* Variant tags */}
+              <div className="pd-skel-tags">
+                {[1, 2, 3, 4].map((i) => (
                   <div
                     key={i}
                     className="pd-skel"
-                    style={{ width: 72, height: 36, borderRadius: 8 }}
+                    style={{ width: 76, height: 38, borderRadius: 8 }}
                   />
                 ))}
               </div>
-              <div className="pd-skel" style={{ width: "30%", height: 18 }} />
-              <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+              {/* Stock */}
+              <div className="pd-skel" style={{ width: "28%", height: 14 }} />
+              {/* Qty + add to cart */}
+              <div className="pd-skel-actions">
+                <div
+                  className="pd-skel"
+                  style={{ width: 110, height: 52, borderRadius: 10 }}
+                />
                 <div
                   className="pd-skel"
                   style={{ flex: 1, height: 52, borderRadius: 10 }}
@@ -913,10 +1001,21 @@ export default function ProductDetail() {
                   style={{ width: 52, height: 52, borderRadius: 10 }}
                 />
               </div>
+              {/* Buy now */}
               <div
                 className="pd-skel"
                 style={{ width: "100%", height: 52, borderRadius: 10 }}
               />
+              {/* Trust badges row */}
+              <div className="pd-skel-tags" style={{ marginTop: 8 }}>
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="pd-skel"
+                    style={{ flex: 1, height: 64, borderRadius: 10 }}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -1103,9 +1202,6 @@ export default function ProductDetail() {
               {savings > 0 && (
                 <p className="pd-savings">✦ You save {formatPrice(savings)}</p>
               )}
-              <p className="pd-price-base">
-                Base price: PKR {currentPerPiecePrice.toLocaleString()} / piece
-              </p>
             </div>
 
             {/* ── Variant Selectors ── */}
@@ -1330,9 +1426,6 @@ export default function ProductDetail() {
                   <div className="pd-desc-images-section">
                     <div className="pd-desc-images-header">
                       <span className="pd-desc-images-line" />
-                      <span className="pd-desc-images-label">
-                        Product Visuals
-                      </span>
                       <span className="pd-desc-images-line" />
                     </div>
                     <div className="pd-desc-images-grid pd-desc-images-grid--responsive">

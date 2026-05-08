@@ -259,7 +259,7 @@ export default function Checkout() {
   const ORDER_SESSION_KEY = "checkout_order_success";
 
   const [checkoutStep, setCheckoutStep] = useState<"shipping" | "payment">(
-    "shipping"
+    "shipping",
   );
   const [paymentMethod, setPaymentMethod] = useState<"card" | "paypal">("card");
 
@@ -297,7 +297,7 @@ export default function Checkout() {
           setForm((prev) => ({ ...prev, ...orderData.form }));
           setPaymentMethod(orderData.paymentMethod || "card");
           setNotifStatus(
-            orderData.notifStatus || { email: null, whatsapp: null }
+            orderData.notifStatus || { email: null, whatsapp: null },
           );
           if (orderData.snapItems?.length) {
             setSnapshotItems(orderData.snapItems);
@@ -373,7 +373,7 @@ export default function Checkout() {
   // ✅ FIXED: Phone validation uses country-specific digit rules
   const validateField = (
     field: keyof FormData,
-    value: string
+    value: string,
   ): string | undefined => {
     switch (field) {
       case "firstName":
@@ -491,7 +491,7 @@ export default function Checkout() {
           snapItems,
           snapSubtotal,
           snapCount,
-        })
+        }),
       );
     }
 
@@ -516,13 +516,20 @@ export default function Checkout() {
         };
         const ppu = item.pieces_per_unit ?? 1;
         const pricePerPiece = item.variant_price ?? (product as any).price ?? 0;
+        // ✅ Image priority: variant_image → main_images[0] → images[0]
+        const imageUrl =
+          item.variant_image ||
+          (product as any).main_images?.[0] ||
+          (product as any).images?.[0] ||
+          null;
         return {
           name: (product as any).name,
           variant: item.variant_name || null,
           quantity: item.quantity,
           piecesPerUnit: ppu,
           price: pricePerPiece * ppu * item.quantity,
-          image: item.variant_image || (product as any).images?.[0] || null,
+          pricePKR: pricePerPiece * ppu * item.quantity,
+          image: imageUrl,
         };
       });
 

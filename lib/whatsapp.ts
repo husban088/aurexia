@@ -1,48 +1,44 @@
 // lib/whatsapp.ts
-// ✅ COMPLETE FIX:
-// 1. ALL countries WhatsApp delivery fixed (Australia +61, UK +44, USA +1, Pakistan +92)
-// 2. Image send via Green API sendFileByUrl — properly working
-// 3. Phone formatter handles ALL formats correctly
-// Green API: https://green-api.com
+// ✅ WASENDERAPI — WhatsApp for ALL Countries
+// UK +44, USA +1, Australia +61, Pakistan +92 — sab kaam karta hai
+// NO sandbox, NO join message, NO daily limit
+// Unlimited messages — $6/month
+// Docs: https://wasenderapi.com/api-docs
 
 // ============================================
-// ✅ PHONE NUMBER FORMATTER — ALL COUNTRIES
+// PHONE NUMBER FORMATTER — ALL COUNTRIES
+// E.164 format required: +[country][number]
 //
-// Rule: Strip everything except digits, then add @c.us
-// +61426855997  → 61426855997@c.us  ✅ Australia
-// +12125551234  → 12125551234@c.us  ✅ USA
-// +447123456789 → 447123456789@c.us ✅ UK
-// +923001234567 → 923001234567@c.us ✅ Pakistan (international)
-// 03001234567   → 923001234567@c.us ✅ Pakistan (local 0-format only)
-// +971501234567 → 971501234567@c.us ✅ UAE
-// +966501234567 → 966501234567@c.us ✅ Saudi Arabia
+// +61426855997  → +61426855997  ✅ Australia
+// +12125551234  → +12125551234  ✅ USA
+// +447123456789 → +447123456789 ✅ UK
+// +923001234567 → +923001234567 ✅ Pakistan (international)
+// 03001234567   → +923001234567 ✅ Pakistan (local 0-format)
+// +971501234567 → +971501234567 ✅ UAE
 // ============================================
 export function formatPhoneForWhatsApp(phoneNumber: string): string {
   let clean = phoneNumber.trim().replace(/[\s\-\(\)\.]/g, "");
 
   if (clean.startsWith("+")) {
-    // Remove only the '+' — keep all digits (works for ALL countries)
-    clean = clean.slice(1);
+    clean = "+" + clean.slice(1).replace(/\D/g, "");
+    return clean;
   } else if (clean.startsWith("0") && clean.length === 11 && clean[1] === "3") {
-    // Pakistan local format ONLY: 03001234567 → 923001234567
-    clean = "92" + clean.slice(1);
+    // Pakistan local: 03001234567 → +923001234567
+    clean = clean.replace(/\D/g, "");
+    return `+92${clean.slice(1)}`;
+  } else {
+    clean = clean.replace(/\D/g, "");
+    return `+${clean}`;
   }
-
-  // Remove any remaining non-digits
-  clean = clean.replace(/\D/g, "");
-
-  const chatId = `${clean}@c.us`;
-  console.log(`📱 Phone → chatId: "${phoneNumber}" → "${chatId}"`);
-  return chatId;
 }
 
 // ============================================
-// HELPER: Valid public image URL check
+// HELPER: Valid public image URL
 // ============================================
 function isValidPublicImageUrl(url: string | null | undefined): boolean {
   if (!url || url === "null" || url === "undefined" || url.trim() === "")
     return false;
-  if (!url.startsWith("http://") && !url.startsWith("https://")) return false;
+  if (!url.startsWith("https://")) return false;
   if (
     url.includes("localhost") ||
     url.includes("127.0.0.1") ||
@@ -53,102 +49,121 @@ function isValidPublicImageUrl(url: string | null | undefined): boolean {
 }
 
 // ============================================
-// CORE TEXT SEND — Green API sendMessage
+// WASENDERAPI — Send Text Message
+// POST /api/send-message
 // ============================================
 export async function sendWhatsAppMessage(
   to: string,
   message: string,
 ): Promise<boolean> {
-  const instanceId = process.env.GREEN_API_INSTANCE_ID;
-  const apiToken = process.env.GREEN_API_TOKEN;
+  const apiKey = process.env.WASENDER_API_KEY;
 
-  if (!instanceId || !apiToken) {
-    console.warn("⚠️  WHATSAPP NOT CONFIGURED — Add GREEN_API_* to .env.local");
+  if (!apiKey) {
+    console.warn("⚠️ WASENDER_API_KEY missing — Add to .env.local");
     return false;
   }
 
-  const chatId = formatPhoneForWhatsApp(to);
-  console.log(`📱 Sending WhatsApp text → chatId: ${chatId}`);
+  const toFormatted = formatPhoneForWhatsApp(to);
+  console.log(`📱 WasenderAPI text → ${toFormatted}`);
 
   try {
-    const url = `https://api.green-api.com/waInstance${instanceId}/sendMessage/${apiToken}`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chatId, message }),
-    });
+    const response = await fetch(
+      "https://www.wasenderapi.com/api/send-message",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: toFormatted,
+          text: message,
+        }),
+      },
+    );
+
     const result = await response.json();
-    if (response.ok && result.idMessage) {
-      console.log(`✅ WhatsApp text sent! ID: ${result.idMessage} → ${chatId}`);
+
+    if (response.ok && result.success) {
+      console.log(
+        `✅ WasenderAPI text sent! MsgID: ${result.data?.msgId} → ${toFormatted}`,
+      );
       return true;
     } else {
       console.error(
-        `❌ Green API text error (${chatId}):`,
+        `❌ WasenderAPI text error (${toFormatted}):`,
         JSON.stringify(result),
       );
       return false;
     }
   } catch (error) {
-    console.error(`❌ WhatsApp text fetch error (${chatId}):`, error);
+    console.error(`❌ WasenderAPI fetch error (${toFormatted}):`, error);
     return false;
   }
 }
 
 // ============================================
-// IMAGE SEND — Green API sendFileByUrl
+// WASENDERAPI — Send Image with Caption
+// POST /api/send-message (imageUrl parameter)
+// ⚠️ PAID PLAN ONLY — uncomment when upgraded
 // ============================================
 export async function sendWhatsAppImage(
   to: string,
   imageUrl: string,
   caption: string,
 ): Promise<boolean> {
-  const instanceId = process.env.GREEN_API_INSTANCE_ID;
-  const apiToken = process.env.GREEN_API_TOKEN;
+  const apiKey = process.env.WASENDER_API_KEY;
 
-  if (!instanceId || !apiToken) return false;
+  if (!apiKey) return false;
+
   if (!isValidPublicImageUrl(imageUrl)) {
-    console.warn(
-      `⚠️ Invalid image URL — must be public https URL: ${imageUrl}`,
-    );
+    console.warn(`⚠️ Invalid image URL — must be public https: ${imageUrl}`);
     return false;
   }
 
-  const chatId = formatPhoneForWhatsApp(to);
-  console.log(`🖼️ Sending WhatsApp image → chatId: ${chatId}`);
+  const toFormatted = formatPhoneForWhatsApp(to);
+  console.log(`🖼️ WasenderAPI image → ${toFormatted}`);
   console.log(`   Image: ${imageUrl}`);
 
   try {
-    const url = `https://api.green-api.com/waInstance${instanceId}/sendFileByUrl/${apiToken}`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chatId,
-        urlFile: imageUrl,
-        fileName: "product.jpg",
-        caption,
-      }),
-    });
+    const response = await fetch(
+      "https://www.wasenderapi.com/api/send-message",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: toFormatted,
+          text: caption,
+          imageUrl: imageUrl,
+        }),
+      },
+    );
+
     const result = await response.json();
-    if (response.ok && result.idMessage) {
-      console.log(`✅ WhatsApp image sent! ID: ${result.idMessage}`);
+
+    if (response.ok && result.success) {
+      console.log(`✅ WasenderAPI image sent! MsgID: ${result.data?.msgId}`);
       return true;
     } else {
       console.error(
-        `❌ Green API image error (${chatId}):`,
+        `❌ WasenderAPI image error (${toFormatted}):`,
         JSON.stringify(result),
       );
       return false;
     }
   } catch (error) {
-    console.error(`❌ WhatsApp image fetch error (${chatId}):`, error);
+    console.error(`❌ WasenderAPI image fetch error:`, error);
     return false;
   }
 }
 
 // ============================================
 // COMPLETE ORDER NOTIFICATION
-// Flow: Image → wait 1s → Full text
+// FREE TRIAL MODE: Sirf text message
+// PAID PLAN: Image + text dono (uncomment below)
 // ============================================
 export async function sendOrderWhatsApp(
   phoneNumber: string,
@@ -171,6 +186,7 @@ export async function sendOrderWhatsApp(
     formattedPrice: string;
   }>,
 ): Promise<boolean> {
+  // Build items list
   const itemsList =
     formattedItems && formattedItems.length > 0
       ? formattedItems
@@ -213,30 +229,34 @@ For any questions:
 
 Thank you for choosing Tech4U! ✨`;
 
-  // Step 1: Image bhejo
-  const firstItemWithImage = items.find((item) =>
-    isValidPublicImageUrl(item.image),
-  );
-
-  if (firstItemWithImage?.image) {
-    const imageCaption = `🛍️ *${firstItemWithImage.name}*${
-      firstItemWithImage.variant ? ` (${firstItemWithImage.variant})` : ""
-    }\n📦 Order #${orderNumber} — Tech4U`;
-
-    console.log("🖼️ Sending order image first...");
-    const imageSent = await sendWhatsAppImage(
-      phoneNumber,
-      firstItemWithImage.image,
-      imageCaption,
-    );
-    if (!imageSent) {
-      console.warn("⚠️ Image send failed — continuing with text message");
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  } else {
-    console.log("ℹ️ No valid public image URL — sending text only");
-  }
-
-  // Step 2: Text bhejo
+  // ============================================
+  // 🆓 FREE TRIAL MODE — Sirf text jayega
+  // Image disabled — rate limit se bachne ke liye
+  // ============================================
+  console.log("📱 Sending order text (FREE TRIAL MODE — image disabled)");
   return sendWhatsAppMessage(phoneNumber, message);
+
+  // ============================================
+  // 💰 PAID PLAN — Uncomment karo jab upgrade karo
+  // Image + text dono jayenge
+  // ============================================
+  // const firstItemWithImage = items.find((item) =>
+  //   isValidPublicImageUrl(item.image),
+  // );
+  // if (firstItemWithImage?.image) {
+  //   const imageCaption = `🛍️ *${firstItemWithImage.name}*${
+  //     firstItemWithImage.variant ? ` (${firstItemWithImage.variant})` : ""
+  //   }\n📦 Order #${orderNumber} — Tech4U`;
+  //   console.log("🖼️ Sending order image first...");
+  //   const imageSent = await sendWhatsAppImage(
+  //     phoneNumber,
+  //     firstItemWithImage.image,
+  //     imageCaption,
+  //   );
+  //   if (!imageSent) {
+  //     console.warn("⚠️ Image send failed — continuing with text only");
+  //   }
+  //   await new Promise((resolve) => setTimeout(resolve, 1000));
+  // }
+  // return sendWhatsAppMessage(phoneNumber, message);
 }
