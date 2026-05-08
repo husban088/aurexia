@@ -6,6 +6,7 @@
 
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import type { TransportOptions } from "nodemailer";
 import {
   currencies,
   Currency,
@@ -38,7 +39,7 @@ function createTransporter() {
     socketTimeout: 15000,
     // ✅ NO pool — fresh connection each time (more reliable for delivery)
     pool: false,
-  });
+  } as TransportOptions);
 }
 
 // ============================================
