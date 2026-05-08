@@ -241,7 +241,6 @@ function PopupCard({
           price: selectedVariant.price,
           original_price: selectedVariant.original_price,
           stock: selectedVariant.stock,
-          stockStatus,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
@@ -432,59 +431,63 @@ async function fetchOnePerCategory(): Promise<PopupData[]> {
 
   await Promise.all(
     ALL_POPUP_TABS.map(async (cat) => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*, product_variants(*, variant_images(*))")
-        .eq("is_active", true)
-        .eq("is_featured", true)
-        .eq("category", cat)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .select("*, product_variants(*, variant_images(*))")
+          .eq("is_active", true)
+          .eq("is_featured", true)
+          .eq("category", cat)
+          .order("created_at", { ascending: false })
+          .limit(1);
 
-      if (error || !data) return;
+        if (error || !data || data.length === 0) return;
 
-      const product: PopupProduct = {
-        id: data.id,
-        name: data.name,
-        brand: data.brand || undefined,
-        description: data.description || undefined,
-        category: data.category,
-        subcategory: data.subcategory,
-        condition: data.condition || "new",
-        is_featured: data.is_featured || false,
-        is_active: data.is_active || true,
-        rating: data.rating && data.rating > 0 ? data.rating : undefined,
-        reviews_count:
-          data.reviews_count && data.reviews_count > 0
-            ? data.reviews_count
-            : undefined,
-      };
+        const item = data[0];
 
-      const variantImagesMap: VariantImagesMap = {};
-      const variants: PopupVariant[] = (data.product_variants || []).map(
-        (v: any) => {
-          const imgs = (v.variant_images || [])
-            .sort((a: any, b: any) => a.display_order - b.display_order)
-            .map((img: any) => img.image_url);
-          if (imgs.length > 0) variantImagesMap[v.id] = imgs;
-          return {
-            id: v.id,
-            product_id: v.product_id,
-            attribute_type: v.attribute_type,
-            attribute_value: v.attribute_value,
-            price: v.price,
-            original_price: v.original_price,
-            description: v.description,
-            stock: v.stock,
-            low_stock_threshold: v.low_stock_threshold,
-            images: [],
-            stockStatus: getStockStatus(v.stock, v.low_stock_threshold),
-          };
-        },
-      );
+        const product: PopupProduct = {
+          id: item.id,
+          name: item.name,
+          brand: item.brand || undefined,
+          description: item.description || undefined,
+          category: item.category,
+          subcategory: item.subcategory,
+          condition: item.condition || "new",
+          is_featured: item.is_featured || false,
+          is_active: item.is_active || true,
+          rating: item.rating && item.rating > 0 ? item.rating : undefined,
+          reviews_count:
+            item.reviews_count && item.reviews_count > 0
+              ? item.reviews_count
+              : undefined,
+        };
 
-      results.push({ product, variants, variantImagesMap });
+        const variantImagesMap: VariantImagesMap = {};
+        const variants: PopupVariant[] = (item.product_variants || []).map(
+          (v: any) => {
+            const imgs = (v.variant_images || [])
+              .sort((a: any, b: any) => a.display_order - b.display_order)
+              .map((img: any) => img.image_url);
+            if (imgs.length > 0) variantImagesMap[v.id] = imgs;
+            return {
+              id: v.id,
+              product_id: v.product_id,
+              attribute_type: v.attribute_type,
+              attribute_value: v.attribute_value,
+              price: v.price,
+              original_price: v.original_price,
+              description: v.description,
+              stock: v.stock,
+              low_stock_threshold: v.low_stock_threshold,
+              images: [],
+            };
+          },
+        );
+
+        results.push({ product, variants, variantImagesMap });
+      } catch (err) {
+        console.error(`Error fetching category ${cat}:`, err);
+      }
     }),
   );
 

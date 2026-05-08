@@ -48,31 +48,6 @@ function formatDateRange(start: Date, end: Date): string {
   } ${end.getDate()}`;
 }
 
-function getDeliveryStatus(): {
-  text: string;
-  icon: React.ReactNode;
-  color: string;
-} {
-  const hour = new Date().getHours();
-  if (hour >= 22) {
-    return {
-      text: "Order within 2 hours for faster processing",
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        >
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
-        </svg>
-      ),
-      color: "#f59e0b",
-    };
-  }
-}
-
 interface EstimatedDeliveryProps {
   className?: string;
 }
@@ -107,8 +82,6 @@ export default function EstimatedDelivery({
       </section>
     );
   }
-
-  const deliveryStatus = getDeliveryStatus();
 
   return (
     <section className={`pd-delivery-section ${className}`}>
