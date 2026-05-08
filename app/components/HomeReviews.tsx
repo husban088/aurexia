@@ -17,16 +17,14 @@ interface HomeReview {
   product_name?: string;
 }
 
-// ── Stars ─────────────────────────────────────────────────────
+// ── Stars Component ─────────────────────────────────────────────────────
 function StarDisplay({ rating }: { rating: number }) {
   return (
     <div className="hr-stars">
       {[1, 2, 3, 4, 5].map((i) => (
         <svg
           key={i}
-          className={`hr-star${
-            i <= Math.round(rating) ? " hr-star--filled" : ""
-          }`}
+          className={`hr-star${i <= Math.round(rating) ? " hr-star--filled" : ""}`}
           viewBox="0 0 24 24"
         >
           <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
@@ -36,7 +34,7 @@ function StarDisplay({ rating }: { rating: number }) {
   );
 }
 
-// ── Single Review Card ─────────────────────────────────────────
+// ── Single Review Card ─────────────────────────────────────────────────
 function ReviewCard({ review }: { review: HomeReview }) {
   const firstImage =
     review.images && review.images.length > 0 ? review.images[0] : null;
@@ -44,13 +42,13 @@ function ReviewCard({ review }: { review: HomeReview }) {
 
   return (
     <div className="hr-card">
-      {/* Gold shimmer top */}
-      <div className="hr-card-shine" />
+      {/* Gold shimmer effect on hover */}
+      <div className="hr-card-shimmer" />
 
-      {/* Quote mark decoration */}
+      {/* Decorative quote mark */}
       <div className="hr-card-quote">&ldquo;</div>
 
-      {/* ── Avatar / Image — top, round, one image ── */}
+      {/* Avatar / Image - Round, premium */}
       <div className="hr-card-avatar-wrap">
         {firstImage ? (
           <img
@@ -75,19 +73,19 @@ function ReviewCard({ review }: { review: HomeReview }) {
         </div>
       </div>
 
-      {/* ── Name — center ── */}
+      {/* Name */}
       <h4 className="hr-card-name">{review.name}</h4>
 
-      {/* ── Stars ── */}
+      {/* Stars */}
       <StarDisplay rating={review.rating} />
 
-      {/* ── Title ── */}
+      {/* Title */}
       <h3 className="hr-card-title">&ldquo;{review.title}&rdquo;</h3>
 
-      {/* ── Description ── */}
+      {/* Description / Body */}
       <p className="hr-card-body">{review.body}</p>
 
-      {/* ── Product tag ── */}
+      {/* Product tag */}
       {review.product_name && (
         <div className="hr-card-product">
           <svg
@@ -103,24 +101,20 @@ function ReviewCard({ review }: { review: HomeReview }) {
         </div>
       )}
 
-      {/* ── Bottom gold line ── */}
+      {/* Bottom animated gold line */}
       <div className="hr-card-bottom-line" />
     </div>
   );
 }
 
-// ── Main Component ─────────────────────────────────────────────
+// ── Main Component ─────────────────────────────────────────────────────
 export default function HomeReviews() {
   const [reviews, setReviews] = useState<HomeReview[]>([]);
   const [loading, setLoading] = useState(true);
 
   // How many cards visible at once (responsive)
   const [visibleCount, setVisibleCount] = useState(3);
-
-  // Track the offset index (how far we've scrolled)
   const [offset, setOffset] = useState(0);
-
-  // Animation state — "idle" | "left" | "right"
   const [animDir, setAnimDir] = useState<"idle" | "left" | "right">("idle");
 
   // Drag / swipe
@@ -128,10 +122,10 @@ export default function HomeReviews() {
   const touchStart = useRef<number | null>(null);
   const isDragging = useRef(false);
 
-  // Autoplay
+  // Autoplay timer
   const autoTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Responsive: update visible count ─────────────────────────
+  // Responsive: update visible count
   useEffect(() => {
     const update = () => {
       if (window.innerWidth >= 1024) setVisibleCount(3);
@@ -143,7 +137,7 @@ export default function HomeReviews() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // ── Fetch reviews ─────────────────────────────────────────────
+  // Fetch reviews from Supabase
   useEffect(() => {
     async function fetchAll() {
       setLoading(true);
@@ -175,7 +169,7 @@ export default function HomeReviews() {
           reviewData.map((r) => ({
             ...r,
             product_name: productMap[r.product_id] || "Our Product",
-          }))
+          })),
         );
       } catch (err) {
         console.error("HomeReviews fetch:", err);
@@ -186,9 +180,7 @@ export default function HomeReviews() {
     fetchAll();
   }, []);
 
-  // ── Navigation ─────────────────────────────────────────────────
   const totalSlides = reviews.length;
-
   const canPrev = offset > 0;
   const canNext = offset + visibleCount < totalSlides;
 
@@ -197,7 +189,6 @@ export default function HomeReviews() {
       if (animDir !== "idle") return;
 
       if (dir === "right" && !canNext) {
-        // Loop back to start
         setAnimDir("right");
         setTimeout(() => {
           setOffset(0);
@@ -206,7 +197,6 @@ export default function HomeReviews() {
         return;
       }
       if (dir === "left" && !canPrev) {
-        // Loop to end
         setAnimDir("left");
         setTimeout(() => {
           setOffset(Math.max(0, totalSlides - visibleCount));
@@ -220,21 +210,21 @@ export default function HomeReviews() {
         setOffset((prev) =>
           dir === "right"
             ? Math.min(prev + 1, totalSlides - visibleCount)
-            : Math.max(prev - 1, 0)
+            : Math.max(prev - 1, 0),
         );
         setAnimDir("idle");
       }, 420);
     },
-    [animDir, canNext, canPrev, totalSlides, visibleCount]
+    [animDir, canNext, canPrev, totalSlides, visibleCount],
   );
 
   const next = useCallback(() => go("right"), [go]);
   const prev = useCallback(() => go("left"), [go]);
 
-  // ── Autoplay ──────────────────────────────────────────────────
+  // Autoplay
   const startAutoplay = useCallback(() => {
     if (autoTimer.current) clearInterval(autoTimer.current);
-    autoTimer.current = setInterval(() => next(), 4500);
+    autoTimer.current = setInterval(() => next(), 5000);
   }, [next]);
 
   const stopAutoplay = useCallback(() => {
@@ -246,7 +236,7 @@ export default function HomeReviews() {
     return stopAutoplay;
   }, [reviews.length, visibleCount, startAutoplay, stopAutoplay]);
 
-  // ── Mouse drag ────────────────────────────────────────────────
+  // Mouse drag
   const handleMouseDown = (e: React.MouseEvent) => {
     dragStart.current = e.clientX;
     isDragging.current = false;
@@ -272,7 +262,7 @@ export default function HomeReviews() {
     startAutoplay();
   };
 
-  // ── Touch swipe ────────────────────────────────────────────────
+  // Touch swipe
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStart.current = e.touches[0].clientX;
     stopAutoplay();
@@ -285,10 +275,9 @@ export default function HomeReviews() {
     startAutoplay();
   };
 
-  // ── Visible reviews ───────────────────────────────────────────
   const visibleReviews = reviews.slice(offset, offset + visibleCount);
 
-  // Loading
+  // Loading skeleton
   if (loading) {
     return (
       <section className="hr-section">
@@ -329,13 +318,22 @@ export default function HomeReviews() {
 
   return (
     <section className="hr-section">
-      {/* Decorative background */}
+      {/* Animated background orbs */}
       <div className="hr-bg-orb hr-bg-orb--1" />
       <div className="hr-bg-orb hr-bg-orb--2" />
+      <div className="hr-bg-orb hr-bg-orb--3" />
       <div className="hr-bg-grid" />
 
+      {/* Floating sparkle dots */}
+      <div className="hr-sparkle hr-sparkle--1" />
+      <div className="hr-sparkle hr-sparkle--2" />
+      <div className="hr-sparkle hr-sparkle--3" />
+      <div className="hr-sparkle hr-sparkle--4" />
+      <div className="hr-sparkle hr-sparkle--5" />
+      <div className="hr-sparkle hr-sparkle--6" />
+
       <div className="hr-content">
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="hr-header">
           <p className="hr-eyebrow">
             <span className="hr-eye-line" />
@@ -350,7 +348,7 @@ export default function HomeReviews() {
           </p>
         </div>
 
-        {/* ── Stats ── */}
+        {/* Stats Section */}
         <div className="hr-stats">
           <div className="hr-stat">
             <span className="hr-stat-num">{reviews.length}+</span>
@@ -368,7 +366,7 @@ export default function HomeReviews() {
           </div>
         </div>
 
-        {/* ── Slider Stage ── */}
+        {/* Slider Stage */}
         <div
           className="hr-stage-wrap"
           onMouseDown={handleMouseDown}
@@ -379,7 +377,6 @@ export default function HomeReviews() {
           onTouchEnd={handleTouchEnd}
           style={{ cursor: isDragging.current ? "grabbing" : "grab" }}
         >
-          {/* Left arrow */}
           {showNav && (
             <button
               className="hr-arrow hr-arrow--prev"
@@ -397,7 +394,6 @@ export default function HomeReviews() {
             </button>
           )}
 
-          {/* Cards grid — KEY FIX: no opacity trick, always visible */}
           <div
             className={`hr-cards-grid hr-cards-grid--${visibleCount} hr-cards-grid--anim-${animDir}`}
           >
@@ -406,7 +402,6 @@ export default function HomeReviews() {
             ))}
           </div>
 
-          {/* Right arrow */}
           {showNav && (
             <button
               className="hr-arrow hr-arrow--next"
@@ -425,7 +420,7 @@ export default function HomeReviews() {
           )}
         </div>
 
-        {/* ── Dot indicators ── */}
+        {/* Dot Indicators */}
         {showNav && (
           <div className="hr-dots">
             {Array.from({ length: Math.ceil(totalSlides / visibleCount) }).map(
@@ -440,14 +435,14 @@ export default function HomeReviews() {
                     onClick={() => {
                       stopAutoplay();
                       setOffset(
-                        Math.min(pageOffset, totalSlides - visibleCount)
+                        Math.min(pageOffset, totalSlides - visibleCount),
                       );
                       startAutoplay();
                     }}
                     aria-label={`Page ${i + 1}`}
                   />
                 );
-              }
+              },
             )}
           </div>
         )}

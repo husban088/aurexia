@@ -171,6 +171,7 @@ async function ensureTabCached(tab: string): Promise<CachedData> {
 
   const promise = fetchFeaturedTabDataFast(tab).then((data) => {
     MODULE_CACHE[tab] = data;
+    saveToSession(tab, data);
     delete FETCH_IN_FLIGHT[tab];
     return data;
   });
@@ -184,6 +185,7 @@ function prefetchAllTabs() {
     if (!MODULE_CACHE[tab] && !FETCH_IN_FLIGHT[tab]) {
       const promise = fetchFeaturedTabDataFast(tab).then((data) => {
         MODULE_CACHE[tab] = data;
+        saveToSession(tab, data);
         delete FETCH_IN_FLIGHT[tab];
         return data;
       });
@@ -813,6 +815,40 @@ function ProductCard({
 }
 
 /* ─────────────────────────────────────────────────────────────
+   SESSION STORAGE PERSIST — page reload pe bhi data instant mile
+───────────────────────────────────────────────────────────── */
+const SESSION_KEY = "fp_cache_v1";
+
+function saveToSession(tab: string, data: CachedData) {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    const existing = raw ? JSON.parse(raw) : {};
+    existing[tab] = data;
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(existing));
+  } catch (_) {}
+}
+
+function loadFromSession(): Record<string, CachedData> {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    // Also populate module cache so future lookups are instant
+    Object.entries(parsed).forEach(([tab, data]) => {
+      if (!MODULE_CACHE[tab]) MODULE_CACHE[tab] = data as CachedData;
+    });
+    return parsed;
+  } catch (_) {
+    return {};
+  }
+}
+
+// On module load, restore session cache into MODULE_CACHE
+if (typeof window !== "undefined") {
+  loadFromSession();
+}
+
+/* ─────────────────────────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────── */
 export default function FeaturedProducts() {
@@ -828,6 +864,7 @@ export default function FeaturedProducts() {
     Record<string, string[]>
   >(() => MODULE_CACHE["Accessories"]?.variantImagesMap ?? {});
 
+  // isLoading: false if we already have data in cache (instant render)
   const [isLoading, setIsLoading] = useState<boolean>(
     () => !MODULE_CACHE["Accessories"],
   );
@@ -863,7 +900,8 @@ export default function FeaturedProducts() {
           setVariantImagesMap(d.variantImagesMap);
           setIsLoading(false);
         }
-        prefetchAllTabs();
+        // Prefetch other tabs in background (non-blocking)
+        setTimeout(() => prefetchAllTabs(), 0);
         return;
       }
 
@@ -877,13 +915,15 @@ export default function FeaturedProducts() {
         setIsLoading(false);
       }
 
-      prefetchAllTabs();
+      // Prefetch other tabs in background after first tab loads
+      setTimeout(() => prefetchAllTabs(), 200);
     }
 
     loadInitialTab();
 
     const handlePageShow = (e: PageTransitionEvent) => {
-      if (e.persisted && isMounted) {
+      // bfcache se wapas aaye — instantly show cached data
+      if (isMounted) {
         const cached = MODULE_CACHE[activeTab];
         if (cached) {
           setProducts(cached.products);
@@ -916,31 +956,39 @@ export default function FeaturedProducts() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleTabChange = useCallback(async (tab: string) => {
-    setActiveTab(tab);
+  const handleTabChange = useCallback(
+    async (tab: string) => {
+      // Agar same tab click kiya toh kuch mat karo
+      if (tab === activeTab) return;
 
-    if (MODULE_CACHE[tab]) {
-      const d = MODULE_CACHE[tab];
-      setProducts(d.products);
-      setVariantsMap(d.variantsMap);
-      setVariantImagesMap(d.variantImagesMap);
-      setIsLoading(false);
-      setSwiperKey((k) => k + 1);
-      return;
-    }
+      setActiveTab(tab);
 
-    setIsLoading(true);
-    setProducts([]);
+      // Cache se instantly show karo — bilkul koi loading nahi
+      if (MODULE_CACHE[tab]) {
+        const d = MODULE_CACHE[tab];
+        setProducts(d.products);
+        setVariantsMap(d.variantsMap);
+        setVariantImagesMap(d.variantImagesMap);
+        setIsLoading(false);
+        setSwiperKey((k) => k + 1);
+        return;
+      }
 
-    const data = await ensureTabCached(tab);
-    if (data) {
-      setProducts(data.products);
-      setVariantsMap(data.variantsMap);
-      setVariantImagesMap(data.variantImagesMap);
-      setIsLoading(false);
-      setSwiperKey((k) => k + 1);
-    }
-  }, []);
+      // Sirf tab hi loading show karo jab cache miss ho
+      setIsLoading(true);
+      setProducts([]);
+
+      const data = await ensureTabCached(tab);
+      if (data) {
+        setProducts(data.products);
+        setVariantsMap(data.variantsMap);
+        setVariantImagesMap(data.variantImagesMap);
+        setIsLoading(false);
+        setSwiperKey((k) => k + 1);
+      }
+    },
+    [activeTab],
+  );
 
   useEffect(() => {
     if (swiperRef.current && products.length > 0) {

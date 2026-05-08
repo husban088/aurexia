@@ -47,8 +47,7 @@ const contactDetails = [
       </svg>
     ),
     label: "Our Boutique",
-    value: "Faisalabad, Punjab, Pakistan",
-    sub: "Mon–Sat: 10:00 – 19:00 PKT",
+    value: "Adelaide, Australia",
   },
   {
     icon: (
@@ -62,9 +61,8 @@ const contactDetails = [
         <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.03 1.19 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.08 6.08l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
       </svg>
     ),
-    label: "Phone & WhatsApp",
-    value: "+92 300 0000000",
-    sub: "Available 9am – 8pm PKT",
+    label: "WhatsApp",
+    value: "+49 1578 2101282",
   },
   {
     icon: (
@@ -80,7 +78,7 @@ const contactDetails = [
       </svg>
     ),
     label: "Email Us",
-    value: "husbanshk@gmail.com",
+    value: "info@tech4ru.com",
     sub: "Response within 24 hours",
   },
 ];
@@ -123,20 +121,20 @@ function useToast() {
       setToasts((prev) => [...prev, { id, title, msg, type }]);
       setTimeout(() => {
         setToasts((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+          prev.map((t) => (t.id === id ? { ...t, exiting: true } : t)),
         );
         setTimeout(
           () => setToasts((prev) => prev.filter((t) => t.id !== id)),
-          400
+          400,
         );
       }, 4000);
     },
-    []
+    [],
   );
 
   const dismiss = useCallback((id: number) => {
     setToasts((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+      prev.map((t) => (t.id === id ? { ...t, exiting: true } : t)),
     );
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 400);
   }, []);
@@ -178,7 +176,7 @@ export default function Contact() {
 
   /* ── Field change ── */
   function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -209,7 +207,7 @@ export default function Contact() {
       showToast(
         "Validation Error",
         "Please fix the highlighted fields before sending.",
-        "error"
+        "error",
       );
       return;
     }
@@ -232,13 +230,13 @@ export default function Contact() {
         showToast(
           "Send Failed",
           data.message || "Something went wrong. Please try again.",
-          "error"
+          "error",
         );
       } else {
         showToast(
           "Message Sent!",
           "We've received your message and will reply within 24 hours.",
-          "success"
+          "success",
         );
         setSubmitted(true);
       }
@@ -246,7 +244,7 @@ export default function Contact() {
       showToast(
         "Network Error",
         "Unable to connect. Please check your internet and try again.",
-        "error"
+        "error",
       );
     } finally {
       setSending(false);
@@ -428,14 +426,14 @@ export default function Contact() {
               onClick={() =>
                 window.open(
                   "https://maps.google.com?q=Faisalabad+Punjab+Pakistan",
-                  "_blank"
+                  "_blank",
                 )
               }
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   window.open(
                     "https://maps.google.com?q=Faisalabad+Punjab+Pakistan",
-                    "_blank"
+                    "_blank",
                   );
                 }
               }}

@@ -3,6 +3,7 @@
    Tech4U Luxury Store — Category Pages
    ✅ Perfect image cover, consistent alignment, luxury hover FX
    ✅ Matches Featured Products design language exactly
+   ✅ Fixed: Reduced top spacing, products visible immediately
    ============================================================ */
 
 @import url("https://fonts.googleapis.com/css2?family=Russo+One&display=swap");
@@ -87,11 +88,11 @@
   );
 }
 
-/* ── Hero Section ── */
+/* ── Hero Section — REDUCED padding, smaller font ── */
 .sub-hero {
   position: relative;
   z-index: 1;
-  padding: 6.5rem 2rem 3rem;
+  padding: 2rem 2rem 1.5rem;
   border-bottom: 1px solid rgba(201, 168, 76, 0.14);
 }
 
@@ -100,16 +101,17 @@
   margin: 0 auto;
 }
 
+/* Breadcrumb — smaller */
 .sub-breadcrumb {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-family: var(--pg-sans);
-  font-size: 0.58rem;
+  font-size: 0.52rem;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.85rem;
 }
 
 .sub-breadcrumb-link {
@@ -130,13 +132,14 @@
   color: var(--pg-gold);
 }
 
+/* Title — smaller, compact */
 .sub-title {
   font-family: var(--pg-serif);
-  font-size: clamp(2.2rem, 6vw, 4rem);
+  font-size: clamp(1.6rem, 4vw, 2.5rem);
   font-weight: 400;
   color: var(--pg-ink);
-  margin: 0 0 0.75rem;
-  line-height: 1.05;
+  margin: 0 0 0.4rem;
+  line-height: 1.15;
 }
 
 .sub-title em {
@@ -145,105 +148,107 @@
   font-weight: 600;
 }
 
+/* Description — smaller, less space below */
 .sub-description {
   font-family: var(--pg-sans);
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   font-weight: 400;
-  line-height: 1.85;
+  line-height: 1.5;
   letter-spacing: 0.04em;
-  color: #666;
+  color: #777;
   max-width: 520px;
   margin: 0;
 }
 
+/* Decorative line — compact */
 .sub-deco {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
 }
 
 .sub-deco-line {
-  width: 32px;
+  width: 28px;
   height: 1px;
   background: linear-gradient(90deg, var(--pg-gold), transparent);
 }
 
 .sub-deco-diamond {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   background: var(--pg-gold);
   transform: rotate(45deg);
   opacity: 0.55;
 }
 
-/* ── Main Content ── */
+/* ── Main Content — reduced top padding ── */
 .sub-main {
   position: relative;
   z-index: 1;
   max-width: 1320px;
   margin: 0 auto;
-  padding: 3.5rem 2rem 6rem;
+  padding: 1.5rem 2rem 5rem;
 }
 
-/* ── Subcategory Navigation ── */
+/* ── Subcategory Navigation — compact, smaller cards ── */
 .cat-subnav {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 4rem;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 2rem;
 }
 
 .cat-subnav-item {
   background: white;
   border: 1px solid rgba(201, 168, 76, 0.14);
-  border-radius: 16px;
-  padding: 1.2rem;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
   text-decoration: none;
-  transition: all 0.35s var(--pg-ease-out);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s var(--pg-ease-out);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.02);
 }
 
 .cat-subnav-item:hover {
   border-color: rgba(201, 168, 76, 0.38);
   background: #fffdf8;
-  transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(201, 168, 76, 0.1);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(201, 168, 76, 0.1);
 }
 
 .cat-subnav-name {
   font-family: var(--pg-serif);
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--pg-gold-dark);
   display: block;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.2rem;
 }
 
 .cat-subnav-desc {
   font-family: var(--pg-sans);
-  font-size: 0.58rem;
+  font-size: 0.52rem;
   font-weight: 400;
-  color: #999;
+  color: #aaa;
   display: block;
-  line-height: 1.6;
+  line-height: 1.4;
 }
 
-/* ── Section Header ── */
+/* ── Section Header — compact ── */
 .cat-section {
-  margin-top: 2rem;
+  margin-top: 1rem;
 }
 
 .cat-section-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
 }
 
 .cat-section-title {
   font-family: var(--pg-serif);
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 500;
   color: var(--pg-ink);
   margin: 0;
@@ -256,32 +261,32 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-      TOOLBAR
+      TOOLBAR — compact
    ═══════════════════════════════════════════════════════ */
 .pg-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.5rem;
   flex-wrap: wrap;
-  padding-bottom: 1.2rem;
+  padding-bottom: 0.8rem;
   border-bottom: 1px solid rgba(201, 168, 76, 0.14);
 }
 
 .pg-search-wrap {
   position: relative;
   flex: 1;
-  min-width: 220px;
+  min-width: 200px;
 }
 
 .pg-search-icon {
   position: absolute;
-  left: 0.95rem;
+  left: 0.9rem;
   top: 50%;
   transform: translateY(-50%);
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   color: #bbb;
   pointer-events: none;
 }
@@ -290,10 +295,10 @@
   width: 100%;
   background: white;
   border: 1px solid rgba(201, 168, 76, 0.2);
-  border-radius: 50px;
-  padding: 0.8rem 1.1rem 0.8rem 2.5rem;
+  border-radius: 40px;
+  padding: 0.65rem 1rem 0.65rem 2.3rem;
   font-family: var(--pg-sans);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 400;
   color: var(--pg-ink);
   outline: none;
@@ -310,12 +315,12 @@
 }
 
 .pg-sort-select {
-  padding: 0.8rem 2.4rem 0.8rem 1.1rem;
+  padding: 0.65rem 2.2rem 0.65rem 1rem;
   background: white;
   border: 1px solid rgba(201, 168, 76, 0.2);
-  border-radius: 50px;
+  border-radius: 40px;
   font-family: var(--pg-sans);
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   font-weight: 500;
   letter-spacing: 0.08em;
   color: #666;
@@ -323,11 +328,9 @@
   outline: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c9a84c' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.9rem center;
-  background-size: 12px;
+  background-position: right 0.85rem center;
+  background-size: 11px;
   appearance: none;
-  -webkit-appearance: none;
-  transition: border-color 0.3s ease;
 }
 
 .pg-sort-select:focus {
@@ -336,7 +339,7 @@
 
 .pg-count {
   font-family: var(--pg-sans);
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-weight: 400;
   letter-spacing: 0.08em;
   color: #999;
@@ -351,39 +354,36 @@
 
 /* ═══════════════════════════════════════════════════════
       PRODUCT GRID
-      auto-fill: cards per row adjust to viewport, always equal width
    ═══════════════════════════════════════════════════════ */
 .pg-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 1.5rem;
-  align-items: start; /* ✅ prevents grid from stretching short cards */
+  align-items: start;
 }
 
 /* ═══════════════════════════════════════════════════════
       PRODUCT CARD
-      KEY: display:flex flex-direction:column + padding-top image trick
-      ✅ Every card: image fills square perfectly, body details always align
    ═══════════════════════════════════════════════════════ */
 .pg-card {
   position: relative;
   background: var(--pg-card);
   border: 1px solid var(--pg-gold-border);
-  border-radius: 20px;
+  border-radius: 18px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  transition: transform 0.5s var(--pg-ease-out),
-    box-shadow 0.5s var(--pg-ease-out), border-color 0.4s ease;
+  transition:
+    transform 0.45s var(--pg-ease-out),
+    box-shadow 0.45s var(--pg-ease-out),
+    border-color 0.35s ease;
   width: 100%;
-  /* ✅ No min-height or max-height — card grows naturally with content */
   text-decoration: none;
   color: inherit;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.04);
 }
 
-/* Shimmer overlay on hover */
 .pg-card::after {
   content: "";
   position: absolute;
@@ -398,11 +398,10 @@
   opacity: 0;
   transition: opacity 0.4s ease;
   pointer-events: none;
-  border-radius: 20px;
+  border-radius: 18px;
   z-index: 1;
 }
 
-/* Gold corner accent */
 .pg-card::before {
   content: "";
   position: absolute;
@@ -411,7 +410,7 @@
   width: 0;
   height: 0;
   border-style: solid;
-  border-width: 0 28px 28px 0;
+  border-width: 0 24px 24px 0;
   border-color: transparent var(--pg-gold) transparent transparent;
   opacity: 0;
   transition: opacity 0.35s ease;
@@ -419,9 +418,10 @@
 }
 
 .pg-card:hover {
-  transform: translateY(-10px);
-  box-shadow: 0 28px 55px rgba(201, 168, 76, 0.14),
-    0 8px 20px rgba(0, 0, 0, 0.06);
+  transform: translateY(-8px);
+  box-shadow:
+    0 24px 48px rgba(201, 168, 76, 0.12),
+    0 6px 16px rgba(0, 0, 0, 0.05);
   border-color: var(--pg-gold-border-h);
   background: var(--pg-card-hover);
 }
@@ -433,14 +433,11 @@
   opacity: 1;
 }
 
-/* ── Image Area ──
-      ✅ padding-top: 100% = always perfect 1:1 square
-      Image covers fully — no white gap, no stretch
-   ── */
+/* ── Image Area ── */
 .pg-card-img {
   position: relative;
   width: 100%;
-  padding-top: 100%; /* 1:1 aspect ratio */
+  padding-top: 100%;
   flex-shrink: 0;
   background: #f0ebe3;
   overflow: hidden;
@@ -451,23 +448,24 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover; /* ✅ covers fully */
+  object-fit: cover;
   object-position: center center;
-  transition: transform 0.75s var(--pg-ease-out), opacity 0.3s ease;
+  transition:
+    transform 0.65s var(--pg-ease-out),
+    opacity 0.3s ease;
 }
 
 .pg-card:hover .pg-card-img img {
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
 
-/* Gradient overlay on hover */
 .pg-card-img::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.16) 0%, transparent 50%);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.12) 0%, transparent 50%);
   opacity: 0;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.35s ease;
   z-index: 1;
 }
 
@@ -475,7 +473,6 @@
   opacity: 1;
 }
 
-/* Placeholder */
 .pg-card-placeholder {
   position: absolute;
   inset: 0;
@@ -487,16 +484,16 @@
 }
 
 .pg-card-placeholder svg {
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
 }
 
 /* ── Icon Buttons ── */
 .pg-icon-buttons {
   position: absolute;
-  bottom: 0.8rem;
-  left: 0.8rem;
-  right: 0.8rem;
+  bottom: 0.7rem;
+  left: 0.7rem;
+  right: 0.7rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -504,7 +501,9 @@
   z-index: 4;
   transform: translateY(6px);
   opacity: 0;
-  transition: transform 0.35s var(--pg-ease-out), opacity 0.3s ease;
+  transition:
+    transform 0.35s var(--pg-ease-out),
+    opacity 0.3s ease;
 }
 
 .pg-card:hover .pg-icon-buttons {
@@ -513,10 +512,10 @@
 }
 
 .pg-icon-btn {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.96);
   border: 1px solid rgba(201, 168, 76, 0.22);
   display: flex;
   align-items: center;
@@ -524,13 +523,12 @@
   cursor: pointer;
   transition: all 0.3s var(--pg-ease-out);
   backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
 }
 
 .pg-icon-btn svg {
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
   color: var(--pg-ink);
   transition: all 0.25s ease;
 }
@@ -551,22 +549,11 @@
   cursor: not-allowed;
 }
 
-.pg-icon-btn:disabled:hover {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(201, 168, 76, 0.22);
-  transform: none;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
-}
-
-.pg-icon-btn:disabled:hover svg {
-  color: var(--pg-ink);
-}
-
 /* ── Badges ── */
 .pg-card-badges {
   position: absolute;
-  top: 0.85rem;
-  left: 0.85rem;
+  top: 0.7rem;
+  left: 0.7rem;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
@@ -576,15 +563,14 @@
 .pg-badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.3rem 0.9rem;
+  padding: 0.25rem 0.8rem;
   border-radius: 30px;
   font-family: var(--pg-sans);
-  font-size: 0.5rem;
+  font-size: 0.48rem;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
 }
 
 .pg-badge--cat {
@@ -619,10 +605,9 @@
 
 /* ═══════════════════════════════════════════════════════
       CARD BODY
-      ✅ Fixed min-heights for each zone → perfect alignment across all cards
    ═══════════════════════════════════════════════════════ */
 .pg-card-body {
-  padding: 1.1rem 1.15rem 1.2rem;
+  padding: 0.9rem 1rem 1rem;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -632,27 +617,25 @@
   z-index: 2;
 }
 
-/* ── Brand: fixed height so name starts at same Y ── */
 .pg-card-brand {
   font-family: var(--pg-sans);
-  font-size: 0.58rem;
+  font-size: 0.55rem;
   font-weight: 700;
-  letter-spacing: 0.26em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--pg-gold-dark);
-  margin: 0 0 0.35rem;
-  min-height: 1rem; /* ✅ reserved even if no brand */
-  line-height: 1rem;
+  margin: 0 0 0.3rem;
+  min-height: 0.9rem;
+  line-height: 0.9rem;
 }
 
-/* ── Name: exactly 2 lines ── */
 .pg-card-name {
   font-family: var(--pg-serif);
-  font-size: 1rem;
+  font-size: 0.92rem;
   font-weight: 600;
   color: var(--pg-ink);
-  margin: 0 0 0.55rem;
-  line-height: 1.38;
+  margin: 0 0 0.45rem;
+  line-height: 1.35;
   transition: color 0.35s ease;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -660,26 +643,25 @@
   overflow: hidden;
   text-overflow: ellipsis;
   word-break: break-word;
-  min-height: calc(1rem * 1.38 * 2); /* ✅ always 2 lines */
+  min-height: calc(0.92rem * 1.35 * 2);
 }
 
 .pg-card:hover .pg-card-name {
   color: var(--pg-gold-deep);
 }
 
-/* ── Price Row: fixed height ── */
 .pg-card-price-row {
   display: flex;
   align-items: baseline;
-  gap: 0.55rem;
-  margin: 0 0 0.55rem;
+  gap: 0.45rem;
+  margin: 0 0 0.45rem;
   flex-wrap: wrap;
-  min-height: 2rem; /* ✅ price always same height */
+  min-height: 1.8rem;
 }
 
 .pg-card-price {
   font-family: var(--pg-serif);
-  font-size: 1.3rem;
+  font-size: 1.15rem;
   font-weight: 700;
   color: var(--pg-gold-dark);
   letter-spacing: -0.01em;
@@ -687,7 +669,7 @@
 
 .pg-card-orig {
   font-family: var(--pg-sans);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 400;
   color: rgba(0, 0, 0, 0.35);
   text-decoration: line-through;
@@ -695,30 +677,42 @@
 
 .pg-card-discount {
   font-family: var(--pg-sans);
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 700;
   color: #dc2626;
   background: rgba(220, 38, 38, 0.08);
-  padding: 0.1rem 0.45rem;
+  padding: 0.1rem 0.4rem;
   border-radius: 20px;
   letter-spacing: 0.04em;
 }
 
-/* ── Variants: fixed min-height ── */
+/* Rating */
+.pg-card-rating {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 2px 0 4px;
+}
+.pg-card-rating-count {
+  font-size: 10px;
+  color: rgba(0, 0, 0, 0.5);
+  font-weight: 400;
+}
+
+/* ── Variants ── */
 .pg-card-variants {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
   flex-wrap: wrap;
-  min-height: 50px; /* ✅ variants always take same height */
+  min-height: 44px;
   align-content: flex-start;
   margin-bottom: 0.2rem;
-  font-size: 0.55rem;
 }
 
 .pg-variant-label {
   font-family: var(--pg-sans);
-  font-size: 0.52rem;
+  font-size: 0.5rem;
   font-weight: 600;
   color: var(--pg-gold-deep);
   letter-spacing: 0.06em;
@@ -727,19 +721,19 @@
 .pg-variant-thumbnails {
   display: flex;
   align-items: center;
-  gap: 0.28rem;
+  gap: 0.25rem;
   flex-wrap: wrap;
 }
 
 .pg-variant-thumb {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
   border: 1.5px solid rgba(201, 168, 76, 0.22);
   background: transparent;
   cursor: pointer;
   overflow: hidden;
-  transition: all 0.22s ease;
+  transition: all 0.2s ease;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -752,34 +746,18 @@
 .pg-variant-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover; /* ✅ variant thumbnails also fully covered */
-  object-position: center;
+  object-fit: cover;
   border-radius: 6px;
 }
 
-.pg-variant-thumb .pg-variant-text {
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: #777;
-  font-family: var(--pg-sans);
-}
-
-.pg-variant-label-text {
-  font-size: 0.46rem;
+.pg-variant-name {
+  font-size: 8px;
   font-weight: 500;
-  color: var(--pg-gold-deep);
-  text-align: center;
-  max-width: 38px;
+  color: #777;
+  max-width: 34px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  line-height: 1;
-}
-
-.pg-variant-thumb:hover {
-  border-color: var(--pg-gold);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(201, 168, 76, 0.2);
 }
 
 .pg-variant-thumb.active {
@@ -788,33 +766,45 @@
   background: rgba(201, 168, 76, 0.06);
 }
 
-.pg-variant-thumb.active .pg-variant-label-text {
+.pg-variant-thumb.active .pg-variant-name {
   color: var(--pg-gold-dark);
   font-weight: 700;
 }
 
+.pg-variant-text {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(184, 150, 62, 0.12);
+  color: #b8963e;
+}
+
 .pg-variant-more {
-  font-size: 0.56rem;
+  font-size: 0.54rem;
   font-weight: 600;
   color: var(--pg-gold-dark);
   font-family: var(--pg-sans);
   background: var(--pg-gold-dim);
-  padding: 0.2rem 0.55rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 20px;
-  border: 1px solid rgba(201, 168, 76, 0.18);
 }
 
-/* ── Stock: always at bottom, with dot indicator ── */
+/* ── Stock ── */
 .pg-card-stock {
   font-family: var(--pg-sans);
-  font-size: 0.58rem;
+  font-size: 0.55rem;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  min-height: 1rem; /* ✅ reserved even if no stock shown */
+  min-height: 0.9rem;
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
+  margin-top: 2px;
 }
 
 .pg-card-stock::before {
@@ -861,13 +851,13 @@
     var(--pg-gold)
   );
   background-size: 200% 100%;
-  transition: width 0.55s var(--pg-ease-out);
+  transition: width 0.5s var(--pg-ease-out);
   z-index: 6;
 }
 
 .pg-card:hover .pg-card-line {
   width: 100%;
-  animation: pg-line-shimmer 1.5s ease infinite 0.55s;
+  animation: pg-line-shimmer 1.5s ease infinite 0.5s;
 }
 
 @keyframes pg-line-shimmer {
@@ -880,7 +870,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-      SPINNER
+      SPINNER & EMPTY STATE
    ═══════════════════════════════════════════════════════ */
 @keyframes pg-spin {
   to {
@@ -890,30 +880,27 @@
 
 .pg-spinner {
   display: inline-block;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border: 2px solid rgba(201, 168, 76, 0.2);
   border-top-color: var(--pg-gold);
   border-radius: 50%;
   animation: pg-spin 0.75s linear infinite;
 }
 
-/* ═══════════════════════════════════════════════════════
-      EMPTY STATE
-   ═══════════════════════════════════════════════════════ */
 .pg-empty {
-  padding: 5rem 2rem;
+  padding: 3rem 2rem;
   text-align: center;
   border: 1px solid rgba(201, 168, 76, 0.14);
-  border-radius: 20px;
+  border-radius: 18px;
   background: white;
   grid-column: 1 / -1;
 }
 
 .pg-empty-icon {
-  width: 70px;
-  height: 70px;
-  margin: 0 auto 1.2rem;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 1rem;
   border: 1px solid rgba(201, 168, 76, 0.2);
   border-radius: 50%;
   display: flex;
@@ -923,70 +910,23 @@
 }
 
 .pg-empty-icon svg {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
 }
 
 .pg-empty-title {
   font-family: var(--pg-serif);
-  font-size: 1.3rem;
+  font-size: 1.1rem;
   font-weight: 500;
   color: var(--pg-ink);
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.4rem;
 }
 
 .pg-empty-sub {
   font-family: var(--pg-sans);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 400;
   color: #999;
-}
-
-/* ═══════════════════════════════════════════════════════
-      SKELETON
-   ═══════════════════════════════════════════════════════ */
-.pg-skeleton-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
-  gap: 1.5rem;
-}
-
-.pg-skeleton-card {
-  background: white;
-  border: 1px solid rgba(201, 168, 76, 0.1);
-  border-radius: 20px;
-  overflow: hidden;
-}
-
-@keyframes pg-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-.pg-skeleton-img {
-  aspect-ratio: 1;
-  background: linear-gradient(90deg, #f0ebe4 25%, #e8e0d8 50%, #f0ebe4 75%);
-  background-size: 200% 100%;
-  animation: pg-shimmer 1.5s infinite;
-}
-
-.pg-skeleton-body {
-  padding: 1.2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.pg-skeleton-line {
-  height: 10px;
-  border-radius: 5px;
-  background: linear-gradient(90deg, #f0ebe4 25%, #e8e0d8 50%, #f0ebe4 75%);
-  background-size: 200% 100%;
-  animation: pg-shimmer 1.5s infinite;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -994,10 +934,10 @@
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 1100px) {
   .sub-hero {
-    padding: 6rem 1.5rem 2.5rem;
+    padding: 1.5rem 1.5rem 1rem;
   }
   .sub-main {
-    padding: 3rem 1.5rem 5rem;
+    padding: 1rem 1.5rem 4rem;
   }
   .pg-grid {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -1007,62 +947,20 @@
 
 @media (max-width: 900px) {
   .sub-hero {
-    padding: 5.5rem 1.5rem 2.5rem;
+    padding: 1.2rem 1.2rem 1rem;
   }
   .sub-main {
-    padding: 2.5rem 1.5rem 4rem;
+    padding: 0.8rem 1.2rem 3.5rem;
   }
   .pg-grid {
     grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     gap: 1rem;
   }
   .pg-card-name {
-    font-size: 0.95rem;
-  }
-  .pg-card-price {
-    font-size: 1.15rem;
-  }
-  .pg-icon-btn {
-    width: 38px;
-    height: 38px;
-  }
-  .pg-icon-btn svg {
-    width: 15px;
-    height: 15px;
-  }
-  .pg-card-body {
-    padding: 0.95rem 1rem 1rem;
-  }
-  .pg-variant-thumb {
-    width: 36px;
-    height: 36px;
-  }
-}
-
-@media (max-width: 640px) {
-  .sub-hero {
-    padding: 4.5rem 1.2rem 2rem;
-  }
-  .sub-main {
-    padding: 2rem 1.2rem 3rem;
-  }
-  .pg-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.75rem;
-  }
-  .pg-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
-  }
-  .pg-card-name {
     font-size: 0.88rem;
   }
   .pg-card-price {
-    font-size: 1.05rem;
-  }
-  .pg-card-brand {
-    font-size: 0.55rem;
+    font-size: 1rem;
   }
   .pg-icon-btn {
     width: 34px;
@@ -1073,24 +971,48 @@
     height: 14px;
   }
   .pg-card-body {
-    padding: 0.8rem 0.85rem 0.9rem;
+    padding: 0.8rem 0.9rem 0.9rem;
   }
   .pg-variant-thumb {
     width: 32px;
     height: 32px;
   }
-  .pg-card-variants {
-    min-height: 44px;
-  }
   .cat-subnav {
-    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: 0.6rem;
+    margin-bottom: 1.5rem;
+  }
+  .cat-subnav-item {
+    padding: 0.6rem 0.8rem;
+  }
+  .cat-subnav-name {
+    font-size: 0.78rem;
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
+  .sub-hero {
+    padding: 1rem 1rem 0.8rem;
+  }
+  .sub-main {
+    padding: 0.6rem 1rem 3rem;
+  }
+  .pg-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+  }
   .pg-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.6rem;
+    gap: 0.75rem;
+  }
+  .pg-card-name {
+    font-size: 0.82rem;
+  }
+  .pg-card-price {
+    font-size: 0.95rem;
+  }
+  .pg-card-brand {
+    font-size: 0.5rem;
   }
   .pg-icon-btn {
     width: 32px;
@@ -1100,18 +1022,64 @@
     width: 13px;
     height: 13px;
   }
+  .pg-card-body {
+    padding: 0.7rem 0.75rem 0.8rem;
+  }
   .pg-variant-thumb {
     width: 28px;
     height: 28px;
   }
-  .pg-variant-label-text {
+  .pg-variant-name {
+    font-size: 7px;
+    max-width: 28px;
+  }
+  .pg-card-variants {
+    min-height: 38px;
+  }
+  .cat-subnav {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 1.2rem;
+  }
+  .cat-subnav-name {
+    font-size: 0.72rem;
+  }
+  .sub-title {
+    font-size: 1.3rem;
+  }
+  .sub-description {
+    font-size: 0.65rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .pg-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+  }
+  .pg-icon-btn {
+    width: 30px;
+    height: 30px;
+  }
+  .pg-icon-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+  .pg-variant-thumb {
+    width: 26px;
+    height: 26px;
+  }
+  .pg-variant-name {
     display: none;
   }
   .pg-card-name {
-    font-size: 0.84rem;
+    font-size: 0.78rem;
   }
   .pg-card-price {
-    font-size: 1rem;
+    font-size: 0.9rem;
+  }
+  .cat-subnav {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -1125,9 +1093,7 @@
   .pg-card,
   .pg-card-img img,
   .pg-icon-buttons,
-  .pg-card-line,
-  .pg-skeleton-img,
-  .pg-skeleton-line {
+  .pg-card-line {
     transition: none;
     animation: none;
   }

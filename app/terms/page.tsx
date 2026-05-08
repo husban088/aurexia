@@ -278,9 +278,9 @@ export default function TermsOfService() {
               <p>
                 <strong>Email:</strong> info@tech4ru.com
                 <br />
-                <strong>Phone:</strong> +92 300 123 4567
+                <strong>Phone:</strong> +49 1578 2101282
                 <br />
-                <strong>Address:</strong> Faisalabad, Punjab, Pakistan
+                <strong>Address:</strong> Adelaide, Australia
               </p>
             </div>
           </div>

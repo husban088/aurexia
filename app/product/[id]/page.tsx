@@ -24,6 +24,39 @@ import type { ProductFAQItem } from "@/app/components/ProductFAQSection";
 // ─── MODULE-LEVEL CACHE ───────────────────────────────────────────────────────
 const _productCache = new Map<string, any>();
 const _inFlight = new Map<string, Promise<any>>();
+
+// ── sessionStorage persistence: laptop off/on, page refresh pe bhi instant data ──
+const PD_SESSION_KEY = "pd_product_cache_v2";
+
+function _saveProductToSession(key: string, data: any) {
+  try {
+    const raw = sessionStorage.getItem(PD_SESSION_KEY);
+    const store: Record<string, any> = raw ? JSON.parse(raw) : {};
+    store[key] = data;
+    // Max 20 products store karo (LRU style — oldest remove karo)
+    const keys = Object.keys(store);
+    if (keys.length > 20) {
+      delete store[keys[0]];
+    }
+    sessionStorage.setItem(PD_SESSION_KEY, JSON.stringify(store));
+  } catch (_) {}
+}
+
+function _loadProductSessionCache() {
+  try {
+    const raw = sessionStorage.getItem(PD_SESSION_KEY);
+    if (!raw) return;
+    const store: Record<string, any> = JSON.parse(raw);
+    Object.entries(store).forEach(([key, data]) => {
+      if (!_productCache.has(key)) _productCache.set(key, data);
+    });
+  } catch (_) {}
+}
+
+// Immediately restore session cache on module load
+if (typeof window !== "undefined") {
+  _loadProductSessionCache();
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 /* ── URL slug helper: "Apple Watch Ultra 2" → "apple-watch-ultra-2" ── */
@@ -113,9 +146,11 @@ async function fetchById(id: string, retries = 3): Promise<any | null> {
 
       const result = processProductData(data);
       _productCache.set(id, result);
+      _saveProductToSession(id, result);
       // Also cache by slug for future navigations
       const slug = slugify(result.name);
       _productCache.set(slug, result);
+      _saveProductToSession(slug, result);
       return result;
     } catch (err) {
       if (attempt === retries - 1) return null;
@@ -158,6 +193,9 @@ async function fetchBySlugSearch(
       _productCache.set(slug, result);
       _productCache.set(matched.id, result);
       _productCache.set(slugify(matched.name), result);
+      _saveProductToSession(slug, result);
+      _saveProductToSession(matched.id, result);
+      _saveProductToSession(slugify(matched.name), result);
       return result;
     } catch (err) {
       if (attempt === retries - 1) return null;
@@ -500,12 +538,14 @@ export default function ProductDetail() {
   const { addToCart } = useCartStore();
   const { formatPrice, currency } = useCurrency();
 
-  // ── If cache already had the product, hydrate variants too ──
+  // ── If cache already had the product, hydrate instantly ──
   useEffect(() => {
     if (!cacheKey) return;
     const cached = _productCache.get(cacheKey);
-    if (cached && !loading) {
+    if (cached) {
       hydrateFromData(cached);
+      setLoading(false);
+      setNotFound(false);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -555,7 +595,7 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!cacheKey) return;
 
-    // Already cached? Hydrate instantly without fetch
+    // Already cached? Hydrate instantly without fetch — no loading, no notFound
     if (_productCache.has(cacheKey)) {
       hydrateFromData(_productCache.get(cacheKey));
       setLoading(false);
@@ -572,9 +612,31 @@ export default function ProductDetail() {
       if (data) {
         hydrateFromData(data);
         setLoading(false);
+        setNotFound(false);
       } else {
-        setLoading(false);
-        setNotFound(true);
+        // Network slow hogi — 1.5s baad retry karo pehle notFound dikhane se
+        setTimeout(() => {
+          if (!active) return;
+          // Check session cache dobara (might have loaded)
+          if (_productCache.has(cacheKey)) {
+            hydrateFromData(_productCache.get(cacheKey));
+            setLoading(false);
+            setNotFound(false);
+            return;
+          }
+          _inFlight.delete(cacheKey);
+          fetchProductCached(cacheKey).then((retryData) => {
+            if (!active) return;
+            if (retryData) {
+              hydrateFromData(retryData);
+              setLoading(false);
+              setNotFound(false);
+            } else {
+              setLoading(false);
+              setNotFound(true);
+            }
+          });
+        }, 1500);
       }
     });
 
@@ -587,6 +649,13 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!cacheKey) return;
     function handleOnline() {
+      // Cached data hai toh foran show karo
+      if (_productCache.has(cacheKey)) {
+        hydrateFromData(_productCache.get(cacheKey));
+        setLoading(false);
+        setNotFound(false);
+        return;
+      }
       if (notFound || (!product && !loading)) {
         _productCache.delete(cacheKey);
         _inFlight.delete(cacheKey);

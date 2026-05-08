@@ -289,10 +289,12 @@ export default function Footer() {
         </svg>
       ),
       label: "Our Location",
-      value: "Faisalabad, Punjab, Pakistan",
+      value: "Adelaide, Australia",
       href: null,
     },
   ];
+  
+
 
   return (
     <footer className="footer">

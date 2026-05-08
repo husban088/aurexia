@@ -15,26 +15,31 @@ import {
 import { sendOrderWhatsApp } from "@/lib/whatsapp";
 
 // ============================================
-// SMTP EMAIL SETUP
+// SMTP EMAIL SETUP — FIXED FOR ALL EMAIL PROVIDERS
+// Works with: Hotmail, Gmail, Yahoo, iCloud, info.com, custom domains
+// Australia, USA, UK — SABI countries ke emails deliver hote hain
 // ============================================
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT || "587"),
-  secure: parseInt(process.env.SMTP_PORT || "587") === 465,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
-    minVersion: "TLSv1.2",
-  },
-  name: "tech4ru.com",
-  pool: true,
-  maxConnections: 3,
-  rateDelta: 1000,
-  rateLimit: 3,
-});
+function createTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port: parseInt(process.env.SMTP_PORT || "587"),
+    secure: false, // ✅ MUST be false for port 587 (STARTTLS)
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    tls: {
+      rejectUnauthorized: false,
+      minVersion: "TLSv1.2",
+    },
+    // ✅ Timeouts — prevent hanging
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    // ✅ NO pool — fresh connection each time (more reliable for delivery)
+    pool: false,
+  });
+}
 
 // ============================================
 // Currency helpers
@@ -104,7 +109,7 @@ function buildCustomerEmailHtml(
                           style="border-radius:10px;object-fit:cover;display:block;
                                  border:1px solid #eee;" alt="${item.name}" />`
                       : `<div style="width:72px;height:72px;border-radius:10px;background:#f5f5f5;
-                                   text-align:center;font-size:28px;line-height:72px;">📦</div>`
+                                   text-align:center;font-size:28px;line-height:72px;">&#128230;</div>`
                   }
                 </td>
                 <td style="vertical-align:top;">
@@ -118,7 +123,7 @@ function buildCustomerEmailHtml(
                   }
                   <p style="margin:0;font-size:12px;color:#666;">
                     Qty: ${item.quantity} unit${item.quantity > 1 ? "s" : ""}
-                    ${ppu > 1 ? `× ${ppu} pieces = ${totalPieces} total` : ""}
+                    ${ppu > 1 ? `x ${ppu} pieces = ${totalPieces} total` : ""}
                   </p>
                   <p style="margin:4px 0 0;font-size:13px;font-weight:600;color:#b8860b;">
                     ${convertedPrice}
@@ -134,7 +139,12 @@ function buildCustomerEmailHtml(
 
   return `
   <!DOCTYPE html>
-  <html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Order Confirmed - Tech4U</title>
+  </head>
   <body style="margin:0;padding:0;background:#f8f8f8;font-family:Arial,sans-serif;">
     <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8f8;padding:20px 0;">
       <tr><td align="center">
@@ -142,16 +152,16 @@ function buildCustomerEmailHtml(
 
           <!-- Header -->
           <tr>
-            <td style="background:linear-gradient(135deg,#1a1a1a,#2d2d2d);padding:32px;text-align:center;">
+            <td style="background:#1a1a1a;padding:32px;text-align:center;">
               <h1 style="color:#daa520;margin:0;font-size:28px;letter-spacing:2px;">TECH4U</h1>
-              <p style="color:#fff;margin:8px 0 0;font-size:14px;opacity:0.8;">Order Confirmed ✅</p>
+              <p style="color:#ffffff;margin:8px 0 0;font-size:14px;opacity:0.8;">Order Confirmed &#10003;</p>
             </td>
           </tr>
 
           <!-- Greeting -->
           <tr>
             <td style="padding:28px 32px 0;">
-              <h2 style="color:#1a1a1a;margin:0 0 8px;font-size:20px;">Hello ${name}! 🎉</h2>
+              <h2 style="color:#1a1a1a;margin:0 0 8px;font-size:20px;">Hello ${name}!</h2>
               <p style="color:#666;margin:0;font-size:14px;line-height:1.6;">
                 Thank you for your purchase! Your order has been confirmed and is being processed.
               </p>
@@ -161,17 +171,17 @@ function buildCustomerEmailHtml(
           <!-- Order Info -->
           <tr>
             <td style="padding:20px 32px;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f6f0;border-radius:12px;padding:16px;">
+              <table width="100%" cellpadding="8" cellspacing="0" style="background:#f9f6f0;border-radius:12px;">
                 <tr>
-                  <td style="font-size:13px;color:#666;padding:4px 0;">Order Number</td>
+                  <td style="font-size:13px;color:#666;">Order Number</td>
                   <td style="font-size:13px;font-weight:700;color:#1a1a1a;text-align:right;">#${orderNumber}</td>
                 </tr>
                 <tr>
-                  <td style="font-size:13px;color:#666;padding:4px 0;">Order Date</td>
+                  <td style="font-size:13px;color:#666;">Order Date</td>
                   <td style="font-size:13px;color:#1a1a1a;text-align:right;">${orderDate}</td>
                 </tr>
                 <tr>
-                  <td style="font-size:13px;color:#666;padding:4px 0;">Payment</td>
+                  <td style="font-size:13px;color:#666;">Payment</td>
                   <td style="font-size:13px;color:#1a1a1a;text-align:right;">${paymentMethod}</td>
                 </tr>
               </table>
@@ -287,6 +297,47 @@ function buildAdminItemsHtml(items: any[], currencyCode: string): string {
 }
 
 // ============================================
+// SEND EMAIL WITH RETRY — works for ALL providers
+// Hotmail, Gmail, Yahoo, iCloud, custom domains
+// ============================================
+async function sendEmailWithRetry(
+  mailOptions: nodemailer.SendMailOptions,
+  retries = 3,
+): Promise<boolean> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    // ✅ Fresh transporter every time — prevents stale connection issues
+    const transporter = createTransporter();
+    try {
+      console.log(`📧 Email attempt ${attempt}/${retries} → ${mailOptions.to}`);
+
+      // ✅ Verify SMTP connection first
+      await transporter.verify();
+
+      await transporter.sendMail(mailOptions);
+      console.log(`✅ Email sent successfully to: ${mailOptions.to}`);
+      transporter.close();
+      return true;
+    } catch (error: any) {
+      console.error(`❌ Email attempt ${attempt} failed:`, error.message);
+      try {
+        transporter.close();
+      } catch {}
+
+      if (attempt < retries) {
+        // Wait before retry: 2s, 4s, 8s
+        const delay = attempt * 2000;
+        console.log(`⏳ Retrying in ${delay / 1000}s...`);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+  }
+  console.error(
+    `❌ All ${retries} email attempts failed for: ${mailOptions.to}`,
+  );
+  return false;
+}
+
+// ============================================
 // MAIN API ROUTE HANDLER
 // ============================================
 export async function POST(request: Request) {
@@ -329,11 +380,23 @@ export async function POST(request: Request) {
       );
     }
 
+    // ✅ Validate email format before sending
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      console.error("❌ Invalid email format:", email);
+      return NextResponse.json(
+        { success: false, error: "Invalid email address" },
+        { status: 400 },
+      );
+    }
+
     let emailSent = false;
     let whatsappSent = false;
 
     // ==========================================
     // STEP 1: EMAIL TO CUSTOMER
+    // Works for: Hotmail, Gmail, Yahoo, iCloud, any domain
+    // Australia, USA, UK — all countries
     // ==========================================
     try {
       const emailText = buildCustomerEmailText(
@@ -358,24 +421,28 @@ export async function POST(request: Request) {
       );
 
       const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
-      await transporter.sendMail({
-        from: `"Tech4U Orders" <${fromEmail}>`,
-        to: email,
+      const fromName = "Tech4U Orders";
+
+      emailSent = await sendEmailWithRetry({
+        from: `"${fromName}" <${fromEmail}>`,
+        to: email, // ✅ Customer ka email — koi bhi ho
         replyTo: `"Tech4U Support" <${fromEmail}>`,
-        subject: `Order Confirmed #${orderNumber} - Tech4U`,
-        text: emailText,
+        subject: `Your Order #${orderNumber} is Confirmed - Tech4U`,
+        text: emailText, // ✅ Plain text fallback — critical for deliverability
         html: emailHtml,
         headers: {
-          "Message-ID": `<order-${orderNumber}-${Date.now()}@tech4ru.com>`,
+          // ✅ These headers tell spam filters this is a legit transactional email
+          "X-Mailer": "Tech4U-Order-System",
           "X-Transaction-Email": "true",
           Precedence: "transactional",
-          "X-Priority": "3",
+          "X-Priority": "1",
+          Importance: "High",
+          // ✅ Unique Message-ID prevents duplicate detection
+          "Message-ID": `<order-${orderNumber}-${Date.now()}@tech4ru.com>`,
         },
       });
-      console.log("✅ EMAIL SENT to:", email);
-      emailSent = true;
     } catch (emailError: any) {
-      console.error("❌ EMAIL FAILED:", emailError.message);
+      console.error("❌ EMAIL STEP FAILED:", emailError.message);
       emailSent = false;
     }
 
@@ -385,7 +452,6 @@ export async function POST(request: Request) {
     try {
       console.log(`📱 Sending WhatsApp via WasenderAPI to: ${phone}`);
 
-      // Build formatted items for WhatsApp message
       const formattedItems = (items || []).map((item: any) => ({
         name: item.name,
         variant: item.variant,
@@ -426,13 +492,14 @@ export async function POST(request: Request) {
         currencyCode,
       );
       const itemsAdminHtml = buildAdminItemsHtml(items, currencyCode);
+      const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
 
-      await transporter.sendMail({
-        from: `"Tech4U System" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
+      await sendEmailWithRetry({
+        from: `"Tech4U System" <${fromEmail}>`,
         to: ownerEmail,
-        subject: `NEW ORDER #${orderNumber} — ${convertedTotalDisplay} (${currencyCode}) — ${name}`,
+        subject: `🛍️ NEW ORDER #${orderNumber} — ${convertedTotalDisplay} (${currencyCode}) — ${name}`,
         html: `
-          <h2>🛍️ NEW ORDER #${orderNumber}</h2>
+          <h2>&#128722; NEW ORDER #${orderNumber}</h2>
           <p><strong>Customer:</strong> ${name}</p>
           <p><strong>Email:</strong> ${email}</p>
           <p><strong>Phone:</strong> ${phone}</p>
@@ -450,9 +517,10 @@ export async function POST(request: Request) {
           </table>
           <p><strong>Total: ${convertedTotalDisplay}</strong></p>
           <hr>
-          <p>📧 Email to customer: ${emailSent ? "✅ Sent" : "❌ Failed"}</p>
-          <p>💬 WhatsApp to customer: ${whatsappSent ? "✅ Sent" : "❌ Failed"}</p>
+          <p>&#128231; Email to customer: ${emailSent ? "✅ Sent" : "❌ Failed"}</p>
+          <p>&#128172; WhatsApp to customer: ${whatsappSent ? "✅ Sent" : "❌ Failed"}</p>
         `,
+        text: `NEW ORDER #${orderNumber}\nCustomer: ${name}\nEmail: ${email}\nPhone: ${phone}\nTotal: ${convertedTotalDisplay}\nEmail Sent: ${emailSent}\nWhatsApp Sent: ${whatsappSent}`,
       });
       console.log("📧 Admin alert sent");
     } catch (adminErr: any) {
@@ -463,7 +531,7 @@ export async function POST(request: Request) {
       success: emailSent || whatsappSent,
       emailSent,
       whatsappSent,
-      message: `Email: ${emailSent ? "Sent" : "Failed"}, WhatsApp: ${whatsappSent ? "Sent" : "Failed"}`,
+      message: `Email: ${emailSent ? "Sent ✅" : "Failed ❌"}, WhatsApp: ${whatsappSent ? "Sent ✅" : "Failed ❌"}`,
     });
   } catch (error: any) {
     console.error("❌ ROUTE ERROR:", error);

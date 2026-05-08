@@ -22,16 +22,14 @@ interface ProductReviewsProps {
   productId: string;
 }
 
-// ── Stars ──────────────────────────────────────────────────────
+// ── Stars Component ──────────────────────────────────────────────
 function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
   return (
     <div className="pr-stars">
       {[1, 2, 3, 4, 5].map((i) => (
         <svg
           key={i}
-          className={`pr-star${
-            i <= Math.round(rating) ? " pr-star--filled" : ""
-          }`}
+          className={`pr-star${i <= Math.round(rating) ? " pr-star--filled" : ""}`}
           width={size}
           height={size}
           viewBox="0 0 24 24"
@@ -49,16 +47,9 @@ function ReviewCard({ review }: { review: Review }) {
     review.images && review.images.length > 0 ? review.images[0] : null;
   const initial = review.name.charAt(0).toUpperCase();
 
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-
   return (
     <div className="pr-card">
-      <div className="pr-card-shine" />
+      <div className="pr-card-shimmer" />
       <div className="pr-card-quote">&ldquo;</div>
 
       {/* Round avatar — top, one image only */}
@@ -85,20 +76,17 @@ function ReviewCard({ review }: { review: Review }) {
         </div>
       </div>
 
-      {/* Name — center */}
+      {/* Name */}
       <h4 className="pr-card-name">{review.name}</h4>
 
       {/* Stars */}
-      <StarDisplay rating={review.rating} size={13} />
+      <StarDisplay rating={review.rating} size={16} />
 
       {/* Title */}
       <h3 className="pr-card-title">&ldquo;{review.title}&rdquo;</h3>
 
       {/* Description */}
       <p className="pr-card-body">{review.body}</p>
-
-      {/* Date
-      <div className="pr-card-date">{formatDate(review.created_at)}</div> */}
 
       <div className="pr-card-bottom-line" />
     </div>
@@ -144,9 +132,9 @@ function ReviewsSlider({ reviews }: { reviews: Review[] }) {
           }
         });
         setAnimDir("idle");
-      }, 420);
+      }, 450);
     },
-    [animDir, totalSlides, visibleCount]
+    [animDir, totalSlides, visibleCount],
   );
 
   const next = useCallback(() => go("right"), [go]);
@@ -274,7 +262,7 @@ function ReviewsSlider({ reviews }: { reviews: Review[] }) {
               onClick={() => {
                 stopAutoplay();
                 setOffset(
-                  Math.min(i * visibleCount, totalSlides - visibleCount)
+                  Math.min(i * visibleCount, totalSlides - visibleCount),
                 );
                 startAutoplay();
               }}
@@ -378,16 +366,6 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     return e;
   };
 
-  const withTimeout = <T,>(
-    promise: Promise<T>,
-    ms: number,
-    fallback: T
-  ): Promise<T> =>
-    Promise.race([
-      promise,
-      new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
-    ]);
-
   const handleSubmit = async () => {
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
@@ -402,44 +380,33 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       const uploadedUrls: string[] = [];
       for (const file of imageFiles) {
         try {
-          const url = await withTimeout(uploadToCloudinary(file), 8000, "");
+          const url = await Promise.race([
+            uploadToCloudinary(file),
+            new Promise<string>((_, reject) =>
+              setTimeout(() => reject(new Error("upload timeout")), 8000),
+            ),
+          ]);
           if (url) uploadedUrls.push(url);
         } catch {
-          /* skip */
+          /* skip failed uploads */
         }
       }
 
-      const insertResult = await withTimeout(
-        Promise.resolve(
-          supabase.from("product_reviews").insert({
-            product_id: productId,
-            name: name.trim(),
-            email: email.trim().toLowerCase(),
-            title: title.trim(),
-            body: body.trim(),
-            rating: Number(rating),
-            images: uploadedUrls,
-          })
-        ) as Promise<any>,
-        10000,
-        {
-          error: {
-            message: "Request timed out. Please try again.",
-            code: "TIMEOUT",
-          },
-          data: null,
-          count: null,
-          status: 408,
-          statusText: "Request Timeout",
-        } as any
-      );
+      const { error: insertError } = await supabase
+        .from("product_reviews")
+        .insert({
+          product_id: productId,
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          title: title.trim(),
+          body: body.trim(),
+          rating: Number(rating),
+          images: uploadedUrls,
+        });
 
-      const insertError = (insertResult as any)?.error;
       if (insertError) {
         setSubmitError(
-          (insertError as any).message ||
-            (insertError as any).details ||
-            "Failed to submit review. Please try again."
+          insertError.message || "Failed to submit review. Please try again.",
         );
         return;
       }
@@ -448,12 +415,12 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       setShowForm(false);
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 5000);
-      withTimeout(fetchReviews(), 5000, undefined).catch(() => {});
+      fetchReviews().catch(() => {});
     } catch (err: unknown) {
       setSubmitError(
         err instanceof Error
           ? err.message
-          : "Something went wrong. Please try again."
+          : "Something went wrong. Please try again.",
       );
     } finally {
       setSubmitting(false);
@@ -464,9 +431,19 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
 
   return (
     <section className="pr-section">
+      {/* Animated background orbs */}
       <div className="pr-bg-orb pr-bg-orb--1" />
       <div className="pr-bg-orb pr-bg-orb--2" />
+      <div className="pr-bg-orb pr-bg-orb--3" />
       <div className="pr-bg-grid" />
+
+      {/* Sparkle decorations */}
+      <div className="pr-sparkle pr-sparkle--1" />
+      <div className="pr-sparkle pr-sparkle--2" />
+      <div className="pr-sparkle pr-sparkle--3" />
+      <div className="pr-sparkle pr-sparkle--4" />
+      <div className="pr-sparkle pr-sparkle--5" />
+      <div className="pr-sparkle pr-sparkle--6" />
 
       <div className="pr-content">
         {/* Header */}
@@ -486,7 +463,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           <div className="pr-summary">
             <div className="pr-summary-left">
               <span className="pr-summary-num">{avgRating.toFixed(1)}</span>
-              <StarDisplay rating={avgRating} size={20} />
+              <StarDisplay rating={avgRating} size={22} />
               <span className="pr-summary-count">
                 {reviews.length} Review{reviews.length !== 1 ? "s" : ""}
               </span>
@@ -495,10 +472,10 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
               {breakdown.map(({ star, count }) => (
                 <div key={star} className="pr-bar-row">
                   <span className="pr-bar-label">{star}</span>
-                  <svg width="10" height="10" viewBox="0 0 24 24">
+                  <svg width="11" height="11" viewBox="0 0 24 24">
                     <polygon
                       points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
-                      fill="#c9a84c"
+                      fill="#d4af37"
                     />
                   </svg>
                   <div className="pr-bar-track">
@@ -519,7 +496,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           </div>
         )}
 
-        {/* Success */}
+        {/* Success Toast */}
         {submitted && (
           <div className="pr-toast pr-toast--success">
             <svg
@@ -590,9 +567,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                     Your Name <span className="pr-req">*</span>
                   </label>
                   <input
-                    className={`pr-form-input${
-                      errors.name ? " pr-input--error" : ""
-                    }`}
+                    className={`pr-form-input${errors.name ? " pr-input--error" : ""}`}
                     placeholder="John Doe"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -606,9 +581,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                     Email Address <span className="pr-req">*</span>
                   </label>
                   <input
-                    className={`pr-form-input${
-                      errors.email ? " pr-input--error" : ""
-                    }`}
+                    className={`pr-form-input${errors.email ? " pr-input--error" : ""}`}
                     placeholder="john@example.com"
                     type="email"
                     value={email}
@@ -629,17 +602,13 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                     <button
                       key={star}
                       type="button"
-                      className={`pr-star-btn${
-                        star <= (hoverRating || rating)
-                          ? " pr-star-btn--active"
-                          : ""
-                      }`}
+                      className={`pr-star-btn${star <= (hoverRating || rating) ? " pr-star-btn--active" : ""}`}
                       onMouseEnter={() => setHoverRating(star)}
                       onMouseLeave={() => setHoverRating(0)}
                       onClick={() => setRating(star)}
                       aria-label={`Rate ${star} stars`}
                     >
-                      <svg viewBox="0 0 24 24" width="28" height="28">
+                      <svg viewBox="0 0 24 24" width="30" height="30">
                         <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
                       </svg>
                     </button>
@@ -660,9 +629,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                   Review Title <span className="pr-req">*</span>
                 </label>
                 <input
-                  className={`pr-form-input${
-                    errors.title ? " pr-input--error" : ""
-                  }`}
+                  className={`pr-form-input${errors.title ? " pr-input--error" : ""}`}
                   placeholder="Summarise your experience"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -677,9 +644,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                   Your Review <span className="pr-req">*</span>
                 </label>
                 <textarea
-                  className={`pr-form-textarea${
-                    errors.body ? " pr-input--error" : ""
-                  }`}
+                  className={`pr-form-textarea${errors.body ? " pr-input--error" : ""}`}
                   placeholder="Tell us about your experience with this product..."
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
@@ -707,11 +672,6 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                   <div
                     className="pr-upload-zone"
                     onClick={() => fileInputRef.current?.click()}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" && fileInputRef.current?.click()
-                    }
                   >
                     <svg
                       viewBox="0 0 24 24"
@@ -799,7 +759,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           </div>
         )}
 
-        {/* Reviews List */}
+        {/* Reviews List Header */}
         <div className="pr-list-header">
           <h3 className="pr-list-title">Customer Reviews</h3>
           {reviews.length > 0 && (
@@ -809,6 +769,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           )}
         </div>
 
+        {/* Reviews List */}
         {loadingReviews ? (
           <div className="pr-skeleton-row">
             {[1, 2, 3].map((i) => (
