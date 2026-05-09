@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { useCartStore } from "@/lib/cartStore";
 import { useCurrency } from "../context/CurrencyContext";
 import QuickView from "./QuickView";
+import { getSalePercent, applyDiscount } from "@/lib/saleStore";
 
 /* ─────────────────────────────────────────────────────────────
    MODULE-LEVEL CACHE
@@ -21,6 +22,7 @@ interface CachedData {
   products: FeaturedProduct[];
   variantsMap: Record<string, ProductVariant[]>;
   variantImagesMap: VariantImagesMap;
+  fetchedAt?: number;
 }
 
 const MODULE_CACHE: Record<string, CachedData> = {};
@@ -55,7 +57,6 @@ interface FeaturedProduct {
   condition: string;
   is_featured: boolean;
   is_active: boolean;
-  /* ── NEW: rating fields ── */
   rating?: number;
   reviews_count?: number;
 }
@@ -101,9 +102,15 @@ async function fetchFeaturedTabDataFast(tab: string): Promise<CachedData> {
     .eq("is_featured", true)
     .eq("category", tab)
     .order("created_at", { ascending: false });
+  // ✅ NO .limit() — sabhi featured products fetch hongi, koi limit nahi
 
   if (error || !productsData || productsData.length === 0) {
-    return { products: [], variantsMap: {}, variantImagesMap: {} };
+    return {
+      products: [],
+      variantsMap: {},
+      variantImagesMap: {},
+      fetchedAt: Date.now(),
+    };
   }
 
   const formattedProducts: FeaturedProduct[] = productsData.map(
@@ -117,7 +124,6 @@ async function fetchFeaturedTabDataFast(tab: string): Promise<CachedData> {
       condition: item.condition || "new",
       is_featured: item.is_featured || false,
       is_active: item.is_active || true,
-      /* ── NEW: only set when valid > 0 ── */
       rating: item.rating != null && item.rating > 0 ? item.rating : undefined,
       reviews_count:
         item.reviews_count != null && item.reviews_count > 0
@@ -153,11 +159,16 @@ async function fetchFeaturedTabDataFast(tab: string): Promise<CachedData> {
     });
   });
 
-  return {
+  const result = {
     products: formattedProducts,
     variantsMap: variantsByProduct,
     variantImagesMap,
+    fetchedAt: Date.now(),
   };
+
+  MODULE_CACHE[tab] = result;
+  saveToStorage(tab, result);
+  return result;
 }
 
 /* ── Prefetch all tabs into module cache ── */
@@ -170,8 +181,6 @@ async function ensureTabCached(tab: string): Promise<CachedData> {
   if (inFlight) return await inFlight;
 
   const promise = fetchFeaturedTabDataFast(tab).then((data) => {
-    MODULE_CACHE[tab] = data;
-    saveToSession(tab, data);
     delete FETCH_IN_FLIGHT[tab];
     return data;
   });
@@ -180,18 +189,75 @@ async function ensureTabCached(tab: string): Promise<CachedData> {
   return await promise;
 }
 
-function prefetchAllTabs() {
-  ALL_TABS.forEach((tab) => {
-    if (!MODULE_CACHE[tab] && !FETCH_IN_FLIGHT[tab]) {
-      const promise = fetchFeaturedTabDataFast(tab).then((data) => {
-        MODULE_CACHE[tab] = data;
-        saveToSession(tab, data);
-        delete FETCH_IN_FLIGHT[tab];
-        return data;
-      });
-      FETCH_IN_FLIGHT[tab] = promise;
+/* ── Force refresh a tab (cache invalidate + re-fetch) ── */
+async function invalidateAndRefetch(tab: string): Promise<CachedData> {
+  // Remove from all cache layers so fresh data is fetched
+  delete MODULE_CACHE[tab];
+  delete FETCH_IN_FLIGHT[tab];
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      delete s[tab];
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
     }
-  });
+  } catch (_) {}
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      delete s[tab];
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(s));
+    }
+  } catch (_) {}
+  return await ensureTabCached(tab);
+}
+const SESSION_KEY = "fp_cache_v3";
+const LOCAL_KEY = "fp_cache_local_v3";
+
+function saveToStorage(tab: string, data: CachedData) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    const existing = raw ? JSON.parse(raw) : {};
+    existing[tab] = data;
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(existing));
+  } catch (_) {}
+
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY);
+    const existing = raw ? JSON.parse(raw) : {};
+    existing[tab] = { data, ts: Date.now() };
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(existing));
+  } catch (_) {}
+}
+
+// ⚠️ CRITICAL: This function only runs on client-side (typeof window check)
+function loadFromStorageSync(): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      Object.entries(parsed).forEach(([tab, data]) => {
+        if (!MODULE_CACHE[tab]) MODULE_CACHE[tab] = data as CachedData;
+      });
+      return;
+    }
+  } catch (_) {}
+
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    Object.entries(parsed).forEach(([tab, entry]: [string, any]) => {
+      if (entry?.data && Date.now() - (entry.ts || 0) < 86400000) {
+        if (!MODULE_CACHE[tab]) MODULE_CACHE[tab] = entry.data;
+      }
+    });
+  } catch (_) {}
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -242,7 +308,30 @@ function SkeletonCard() {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   LOADING SPINNER
+───────────────────────────────────────────────────────────── */
+function LoadingSpinner({ size = 18 }: { size?: number }) {
+  return (
+    <div
+      className="fp-spinner"
+      style={{
+        width: size,
+        height: size,
+        border: "2px solid rgba(218,165,32,0.2)",
+        borderTopColor: "#daa520",
+        borderRadius: "50%",
+        animation: "fp-spin 0.8s linear infinite",
+        display: "inline-block",
+      }}
+    />
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
    VARIANT THUMBNAILS
+───────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────
+   VARIANT THUMBNAILS - FIXED VERSION
 ───────────────────────────────────────────────────────────── */
 function VariantThumbnails({
   variants,
@@ -303,10 +392,8 @@ function VariantThumbnails({
         {displayVariants.map((variant) => {
           const variantImage = getVariantImage(variant.id);
           const isActive = currentValue === variant.attribute_value;
-          const labelText =
-            variant.attribute_value.length > 10
-              ? variant.attribute_value.slice(0, 9) + "…"
-              : variant.attribute_value;
+          const labelText = variant.attribute_value;
+
           return (
             <button
               key={variant.id}
@@ -319,41 +406,29 @@ function VariantThumbnails({
               title={variant.attribute_value}
             >
               {variantImage ? (
-                <img src={variantImage} alt={variant.attribute_value} />
+                <div className="fp-variant-thumb-img">
+                  <img
+                    src={variantImage}
+                    alt={variant.attribute_value}
+                    suppressHydrationWarning
+                  />
+                </div>
               ) : (
-                <span className="fp-variant-text">
-                  {variant.attribute_value.charAt(0)}
-                </span>
+                <div className="fp-variant-thumb-placeholder">
+                  <span className="fp-variant-thumb-text">
+                    {variant.attribute_value.charAt(0).toUpperCase()}
+                  </span>
+                </div>
               )}
-              <span className="fp-variant-name">{labelText}</span>
+              <span className="fp-variant-thumb-label">{labelText}</span>
             </button>
           );
         })}
         {hasMore && (
-          <span className="fp-variant-more">+{variants.length - 4}</span>
+          <div className="fp-variant-more">+{variants.length - 4}</div>
         )}
       </div>
     </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
-   LOADING SPINNER
-───────────────────────────────────────────────────────────── */
-function LoadingSpinner({ size = 18 }: { size?: number }) {
-  return (
-    <div
-      className="fp-spinner"
-      style={{
-        width: size,
-        height: size,
-        border: "2px solid rgba(218,165,32,0.2)",
-        borderTopColor: "#daa520",
-        borderRadius: "50%",
-        animation: "fp-spin 0.8s linear infinite",
-        display: "inline-block",
-      }}
-    />
   );
 }
 
@@ -385,7 +460,6 @@ function ProductCard({
   const router = useRouter();
 
   const [isHovered, setIsHovered] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     variants.length > 0 ? variants[0] : null,
   );
@@ -400,7 +474,6 @@ function ProductCard({
   const [addToCartLoading, setAddToCartLoading] = useState(false);
   const { addToCart } = useCartStore();
 
-  /* ── NEW: Live rating state — starts from fetched data ── */
   const [liveRating, setLiveRating] = useState<number | null>(
     product.rating != null && product.rating > 0 ? product.rating : null,
   );
@@ -410,7 +483,6 @@ function ProductCard({
       : null,
   );
 
-  /* ── NEW: Realtime subscription — updates rating instantly on new review ── */
   useEffect(() => {
     const channel = supabase
       .channel(`fp-rating-${product.id}`)
@@ -429,17 +501,14 @@ function ProductCard({
             .eq("id", product.id)
             .single();
           if (data) {
-            if (data.rating != null && data.rating > 0) {
+            if (data.rating != null && data.rating > 0)
               setLiveRating(data.rating);
-            }
-            if (data.reviews_count != null && data.reviews_count > 0) {
+            if (data.reviews_count != null && data.reviews_count > 0)
               setLiveReviewCount(data.reviews_count);
-            }
           }
         },
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
@@ -455,10 +524,8 @@ function ProductCard({
   );
 
   const getVariantImage = useCallback(
-    (variantId: string): string | null => {
-      const images = variantImagesMap[variantId];
-      return images && images.length > 0 ? images[0] : null;
-    },
+    (variantId: string): string | null =>
+      variantImagesMap[variantId]?.[0] || null,
     [variantImagesMap],
   );
 
@@ -470,15 +537,11 @@ function ProductCard({
   const handleVariantSelect = (variant: ProductVariant) => {
     setSelectedVariant(variant);
     setCurrentImages(getVariantImages(variant.id));
-    setCurrentImageIndex(0);
     setIsHovered(false);
   };
 
   const handleMouseEnter = () => setIsHovered(true);
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-    setCurrentImageIndex(0);
-  };
+  const handleMouseLeave = () => setIsHovered(false);
 
   const displayImage = currentImages[0] ?? null;
 
@@ -573,12 +636,28 @@ function ProductCard({
     setQuickViewLoading(false);
   };
 
-  const displaySalePrice = selectedVariant
-    ? formatPrice(selectedVariant.price)
-    : formatPrice(0);
-  const displayOriginalPrice = selectedVariant?.original_price
-    ? formatPrice(selectedVariant.original_price)
-    : null;
+  // ── Sale Discount Logic ──
+  const activeSalePercent = getSalePercent();
+  const basePrice = selectedVariant?.price || 0;
+  const discountedPrice = activeSalePercent
+    ? applyDiscount(basePrice, activeSalePercent)
+    : basePrice;
+
+  // Original price: agar sale active hai toh basePrice as original dikhao,
+  // warna product ka existing original_price use karo
+  const originalForDisplay =
+    activeSalePercent && basePrice > 0
+      ? basePrice
+      : selectedVariant?.original_price || null;
+
+  const displaySalePrice = formatPrice(discountedPrice);
+  const displayOriginalPrice =
+    originalForDisplay && originalForDisplay > discountedPrice
+      ? formatPrice(originalForDisplay)
+      : null;
+
+  // Discount badge: sale percent ya existing product discount
+  const totalDiscount = activeSalePercent ? activeSalePercent : discount;
 
   const productSlug = product.name
     .toLowerCase()
@@ -588,11 +667,14 @@ function ProductCard({
     .replace(/-+/g, "-")
     .substring(0, 60);
 
+  const productHref = `/product/${productSlug}--${product.id}`;
+
   return (
-    <div
-      onClick={() => router.push(`/product/${productSlug}--${product.id}`)}
+    <Link
+      href={productHref}
+      prefetch={true}
       className="fp-card"
-      style={{ cursor: "pointer" }}
+      style={{ cursor: "pointer", display: "block", textDecoration: "none" }}
     >
       <div
         className="fp-card-img"
@@ -605,6 +687,7 @@ function ProductCard({
             alt={product.name}
             loading="eager"
             decoding="async"
+            suppressHydrationWarning
           />
         ) : (
           <div className="fp-card-placeholder">
@@ -621,7 +704,7 @@ function ProductCard({
           </div>
         )}
         <div className="fp-card-badges">
-          {product.condition === "new" && !discount && (
+          {product.condition === "new" && !totalDiscount && (
             <span className="fp-badge fp-badge--new">New</span>
           )}
           {isLowStock && (
@@ -683,12 +766,11 @@ function ProductCard({
           {displayOriginalPrice && (
             <span className="fp-card-orig">{displayOriginalPrice}</span>
           )}
-          {discount && discount > 0 && (
-            <span className="fp-card-discount">-{discount}%</span>
+          {totalDiscount && totalDiscount > 0 && (
+            <span className="fp-card-discount">-{totalDiscount}%</span>
           )}
         </div>
 
-        {/* ── NEW: Rating — sirf tab show hoga jab valid rating aur reviews dono hain ── */}
         {liveRating !== null &&
           liveReviewCount !== null &&
           liveReviewCount > 0 && (
@@ -752,100 +834,9 @@ function ProductCard({
             transform: rotate(360deg);
           }
         }
-        :global(.fp-card-rating) {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          margin-top: 4px;
-          margin-bottom: 2px;
-        }
-        :global(.fp-card-rating-count) {
-          font-size: 11px;
-          color: rgba(255, 255, 255, 0.55);
-          font-weight: 400;
-          letter-spacing: 0.01em;
-        }
-        :global(.fp-variant-thumb) {
-          display: flex !important;
-          flex-direction: column !important;
-          align-items: center !important;
-          gap: 3px !important;
-          padding: 3px 4px 4px !important;
-        }
-        :global(.fp-variant-thumb img) {
-          width: 32px !important;
-          height: 32px !important;
-          object-fit: cover !important;
-          border-radius: 4px !important;
-          display: block !important;
-        }
-        :global(.fp-variant-name) {
-          display: block !important;
-          font-size: 9px !important;
-          line-height: 1.2 !important;
-          text-align: center !important;
-          color: rgba(255, 255, 255, 0.75) !important;
-          max-width: 40px !important;
-          overflow: hidden !important;
-          text-overflow: ellipsis !important;
-          white-space: nowrap !important;
-          margin-top: 1px !important;
-          font-weight: 500 !important;
-          letter-spacing: 0.01em !important;
-        }
-        :global(.fp-variant-thumb.active .fp-variant-name) {
-          color: #daa520 !important;
-          font-weight: 600 !important;
-        }
-        :global(.fp-variant-text) {
-          width: 32px !important;
-          height: 32px !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          font-size: 13px !important;
-          font-weight: 600 !important;
-          border-radius: 4px !important;
-          background: rgba(218, 165, 32, 0.15) !important;
-          color: #daa520 !important;
-        }
       `}</style>
-    </div>
+    </Link>
   );
-}
-
-/* ─────────────────────────────────────────────────────────────
-   SESSION STORAGE PERSIST — page reload pe bhi data instant mile
-───────────────────────────────────────────────────────────── */
-const SESSION_KEY = "fp_cache_v1";
-
-function saveToSession(tab: string, data: CachedData) {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    const existing = raw ? JSON.parse(raw) : {};
-    existing[tab] = data;
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(existing));
-  } catch (_) {}
-}
-
-function loadFromSession(): Record<string, CachedData> {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    // Also populate module cache so future lookups are instant
-    Object.entries(parsed).forEach(([tab, data]) => {
-      if (!MODULE_CACHE[tab]) MODULE_CACHE[tab] = data as CachedData;
-    });
-    return parsed;
-  } catch (_) {
-    return {};
-  }
-}
-
-// On module load, restore session cache into MODULE_CACHE
-if (typeof window !== "undefined") {
-  loadFromSession();
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -853,21 +844,18 @@ if (typeof window !== "undefined") {
 ───────────────────────────────────────────────────────────── */
 export default function FeaturedProducts() {
   const [activeTab, setActiveTab] = useState("Accessories");
+  const [isClient, setIsClient] = useState(false);
+  const activeTabRef = useRef("Accessories");
 
-  const [products, setProducts] = useState<FeaturedProduct[]>(
-    () => MODULE_CACHE["Accessories"]?.products ?? [],
-  );
+  const [products, setProducts] = useState<FeaturedProduct[]>([]);
   const [variantsMap, setVariantsMap] = useState<
     Record<string, ProductVariant[]>
-  >(() => MODULE_CACHE["Accessories"]?.variantsMap ?? {});
+  >({});
   const [variantImagesMap, setVariantImagesMap] = useState<
     Record<string, string[]>
-  >(() => MODULE_CACHE["Accessories"]?.variantImagesMap ?? {});
-
-  // isLoading: false if we already have data in cache (instant render)
-  const [isLoading, setIsLoading] = useState<boolean>(
-    () => !MODULE_CACHE["Accessories"],
-  );
+  >({});
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   const [quickViewProduct, setQuickViewProduct] =
     useState<QuickViewProduct | null>(null);
@@ -886,95 +874,109 @@ export default function FeaturedProducts() {
   const prevRef = useRef<HTMLButtonElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
   const swiperRef = useRef<SwiperType | null>(null);
-  const { currency } = useCurrency();
 
+  // Mark client-side after hydration
   useEffect(() => {
-    let isMounted = true;
+    setIsClient(true);
+  }, []);
 
-    async function loadInitialTab() {
-      if (MODULE_CACHE["Accessories"]) {
-        const d = MODULE_CACHE["Accessories"];
-        if (isMounted) {
-          setProducts(d.products);
-          setVariantsMap(d.variantsMap);
-          setVariantImagesMap(d.variantImagesMap);
+  // Load cached data from storage ONLY on client
+  useEffect(() => {
+    if (!isClient) return;
+
+    // Load from storage synchronously
+    loadFromStorageSync();
+
+    // Load initial tab data
+    const initialData = MODULE_CACHE["Accessories"];
+    if (initialData) {
+      setProducts(initialData.products);
+      setVariantsMap(initialData.variantsMap);
+      setVariantImagesMap(initialData.variantImagesMap);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+      ensureTabCached("Accessories").then((data) => {
+        if (data) {
+          setProducts(data.products);
+          setVariantsMap(data.variantsMap);
+          setVariantImagesMap(data.variantImagesMap);
           setIsLoading(false);
         }
-        // Prefetch other tabs in background (non-blocking)
-        setTimeout(() => prefetchAllTabs(), 0);
-        return;
-      }
-
-      setIsLoading(true);
-      const data = await ensureTabCached("Accessories");
-
-      if (isMounted && data) {
-        setProducts(data.products);
-        setVariantsMap(data.variantsMap);
-        setVariantImagesMap(data.variantImagesMap);
-        setIsLoading(false);
-      }
-
-      // Prefetch other tabs in background after first tab loads
-      setTimeout(() => prefetchAllTabs(), 200);
+      });
     }
 
-    loadInitialTab();
+    setInitialLoadDone(true);
 
-    const handlePageShow = (e: PageTransitionEvent) => {
-      // bfcache se wapas aaye — instantly show cached data
-      if (isMounted) {
-        const cached = MODULE_CACHE[activeTab];
-        if (cached) {
-          setProducts(cached.products);
-          setVariantsMap(cached.variantsMap);
-          setVariantImagesMap(cached.variantImagesMap);
-          setIsLoading(false);
-          setTimeout(() => {
-            swiperRef.current?.update();
-            swiperRef.current?.slideTo(0, 0);
-          }, 50);
-        } else {
-          setIsLoading(true);
-          ensureTabCached(activeTab).then((data) => {
-            if (isMounted && data) {
-              setProducts(data.products);
-              setVariantsMap(data.variantsMap);
-              setVariantImagesMap(data.variantImagesMap);
-              setIsLoading(false);
-            }
-          });
+    // Prefetch other tabs in background
+    setTimeout(() => {
+      ALL_TABS.forEach((tab) => {
+        if (!MODULE_CACHE[tab]) {
+          ensureTabCached(tab).catch(console.error);
         }
+      });
+    }, 500);
+  }, [isClient]);
+
+  // Handle back/forward navigation (popstate)
+  useEffect(() => {
+    if (!isClient) return;
+
+    const handlePopState = () => {
+      const cached = MODULE_CACHE[activeTabRef.current];
+      if (cached) {
+        setProducts(cached.products);
+        setVariantsMap(cached.variantsMap);
+        setVariantImagesMap(cached.variantImagesMap);
+        setIsLoading(false);
+        setSwiperKey((k) => k + 1);
+        setTimeout(() => {
+          swiperRef.current?.update();
+          swiperRef.current?.slideTo(0, 0);
+        }, 50);
       }
     };
 
+    const handlePageShow = (e: PageTransitionEvent) => {
+      const cached = MODULE_CACHE[activeTabRef.current];
+      if (cached) {
+        setProducts(cached.products);
+        setVariantsMap(cached.variantsMap);
+        setVariantImagesMap(cached.variantImagesMap);
+        setIsLoading(false);
+        setTimeout(() => {
+          swiperRef.current?.update();
+          swiperRef.current?.slideTo(0, 0);
+        }, 50);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
     window.addEventListener("pageshow", handlePageShow);
 
     return () => {
-      isMounted = false;
+      window.removeEventListener("popstate", handlePopState);
       window.removeEventListener("pageshow", handlePageShow);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isClient]);
 
   const handleTabChange = useCallback(
     async (tab: string) => {
-      // Agar same tab click kiya toh kuch mat karo
       if (tab === activeTab) return;
 
       setActiveTab(tab);
+      activeTabRef.current = tab;
 
-      // Cache se instantly show karo — bilkul koi loading nahi
-      if (MODULE_CACHE[tab]) {
-        const d = MODULE_CACHE[tab];
-        setProducts(d.products);
-        setVariantsMap(d.variantsMap);
-        setVariantImagesMap(d.variantImagesMap);
+      const cached = MODULE_CACHE[tab];
+      if (cached) {
+        setProducts(cached.products);
+        setVariantsMap(cached.variantsMap);
+        setVariantImagesMap(cached.variantImagesMap);
         setIsLoading(false);
         setSwiperKey((k) => k + 1);
         return;
       }
 
-      // Sirf tab hi loading show karo jab cache miss ho
       setIsLoading(true);
       setProducts([]);
 
@@ -990,13 +992,69 @@ export default function FeaturedProducts() {
     [activeTab],
   );
 
+  // ─── Supabase Realtime: naya featured product add hone pe auto-refresh ───────
+  // Jab bhi koi product insert/update ho aur is_featured=true ho toh
+  // us tab ka cache clear karke fresh data le aao — koi manual refresh ki zaroorat nahi
   useEffect(() => {
-    if (swiperRef.current && products.length > 0) {
+    if (!isClient) return;
+
+    const channel = supabase
+      .channel("fp-featured-products-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // INSERT, UPDATE, DELETE sabhi
+          schema: "public",
+          table: "products",
+        },
+        async (payload: any) => {
+          const record = payload.new || payload.old || {};
+          const affectedCategory = record.category;
+
+          // Sirf agar is_featured true ho ya tha (update/delete case)
+          const isFeaturedNew = payload.new?.is_featured;
+          const isFeaturedOld = payload.old?.is_featured;
+
+          if (!isFeaturedNew && !isFeaturedOld) return; // non-featured product — ignore
+
+          // Agar category ALL_TABS mein hai
+          if (affectedCategory && ALL_TABS.includes(affectedCategory)) {
+            // Cache invalidate karo aur fresh data lo
+            const freshData = await invalidateAndRefetch(affectedCategory);
+
+            // Agar currently is tab ki data show ho rahi hai toh update karo
+            if (activeTabRef.current === affectedCategory) {
+              setProducts(freshData.products);
+              setVariantsMap(freshData.variantsMap);
+              setVariantImagesMap(freshData.variantImagesMap);
+              setIsLoading(false);
+              setSwiperKey((k) => k + 1);
+            }
+          } else if (!affectedCategory) {
+            // Category nahi pata — current tab refresh karo
+            const freshData = await invalidateAndRefetch(activeTabRef.current);
+            setProducts(freshData.products);
+            setVariantsMap(freshData.variantsMap);
+            setVariantImagesMap(freshData.variantImagesMap);
+            setIsLoading(false);
+            setSwiperKey((k) => k + 1);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isClient]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (swiperRef.current && products.length > 0 && isClient) {
       setTimeout(() => {
         swiperRef.current?.update();
       }, 50);
     }
-  }, [products]);
+  }, [products, isClient]);
 
   const handleQuickView = (
     product: FeaturedProduct,
@@ -1041,6 +1099,109 @@ export default function FeaturedProducts() {
 
   const SKELETON_COUNT = 4;
 
+  // Server-side render - show skeletons that match client's initial render
+  if (!isClient) {
+    return (
+      <section className="fp-section">
+        <div className="fp-header">
+          <p className="fp-eyebrow">
+            <span className="fp-ey-line" />
+            Curated Selection
+            <span className="fp-ey-line" />
+          </p>
+          <h2 className="fp-title">
+            Featured <em>Products</em>
+          </h2>
+          <p className="fp-subtitle">
+            Handpicked luxury essentials across our finest categories
+          </p>
+          <div
+            style={{
+              width: "100%",
+              marginTop: "1.5rem",
+              display: "flex",
+              justifyContent: "center",
+              overflow: "hidden",
+            }}
+          >
+            <img
+              src="/feat.png"
+              alt="Featured Banner"
+              style={{
+                width: "100%",
+                height: "auto",
+                maxWidth: "100%",
+                objectFit: "contain",
+                display: "block",
+              }}
+            />
+          </div>
+          <div className="fp-tabs" style={{ marginTop: "2rem" }}>
+            {ALL_TABS.map((tab) => (
+              <button
+                key={tab}
+                className={`fp-tab${activeTab === tab ? " fp-tab--active" : ""}`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="fp-container">
+          <div className="fp-nav">
+            <button className="fp-nav-btn" aria-label="Previous">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <button className="fp-nav-btn" aria-label="Next">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: "1px",
+              paddingBottom: "3.5rem",
+            }}
+            className="fp-skeleton-grid"
+          >
+            {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+          <div className="fp-view-all-wrap">
+            <Link href="/accessories" className="fp-view-all" prefetch={false}>
+              <span>View All Accessories</span>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <>
       <section className="fp-section">
@@ -1076,21 +1237,20 @@ export default function FeaturedProducts() {
                 objectFit: "contain",
                 display: "block",
               }}
+              suppressHydrationWarning
             />
           </div>
 
           <div className="fp-tabs" style={{ marginTop: "2rem" }}>
-            {["Accessories", "Watches", "Automotive", "Home Decor"].map(
-              (tab) => (
-                <button
-                  key={tab}
-                  className={`fp-tab${activeTab === tab ? " fp-tab--active" : ""}`}
-                  onClick={() => handleTabChange(tab)}
-                >
-                  {tab}
-                </button>
-              ),
-            )}
+            {ALL_TABS.map((tab) => (
+              <button
+                key={tab}
+                className={`fp-tab${activeTab === tab ? " fp-tab--active" : ""}`}
+                onClick={() => handleTabChange(tab)}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -1177,7 +1337,11 @@ export default function FeaturedProducts() {
           )}
 
           <div className="fp-view-all-wrap">
-            <Link href={activeTabData?.href || "/"} className="fp-view-all">
+            <Link
+              href={activeTabData?.href || "/"}
+              className="fp-view-all"
+              prefetch={false}
+            >
               <span>View All {activeTabData?.label || activeTab}</span>
               <svg
                 viewBox="0 0 24 24"

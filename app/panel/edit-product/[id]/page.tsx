@@ -1028,18 +1028,6 @@ function VariantFormItem({
         </div>
 
         <div className="ap-field">
-          <label className="ap-label">
-            Description (Rich Text with Images)
-          </label>
-          <ProductDescription
-            value={description}
-            onChange={handleDescriptionChange}
-            existingImages={descriptionImages}
-            maxImages={20}
-          />
-        </div>
-
-        <div className="ap-field">
           <label className="ap-label">Stock Status</label>
           <StockStatusSelector
             value={stockStatus}

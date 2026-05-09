@@ -1,8 +1,3 @@
-/* ═══════════════════════════════════════════════
-   CONTACT PAGE — contact.css
-   Premium Theme with High Contrast Text
-═══════════════════════════════════════════════ */
-
 @import url("https://fonts.googleapis.com/css2?family=Russo+One&display=swap");
 
 /* ── Variables - Dark Gold Theme ── */
@@ -307,7 +302,7 @@
   margin: 0;
 }
 
-/* Social */
+/* Social - Fixed for proper icon display */
 .co-social {
   padding: 0;
 }
@@ -326,12 +321,14 @@
 }
 .co-social-icons {
   display: flex;
-  gap: 0.6rem;
+  gap: 1rem;
   justify-content: center;
+  flex-wrap: wrap;
 }
 .co-social-btn {
-  width: 42px;
-  height: 42px;
+  position: relative;
+  width: 48px;
+  height: 48px;
   border: 1px solid var(--co-border);
   border-radius: 50%;
   background: #ffffff;
@@ -342,10 +339,19 @@
   text-decoration: none;
   transition: all 0.3s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  cursor: pointer;
 }
 .co-social-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+/* TikTok specific - uses fill instead of stroke */
+.co-social-btn svg[fill="currentColor"] {
+  fill: currentColor;
+  stroke: none;
 }
 .co-social-btn:hover {
   border-color: #daa520;
@@ -355,9 +361,38 @@
   box-shadow: 0 8px 20px rgba(184, 134, 11, 0.12);
 }
 
+/* Social Tooltip */
+.co-social-tooltip {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  background: #1a1a1a;
+  color: #daa520;
+  font-family: var(--co-sans);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.25s ease;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.co-social-btn:hover .co-social-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* Map Placeholder */
 .co-map-placeholder {
-  height: 130px;
+  height: 140px;
   border: 1px solid var(--co-border);
   border-radius: 12px;
   background: #ffffff;
@@ -399,21 +434,31 @@
   position: relative;
   z-index: 1;
   transition: color 0.3s ease;
+  text-align: center;
 }
 .co-map-placeholder:hover .co-map-inner {
   color: #daa520;
 }
 .co-map-inner svg {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
 }
 .co-map-inner p {
   font-family: var(--co-sans);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin: 0;
+  color: #1a1a1a;
+}
+.co-map-view {
+  font-family: var(--co-sans);
+  font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  margin: 0;
+  color: #8b6914;
+  margin-top: 0.15rem;
 }
 
 /* ── Form Section ── */
@@ -987,5 +1032,16 @@
   .co-toast {
     min-width: 260px;
     max-width: calc(100vw - 2rem);
+  }
+  .co-social-icons {
+    gap: 0.8rem;
+  }
+  .co-social-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .co-social-btn svg {
+    width: 20px;
+    height: 20px;
   }
 }

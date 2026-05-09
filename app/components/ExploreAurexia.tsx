@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+// ─────────────────────────────────────────────────────────────────────────────
+// ExploreAurexia.tsx — Hydration-error-free version
+//
+// FIX: Instead of conditionally rendering slides based on isMounted,
+// we render all slides immediately on both server and client,
+// then initialize Swiper after hydration.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { useEffect, useRef, useCallback, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import "./explore-aurexia.css";
@@ -63,7 +71,9 @@ const categories = [
   },
 ];
 
-/* ── Shared CDN loader (same instance reused by HeroSection too) ── */
+/* ──────────────────────────────────────────
+   SWIPER CDN LOADER
+────────────────────────────────────────── */
 let swiperCDNLoaded = false;
 let swiperCDNLoading: Promise<void> | null = null;
 
@@ -76,34 +86,21 @@ function loadSwiperCDN(): Promise<void> {
   if (swiperCDNLoading) return swiperCDNLoading;
 
   swiperCDNLoading = new Promise<void>((resolve) => {
-    if (!document.querySelector("link[data-swiper-css]")) {
+    if (!document.querySelector("link[data-ea-swiper-css]")) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
       link.href =
         "https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css";
-      link.setAttribute("data-swiper-css", "1");
+      link.setAttribute("data-ea-swiper-css", "1");
       document.head.appendChild(link);
     }
 
-    if (!document.querySelector("script[data-swiper-js]")) {
-      const script = document.createElement("script");
-      script.src =
-        "https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js";
-      script.setAttribute("data-swiper-js", "1");
-      script.onload = () => {
-        swiperCDNLoaded = true;
-        resolve();
-      };
-      script.onerror = () => {
-        swiperCDNLoading = null;
-        resolve();
-      };
-      document.head.appendChild(script);
-    } else {
+    if (document.querySelector("script[data-ea-swiper-js]")) {
       const poll = setInterval(() => {
         if ((window as any).Swiper) {
           clearInterval(poll);
           swiperCDNLoaded = true;
+          swiperCDNLoading = null;
           resolve();
         }
       }, 50);
@@ -111,25 +108,132 @@ function loadSwiperCDN(): Promise<void> {
         clearInterval(poll);
         resolve();
       }, 5000);
+      return;
     }
+
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js";
+    script.setAttribute("data-ea-swiper-js", "1");
+    script.onload = () => {
+      swiperCDNLoaded = true;
+      swiperCDNLoading = null;
+      resolve();
+    };
+    script.onerror = () => {
+      swiperCDNLoading = null;
+      resolve();
+    };
+    document.head.appendChild(script);
   });
 
   return swiperCDNLoading;
 }
 
+/* ──────────────────────────────────────────
+   CARD COMPONENT
+────────────────────────────────────────── */
+function CategoryCard({ cat }: { cat: (typeof categories)[number] }) {
+  return (
+    <article
+      className="ea-card"
+      style={{ "--ea-accent": cat.accentColor } as React.CSSProperties}
+    >
+      <div className="ea-card-img-wrap">
+        {cat.imageSrc ? (
+          <Image
+            src={cat.imageSrc}
+            alt={`${cat.title}${cat.titleItalic}`}
+            fill
+            className="ea-card-img"
+            priority
+            sizes="(max-width: 640px) 92vw, (max-width: 1200px) 46vw, 33vw"
+            quality={85}
+            suppressHydrationWarning
+          />
+        ) : (
+          <div
+            className={`ea-card-placeholder ${cat.placeholderClass}`}
+            role="img"
+            aria-label={`${cat.title}${cat.titleItalic}`}
+          />
+        )}
+        <div className="ea-card-overlay-base" aria-hidden="true" />
+        <div className="ea-card-overlay-hover" aria-hidden="true" />
+        <span className="ea-card-tag">{cat.tag}</span>
+        <span className="ea-card-label" aria-hidden="true">
+          {cat.label}
+        </span>
+      </div>
+
+      <div className="ea-card-body">
+        <p className="ea-card-sub">{cat.sub}</p>
+        <h3 className="ea-card-title">
+          {cat.title}
+          <em>{cat.titleItalic}</em>
+        </h3>
+        <div className="ea-card-divider" aria-hidden="true" />
+        <p className="ea-card-para">{cat.para}</p>
+        <Link href={cat.cta.href} className="ea-card-cta" prefetch={false}>
+          <span>{cat.cta.label}</span>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          >
+            <path
+              d="M5 12h14M12 5l7 7-7 7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </Link>
+      </div>
+
+      <div className="ea-card-corner ea-card-corner--tl" aria-hidden="true" />
+      <div className="ea-card-corner ea-card-corner--br" aria-hidden="true" />
+    </article>
+  );
+}
+
+/* ──────────────────────────────────────────
+   STATIC SLIDES RENDER (used on both server and client)
+────────────────────────────────────────── */
+function StaticSlides() {
+  return (
+    <>
+      {categories.map((cat) => (
+        <div key={cat.id} className="swiper-slide ea-slide">
+          <CategoryCard cat={cat} />
+        </div>
+      ))}
+    </>
+  );
+}
+
+/* ──────────────────────────────────────────
+   MAIN COMPONENT
+────────────────────────────────────────── */
 export default function ExploreAurexia() {
-  /* ── Refs ── */
+  const [isClient, setIsClient] = useState(false);
   const swiperRef = useRef<HTMLDivElement>(null);
   const prevBtnRef = useRef<HTMLButtonElement>(null);
   const nextBtnRef = useRef<HTMLButtonElement>(null);
   const paginationRef = useRef<HTMLDivElement>(null);
   const swiperInstRef = useRef<any>(null);
+  const initAttempted = useRef(false);
 
-  /* ── Init Swiper ── */
+  // Mark client-side after hydration
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  /* ── Swiper init (only on client) ── */
   const initSwiper = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (initAttempted.current) return;
+    if (!(window as any).Swiper) return;
     if (
-      typeof window === "undefined" ||
-      !(window as any).Swiper ||
       !swiperRef.current ||
       !prevBtnRef.current ||
       !nextBtnRef.current ||
@@ -138,73 +242,112 @@ export default function ExploreAurexia() {
       return;
 
     if (swiperInstRef.current) {
-      swiperInstRef.current.destroy(true, true);
+      try {
+        swiperInstRef.current.destroy(true, true);
+      } catch (e) {}
       swiperInstRef.current = null;
     }
 
-    swiperInstRef.current = new (window as any).Swiper(swiperRef.current, {
-      slidesPerView: 1,
-      spaceBetween: 20,
-      centeredSlides: false,
-      breakpoints: {
-        480: { slidesPerView: 1.3, spaceBetween: 20 },
-        640: { slidesPerView: 1.6, spaceBetween: 24 },
-        900: { slidesPerView: 2.2, spaceBetween: 28 },
-        1200: { slidesPerView: 3, spaceBetween: 32 },
-        1440: { slidesPerView: 3, spaceBetween: 36 },
-      },
-      grabCursor: true,
-      touchRatio: 1,
-      touchAngle: 45,
-      simulateTouch: true,
-      touchStartPreventDefault: false,
-      loop: true,
-      autoplay: {
-        delay: 3800,
-        disableOnInteraction: false,
-        pauseOnMouseEnter: true,
-      },
-      speed: 900,
-      navigation: {
-        nextEl: nextBtnRef.current,
-        prevEl: prevBtnRef.current,
-      },
-      pagination: {
-        el: paginationRef.current,
-        clickable: true,
-        dynamicBullets: true,
-      },
-      observer: true,
-      observeParents: true,
-      resizeObserver: true,
-    });
+    try {
+      swiperInstRef.current = new (window as any).Swiper(swiperRef.current, {
+        slidesPerView: 1,
+        spaceBetween: 20,
+        centeredSlides: false,
+        breakpoints: {
+          480: { slidesPerView: 1.3, spaceBetween: 20 },
+          640: { slidesPerView: 1.6, spaceBetween: 24 },
+          900: { slidesPerView: 2.2, spaceBetween: 28 },
+          1200: { slidesPerView: 3, spaceBetween: 32 },
+          1440: { slidesPerView: 3, spaceBetween: 36 },
+        },
+        grabCursor: true,
+        touchRatio: 1,
+        touchAngle: 45,
+        simulateTouch: true,
+        touchStartPreventDefault: false,
+        loop: true,
+        autoplay: {
+          delay: 3800,
+          disableOnInteraction: false,
+          pauseOnMouseEnter: true,
+        },
+        speed: 900,
+        navigation: {
+          nextEl: nextBtnRef.current,
+          prevEl: prevBtnRef.current,
+        },
+        pagination: {
+          el: paginationRef.current,
+          clickable: true,
+          dynamicBullets: true,
+        },
+        observer: true,
+        observeParents: true,
+        resizeObserver: true,
+      });
+      initAttempted.current = true;
+    } catch (err) {
+      console.error("Swiper initialization error:", err);
+    }
   }, []);
 
-  /* ── Load CDN once, then init — NO mounted state needed ── */
+  // Load CDN and initialize Swiper after client hydration
   useEffect(() => {
+    if (!isClient) return;
+
     let cancelled = false;
 
     loadSwiperCDN().then(() => {
-      if (!cancelled) initSwiper();
+      if (!cancelled) {
+        // Small delay to ensure DOM is ready
+        setTimeout(() => {
+          if (!cancelled) initSwiper();
+        }, 100);
+      }
     });
 
     return () => {
       cancelled = true;
       if (swiperInstRef.current) {
-        swiperInstRef.current.destroy?.(true, true);
+        try {
+          swiperInstRef.current.destroy(true, true);
+        } catch (e) {}
         swiperInstRef.current = null;
       }
+      initAttempted.current = false;
     };
-  }, [initSwiper]);
+  }, [isClient, initSwiper]);
+
+  // Handle window resize
+  useEffect(() => {
+    if (!isClient || !swiperInstRef.current) return;
+
+    let resizeTimeout: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (swiperInstRef.current) {
+          swiperInstRef.current.update();
+        }
+      }, 150);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      clearTimeout(resizeTimeout);
+    };
+  }, [isClient]);
 
   const goPrev = () => swiperInstRef.current?.slidePrev();
   const goNext = () => swiperInstRef.current?.slideNext();
 
-  /* ── RENDER — No conditional rendering based on mounted.
-     Content is always visible immediately (no skeleton/flash).
-     Swiper enhances it once JS is ready. ── */
   return (
-    <section className="ea-section" aria-label="Explore Aurexia Categories">
+    <section
+      className="ea-section"
+      aria-label="Explore Aurexia Categories"
+      suppressHydrationWarning
+    >
       {/* Grain */}
       <div className="ea-grain" aria-hidden="true" />
 
@@ -234,6 +377,7 @@ export default function ExploreAurexia() {
 
       {/* Slider */}
       <div className="ea-slider-wrap">
+        {/* Navigation buttons - always rendered but only functional on client */}
         <button
           ref={prevBtnRef}
           className="ea-nav-btn ea-nav-prev"
@@ -276,85 +420,25 @@ export default function ExploreAurexia() {
           </svg>
         </button>
 
-        <div ref={swiperRef} className="ea-swiper swiper">
+        {/* 
+          CRITICAL FIX: 
+          - Render slides on BOTH server and client (same content)
+          - This ensures hydration doesn't fail
+          - Swiper will enhance the existing DOM after initialization
+        */}
+        <div
+          ref={swiperRef}
+          className="ea-swiper swiper"
+          suppressHydrationWarning
+        >
           <div className="swiper-wrapper">
-            {categories.map((cat) => (
-              <div key={cat.id} className="swiper-slide ea-slide">
-                <article
-                  className="ea-card"
-                  style={
-                    { "--ea-accent": cat.accentColor } as React.CSSProperties
-                  }
-                >
-                  <div className="ea-card-img-wrap">
-                    {cat.imageSrc ? (
-                      <Image
-                        src={cat.imageSrc}
-                        alt={`${cat.title}${cat.titleItalic}`}
-                        fill
-                        className="ea-card-img"
-                        priority={
-                          true
-                        } /* All images priority — no lazy stall */
-                        sizes="(max-width: 640px) 92vw, (max-width: 1200px) 46vw, 33vw"
-                        quality={85}
-                      />
-                    ) : (
-                      <div
-                        className={`ea-card-placeholder ${cat.placeholderClass}`}
-                        role="img"
-                        aria-label={`${cat.title}${cat.titleItalic}`}
-                      />
-                    )}
-                    <div className="ea-card-overlay-base" aria-hidden="true" />
-                    <div className="ea-card-overlay-hover" aria-hidden="true" />
-                    <span className="ea-card-tag">{cat.tag}</span>
-                    <span className="ea-card-label" aria-hidden="true">
-                      {cat.label}
-                    </span>
-                  </div>
-
-                  <div className="ea-card-body">
-                    <p className="ea-card-sub">{cat.sub}</p>
-                    <h3 className="ea-card-title">
-                      {cat.title}
-                      <em>{cat.titleItalic}</em>
-                    </h3>
-                    <div className="ea-card-divider" aria-hidden="true" />
-                    <p className="ea-card-para">{cat.para}</p>
-                    <Link href={cat.cta.href} className="ea-card-cta">
-                      <span>{cat.cta.label}</span>
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                      >
-                        <path
-                          d="M5 12h14M12 5l7 7-7 7"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </Link>
-                  </div>
-
-                  <div
-                    className="ea-card-corner ea-card-corner--tl"
-                    aria-hidden="true"
-                  />
-                  <div
-                    className="ea-card-corner ea-card-corner--br"
-                    aria-hidden="true"
-                  />
-                </article>
-              </div>
-            ))}
+            <StaticSlides />
           </div>
 
           <div
             ref={paginationRef}
             className="ea-pagination swiper-pagination"
+            suppressHydrationWarning
           />
         </div>
       </div>

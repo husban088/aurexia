@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { isOwner } from "@/lib/checkOwner";
@@ -35,8 +35,7 @@ function clearCachedAuth() {
   } catch {}
 }
 
-// ✅ MODULE-LEVEL FLAG — React component remount pe bhi persist karta hai
-// Yeh flag tab tak true rahega jab tak page fully reload na ho
+// ✅ Module-level flag — survives route changes within same session
 let memoryAuthOk: boolean | null = null;
 
 export default function PanelLayout({
@@ -45,40 +44,38 @@ export default function PanelLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const didRun = useRef(false);
 
-  // ✅ KEY FIX: Auth status synchronously check karo
-  // memoryAuthOk = in-memory (fastest, survives route changes)
-  // getCachedAuth() = sessionStorage (survives component remount)
-  // Dono mein se koi ek true hai toh FORAN children dikhao — no loading, no flicker
-  const isAuthed =
-    memoryAuthOk === true || (typeof window !== "undefined" && getCachedAuth());
+  // ✅ Use state instead of just reading from memory/cache
+  // This ensures React re-renders when auth resolves
+  const [authState, setAuthState] = useState<"loading" | "ok" | "denied">(
+    () => {
+      // Synchronous check on first render
+      if (memoryAuthOk === true) return "ok";
+      if (typeof window !== "undefined" && getCachedAuth()) return "ok";
+      return "loading";
+    },
+  );
 
   useEffect(() => {
-    if (didRun.current) return;
-    didRun.current = true;
-
-    if (isAuthed) {
-      // ✅ Already authed — memory flag set karo for future remounts
+    // If already confirmed via memory or cache, do a silent background verify
+    if (authState === "ok") {
       memoryAuthOk = true;
-
-      // Background mein quietly verify karo (user ko pata nahi chalega)
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session?.user || !isOwner(session.user.email)) {
           memoryAuthOk = false;
           clearCachedAuth();
+          setAuthState("denied");
           window.location.replace(
-            "/signin?redirectTo=" + encodeURIComponent(pathname)
+            "/signin?redirectTo=" + encodeURIComponent(pathname),
           );
         } else {
           setCachedAuth(true);
         }
       });
-
       return;
     }
 
-    // ✅ Cache nahi — ek baar check karo
+    // Not yet authenticated — do full check
     async function checkAuth() {
       try {
         const {
@@ -88,8 +85,7 @@ export default function PanelLayout({
         if (session?.user && isOwner(session.user.email)) {
           memoryAuthOk = true;
           setCachedAuth(true);
-          // Force re-render
-          window.dispatchEvent(new Event("panel-auth-ok"));
+          setAuthState("ok");
           return;
         }
 
@@ -101,37 +97,30 @@ export default function PanelLayout({
         if (!error && user && isOwner(user.email)) {
           memoryAuthOk = true;
           setCachedAuth(true);
-          window.dispatchEvent(new Event("panel-auth-ok"));
+          setAuthState("ok");
           return;
         }
 
+        // Not authorized
         clearCachedAuth();
         memoryAuthOk = false;
+        setAuthState("denied");
         window.location.replace(
-          "/signin?redirectTo=" + encodeURIComponent(pathname)
+          "/signin?redirectTo=" + encodeURIComponent(pathname),
         );
       } catch {
         window.location.replace(
-          "/signin?redirectTo=" + encodeURIComponent(pathname)
+          "/signin?redirectTo=" + encodeURIComponent(pathname),
         );
       }
     }
 
     checkAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ Listen for auth-ok event to trigger re-render (first time only)
-  useEffect(() => {
-    const handler = () => {
-      // Force re-render by updating location — React will re-render
-      window.location.reload();
-    };
-    window.addEventListener("panel-auth-ok", handler);
-    return () => window.removeEventListener("panel-auth-ok", handler);
-  }, []);
-
-  // ✅ INSTANT: Agar authed hai toh seedha content — koi delay nahi
-  if (isAuthed) {
+  // ✅ Auth confirmed — render children immediately, no flicker
+  if (authState === "ok") {
     return (
       <div className="panel-content" style={{ paddingTop: "0px" }}>
         {children}
@@ -139,8 +128,7 @@ export default function PanelLayout({
     );
   }
 
-  // ✅ Sirf tab loading dikhao jab genuinely pehli baar check ho raha ho
-  // (yani naa cache hai, naa memory flag)
+  // ✅ Show loading only on first visit (no cache/memory)
   return (
     <div
       style={{

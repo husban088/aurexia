@@ -1,7 +1,6 @@
 /* ============================================================
-   FEATURED PRODUCTS SECTION · featured-products.css
-   Tech4U Luxury Store — Next-Level Design
-   ✅ Perfect image cover, consistent alignment, luxury hover FX
+   FEATURED PRODUCTS SECTION - PERFECT ALIGNMENT FIX
+   Har card mein brand, name, price, reviews, variants, stock EXACT same position
    ============================================================ */
 
 @import url("https://fonts.googleapis.com/css2?family=Russo+One&display=swap");
@@ -28,9 +27,14 @@
   --fp-sans: "Russo One", sans-serif;
   --fp-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --fp-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  /* ── Card layout constants — prevents any misalignment ── */
-  --fp-img-ratio: 62%; /* image takes 62% of card height */
-  --fp-body-min: 190px; /* body always at least 190px so details align */
+
+  /* ── FIXED HEIGHTS FOR PERFECT ALIGNMENT (IMPORTANT!) ── */
+  --fp-brand-height: 20px;
+  --fp-name-height: 44px;
+  --fp-price-height: 40px;
+  --fp-rating-height: 28px; /* Rating area fixed height */
+  --fp-variants-height: 80px; /* Variants area fixed height */
+  --fp-stock-height: 28px; /* Stock area fixed height */
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -44,7 +48,6 @@
   overflow: hidden;
 }
 
-/* Ambient radial glow */
 .fp-section::after {
   content: "";
   position: absolute;
@@ -64,7 +67,6 @@
   z-index: 0;
 }
 
-/* Top rule line */
 .fp-section::before {
   content: "";
   position: absolute;
@@ -95,7 +97,6 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 0;
 }
 
 .fp-eyebrow {
@@ -247,7 +248,6 @@
   display: flex;
 }
 
-/* Make every slide card the same height so info rows align */
 .fp-swiper .swiper-slide > div {
   width: 100%;
 }
@@ -309,9 +309,8 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-      PRODUCT CARD
-      KEY: display:flex flex-direction:column + fixed ratio image
-      ensures every card has identical layout regardless of content
+      PRODUCT CARD - PERFECT ALIGNMENT
+      Fixed heights for EVERY section
    ═══════════════════════════════════════════════════════ */
 .fp-card {
   position: relative;
@@ -327,13 +326,12 @@
     box-shadow 0.5s var(--fp-ease-out),
     border-color 0.4s ease;
   width: 100%;
-  /* ✅ No min-height or max-height — card grows with content */
   text-decoration: none;
   color: inherit;
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+  height: 100%;
 }
 
-/* Shimmer overlay on hover */
 .fp-card::after {
   content: "";
   position: absolute;
@@ -354,7 +352,6 @@
   z-index: 1;
 }
 
-/* Gold corner triangle */
 .fp-card::before {
   content: "";
   position: absolute;
@@ -381,18 +378,17 @@
 .fp-card:hover::before {
   opacity: 1;
 }
+
 .fp-card:hover::after {
   opacity: 1;
   background-position: -100% -100%;
 }
 
-/* ── Image Area ──
-      ✅ padding-top trick = always perfect 1:1 square, image covers fully, no stretch
-   ── */
+/* ── Image Area ── */
 .fp-card-img {
   position: relative;
   width: 100%;
-  padding-top: 100%; /* 1:1 aspect ratio — perfectly square */
+  padding-top: 100%;
   flex-shrink: 0;
   background: #f0ebe3;
   overflow: hidden;
@@ -403,7 +399,7 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover; /* ✅ covers fully — no stretch, no white gap */
+  object-fit: cover;
   object-position: center center;
   transition:
     transform 0.75s var(--fp-ease-out),
@@ -411,10 +407,9 @@
 }
 
 .fp-card:hover .fp-card-img img {
-  transform: scale(1.1); /* subtle zoom on hover */
+  transform: scale(1.1);
 }
 
-/* Image shimmer overlay on hover */
 .fp-card-img::after {
   content: "";
   position: absolute;
@@ -429,7 +424,6 @@
   opacity: 1;
 }
 
-/* Placeholder */
 .fp-card-placeholder {
   position: absolute;
   inset: 0;
@@ -556,214 +550,181 @@
   cursor: not-allowed;
 }
 
-.fp-icon-btn:disabled:hover {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(201, 168, 76, 0.22);
-  transform: none;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
-}
-
-.fp-icon-btn:disabled:hover svg {
-  color: var(--fp-ink);
-}
-
 /* ═══════════════════════════════════════════════════════
-      CARD BODY
-      ✅ flex column + fixed min heights for each detail zone
-      ensures every card aligns: brand → name → price → variants → stock
+      CARD BODY - FIXED HEIGHTS FOR PERFECT ALIGNMENT
+      Har section ki EXACT height fixed hai
    ═══════════════════════════════════════════════════════ */
 .fp-card-body {
-  padding: 1.1rem 1.15rem 1.2rem;
+  padding: 1rem 1rem 1.2rem;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0;
   background: white;
   position: relative;
   z-index: 2;
+  gap: 0;
 }
 
-/* ── Brand: fixed height so name always starts at same Y ── */
+/* ── Brand - FIXED HEIGHT 20px ── */
 .fp-card-brand {
   font-family: var(--fp-sans);
-  font-size: 0.58rem;
-  font-weight: 400;
-  letter-spacing: 0.26em;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--fp-gold-dark);
-  margin: 0 0 0.35rem;
-  min-height: 1rem; /* ✅ fixed — even if no brand, gap is reserved */
-  line-height: 1rem;
+  margin: 0;
+  height: 20px;
+  line-height: 20px;
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-/* ── Name: exactly 2 lines, truncated ── */
+/* If no brand, this ensures same spacing */
+.fp-card-brand:empty {
+  display: block;
+}
+
+/* ── Product Name - FIXED HEIGHT 44px (2 lines max) ── */
 .fp-card-name {
   font-family: var(--fp-serif);
   font-size: 1rem;
   font-weight: 400;
   color: var(--fp-ink);
-  margin: 0 0 0.55rem;
-  line-height: 1.38;
+  margin: 0 0 0.25rem;
+  line-height: 1.4;
   transition: color 0.35s ease;
-  /* ✅ always exactly 2 lines — consistent across all cards */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: calc(1rem * 1.38 * 2); /* 2 lines worth */
+  min-height: 44px;
+  max-height: 44px;
 }
 
 .fp-card:hover .fp-card-name {
   color: var(--fp-gold-deep);
 }
 
-/* ── Price Row: fixed height so variant row always aligns ── */
+/* ── Price Row - FIXED HEIGHT 42px ── */
 .fp-card-price-row {
   display: flex;
   align-items: baseline;
   gap: 0.55rem;
-  margin: 0 0 0.55rem;
+  margin: 0 0 0.25rem;
   flex-wrap: wrap;
-  min-height: 2rem; /* ✅ price row always takes same height */
+  min-height: 42px;
+  height: 42px;
 }
 
 .fp-card-price {
   font-family: var(--fp-serif);
-  font-size: 1.3rem;
+  font-size: 1.35rem;
   font-weight: 400;
   color: var(--fp-gold-dark);
   letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 .fp-card-orig {
   font-family: var(--fp-sans);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 400;
-  color: rgba(0, 0, 0, 0.35);
+  color: rgba(0, 0, 0, 0.4);
   text-decoration: line-through;
+  line-height: 1.2;
 }
 
 .fp-card-discount {
   font-family: var(--fp-sans);
-  font-size: 0.62rem;
-  font-weight: 400;
+  font-size: 0.65rem;
+  font-weight: 500;
   color: #dc2626;
   background: rgba(220, 38, 38, 0.08);
-  padding: 0.1rem 0.45rem;
+  padding: 0.1rem 0.5rem;
   border-radius: 20px;
   letter-spacing: 0.04em;
+  line-height: 1.2;
 }
 
-/* ── Variants: fixed min-height so stock always aligns ── */
+/* ═══════════════════════════════════════════════════════
+      RATING SECTION - FIXED HEIGHT 28px
+      ⚠️ IMPORTANT: Rating always takes 28px space even if hidden
+   ═══════════════════════════════════════════════════════ */
+.fp-card-rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  min-height: 28px;
+  max-height: 28px;
+  margin: 0;
+}
+
+/* When rating is empty, still maintain height */
+.fp-card-rating:empty {
+  display: block;
+  height: 28px;
+}
+
+.fp-card-rating-count {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.55);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+/* Hide rating wrapper when no rating */
+.fp-card-rating:has(.fp-card-rating-count:empty) {
+  visibility: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════
+      VARIANTS AREA - FIXED HEIGHT 80px
+      ⚠️ IMPORTANT: Variants always takes 80px space even if empty
+   ═══════════════════════════════════════════════════════ */
 .fp-card-variants {
   display: flex;
-  align-items: center;
-  gap: 0.45rem;
+  align-items: flex-start;
+  gap: 0.6rem;
   flex-wrap: wrap;
-  min-height: 50px; /* ✅ variants area always same height */
-  align-content: flex-start;
-  margin-bottom: 0.2rem;
+  margin: 0;
+  min-height: 80px;
+  height: auto;
 }
 
-.fp-variant-label {
-  font-family: var(--fp-sans);
-  font-size: 0.52rem;
-  font-weight: 400;
-  color: var(--fp-gold-deep);
-  letter-spacing: 0.06em;
+/* When no variants, still maintain space */
+.fp-card-variants:empty {
+  display: block;
+  min-height: 80px;
 }
 
-.fp-variant-thumbnails {
-  display: flex;
-  align-items: center;
-  gap: 0.28rem;
-  flex-wrap: wrap;
-}
-
-.fp-variant-thumb {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  border: 1.5px solid rgba(201, 168, 76, 0.22);
-  background: transparent;
-  cursor: pointer;
-  overflow: hidden;
-  transition: all 0.22s ease;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.fp-variant-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* ✅ variant thumbnail also covers fully */
-  object-position: center;
-  border-radius: 6px;
-}
-
-.fp-variant-label-text {
-  font-size: 0.46rem;
-  font-weight: 500;
-  color: var(--fp-gold-deep);
-  text-align: center;
-  max-width: 38px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 1;
-}
-
-.fp-variant-thumb:hover {
-  border-color: var(--fp-gold);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(201, 168, 76, 0.2);
-}
-
-.fp-variant-thumb.active {
-  border-color: var(--fp-gold);
-  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.3);
-  background: rgba(201, 168, 76, 0.06);
-}
-
-.fp-variant-thumb.active .fp-variant-label-text {
-  color: var(--fp-gold-dark);
-  font-weight: 400;
-}
-
-.fp-variant-more {
-  font-size: 0.56rem;
-  font-weight: 400;
-  color: var(--fp-gold-dark);
-  font-family: var(--fp-sans);
-  background: var(--fp-gold-dim);
-  padding: 0.2rem 0.55rem;
-  border-radius: 20px;
-  border: 1px solid rgba(201, 168, 76, 0.18);
-}
-
-/* ── Stock: pinned at bottom ── */
+/* ═══════════════════════════════════════════════════════
+      STOCK SECTION - FIXED HEIGHT 28px
+      ⚠️ IMPORTANT: Stock always takes 28px space
+   ═══════════════════════════════════════════════════════ */
 .fp-card-stock {
   font-family: var(--fp-sans);
-  font-size: 0.58rem;
-  font-weight: 400;
-  letter-spacing: 0.14em;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  min-height: 1rem; /* ✅ always takes space even when not rendered */
+  height: 28px;
+  min-height: 28px;
+  max-height: 28px;
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  margin: 0;
 }
 
 .fp-card-stock::before {
   content: "";
   display: inline-block;
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -787,6 +748,153 @@
 }
 .fp-card-stock.out::before {
   background: #ef4444;
+}
+
+/* ═══════════════════════════════════════════════════════
+      VARIANT THUMBNAILS
+   ═══════════════════════════════════════════════════════ */
+.fp-variant-label {
+  font-family: var(--fp-sans);
+  font-size: 0.55rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fp-gold-deep);
+  background: rgba(201, 168, 76, 0.08);
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 28px;
+}
+
+.fp-variant-thumbnails {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+/* Individual variant button - vertical layout (image on top, text below) */
+.fp-variant-thumb {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.35rem !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  transition: all 0.2s ease !important;
+  width: auto !important;
+  min-width: 52px;
+}
+
+/* Image wrapper - fixed size square */
+.fp-variant-thumb-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(201, 168, 76, 0.2);
+  background: #f5f0e8;
+  transition: all 0.25s ease;
+}
+
+.fp-variant-thumb-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Placeholder when no image available */
+.fp-variant-thumb-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    rgba(201, 168, 76, 0.15),
+    rgba(201, 168, 76, 0.05)
+  );
+  border: 2px solid rgba(201, 168, 76, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+}
+
+.fp-variant-thumb-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--fp-gold-dark);
+}
+
+/* Text label below the image */
+.fp-variant-thumb-label {
+  font-family: var(--fp-sans);
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.7);
+  text-align: center;
+  max-width: 65px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  transition: color 0.2s ease;
+}
+
+/* Hover effects */
+.fp-variant-thumb:hover .fp-variant-thumb-img {
+  border-color: var(--fp-gold);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(201, 168, 76, 0.25);
+}
+
+.fp-variant-thumb:hover .fp-variant-thumb-placeholder {
+  border-color: var(--fp-gold);
+  background: rgba(201, 168, 76, 0.12);
+  transform: translateY(-2px);
+}
+
+.fp-variant-thumb:hover .fp-variant-thumb-label {
+  color: var(--fp-gold-dark);
+}
+
+/* Active state */
+.fp-variant-thumb.active .fp-variant-thumb-img {
+  border-color: var(--fp-gold);
+  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.3);
+}
+
+.fp-variant-thumb.active .fp-variant-thumb-placeholder {
+  border-color: var(--fp-gold);
+  background: rgba(201, 168, 76, 0.15);
+  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.2);
+}
+
+.fp-variant-thumb.active .fp-variant-thumb-label {
+  color: var(--fp-gold-dark);
+  font-weight: 600;
+}
+
+/* More indicator */
+.fp-variant-more {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--fp-gold-dark);
+  background: rgba(201, 168, 76, 0.1);
+  padding: 0.3rem 0.7rem;
+  border-radius: 20px;
+  border: 1px solid rgba(201, 168, 76, 0.2);
+  font-family: var(--fp-sans);
+  letter-spacing: 0.02em;
+  cursor: default;
 }
 
 /* Bottom animated gold line */
@@ -913,7 +1021,7 @@
 
 .fp-card--skeleton {
   pointer-events: none;
-  min-height: 480px;
+  min-height: 500px;
 }
 
 @keyframes fp-skeleton {
@@ -975,9 +1083,26 @@
   }
   .fp-card-name {
     font-size: 0.95rem;
+    min-height: 42px;
+    max-height: 42px;
   }
   .fp-card-price {
     font-size: 1.15rem;
+  }
+  .fp-card-price-row {
+    min-height: 38px;
+    height: 38px;
+  }
+  .fp-card-rating {
+    height: 26px;
+    min-height: 26px;
+  }
+  .fp-card-stock {
+    height: 26px;
+    min-height: 26px;
+  }
+  .fp-card-variants {
+    min-height: 72px;
   }
   .fp-icon-btn {
     width: 38px;
@@ -988,11 +1113,19 @@
     height: 15px;
   }
   .fp-card-body {
-    padding: 0.95rem 1rem 1rem;
+    padding: 0.85rem 0.9rem 1rem;
   }
-  .fp-variant-thumb {
-    width: 38px;
-    height: 38px;
+  .fp-variant-thumb-img {
+    width: 44px;
+    height: 44px;
+  }
+  .fp-variant-thumb-placeholder {
+    width: 44px;
+    height: 44px;
+  }
+  .fp-variant-thumb-label {
+    font-size: 0.6rem;
+    max-width: 55px;
   }
 }
 
@@ -1022,15 +1155,35 @@
   }
   .fp-card-name {
     font-size: 0.9rem;
+    min-height: 40px;
+    max-height: 40px;
   }
   .fp-card-price {
     font-size: 1.1rem;
   }
   .fp-card-brand {
     font-size: 0.55rem;
+    height: 18px;
+    line-height: 18px;
+  }
+  .fp-card-price-row {
+    min-height: 36px;
+    height: 36px;
+  }
+  .fp-card-rating {
+    height: 24px;
+    min-height: 24px;
+  }
+  .fp-card-stock {
+    height: 24px;
+    min-height: 24px;
+  }
+  .fp-card-variants {
+    min-height: 68px;
+    gap: 0.4rem;
   }
   .fp-card-body {
-    padding: 0.85rem 0.9rem 0.9rem;
+    padding: 0.75rem 0.8rem 0.9rem;
   }
   .fp-icon-btn {
     width: 36px;
@@ -1045,12 +1198,27 @@
     left: 0.6rem;
     right: 0.6rem;
   }
-  .fp-variant-thumb {
-    width: 34px;
-    height: 34px;
+  .fp-variant-thumb-img {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
   }
-  .fp-card-variants {
-    min-height: 44px;
+  .fp-variant-thumb-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+  .fp-variant-thumb-label {
+    font-size: 0.55rem;
+    max-width: 48px;
+  }
+  .fp-variant-label {
+    font-size: 0.5rem;
+    padding: 0.15rem 0.5rem;
+    height: 24px;
+  }
+  .fp-variant-thumbnails {
+    gap: 0.4rem;
   }
 }
 
@@ -1063,18 +1231,39 @@
     width: 13px;
     height: 13px;
   }
-  .fp-variant-thumb {
-    width: 30px;
-    height: 30px;
-  }
-  .fp-variant-label-text {
-    display: none;
-  }
   .fp-card-name {
     font-size: 0.88rem;
   }
   .fp-card-price {
-    font-size: 1.05rem;
+    font-size: 1rem;
+  }
+  .fp-card-rating {
+    height: 22px;
+    min-height: 22px;
+  }
+  .fp-card-stock {
+    height: 22px;
+    min-height: 22px;
+  }
+  .fp-card-variants {
+    min-height: 62px;
+  }
+  .fp-variant-thumb-img {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+  .fp-variant-thumb-placeholder {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+  .fp-variant-thumb-label {
+    font-size: 0.5rem;
+    max-width: 42px;
+  }
+  .fp-variant-thumb-text {
+    font-size: 0.85rem;
   }
 }
 
@@ -1094,7 +1283,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-      SKELETON GRID — matches Swiper breakpoints exactly
+      SKELETON GRID
    ═══════════════════════════════════════════════════════ */
 .fp-skeleton-grid {
   grid-template-columns: repeat(4, 1fr);

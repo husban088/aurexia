@@ -13,6 +13,7 @@ interface OrderItem {
   quantity: number;
   piecesPerUnit: number;
   price: number;
+  pricePKR?: number;
   image: string | null;
 }
 
@@ -46,8 +47,16 @@ type Toast = {
 
 type FilterType = "all" | "delivered" | "pending";
 
-// Format currency
-const formatCurrency = (amount: number, currency: string = "PKR") => {
+// ✅ FIXED: Safe formatCurrency function with proper error handling
+const formatCurrency = (
+  amount: number | null | undefined,
+  currency: string = "PKR",
+): string => {
+  // Handle null, undefined, or invalid numbers
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    amount = 0;
+  }
+
   const symbols: Record<string, string> = {
     PKR: "₨",
     USD: "$",
@@ -55,13 +64,27 @@ const formatCurrency = (amount: number, currency: string = "PKR") => {
     EUR: "€",
     AUD: "A$",
     CAD: "C$",
+    AED: "د.إ",
+    SAR: "﷼",
+    INR: "₹",
   };
+
   const symbol = symbols[currency] || "₨";
-  return `${symbol} ${amount.toLocaleString()}`;
+  return `${symbol} ${amount.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}`;
 };
 
 // Format date
 const formatDate = (dateString: string) => {
+  if (!dateString) {
+    return {
+      full: "N/A",
+      time: "N/A",
+      dateOnly: "N/A",
+    };
+  }
   const date = new Date(dateString);
   return {
     full: date.toLocaleDateString("en-GB", {
@@ -163,7 +186,7 @@ function OrderDetailModal({
   onClose: () => void;
   onStatusUpdate: (
     orderId: string,
-    newStatus: Order["status"]
+    newStatus: Order["status"],
   ) => Promise<void>;
 }) {
   const [updating, setUpdating] = useState(false);
@@ -174,6 +197,14 @@ function OrderDetailModal({
     setUpdating(true);
     await onStatusUpdate(order.id, newStatus);
     setUpdating(false);
+  };
+
+  // ✅ Safe calculation for unit price
+  const calculateUnitPrice = (item: OrderItem, currency: string) => {
+    const totalPieces = item.quantity * (item.piecesPerUnit || 1);
+    if (totalPieces === 0) return 0;
+    const unitPriceRaw = item.price / totalPieces;
+    return unitPriceRaw;
   };
 
   return (
@@ -255,33 +286,35 @@ function OrderDetailModal({
             <h3>Customer Information</h3>
             <div className="ords-modal-info-row">
               <span className="label">Name:</span>
-              <span className="value">{order.customer_name}</span>
+              <span className="value">{order.customer_name || "N/A"}</span>
             </div>
             <div className="ords-modal-info-row">
               <span className="label">Email:</span>
-              <span className="value">{order.customer_email}</span>
+              <span className="value">{order.customer_email || "N/A"}</span>
             </div>
             <div className="ords-modal-info-row">
               <span className="label">Phone:</span>
-              <span className="value">{order.customer_phone}</span>
+              <span className="value">{order.customer_phone || "N/A"}</span>
             </div>
           </div>
 
           <div className="ords-modal-card">
             <h3>Shipping Address</h3>
-            <div className="ords-modal-address">{order.shipping_address}</div>
+            <div className="ords-modal-address">
+              {order.shipping_address || "N/A"}
+            </div>
           </div>
 
           <div className="ords-modal-card">
             <h3>Payment Information</h3>
             <div className="ords-modal-info-row">
               <span className="label">Method:</span>
-              <span className="value">{order.payment_method}</span>
+              <span className="value">{order.payment_method || "N/A"}</span>
             </div>
             <div className="ords-modal-info-row">
               <span className="label">Status:</span>
               <span className={`value payment-${order.payment_status}`}>
-                {order.payment_status}
+                {order.payment_status || "pending"}
               </span>
             </div>
             {order.payment_id && (
@@ -308,14 +341,8 @@ function OrderDetailModal({
                 </tr>
               </thead>
               <tbody>
-                {order.items.map((item, idx) => {
-                  const itemTotal = item.price;
-                  const unitPrice =
-                    order.currency === "PKR"
-                      ? item.price / (item.quantity * (item.piecesPerUnit || 1))
-                      : (item.price /
-                          (item.quantity * (item.piecesPerUnit || 1))) *
-                        0.0036;
+                {(order.items || []).map((item, idx) => {
+                  const unitPrice = calculateUnitPrice(item, order.currency);
                   return (
                     <tr key={idx}>
                       <td className="ords-product-cell">
@@ -327,7 +354,9 @@ function OrderDetailModal({
                           />
                         )}
                         <div>
-                          <div className="ords-product-name">{item.name}</div>
+                          <div className="ords-product-name">
+                            {item.name || "Product"}
+                          </div>
                           {item.variant && (
                             <div className="ords-product-variant">
                               {item.variant}
@@ -341,10 +370,10 @@ function OrderDetailModal({
                         </div>
                       </td>
                       <td>
-                        {item.quantity} × {item.piecesPerUnit || 1} pcs
+                        {item.quantity || 0} × {item.piecesPerUnit || 1} pcs
                       </td>
                       <td>{formatCurrency(unitPrice, order.currency)}</td>
-                      <td>{formatCurrency(item.price, order.currency)}</td>
+                      <td>{formatCurrency(item.price || 0, order.currency)}</td>
                     </tr>
                   );
                 })}
@@ -361,7 +390,7 @@ function OrderDetailModal({
           <div className="ords-summary-row">
             <span>Shipping</span>
             <span>
-              {order.shipping_cost === 0
+              {order.shipping_cost === 0 || !order.shipping_cost
                 ? "Free"
                 : formatCurrency(order.shipping_cost, order.currency)}
             </span>
@@ -387,14 +416,14 @@ function OrderCard({
   onClick: () => void;
   onStatusUpdate: (
     orderId: string,
-    newStatus: Order["status"]
+    newStatus: Order["status"],
   ) => Promise<void>;
 }) {
   const [updating, setUpdating] = useState(false);
 
   const handleQuickStatusChange = async (
     e: React.MouseEvent,
-    newStatus: Order["status"]
+    newStatus: Order["status"],
   ) => {
     e.stopPropagation();
     setUpdating(true);
@@ -428,10 +457,12 @@ function OrderCard({
       <div className="ords-card-header">
         <div className="ords-card-number">
           <span className="ords-card-label">Order</span>
-          <span className="ords-card-value">{order.order_number}</span>
+          <span className="ords-card-value">{order.order_number || "N/A"}</span>
         </div>
         <div className={`ords-card-status ${getStatusClass(order.status)}`}>
-          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+          {order.status
+            ? order.status.charAt(0).toUpperCase() + order.status.slice(1)
+            : "Pending"}
         </div>
       </div>
 
@@ -447,7 +478,7 @@ function OrderCard({
               <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
-            {order.customer_name}
+            {order.customer_name || "N/A"}
           </div>
           <div className="ords-customer-email">
             <svg
@@ -459,7 +490,7 @@ function OrderCard({
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
               <polyline points="22,6 12,13 2,6" />
             </svg>
-            {order.customer_email}
+            {order.customer_email || "N/A"}
           </div>
           <div className="ords-customer-phone">
             <svg
@@ -470,24 +501,25 @@ function OrderCard({
             >
               <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z" />
             </svg>
-            {order.customer_phone}
+            {order.customer_phone || "N/A"}
           </div>
         </div>
 
         <div className="ords-card-items">
           <div className="ords-items-count">
-            {order.items.length} item{order.items.length !== 1 ? "s" : ""}
+            {(order.items || []).length} item
+            {(order.items || []).length !== 1 ? "s" : ""}
           </div>
           <div className="ords-items-preview">
-            {order.items.slice(0, 2).map((item, idx) => (
+            {(order.items || []).slice(0, 2).map((item, idx) => (
               <span key={idx} className="ords-item-preview">
-                {item.name}
+                {item.name || "Product"}
                 {item.variant ? ` (${item.variant})` : ""}
               </span>
             ))}
-            {order.items.length > 2 && (
+            {(order.items || []).length > 2 && (
               <span className="ords-item-more">
-                +{order.items.length - 2} more
+                +{(order.items || []).length - 2} more
               </span>
             )}
           </div>
@@ -517,10 +549,11 @@ function OrderCard({
           </div>
           <div
             className={`ords-card-payment ${getPaymentStatusClass(
-              order.payment_status
+              order.payment_status,
             )}`}
           >
-            {order.payment_method} • {order.payment_status}
+            {order.payment_method || "N/A"} •{" "}
+            {order.payment_status || "pending"}
           </div>
         </div>
       </div>
@@ -580,10 +613,10 @@ export default function OrdersPage() {
 
       // Calculate stats
       const deliveredCount = ordersData.filter(
-        (o) => o.status === "delivered"
+        (o) => o.status === "delivered",
       ).length;
       const pendingCount = ordersData.filter(
-        (o) => o.status !== "delivered" && o.status !== "cancelled"
+        (o) => o.status !== "delivered" && o.status !== "cancelled",
       ).length;
       setStats({
         delivered: deliveredCount,
@@ -611,7 +644,7 @@ export default function OrdersPage() {
         { event: "*", schema: "public", table: "orders" },
         () => {
           fetchOrders();
-        }
+        },
       )
       .subscribe();
 
@@ -626,12 +659,12 @@ export default function OrdersPage() {
       setToasts((p) => [...p, { id, type, title, msg }]);
       setTimeout(() => {
         setToasts((p) =>
-          p.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+          p.map((t) => (t.id === id ? { ...t, exiting: true } : t)),
         );
         setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 350);
       }, 3500);
     },
-    []
+    [],
   );
 
   const removeToast = useCallback((id: number) => {
@@ -641,7 +674,7 @@ export default function OrdersPage() {
 
   const handleStatusUpdate = async (
     orderId: string,
-    newStatus: Order["status"]
+    newStatus: Order["status"],
   ) => {
     try {
       const { error } = await supabase
@@ -654,7 +687,7 @@ export default function OrdersPage() {
       addToast(
         "success",
         "Status Updated",
-        `Order status changed to ${newStatus}`
+        `Order status changed to ${newStatus}`,
       );
       fetchOrders();
 
@@ -677,7 +710,7 @@ export default function OrdersPage() {
       filtered = filtered.filter((o) => o.status === "delivered");
     } else if (filterType === "pending") {
       filtered = filtered.filter(
-        (o) => o.status !== "delivered" && o.status !== "cancelled"
+        (o) => o.status !== "delivered" && o.status !== "cancelled",
       );
     }
 
@@ -686,10 +719,10 @@ export default function OrdersPage() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (o) =>
-          o.customer_name.toLowerCase().includes(query) ||
-          o.customer_email.toLowerCase().includes(query) ||
-          o.order_number.toLowerCase().includes(query) ||
-          o.customer_phone.includes(query)
+          (o.customer_name || "").toLowerCase().includes(query) ||
+          (o.customer_email || "").toLowerCase().includes(query) ||
+          (o.order_number || "").toLowerCase().includes(query) ||
+          (o.customer_phone || "").includes(query),
       );
     }
 
@@ -697,10 +730,10 @@ export default function OrdersPage() {
   }, [orders, filterType, searchQuery]);
 
   const deliveredOrders = filteredOrders.filter(
-    (o) => o.status === "delivered"
+    (o) => o.status === "delivered",
   );
   const pendingOrders = filteredOrders.filter(
-    (o) => o.status !== "delivered" && o.status !== "cancelled"
+    (o) => o.status !== "delivered" && o.status !== "cancelled",
   );
 
   return (

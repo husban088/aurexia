@@ -127,8 +127,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     Record<string, boolean>
   >({});
   const [signingOut, setSigningOut] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  // ✅ Client-side navigation — no reload, back/forward works perfectly
+  // Mark client-side after hydration
+  useEffect(() => {
+    setIsClient(true);
+    setMounted(true);
+  }, []);
+
+  // Client-side navigation — no reload, back/forward works perfectly
   const handleNavigate = (href: string) => {
     onClose();
     router.push(href);
@@ -141,21 +149,31 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     setExpandedCategories((prev) => ({ ...prev, [href]: !prev[href] }));
   };
 
+  // Auth initialization - only on client
   useEffect(() => {
+    if (!isClient) return;
+
     const initAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser(session.user);
-        setUserEmail(session.user.email ?? null);
-        const { data } = await supabase
-          .from("profiles")
-          .select("username")
-          .eq("id", session.user.id)
-          .single();
-        if (data) setProfile(data);
-      } else {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+          setUserEmail(session.user.email ?? null);
+          const { data } = await supabase
+            .from("profiles")
+            .select("username")
+            .eq("id", session.user.id)
+            .single();
+          if (data) setProfile(data);
+        } else {
+          setUser(null);
+          setUserEmail(null);
+          setProfile(null);
+        }
+      } catch (err) {
+        console.error("Auth init error:", err);
         setUser(null);
         setUserEmail(null);
         setProfile(null);
@@ -174,40 +192,54 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         setUser(session.user);
         setUserEmail(session.user.email ?? null);
-        const { data } = await supabase
-          .from("profiles")
-          .select("username")
-          .eq("id", session.user.id)
-          .single();
-        if (data) setProfile(data);
+        try {
+          const { data } = await supabase
+            .from("profiles")
+            .select("username")
+            .eq("id", session.user.id)
+            .single();
+          if (data) setProfile(data);
+        } catch (err) {
+          console.error("Profile fetch error:", err);
+        }
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [isClient]);
 
   // Close on route change
   useEffect(() => {
-    onClose();
-  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (isClient && isOpen) {
+      onClose();
+    }
+  }, [pathname, isClient]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Body scroll lock
   useEffect(() => {
+    if (!isClient) return;
+
     document.body.style.overflow = isOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [isOpen]);
+  }, [isOpen, isClient]);
 
+  // Handle escape key
   useEffect(() => {
+    if (!isClient) return;
+
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) onClose();
     };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isClient]);
 
   const handleSignOut = async () => {
-    if (signingOut) return;
+    if (signingOut || !isClient) return;
     setSigningOut(true);
     try {
       setUser(null);
@@ -225,8 +257,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     }
   };
 
-  const showPanel = isOwner(userEmail);
-  const isSignedIn = user !== undefined && user !== null;
+  const showPanel = isClient && isOwner(userEmail);
+  const isSignedIn = isClient && user !== undefined && user !== null;
+
+  // Don't render anything on server to prevent hydration mismatch
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <>
@@ -243,11 +280,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         aria-modal="true"
         aria-label="Navigation menu"
         onClick={(e) => e.stopPropagation()}
+        suppressHydrationWarning
       >
         {/* Header */}
-        {/* Header */}
         <div className="sidebar-header">
-          {/* ✅ Logo — Next.js Link with Image, instant navigation */}
           <Link
             href="/"
             className="sidebar-logo"
@@ -258,6 +294,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               src="/nav__logo.png"
               alt="TECH4U"
               className="sidebar-logo-img"
+              suppressHydrationWarning
             />
           </Link>
 
@@ -289,7 +326,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       className={`sidebar-nav-link${isActive ? " active" : ""}`}
                     >
                       <span className="sidebar-link-icon">{link.icon}</span>
-                      {/* ✅ Link text — Next.js router.push, instant navigation */}
                       <span
                         className="sidebar-link-text"
                         onClick={() => handleNavigate(link.href)}
@@ -305,9 +341,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                           aria-label={isExpanded ? "Collapse" : "Expand"}
                         >
                           <svg
-                            className={`sidebar-nav-arrow${
-                              isExpanded ? " expanded" : ""
-                            }`}
+                            className={`sidebar-nav-arrow${isExpanded ? " expanded" : ""}`}
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
@@ -324,12 +358,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <ul className="sidebar-subnav-list">
                       {link.subcategories!.map((sub, index) => (
                         <li key={sub.href} className="sidebar-subnav-item">
-                          {/* ✅ Subcategory links — Next.js Link */}
                           <Link
                             href={sub.href}
-                            className={`sidebar-subnav-link${
-                              pathname === sub.href ? " active" : ""
-                            }`}
+                            className={`sidebar-subnav-link${pathname === sub.href ? " active" : ""}`}
                             onClick={onClose}
                             prefetch={true}
                             style={{ animationDelay: `${index * 0.03}s` }}
@@ -359,9 +390,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <li className="sidebar-nav-item">
                   <Link
                     href="/profile"
-                    className={`sidebar-nav-link${
-                      pathname === "/profile" ? " active" : ""
-                    }`}
+                    className={`sidebar-nav-link${pathname === "/profile" ? " active" : ""}`}
                     onClick={onClose}
                     prefetch={true}
                   >
@@ -387,9 +416,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <li className="sidebar-nav-item">
                   <Link
                     href="/profile"
-                    className={`sidebar-nav-link${
-                      pathname === "/profile" ? " active" : ""
-                    }`}
+                    className={`sidebar-nav-link${pathname === "/profile" ? " active" : ""}`}
                     onClick={onClose}
                     prefetch={true}
                   >
@@ -432,9 +459,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <li className="sidebar-nav-item">
                   <Link
                     href="/signin"
-                    className={`sidebar-nav-link${
-                      pathname === "/signin" ? " active" : ""
-                    }`}
+                    className={`sidebar-nav-link${pathname === "/signin" ? " active" : ""}`}
                     onClick={onClose}
                     prefetch={true}
                   >
@@ -454,9 +479,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <li className="sidebar-nav-item">
                   <Link
                     href="/signup"
-                    className={`sidebar-nav-link${
-                      pathname === "/signup" ? " active" : ""
-                    }`}
+                    className={`sidebar-nav-link${pathname === "/signup" ? " active" : ""}`}
                     onClick={onClose}
                     prefetch={true}
                   >
@@ -481,9 +504,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <li className="sidebar-nav-item">
               <Link
                 href="/cart"
-                className={`sidebar-nav-link${
-                  pathname === "/cart" ? " active" : ""
-                }`}
+                className={`sidebar-nav-link${pathname === "/cart" ? " active" : ""}`}
                 onClick={onClose}
                 prefetch={true}
               >
@@ -513,9 +534,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <li className="sidebar-nav-item">
                   <Link
                     href="/panel/add-product"
-                    className={`sidebar-nav-link${
-                      pathname === "/panel/add-product" ? " active" : ""
-                    }`}
+                    className={`sidebar-nav-link${pathname === "/panel/add-product" ? " active" : ""}`}
                     onClick={onClose}
                     prefetch={true}
                   >
@@ -534,9 +553,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <li className="sidebar-nav-item">
                   <Link
                     href="/panel"
-                    className={`sidebar-nav-link${
-                      pathname === "/panel" ? " active" : ""
-                    }`}
+                    className={`sidebar-nav-link${pathname === "/panel" ? " active" : ""}`}
                     onClick={onClose}
                     prefetch={true}
                   >

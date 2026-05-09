@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCartStore } from "@/lib/cartStore";
-import { useCouponStore } from "@/lib/couponStore"; // ✅ Coupon store import
+import { useCouponStore } from "@/lib/couponStore";
 import "./cartsidebar.css";
 import { useCurrency } from "../context/CurrencyContext";
 
@@ -14,6 +14,13 @@ interface CartSidebarProps {
 
 export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const [mounted, setMounted] = useState(false);
+  const [couponInput, setCouponInput] = useState("");
+  const [couponMessage, setCouponMessage] = useState<{
+    text: string;
+    success: boolean;
+  } | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
   const items = useCartStore((state) => state.items);
   const loading = useCartStore((state) => state.loading);
   const initialized = useCartStore((state) => state.initialized);
@@ -41,7 +48,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
 
-  // ✅ Coupon store
+  // Coupon store
   const {
     appliedCode,
     discountPercent,
@@ -52,19 +59,12 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     getFinalTotal,
   } = useCouponStore();
 
-  // ✅ Coupon UI state
-  const [couponInput, setCouponInput] = useState("");
-  const [couponMessage, setCouponMessage] = useState<{
-    text: string;
-    success: boolean;
-  } | null>(null);
-
-  // ✅ Coupon calculations
+  // Coupon calculations
   const discountAmountPKR = getDiscountAmount(subtotalPKR);
   const shippingPKR = 0;
   const totalPKR = getFinalTotal(subtotalPKR) + shippingPKR;
 
-  // ✅ Handle coupon apply
+  // Handle coupon apply
   const handleApplyCoupon = () => {
     if (!couponInput.trim()) {
       setCouponMessage({ text: "Please enter a coupon code.", success: false });
@@ -77,50 +77,38 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     }
   };
 
-  // ✅ Handle coupon remove
+  // Handle coupon remove
   const handleRemoveCoupon = () => {
     removeCoupon();
     setCouponMessage(null);
     setCouponInput("");
   };
 
-  // ✅ Handle Enter key
+  // Handle Enter key
   const handleCouponKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       handleApplyCoupon();
     }
   };
 
+  // Mark client-side after hydration
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Set mounted after hydration
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (mounted && !initialized) {
-      try {
-        const persisted = localStorage.getItem("cart-storage");
-        if (persisted) {
-          const parsed = JSON.parse(persisted);
-          if (parsed.state?.items?.length > 0) {
-            console.log(
-              "📦 CartSidebar - Loaded from storage:",
-              parsed.state.items.length,
-              "items",
-            );
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load cart from storage:", e);
-      }
-    }
-  }, [mounted, initialized]);
-
+  // Fetch cart when sidebar opens and not initialized
   useEffect(() => {
     if (isOpen && !initialized && mounted) {
       fetchCart();
     }
   }, [isOpen, initialized, fetchCart, mounted]);
 
+  // Handle body scroll lock
   useEffect(() => {
     if (!mounted) return;
     document.body.style.overflow = isOpen ? "hidden" : "";
@@ -129,6 +117,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     };
   }, [isOpen, mounted]);
 
+  // Handle escape key
   useEffect(() => {
     if (!mounted) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -140,7 +129,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
   // Auto remove out of stock items
   useEffect(() => {
-    if (!items.length) return;
+    if (!items.length || !mounted) return;
     items.forEach((item) => {
       const stockStatus = item.variantStockStatus ?? "in_stock";
       const variantStock = item.variantStock ?? 999999;
@@ -158,7 +147,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
         });
       }
     });
-  }, [items, removeFromCart, removingItems]);
+  }, [items, removeFromCart, removingItems, mounted]);
 
   const handleSidebarClick = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -180,7 +169,10 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
   const showSpinner = loading && items.length === 0;
 
-  if (!mounted) return null;
+  // Don't render anything on server to prevent hydration mismatch
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <>
@@ -197,6 +189,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
         aria-modal="true"
         aria-label="Shopping cart"
         onClick={handleSidebarClick}
+        suppressHydrationWarning
       >
         <div className="cs-deco" aria-hidden="true">
           <div className="cs-deco-ring" />
@@ -289,7 +282,9 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 Explore our luxury collections to begin.
               </p>
               <button className="cs-empty-cta" onClick={onClose}>
-                <Link href="/watches">Discover Collections</Link>
+                <Link href="/watches" prefetch={false}>
+                  Discover Collections
+                </Link>
               </button>
             </div>
           ) : (
@@ -368,6 +363,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                             width: "100%",
                             height: "100%",
                           }}
+                          suppressHydrationWarning
                         />
                       ) : (
                         <div
@@ -504,81 +500,10 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           )}
         </div>
 
-        {/* ✅ Footer with Coupon + Totals */}
+        {/* Footer with Totals */}
         {cartUnitCount > 0 && (
           <div className="cs-footer">
-            {/* ✅ COUPON CODE SECTION */}
-            {/* <div className="cs-coupon-section">
-              <p className="cs-coupon-label">Have a coupon code?</p>
-
-              {!appliedCode ? (
-                <div className="cs-coupon-row">
-                  <input
-                    type="text"
-                    className="cs-coupon-input"
-                    placeholder="Enter code (e.g. TECH4RU)"
-                    value={couponInput}
-                    onChange={(e) => {
-                      setCouponInput(e.target.value.toUpperCase());
-                      setCouponMessage(null);
-                    }}
-                    onKeyDown={handleCouponKeyDown}
-                    maxLength={20}
-                  />
-                  <button
-                    className="cs-coupon-btn"
-                    onClick={handleApplyCoupon}
-                    disabled={!couponInput.trim()}
-                  >
-                    Apply
-                  </button>
-                </div>
-              ) : (
-                <div className="cs-coupon-applied">
-                  <div className="cs-coupon-badge">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      width="13"
-                      height="13"
-                    >
-                      <polyline
-                        points="20 6 9 17 4 12"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    <span>
-                      <strong>{appliedCode}</strong> — {discountLabel}
-                    </span>
-                  </div>
-                  <button
-                    className="cs-coupon-remove"
-                    onClick={handleRemoveCoupon}
-                    aria-label="Remove coupon"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-
-
-              {couponMessage && (
-                <p
-                  className={
-                    couponMessage.success
-                      ? "cs-coupon-success"
-                      : "cs-coupon-error"
-                  }
-                >
-                  {couponMessage.text}
-                </p>
-              )}
-            </div> */}
-
-            {/* ✅ Summary totals */}
+            {/* Summary totals */}
             <div className="cs-summary">
               <div className="cs-summary-row">
                 <span>
@@ -588,7 +513,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 <span>{formatPrice(subtotalPKR)}</span>
               </div>
 
-              {/* ✅ Discount row - only when coupon applied */}
+              {/* Discount row - only when coupon applied */}
               {appliedCode && discountAmountPKR > 0 && (
                 <div className="cs-summary-row cs-summary-row--discount">
                   <span>
@@ -648,145 +573,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
         )}
 
         <style jsx>{`
-          /* === COUPON SECTION === */
-          .cs-coupon-section {
-            padding: 0.85rem 1rem;
-            border-bottom: 1px solid rgba(218, 165, 32, 0.12);
-            background: rgba(218, 165, 32, 0.02);
-          }
-
-          .cs-coupon-label {
-            font-size: 0.68rem;
-            letter-spacing: 0.07em;
-            text-transform: uppercase;
-            color: #888;
-            margin: 0 0 0.5rem;
-          }
-
-          .cs-coupon-row {
-            display: flex;
-            gap: 0.4rem;
-            align-items: center;
-          }
-
-          .cs-coupon-input {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(218, 165, 32, 0.3);
-            border-radius: 6px;
-            padding: 0.45rem 0.65rem;
-            color: inherit;
-            font-size: 0.78rem;
-            font-family: monospace;
-            letter-spacing: 0.05em;
-            outline: none;
-            transition: border-color 0.2s;
-          }
-
-          .cs-coupon-input:focus {
-            border-color: rgba(218, 165, 32, 0.65);
-          }
-
-          .cs-coupon-input::placeholder {
-            color: #555;
-            font-size: 0.7rem;
-            letter-spacing: 0.02em;
-          }
-
-          .cs-coupon-btn {
-            padding: 0.45rem 0.85rem;
-            background: rgba(218, 165, 32, 0.15);
-            border: 1px solid rgba(218, 165, 32, 0.4);
-            border-radius: 6px;
-            color: #daa520;
-            font-size: 0.74rem;
-            font-weight: 600;
-            letter-spacing: 0.05em;
-            cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
-          }
-
-          .cs-coupon-btn:hover:not(:disabled) {
-            background: rgba(218, 165, 32, 0.25);
-          }
-
-          .cs-coupon-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-          }
-
-          .cs-coupon-applied {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.4rem;
-          }
-
-          .cs-coupon-badge {
-            display: flex;
-            align-items: center;
-            gap: 0.35rem;
-            padding: 0.35rem 0.65rem;
-            background: rgba(46, 125, 50, 0.1);
-            border: 1px solid rgba(46, 125, 50, 0.25);
-            border-radius: 6px;
-            color: #2e7d32;
-            font-size: 0.75rem;
-            flex: 1;
-          }
-
-          .cs-coupon-remove {
-            background: none;
-            border: 1px solid rgba(180, 0, 0, 0.2);
-            border-radius: 6px;
-            color: #c62828;
-            font-size: 0.72rem;
-            cursor: pointer;
-            padding: 0.3rem 0.55rem;
-            transition: all 0.2s;
-            line-height: 1;
-          }
-
-          .cs-coupon-remove:hover {
-            background: rgba(180, 0, 0, 0.07);
-          }
-
-          /* ✅ SUCCESS - GREEN */
-          .cs-coupon-success {
-            margin: 0.5rem 0 0;
-            padding: 0.45rem 0.65rem;
-            background: rgba(46, 125, 50, 0.09);
-            border: 1px solid rgba(46, 125, 50, 0.22);
-            border-radius: 6px;
-            color: #2e7d32;
-            font-size: 0.73rem;
-            line-height: 1.5;
-          }
-
-          /* ✅ ERROR - RED */
-          .cs-coupon-error {
-            margin: 0.5rem 0 0;
-            padding: 0.45rem 0.65rem;
-            background: rgba(198, 40, 40, 0.07);
-            border: 1px solid rgba(198, 40, 40, 0.18);
-            border-radius: 6px;
-            color: #c62828;
-            font-size: 0.73rem;
-            line-height: 1.5;
-          }
-
-          /* ✅ Discount row */
-          .cs-summary-row--discount {
-            color: #2e7d32;
-          }
-
-          .cs-discount-value {
-            color: #2e7d32;
-            font-weight: 600;
-          }
-
-          /* Existing styles */
           .cs-item-breakdown {
             font-size: 0.65rem;
             color: #888;
@@ -823,6 +609,13 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           .free-shipping-text {
             color: #2e7d32;
             font-weight: 500;
+          }
+          .cs-summary-row--discount {
+            color: #2e7d32;
+          }
+          .cs-discount-value {
+            color: #2e7d32;
+            font-weight: 600;
           }
         `}</style>
       </div>

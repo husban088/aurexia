@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { signOutUser } from "@/lib/auth";
@@ -19,11 +19,46 @@ type ProfileData = {
 let _cachedProfile: ProfileData | null = null;
 let _fetchPromise: Promise<ProfileData | null> | null = null;
 
+const PF_LOCAL_KEY = "pf_profile_cache_v1";
+
+function saveProfileToStorage(data: ProfileData) {
+  try {
+    localStorage.setItem(
+      PF_LOCAL_KEY,
+      JSON.stringify({ data, ts: Date.now() }),
+    );
+  } catch (_) {}
+}
+
+function loadProfileFromStorage(): ProfileData | null {
+  if (_cachedProfile) return _cachedProfile;
+  try {
+    const raw = localStorage.getItem(PF_LOCAL_KEY);
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    // Accept up to 1 hour old — profile doesn't change often
+    if (entry?.data && Date.now() - (entry.ts || 0) < 3600000) {
+      _cachedProfile = entry.data;
+      return entry.data;
+    }
+  } catch (_) {}
+  return null;
+}
+
+// Restore immediately on module load
+if (typeof window !== "undefined") {
+  loadProfileFromStorage();
+}
+
 async function getProfile(): Promise<ProfileData | null> {
-  // 1. Return cache instantly (no network, no delay)
+  // 1. Return memory cache instantly
   if (_cachedProfile) return _cachedProfile;
 
-  // 2. Dedupe in-flight calls
+  // 2. Try localStorage (fast, survives navigation)
+  const fromStorage = loadProfileFromStorage();
+  if (fromStorage) return fromStorage;
+
+  // 3. Dedupe in-flight calls
   if (_fetchPromise) return _fetchPromise;
 
   _fetchPromise = (async () => {
@@ -75,11 +110,13 @@ async function getProfile(): Promise<ProfileData | null> {
             : newProfile;
 
         _cachedProfile = result;
+        saveProfileToStorage(result);
         _fetchPromise = null;
         return result;
       }
 
       _cachedProfile = profileData;
+      saveProfileToStorage(profileData);
       _fetchPromise = null;
       return profileData;
     } catch {
@@ -95,19 +132,28 @@ async function getProfile(): Promise<ProfileData | null> {
 function clearProfileCache() {
   _cachedProfile = null;
   _fetchPromise = null;
+  try {
+    localStorage.removeItem(PF_LOCAL_KEY);
+  } catch (_) {}
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
   const router = useRouter();
 
-  // Sync-init from cache — renders instantly if already loaded
-  const [profile, setProfile] = useState<ProfileData | null>(_cachedProfile);
-  const [loading, setLoading] = useState(!_cachedProfile);
+  // Sync-init: reads memory cache OR localStorage — instant render on back-nav
+  const [profile, setProfile] = useState<ProfileData | null>(
+    () => _cachedProfile ?? loadProfileFromStorage(),
+  );
+  const [loading, setLoading] = useState(
+    () => !(_cachedProfile ?? loadProfileFromStorage()),
+  );
   const [activeTab, setActiveTab] = useState<"info" | "security">("info");
 
   // Edit states
-  const [username, setUsername] = useState(_cachedProfile?.username ?? "");
+  const [username, setUsername] = useState(
+    () => (_cachedProfile ?? loadProfileFromStorage())?.username ?? "",
+  );
   const [focused, setFocused] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState<{
@@ -124,32 +170,55 @@ export default function ProfilePage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [passLoading, setPassLoading] = useState(false);
 
-  useEffect(() => {
-    // Already cached — nothing to fetch
-    if (_cachedProfile) {
-      setProfile(_cachedProfile);
-      setUsername(_cachedProfile.username);
-      setLoading(false);
-      return;
-    }
+  // ── Helper: apply profile data to all state at once ──
+  const applyProfile = useCallback((data: ProfileData) => {
+    setProfile(data);
+    setUsername(data.username);
+    setLoading(false);
+  }, []);
 
+  useEffect(() => {
     let active = true;
 
+    // Try memory + storage first — instant, no network
+    const instant = _cachedProfile ?? loadProfileFromStorage();
+    if (instant) {
+      applyProfile(instant);
+    }
+
+    // Always verify with server in background (keeps data fresh)
+    // But don't show loading if we already have cached data
     getProfile().then((result) => {
       if (!active) return;
       if (!result) {
-        router.replace("/signin?redirectTo=/profile");
+        // Not logged in — redirect
+        if (!instant) router.replace("/signin?redirectTo=/profile");
         return;
       }
-      setProfile(result);
-      setUsername(result.username);
-      setLoading(false);
+      applyProfile(result);
     });
+
+    // ── pageshow: bfcache restore ──
+    const handlePageShow = (_e: PageTransitionEvent) => {
+      const cached = _cachedProfile ?? loadProfileFromStorage();
+      if (cached) applyProfile(cached);
+    };
+
+    // ── popstate: Next.js SPA back/forward ──
+    const handlePopState = () => {
+      const cached = _cachedProfile ?? loadProfileFromStorage();
+      if (cached) applyProfile(cached);
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("popstate", handlePopState);
 
     return () => {
       active = false;
+      window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("popstate", handlePopState);
     };
-  }, [router]);
+  }, [router, applyProfile]);
 
   const getInitials = (name: string) => {
     return name?.slice(0, 2)?.toUpperCase() || "??";
@@ -205,6 +274,7 @@ export default function ProfilePage() {
 
       // Update cache so next navigation is also instant with new username
       _cachedProfile = updated;
+      saveProfileToStorage(updated);
       setProfile(updated);
       setUsername(updated.username);
       setAlert({ type: "success", msg: "Profile updated successfully!" });

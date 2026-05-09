@@ -10,6 +10,7 @@ import { useCurrency } from "@/app/context/CurrencyContext";
 import { convertPriceFromPKR } from "@/lib/panelCurrency";
 import "./panel.css";
 import "./panel-dashboard.css";
+import { getSalePercent, applyDiscount } from "@/lib/saleStore";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -231,28 +232,48 @@ function PanelProductCard({
   product,
   onDelete,
   formatPrice,
+  activeSalePercent,
 }: {
   product: PanelProduct;
   onDelete: (product: PanelProduct) => void;
   formatPrice: (v: number) => string;
+  activeSalePercent: number | null;
 }) {
   const [imgError, setImgError] = useState(false);
+
+  // ── Sale Discount Logic ──
+  // Panel mein bhi same sale apply hogi jo frontend pe active hai
+  const finalDisplayPrice = activeSalePercent
+    ? applyDiscount(product.displayPrice, activeSalePercent)
+    : product.displayPrice;
+
+  // Original price for strikethrough:
+  // Agar sale active hai → actual displayPrice original ban jaata hai
+  // Warna existing displayOriginalPrice use hogi
+  const finalOriginalPrice =
+    activeSalePercent && product.displayPrice > 0
+      ? product.displayPrice
+      : (product.displayOriginalPrice ?? null);
+
+  const totalDiscount = activeSalePercent
+    ? activeSalePercent
+    : (product.discount ?? null);
 
   const stockLabel =
     product.stockStatus === "out_of_stock"
       ? "Out of Stock"
       : product.stockStatus === "low_stock"
-      ? `Low Stock (${product.stockCount})`
-      : product.stockCount >= 999999
-      ? "In Stock"
-      : `In Stock (${product.stockCount})`;
+        ? `Low Stock (${product.stockCount})`
+        : product.stockCount >= 999999
+          ? "In Stock"
+          : `In Stock (${product.stockCount})`;
 
   const stockClass =
     product.stockStatus === "out_of_stock"
       ? "out"
       : product.stockStatus === "low_stock"
-      ? "low"
-      : "in";
+        ? "low"
+        : "in";
 
   return (
     <div className="pd-card">
@@ -288,9 +309,9 @@ function PanelProductCard({
           {!product.is_active && (
             <span className="pd-badge pd-badge--inactive">Inactive</span>
           )}
-          {product.discount && product.discount > 0 && (
+          {totalDiscount && totalDiscount > 0 && (
             <span className="pd-badge pd-badge--discount">
-              -{product.discount}%
+              -{totalDiscount}%
             </span>
           )}
         </div>
@@ -348,16 +369,15 @@ function PanelProductCard({
         {/* Price Row */}
         <div className="pd-card-price-row">
           <span className="pd-card-price">
-            {formatPrice(product.displayPrice)}
+            {formatPrice(finalDisplayPrice)}
           </span>
-          {product.displayOriginalPrice &&
-            product.displayOriginalPrice > product.displayPrice && (
-              <span className="pd-card-orig">
-                {formatPrice(product.displayOriginalPrice)}
-              </span>
-            )}
-          {product.discount && product.discount > 0 && (
-            <span className="pd-card-discount-text">-{product.discount}%</span>
+          {finalOriginalPrice && finalOriginalPrice > finalDisplayPrice && (
+            <span className="pd-card-orig">
+              {formatPrice(finalOriginalPrice)}
+            </span>
+          )}
+          {totalDiscount && totalDiscount > 0 && (
+            <span className="pd-card-discount-text">-{totalDiscount}%</span>
           )}
         </div>
 
@@ -389,18 +409,20 @@ function SubcategoryBlock({
   onDelete,
   formatPrice,
   search,
+  activeSalePercent,
 }: {
   subcategory: string;
   products: PanelProduct[];
   onDelete: (product: PanelProduct) => void;
   formatPrice: (v: number) => string;
   search: string;
+  activeSalePercent: number | null;
 }) {
   const filtered = search
     ? products.filter(
         (p) =>
           p.name.toLowerCase().includes(search.toLowerCase()) ||
-          (p.brand && p.brand.toLowerCase().includes(search.toLowerCase()))
+          (p.brand && p.brand.toLowerCase().includes(search.toLowerCase())),
       )
     : products;
 
@@ -421,6 +443,7 @@ function SubcategoryBlock({
             product={product}
             onDelete={onDelete}
             formatPrice={formatPrice}
+            activeSalePercent={activeSalePercent}
           />
         ))}
       </div>
@@ -437,6 +460,7 @@ function CategorySection({
   onDelete,
   formatPrice,
   search,
+  activeSalePercent,
 }: {
   category: string;
   subcategories: string[];
@@ -444,12 +468,13 @@ function CategorySection({
   onDelete: (product: PanelProduct) => void;
   formatPrice: (v: number) => string;
   search: string;
+  activeSalePercent: number | null;
 }) {
   const [expanded, setExpanded] = useState(true);
 
   const totalInCategory = subcategories.reduce(
     (acc, sub) => acc + (productsBySubcategory[sub]?.length || 0),
-    0
+    0,
   );
 
   const filteredTotal = subcategories.reduce((acc, sub) => {
@@ -458,7 +483,7 @@ function CategorySection({
       ? prods.filter(
           (p) =>
             p.name.toLowerCase().includes(search.toLowerCase()) ||
-            (p.brand && p.brand.toLowerCase().includes(search.toLowerCase()))
+            (p.brand && p.brand.toLowerCase().includes(search.toLowerCase())),
         )
       : prods;
     return acc + filtered.length;
@@ -510,6 +535,7 @@ function CategorySection({
                 onDelete={onDelete}
                 formatPrice={formatPrice}
                 search={search}
+                activeSalePercent={activeSalePercent}
               />
             );
           })}
@@ -535,6 +561,15 @@ export default function PanelDashboardPage() {
   const [deleteTarget, setDeleteTarget] = useState<PanelProduct | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // ── Sale Discount State (localStorage se, client-only) ──
+  const [activeSalePercent, setActiveSalePercent] = useState<number | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setActiveSalePercent(getSalePercent());
+  }, []);
+
   // ─── Toast helpers ────────────────────────────────────────────────────────
 
   const addToast = (type: Toast["type"], title: string, msg: string) => {
@@ -542,7 +577,7 @@ export default function PanelDashboardPage() {
     setToasts((prev) => [...prev, { id, type, title, msg }]);
     setTimeout(() => {
       setToasts((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+        prev.map((t) => (t.id === id ? { ...t, exiting: true } : t)),
       );
     }, 4000);
     setTimeout(() => {
@@ -552,7 +587,7 @@ export default function PanelDashboardPage() {
 
   const removeToast = (id: number) => {
     setToasts((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+      prev.map((t) => (t.id === id ? { ...t, exiting: true } : t)),
     );
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 350);
   };
@@ -617,7 +652,7 @@ export default function PanelDashboardPage() {
         let displayImage: string | undefined;
         for (const v of sorted) {
           const imgs = (v.variant_images || []).sort(
-            (a: any, b: any) => a.display_order - b.display_order
+            (a: any, b: any) => a.display_order - b.display_order,
           );
           if (imgs.length > 0) {
             displayImage = imgs[0].image_url;
@@ -630,13 +665,13 @@ export default function PanelDashboardPage() {
         const stockCount = best?.stock ?? 0;
         const stockStatus = getStockStatus(
           stockCount,
-          best?.low_stock_threshold
+          best?.low_stock_threshold,
         );
         const discount =
           displayOriginalPrice && displayOriginalPrice > displayPrice
             ? Math.round(
                 ((displayOriginalPrice - displayPrice) / displayOriginalPrice) *
-                  100
+                  100,
               )
             : null;
 
@@ -713,7 +748,7 @@ export default function PanelDashboardPage() {
       addToast(
         "success",
         "Deleted",
-        `"${truncate(deleteTarget.name, 30)}" has been removed.`
+        `"${truncate(deleteTarget.name, 30)}" has been removed.`,
       );
     } catch (err) {
       console.error("Delete error:", err);
@@ -730,7 +765,7 @@ export default function PanelDashboardPage() {
   const totalActive = allProducts.filter((p) => p.is_active).length;
   const totalFeatured = allProducts.filter((p) => p.is_featured).length;
   const totalOutOfStock = allProducts.filter(
-    (p) => p.stockStatus === "out_of_stock"
+    (p) => p.stockStatus === "out_of_stock",
   ).length;
 
   // Group by category → subcategory
@@ -739,7 +774,7 @@ export default function PanelDashboardPage() {
     grouped[cat] = {};
     for (const sub of CATEGORY_STRUCTURE[cat]) {
       grouped[cat][sub] = allProducts.filter(
-        (p) => p.category === cat && p.subcategory === sub
+        (p) => p.category === cat && p.subcategory === sub,
       );
     }
   }
@@ -990,8 +1025,9 @@ export default function PanelDashboardPage() {
                   onDelete={setDeleteTarget}
                   formatPrice={formatPrice}
                   search={search}
+                  activeSalePercent={activeSalePercent}
                 />
-              )
+              ),
             )}
           </div>
         )}

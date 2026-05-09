@@ -56,6 +56,7 @@ function ReviewCard({ review }: { review: HomeReview }) {
             alt={review.name}
             className="hr-card-avatar-img"
             draggable={false}
+            suppressHydrationWarning
           />
         ) : (
           <div className="hr-card-avatar-fallback">{initial}</div>
@@ -107,10 +108,26 @@ function ReviewCard({ review }: { review: HomeReview }) {
   );
 }
 
+// ── Skeleton Card Component - for loading state ──
+function SkeletonCard() {
+  return (
+    <div className="hr-skeleton-card">
+      <div className="hr-skeleton-circle" />
+      <div className="hr-skeleton-line hr-skeleton-line--short" />
+      <div className="hr-skeleton-stars" />
+      <div className="hr-skeleton-line" />
+      <div className="hr-skeleton-line" />
+      <div className="hr-skeleton-line hr-skeleton-line--short" />
+    </div>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────
 export default function HomeReviews() {
   const [reviews, setReviews] = useState<HomeReview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   // How many cards visible at once (responsive)
   const [visibleCount, setVisibleCount] = useState(3);
@@ -125,8 +142,16 @@ export default function HomeReviews() {
   // Autoplay timer
   const autoTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Responsive: update visible count
+  // Mark client-side after hydration
   useEffect(() => {
+    setIsClient(true);
+    setMounted(true);
+  }, []);
+
+  // Responsive: update visible count (only on client)
+  useEffect(() => {
+    if (!isClient) return;
+
     const update = () => {
       if (window.innerWidth >= 1024) setVisibleCount(3);
       else if (window.innerWidth >= 640) setVisibleCount(2);
@@ -135,10 +160,12 @@ export default function HomeReviews() {
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, []);
+  }, [isClient]);
 
-  // Fetch reviews from Supabase
+  // Fetch reviews from Supabase (only on client)
   useEffect(() => {
+    if (!isClient) return;
+
     async function fetchAll() {
       setLoading(true);
       try {
@@ -178,7 +205,7 @@ export default function HomeReviews() {
       }
     }
     fetchAll();
-  }, []);
+  }, [isClient]);
 
   const totalSlides = reviews.length;
   const canPrev = offset > 0;
@@ -223,21 +250,23 @@ export default function HomeReviews() {
 
   // Autoplay
   const startAutoplay = useCallback(() => {
+    if (!isClient) return;
     if (autoTimer.current) clearInterval(autoTimer.current);
     autoTimer.current = setInterval(() => next(), 5000);
-  }, [next]);
+  }, [next, isClient]);
 
   const stopAutoplay = useCallback(() => {
     if (autoTimer.current) clearInterval(autoTimer.current);
   }, []);
 
   useEffect(() => {
-    if (reviews.length > visibleCount) startAutoplay();
+    if (isClient && reviews.length > visibleCount) startAutoplay();
     return stopAutoplay;
-  }, [reviews.length, visibleCount, startAutoplay, stopAutoplay]);
+  }, [isClient, reviews.length, visibleCount, startAutoplay, stopAutoplay]);
 
   // Mouse drag
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (!isClient) return;
     dragStart.current = e.clientX;
     isDragging.current = false;
     stopAutoplay();
@@ -277,7 +306,33 @@ export default function HomeReviews() {
 
   const visibleReviews = reviews.slice(offset, offset + visibleCount);
 
-  // Loading skeleton
+  // Don't render anything on server to prevent hydration mismatch
+  if (!isClient) {
+    // Return a minimal placeholder that matches the client's initial structure
+    return (
+      <section className="hr-section">
+        <div className="hr-content">
+          <div className="hr-header">
+            <p className="hr-eyebrow">
+              <span className="hr-eye-line" />
+              Customer Voices
+              <span className="hr-eye-line" />
+            </p>
+            <h2 className="hr-title">
+              What Our Customers <em>Say</em>
+            </h2>
+          </div>
+          <div className="hr-skeleton-row">
+            {[1, 2, 3].map((i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Show loading skeleton when data is being fetched
   if (loading) {
     return (
       <section className="hr-section">
@@ -294,14 +349,7 @@ export default function HomeReviews() {
           </div>
           <div className="hr-skeleton-row">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="hr-skeleton-card">
-                <div className="hr-skeleton-circle" />
-                <div className="hr-skeleton-line hr-skeleton-line--short" />
-                <div className="hr-skeleton-stars" />
-                <div className="hr-skeleton-line" />
-                <div className="hr-skeleton-line" />
-                <div className="hr-skeleton-line hr-skeleton-line--short" />
-              </div>
+              <SkeletonCard key={i} />
             ))}
           </div>
         </div>

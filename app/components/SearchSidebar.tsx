@@ -46,16 +46,26 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
   const [trendingProducts, setTrendingProducts] = useState<SearchResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [allProductsCache, setAllProductsCache] = useState<SearchResult[]>([]);
+  const [isClient, setIsClient] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { formatPrice } = useCurrency();
 
+  // Mark client-side after hydration
+  useEffect(() => {
+    setIsClient(true);
+    setMounted(true);
+  }, []);
+
   // ============================================================
-  // FETCH ALL PRODUCTS ONCE FOR CACHING (for faster search)
+  // FETCH ALL PRODUCTS ONCE FOR CACHING (only on client)
   // ============================================================
   useEffect(() => {
+    if (!isClient) return;
+
     async function fetchAllProducts() {
       try {
         // Fetch all active products
@@ -163,7 +173,6 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
           .limit(4);
 
         if (featuredProducts && featuredProducts.length > 0) {
-          const featuredIds = featuredProducts.map((p) => p.id);
           const featuredFormatted: SearchResult[] = featuredProducts.map(
             (p) => {
               let featuredImages: string[] = [];
@@ -196,7 +205,7 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
     }
 
     fetchAllProducts();
-  }, []);
+  }, [isClient]);
 
   // ============================================================
   // REAL-TIME SEARCH FROM CACHE (INSTANT RESULTS)
@@ -233,6 +242,8 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
 
   // Debounced search - triggers as user types
   useEffect(() => {
+    if (!isClient) return;
+
     if (!query.trim()) {
       setResults([]);
       setShowResults(false);
@@ -241,13 +252,15 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
 
     const delayDebounce = setTimeout(() => {
       performSearch(query);
-    }, 200); // 200ms debounce for smooth experience
+    }, 200);
 
     return () => clearTimeout(delayDebounce);
-  }, [query, performSearch]);
+  }, [query, performSearch, isClient]);
 
-  // Load recent searches from localStorage
+  // Load recent searches from localStorage (only on client)
   useEffect(() => {
+    if (!isClient) return;
+
     const saved = localStorage.getItem(RECENT_SEARCHES_KEY);
     if (saved) {
       try {
@@ -256,7 +269,7 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
         console.error("Failed to parse recent searches", e);
       }
     }
-  }, []);
+  }, [isClient]);
 
   // Save recent search
   const saveRecentSearch = useCallback((searchTerm: string) => {
@@ -266,7 +279,9 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
         (s) => s.toLowerCase() !== searchTerm.toLowerCase(),
       );
       const updated = [searchTerm, ...filtered].slice(0, MAX_RECENT);
-      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
+      if (typeof window !== "undefined") {
+        localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
+      }
       return updated;
     });
   }, []);
@@ -274,7 +289,9 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
   // Clear recent searches
   const clearRecentSearches = useCallback(() => {
     setRecentSearches([]);
-    localStorage.removeItem(RECENT_SEARCHES_KEY);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(RECENT_SEARCHES_KEY);
+    }
   }, []);
 
   // Handle search submit (Enter key or View All button)
@@ -309,31 +326,37 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
 
   // Focus input when sidebar opens
   useEffect(() => {
+    if (!isClient) return;
+
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 300);
       setQuery("");
       setResults([]);
       setShowResults(false);
     }
-  }, [isOpen]);
+  }, [isOpen, isClient]);
 
   // Handle escape key
   useEffect(() => {
+    if (!isClient) return;
+
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) onClose();
       if (e.key === "Enter" && isOpen && query) handleSearch();
     };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [isOpen, onClose, query, handleSearch]);
+  }, [isOpen, onClose, query, handleSearch, isClient]);
 
   // Body scroll lock
   useEffect(() => {
+    if (!isClient) return;
+
     document.body.style.overflow = isOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [isOpen]);
+  }, [isOpen, isClient]);
 
   const handleSidebarClick = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -344,6 +367,11 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
     { name: "Automotive", href: "/automotive", icon: "🚗" },
     { name: "Home Decor", href: "/home-decor", icon: "🏠" },
   ];
+
+  // Don't render anything on server to prevent hydration mismatch
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <>
@@ -360,6 +388,7 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
         aria-modal="true"
         aria-label="Search"
         onClick={handleSidebarClick}
+        suppressHydrationWarning
       >
         <div className="ss-deco-lines" aria-hidden="true">
           <span />
@@ -418,6 +447,7 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             aria-label="Search products"
+            suppressHydrationWarning
           />
           {query && (
             <button
@@ -468,22 +498,31 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
                             <img
                               src={product.images[0]}
                               alt={product.name}
+                              suppressHydrationWarning
                               onError={(e) => {
-                                // Fallback if image fails to load
-                                (e.target as HTMLImageElement).style.display =
-                                  "none";
-                                const parent = (e.target as HTMLImageElement)
-                                  .parentElement;
-                                if (parent) {
-                                  parent.innerHTML = `
-                                    <div class="ss-result-placeholder">
-                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                        <rect x="3" y="3" width="18" height="18" rx="2"/>
-                                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                                        <polyline points="21 15 16 10 5 21"/>
-                                      </svg>
-                                    </div>
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = "none";
+                                const parent = target.parentElement;
+                                if (
+                                  parent &&
+                                  parent.querySelector(
+                                    ".ss-result-placeholder-fallback",
+                                  )
+                                ) {
+                                  // Already has fallback
+                                } else if (parent) {
+                                  const fallback =
+                                    document.createElement("div");
+                                  fallback.className =
+                                    "ss-result-placeholder ss-result-placeholder-fallback";
+                                  fallback.innerHTML = `
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                      <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                      <circle cx="8.5" cy="8.5" r="1.5"/>
+                                      <polyline points="21 15 16 10 5 21"/>
+                                    </svg>
                                   `;
+                                  parent.appendChild(fallback);
                                 }
                               }}
                             />
@@ -679,20 +718,28 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
                             <img
                               src={product.images[0]}
                               alt={product.name}
+                              suppressHydrationWarning
                               onError={(e) => {
-                                (e.target as HTMLImageElement).style.display =
-                                  "none";
-                                const parent = (e.target as HTMLImageElement)
-                                  .parentElement;
-                                if (parent) {
-                                  parent.innerHTML = `
-                                    <div class="ss-featured-placeholder">
-                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                        <rect x="3" y="3" width="18" height="18" rx="2"/>
-                                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                                      </svg>
-                                    </div>
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = "none";
+                                const parent = target.parentElement;
+                                if (
+                                  parent &&
+                                  !parent.querySelector(
+                                    ".ss-featured-placeholder-fallback",
+                                  )
+                                ) {
+                                  const fallback =
+                                    document.createElement("div");
+                                  fallback.className =
+                                    "ss-featured-placeholder ss-featured-placeholder-fallback";
+                                  fallback.innerHTML = `
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                      <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                      <circle cx="8.5" cy="8.5" r="1.5"/>
+                                    </svg>
                                   `;
+                                  parent.appendChild(fallback);
                                 }
                               }}
                             />
@@ -751,6 +798,7 @@ export default function SearchSidebar({ isOpen, onClose }: SearchSidebarProps) {
                       href={cat.href}
                       className="ss-quick-card"
                       onClick={onClose}
+                      prefetch={false}
                     >
                       <span className="ss-quick-icon">{cat.icon}</span>
                       <span>{cat.name}</span>

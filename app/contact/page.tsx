@@ -84,6 +84,53 @@ const contactDetails = [
 ];
 
 /* ═══════════════════════════════════════════
+   SOCIAL LINKS — from footer
+═══════════════════════════════════════════ */
+const socialLinks = [
+  {
+    name: "Facebook",
+    href: "https://www.facebook.com/share/17a6uqbE89/",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        aria-hidden="true"
+      >
+        <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
+      </svg>
+    ),
+  },
+  {
+    name: "Instagram",
+    href: "https://www.instagram.com/tech4ruu?igsh=NjRrZGl5dTd6cDNk",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        aria-hidden="true"
+      >
+        <rect x="2" y="2" width="20" height="20" rx="5" />
+        <path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z" />
+        <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+      </svg>
+    ),
+  },
+  {
+    name: "TikTok",
+    href: "https://www.tiktok.com/@tech4ru?lang=en-GB",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005.2 12.4a6.35 6.35 0 003.4 8.15 6.32 6.32 0 006.37-1.06 6.32 6.32 0 002.3-4.9V9.07a8.59 8.59 0 004.32 1.19V7.05a5 5 0 01-2-.36z" />
+      </svg>
+    ),
+  },
+];
+
+/* ═══════════════════════════════════════════
    VALIDATION
 ═══════════════════════════════════════════ */
 function validateField(field: keyof FormFields, value: string): string {
@@ -332,7 +379,7 @@ export default function Contact() {
               ))}
             </div>
 
-            {/* Social Links */}
+            {/* Social Links - Facebook, Instagram, TikTok only */}
             <div className="co-social">
               <p className="co-social-label">
                 <span className="co-ey-line" style={{ width: 14 }} />
@@ -340,99 +387,39 @@ export default function Contact() {
                 <span className="co-ey-line" style={{ width: 14 }} />
               </p>
               <div className="co-social-icons">
-                <a
-                  href="#"
-                  className="co-social-btn"
-                  aria-label="Instagram"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    aria-hidden="true"
+                {socialLinks.map((social, idx) => (
+                  <a
+                    key={social.name}
+                    href={social.href}
+                    className="co-social-btn"
+                    aria-label={social.name}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ animationDelay: `${idx * 0.05}s` }}
                   >
-                    <rect x="2" y="2" width="20" height="20" rx="5" />
-                    <path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z" />
-                    <circle
-                      cx="17.5"
-                      cy="6.5"
-                      r="1"
-                      fill="currentColor"
-                      stroke="none"
-                    />
-                  </svg>
-                </a>
-                <a
-                  href="#"
-                  className="co-social-btn"
-                  aria-label="Twitter/X"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  </svg>
-                </a>
-                <a
-                  href="#"
-                  className="co-social-btn"
-                  aria-label="Facebook"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    aria-hidden="true"
-                  >
-                    <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
-                  </svg>
-                </a>
-                <a
-                  href="#"
-                  className="co-social-btn"
-                  aria-label="WhatsApp"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    aria-hidden="true"
-                  >
-                    <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
-                  </svg>
-                </a>
+                    {social.icon}
+                    <span className="co-social-tooltip">{social.name}</span>
+                  </a>
+                ))}
               </div>
             </div>
 
-            {/* Map Placeholder */}
+            {/* Map Placeholder - Adelaide, Australia */}
             <div
               className="co-map-placeholder"
               role="button"
               tabIndex={0}
-              aria-label="Open in Google Maps"
+              aria-label="Open in Google Maps - Adelaide, Australia"
               onClick={() =>
                 window.open(
-                  "https://maps.google.com?q=Faisalabad+Punjab+Pakistan",
+                  "https://maps.google.com?q=Adelaide+Australia",
                   "_blank",
                 )
               }
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   window.open(
-                    "https://maps.google.com?q=Faisalabad+Punjab+Pakistan",
+                    "https://maps.google.com?q=Adelaide+Australia",
                     "_blank",
                   );
                 }
@@ -449,7 +436,8 @@ export default function Contact() {
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
                   <circle cx="12" cy="10" r="3" />
                 </svg>
-                <p>View on Maps</p>
+                <p>Adelaide, Australia</p>
+                <span className="co-map-view">View on Maps →</span>
               </div>
             </div>
           </aside>

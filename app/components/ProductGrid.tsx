@@ -10,6 +10,7 @@ import "@/app/styles/product-grid.css";
 import { useCurrency } from "../context/CurrencyContext";
 import FilterSidebar from "@/app/components/ProductGridFilters";
 import "@/app/styles/grid-controls.css";
+import { getSalePercent, applyDiscount } from "@/lib/saleStore";
 
 export interface Product {
   id: string;
@@ -70,6 +71,65 @@ interface ProductGridProps {
 const MODULE_CACHE: Record<string, ExtendedProduct[]> = {};
 const FETCH_IN_FLIGHT: Record<string, Promise<ExtendedProduct[]>> = {};
 
+// ─── localStorage keys for back/forward cache survival ───────────────────────
+const PG_SESSION_KEY = "pg_cache_v1";
+const PG_LOCAL_KEY = "pg_cache_local_v1";
+
+function savePgToStorage(key: string, data: ExtendedProduct[]) {
+  try {
+    const raw = sessionStorage.getItem(PG_SESSION_KEY);
+    const store: Record<string, any> = raw ? JSON.parse(raw) : {};
+    store[key] = data;
+    // Keep max 10 keys
+    const keys = Object.keys(store);
+    if (keys.length > 10) delete store[keys[0]];
+    sessionStorage.setItem(PG_SESSION_KEY, JSON.stringify(store));
+  } catch (_) {}
+  try {
+    const raw = localStorage.getItem(PG_LOCAL_KEY);
+    const store: Record<string, any> = raw ? JSON.parse(raw) : {};
+    store[key] = { data, ts: Date.now() };
+    const keys = Object.keys(store);
+    if (keys.length > 10) delete store[keys[0]];
+    localStorage.setItem(PG_LOCAL_KEY, JSON.stringify(store));
+  } catch (_) {}
+}
+
+function loadPgFromStorage(): void {
+  // sessionStorage first (freshest)
+  try {
+    const raw = sessionStorage.getItem(PG_SESSION_KEY);
+    if (raw) {
+      const store: Record<string, any> = JSON.parse(raw);
+      Object.entries(store).forEach(([k, v]) => {
+        if (!MODULE_CACHE[k] && Array.isArray(v)) MODULE_CACHE[k] = v;
+      });
+    }
+  } catch (_) {}
+  // localStorage second (up to 24h old)
+  try {
+    const raw = localStorage.getItem(PG_LOCAL_KEY);
+    if (raw) {
+      const store: Record<string, any> = JSON.parse(raw);
+      Object.entries(store).forEach(([k, entry]: [string, any]) => {
+        if (
+          !MODULE_CACHE[k] &&
+          entry?.data &&
+          Array.isArray(entry.data) &&
+          Date.now() - (entry.ts || 0) < 86400000
+        ) {
+          MODULE_CACHE[k] = entry.data;
+        }
+      });
+    }
+  } catch (_) {}
+}
+
+// Restore on module load — instant init before any component mounts
+if (typeof window !== "undefined") {
+  loadPgFromStorage();
+}
+
 function cacheKey(
   category: string,
   subcategory?: string,
@@ -125,14 +185,12 @@ async function ensureCategoryCached(
 ): Promise<ExtendedProduct[]> {
   const key = cacheKey(category, subcategory, limit, featured);
 
-  if (MODULE_CACHE[key]) {
-    return MODULE_CACHE[key];
-  }
+  // Check memory first, then storage
+  if (!MODULE_CACHE[key]) loadPgFromStorage();
+  if (MODULE_CACHE[key]) return MODULE_CACHE[key];
 
   const inFlight = FETCH_IN_FLIGHT[key];
-  if (inFlight) {
-    return await inFlight;
-  }
+  if (inFlight) return await inFlight;
 
   const promise = fetchProductsWithVariants(
     category,
@@ -144,6 +202,7 @@ async function ensureCategoryCached(
 
   const data = await promise;
   MODULE_CACHE[key] = data;
+  savePgToStorage(key, data); // persist for back/forward nav
   delete FETCH_IN_FLIGHT[key];
   return data;
 }
@@ -638,15 +697,37 @@ function ProductCardComponent({
 
   const truncatedName = truncateProductName(productData.name, 45);
 
-  const displaySalePrice = selectedVariant
-    ? formatPrice(selectedVariant.price)
-    : formatPrice(productData.price);
-  const displayOriginalPrice = selectedVariant?.original_price
-    ? formatPrice(selectedVariant.original_price)
-    : productData.original_price &&
-        productData.original_price > productData.price
-      ? formatPrice(productData.original_price)
+  // ── Sale Discount Logic ──
+  const activeSalePercent = getSalePercent();
+
+  // Base prices (variant ya product se)
+  const basePrice = selectedVariant?.price ?? productData.price;
+  const baseOriginalPrice =
+    selectedVariant?.original_price ?? productData.original_price ?? null;
+
+  // Discounted price calculate karo
+  const finalPrice = activeSalePercent
+    ? applyDiscount(basePrice, activeSalePercent)
+    : basePrice;
+
+  // Original price for strikethrough:
+  // Agar sale active hai → base price hi original ban jaata hai
+  // Warna existing original_price use hogi
+  const originalPriceForDisplay =
+    activeSalePercent && basePrice > 0
+      ? basePrice
+      : baseOriginalPrice && baseOriginalPrice > basePrice
+        ? baseOriginalPrice
+        : null;
+
+  const displaySalePrice = formatPrice(finalPrice);
+  const displayOriginalPrice =
+    originalPriceForDisplay && originalPriceForDisplay > finalPrice
+      ? formatPrice(originalPriceForDisplay)
       : null;
+
+  // Discount badge: sale percent ya existing product discount
+  const totalDiscount = activeSalePercent ? activeSalePercent : discount;
 
   const handleAddToCartClick = async (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -810,8 +891,8 @@ function ProductCardComponent({
           {displayOriginalPrice && (
             <span className="pg-card-orig">{displayOriginalPrice}</span>
           )}
-          {discount && discount > 0 && (
-            <span className="pg-card-discount">-{discount}%</span>
+          {totalDiscount && totalDiscount > 0 && (
+            <span className="pg-card-discount">-{totalDiscount}%</span>
           )}
         </div>
         {/* ── Rating — sirf tab show hoga jab valid reviews hon ── */}
@@ -882,17 +963,18 @@ export default function ProductGrid({
 }: ProductGridProps) {
   const key = cacheKey(category, subcategory, limit, featured);
 
-  // ✅ FIX: Store FETCH_IN_FLIGHT[key] in a variable to avoid TypeScript error
-  const hasInFlight = !!FETCH_IN_FLIGHT[key];
-
-  const [products, setProducts] = useState<ExtendedProduct[]>(
-    () => MODULE_CACHE[key] ?? [],
-  );
-  const [loading, setLoading] = useState(() => {
-    if (MODULE_CACHE[key]) return false;
-    if (hasInFlight) return true;
-    return true;
+  // ── State initializers: always read storage first so back-nav is instant ──
+  const [products, setProducts] = useState<ExtendedProduct[]>(() => {
+    if (MODULE_CACHE[key]) return MODULE_CACHE[key];
+    loadPgFromStorage();
+    return MODULE_CACHE[key] ?? [];
   });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (MODULE_CACHE[key]) return false;
+    loadPgFromStorage();
+    return !MODULE_CACHE[key];
+  });
+
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
   const [columns, setColumns] = useState(4);
@@ -917,13 +999,26 @@ export default function ProductGrid({
   useEffect(() => {
     let isMounted = true;
 
-    async function loadData() {
-      if (MODULE_CACHE[key]) {
-        setProducts(MODULE_CACHE[key]);
-        setLoading(false);
-        return;
+    // Helper: read storage then apply to state
+    function applyFromCache() {
+      // Always re-read storage — module cache can be empty after SPA navigation
+      loadPgFromStorage();
+      const cached = MODULE_CACHE[key];
+      if (cached && cached.length > 0) {
+        if (isMounted) {
+          setProducts(cached);
+          setLoading(false);
+        }
+        return true;
       }
+      return false;
+    }
 
+    async function loadData() {
+      // Try cache/storage first
+      if (applyFromCache()) return;
+
+      // In-flight request?
       const inFlightPromise = FETCH_IN_FLIGHT[key];
       if (inFlightPromise) {
         const data = await inFlightPromise;
@@ -934,6 +1029,7 @@ export default function ProductGrid({
         return;
       }
 
+      // Fresh fetch
       setLoading(true);
       try {
         const data = await ensureCategoryCached(
@@ -954,34 +1050,33 @@ export default function ProductGrid({
 
     loadData();
 
-    // Fix: Chrome back/forward (bfcache) — pageshow fires when page restored from bfcache
-    const handlePageShow = (e: PageTransitionEvent) => {
-      if (e.persisted && isMounted) {
-        const cached = MODULE_CACHE[key];
-        if (cached && cached.length > 0) {
-          setProducts(cached);
-          setLoading(false);
-        } else {
-          setLoading(true);
-          ensureCategoryCached(category, subcategory, limit, featured).then(
-            (data) => {
-              if (isMounted) {
-                setProducts(data);
-                setLoading(false);
-              }
-            },
-          );
-        }
-      }
+    // ── pageshow: bfcache restore (browser back/forward) ──
+    const handlePageShow = (_e: PageTransitionEvent) => {
+      // Always restore — don't check persisted (Next.js SPA never sets it true)
+      applyFromCache();
+    };
+
+    // ── popstate: Next.js App Router SPA back/forward ──
+    const handlePopState = () => {
+      applyFromCache();
+    };
+
+    // ── visibilitychange: switching browser tabs ──
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") applyFromCache();
     };
 
     window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("popstate", handlePopState);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       isMounted = false;
       window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("popstate", handlePopState);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [key, category, subcategory, limit, featured]);
+  }, [key, category, subcategory, limit, featured]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getFilterOptions = useMemo(() => {
     const categories = new Set<string>();

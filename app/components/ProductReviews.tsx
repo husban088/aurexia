@@ -3,7 +3,6 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { uploadToCloudinary } from "@/lib/cloudinary";
 import "@/app/components/ProductReviews.css";
 
 export interface Review {
@@ -51,8 +50,6 @@ function ReviewCard({ review }: { review: Review }) {
     <div className="pr-card">
       <div className="pr-card-shimmer" />
       <div className="pr-card-quote">&ldquo;</div>
-
-      {/* Round avatar — top, one image only */}
       <div className="pr-card-avatar-wrap">
         {firstImage ? (
           <img
@@ -60,10 +57,20 @@ function ReviewCard({ review }: { review: Review }) {
             alt={review.name}
             className="pr-card-avatar-img"
             draggable={false}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+              const sib = e.currentTarget
+                .nextElementSibling as HTMLElement | null;
+              if (sib) sib.style.display = "flex";
+            }}
           />
-        ) : (
-          <div className="pr-card-avatar-fallback">{initial}</div>
-        )}
+        ) : null}
+        <div
+          className="pr-card-avatar-fallback"
+          style={{ display: firstImage ? "none" : undefined }}
+        >
+          {initial}
+        </div>
         <div className="pr-card-badge">
           <svg
             viewBox="0 0 24 24"
@@ -75,19 +82,10 @@ function ReviewCard({ review }: { review: Review }) {
           </svg>
         </div>
       </div>
-
-      {/* Name */}
       <h4 className="pr-card-name">{review.name}</h4>
-
-      {/* Stars */}
       <StarDisplay rating={review.rating} size={16} />
-
-      {/* Title */}
       <h3 className="pr-card-title">&ldquo;{review.title}&rdquo;</h3>
-
-      {/* Description */}
       <p className="pr-card-body">{review.body}</p>
-
       <div className="pr-card-bottom-line" />
     </div>
   );
@@ -226,7 +224,6 @@ function ReviewsSlider({ reviews }: { reviews: Review[] }) {
             </svg>
           </button>
         )}
-
         <div
           className={`pr-cards-grid pr-cards-grid--${visibleCount} pr-cards-grid--anim-${animDir}`}
         >
@@ -234,7 +231,6 @@ function ReviewsSlider({ reviews }: { reviews: Review[] }) {
             <ReviewCard key={review.id} review={review} />
           ))}
         </div>
-
         {showNav && (
           <button
             className="pr-arrow pr-arrow--next"
@@ -252,7 +248,6 @@ function ReviewsSlider({ reviews }: { reviews: Review[] }) {
           </button>
         )}
       </div>
-
       {showNav && (
         <div className="pr-dots">
           {Array.from({ length: pages }).map((_, i) => (
@@ -275,6 +270,43 @@ function ReviewsSlider({ reviews }: { reviews: Review[] }) {
   );
 }
 
+// ── Safe Cloudinary upload — 20s timeout, silent fail ────────────
+async function uploadImageSafe(file: File): Promise<string | null> {
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+  if (!cloudName || !uploadPreset) {
+    console.warn("[Reviews] Cloudinary env missing — skipping image upload");
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("upload_preset", uploadPreset);
+
+    const r = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      { method: "POST", body: fd, signal: controller.signal },
+    );
+
+    if (!r.ok) {
+      console.warn("[Reviews] Cloudinary upload failed, status:", r.status);
+      return null;
+    }
+    const j = await r.json();
+    return (j?.secure_url as string) ?? null;
+  } catch (err) {
+    console.warn("[Reviews] Image upload skipped:", err);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ── Main ProductReviews Component ──────────────────────────────
 export default function ProductReviews({ productId }: ProductReviewsProps) {
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -293,8 +325,11 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
   const [submitError, setSubmitError] = useState<string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isSubmittingRef = useRef(false);
 
+  // ── Fetch reviews ──────────────────────────────────────────────
   const fetchReviews = useCallback(async () => {
+    if (!productId) return;
     setLoadingReviews(true);
     try {
       const { data, error } = await supabase
@@ -302,9 +337,14 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
         .select("*")
         .eq("product_id", productId)
         .order("created_at", { ascending: false });
-      if (!error) setReviews(data || []);
+
+      if (error) {
+        console.error("[Reviews] Fetch error:", error);
+      } else {
+        setReviews(data || []);
+      }
     } catch (err) {
-      console.error("Failed to fetch reviews:", err);
+      console.error("[Reviews] Fetch exception:", err);
     } finally {
       setLoadingReviews(false);
     }
@@ -314,6 +354,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     fetchReviews();
   }, [fetchReviews]);
 
+  // ── Form helpers ───────────────────────────────────────────────
   const resetForm = () => {
     setName("");
     setEmail("");
@@ -325,6 +366,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     setImagePreviews([]);
     setErrors({});
     setSubmitError("");
+    isSubmittingRef.current = false;
   };
 
   const avgRating =
@@ -366,64 +408,111 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     return e;
   };
 
+  // ── Submit — bulletproof, never stays stuck ────────────────────
   const handleSubmit = async () => {
+    if (submitting || isSubmittingRef.current) return;
+
+    // UUID validation — case-insensitive
+    const UUID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!productId) {
+      setSubmitError("Product ID missing. Please refresh the page.");
+      return;
+    }
+
+    const cleanProductId = productId.trim();
+
+    if (!UUID_RE.test(cleanProductId)) {
+      const msg = `Invalid product ID: "${cleanProductId}". Please refresh the page.`;
+      setSubmitError(msg);
+      console.error("[Reviews] Bad productId:", cleanProductId);
+      return;
+    }
+
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
+
     setErrors({});
     setSubmitError("");
     setSubmitting(true);
+    isSubmittingRef.current = true;
+
+    const snapshotFiles = [...imageFiles];
 
     try {
-      const uploadedUrls: string[] = [];
-      for (const file of imageFiles) {
-        try {
-          const url = await Promise.race([
-            uploadToCloudinary(file),
-            new Promise<string>((_, reject) =>
-              setTimeout(() => reject(new Error("upload timeout")), 8000),
-            ),
-          ]);
-          if (url) uploadedUrls.push(url);
-        } catch {
-          /* skip failed uploads */
-        }
+      // Step 1: Upload all images in PARALLEL
+      let uploadedUrls: string[] = [];
+      if (snapshotFiles.length > 0) {
+        const results = await Promise.all(
+          snapshotFiles.map((f) => uploadImageSafe(f)),
+        );
+        uploadedUrls = results.filter((u): u is string => u !== null);
       }
 
+      const insertPayload = {
+        product_id: cleanProductId,
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        title: title.trim(),
+        body: body.trim(),
+        rating: Number(rating),
+        images: uploadedUrls,
+      };
+
+      console.log("[Reviews] Submitting:", insertPayload);
+
+      // Step 2: Insert into Supabase
       const { error: insertError } = await supabase
         .from("product_reviews")
-        .insert({
-          product_id: productId,
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
-          title: title.trim(),
-          body: body.trim(),
-          rating: Number(rating),
-          images: uploadedUrls,
-        });
+        .insert(insertPayload);
 
       if (insertError) {
-        setSubmitError(
-          insertError.message || "Failed to submit review. Please try again.",
-        );
+        console.error("[Reviews] Insert error code:", insertError.code);
+        console.error("[Reviews] Insert error message:", insertError.message);
+        console.error("[Reviews] Insert error details:", insertError.details);
+        console.error("[Reviews] Insert error hint:", insertError.hint);
+
+        let userMsg = `Submit failed: ${insertError.message || "Unknown error"}`;
+
+        if (insertError.code === "23503") {
+          userMsg =
+            "This product was not found. Please refresh the page and try again. (FK violation)";
+        } else if (insertError.code === "23502") {
+          userMsg =
+            "Missing required field. Please fill all fields and try again.";
+        } else if (insertError.code === "42501") {
+          userMsg =
+            "Permission denied. Supabase INSERT policy is not set correctly. Run the RLS SQL fix.";
+        } else if (insertError.code === "PGRST301") {
+          userMsg = "Database JWT error. Please refresh the page.";
+        }
+
+        setSubmitError(userMsg);
         return;
       }
 
+      // Step 3: Success
+      console.log("[Reviews] ✅ Review submitted successfully!");
       resetForm();
       setShowForm(false);
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 5000);
-      fetchReviews().catch(() => {});
+      fetchReviews().catch(console.error);
     } catch (err: unknown) {
-      setSubmitError(
+      const msg =
         err instanceof Error
           ? err.message
-          : "Something went wrong. Please try again.",
-      );
+          : "Unexpected error. Please try again.";
+      console.error("[Reviews] Caught exception:", err);
+      setSubmitError(msg);
     } finally {
+      // ✅ ALWAYS runs — button NEVER stays stuck
       setSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -431,13 +520,10 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
 
   return (
     <section className="pr-section">
-      {/* Animated background orbs */}
       <div className="pr-bg-orb pr-bg-orb--1" />
       <div className="pr-bg-orb pr-bg-orb--2" />
       <div className="pr-bg-orb pr-bg-orb--3" />
       <div className="pr-bg-grid" />
-
-      {/* Sparkle decorations */}
       <div className="pr-sparkle pr-sparkle--1" />
       <div className="pr-sparkle pr-sparkle--2" />
       <div className="pr-sparkle pr-sparkle--3" />
@@ -446,7 +532,6 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       <div className="pr-sparkle pr-sparkle--6" />
 
       <div className="pr-content">
-        {/* Header */}
         <div className="pr-header">
           <p className="pr-eyebrow">
             <span className="pr-eye-line" />
@@ -458,7 +543,6 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           </h2>
         </div>
 
-        {/* Rating Summary */}
         {reviews.length > 0 && (
           <div className="pr-summary">
             <div className="pr-summary-left">
@@ -496,7 +580,6 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           </div>
         )}
 
-        {/* Success Toast */}
         {submitted && (
           <div className="pr-toast pr-toast--success">
             <svg
@@ -512,7 +595,6 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           </div>
         )}
 
-        {/* Write Review button */}
         {!showForm && (
           <button
             className="pr-write-btn"
@@ -534,7 +616,6 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           </button>
         )}
 
-        {/* Form */}
         {showForm && (
           <div className="pr-form-wrap">
             <div className="pr-form-header">
@@ -544,19 +625,36 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
               </p>
             </div>
 
+            {/* ERROR BANNER — always visible, never hidden */}
             {submitError && (
-              <div className="pr-toast pr-toast--error">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "10px",
+                  padding: "14px 18px",
+                  marginBottom: "20px",
+                  borderRadius: "10px",
+                  background: "rgba(220, 38, 38, 0.12)",
+                  border: "1.5px solid rgba(220, 38, 38, 0.5)",
+                  color: "#ef4444",
+                  fontSize: "14px",
+                  lineHeight: "1.6",
+                  wordBreak: "break-word",
+                }}
+              >
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
+                  style={{ width: 20, height: 20, flexShrink: 0, marginTop: 2 }}
                 >
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                {submitError}
+                <span>{submitError}</span>
               </div>
             )}
 
@@ -759,7 +857,6 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           </div>
         )}
 
-        {/* Reviews List Header */}
         <div className="pr-list-header">
           <h3 className="pr-list-title">Customer Reviews</h3>
           {reviews.length > 0 && (
@@ -769,7 +866,6 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           )}
         </div>
 
-        {/* Reviews List */}
         {loadingReviews ? (
           <div className="pr-skeleton-row">
             {[1, 2, 3].map((i) => (

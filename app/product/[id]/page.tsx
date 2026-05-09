@@ -20,36 +20,62 @@ import RelatedProducts from "@/app/components/RelatedProducts";
 import DescriptionModal from "@/app/components/DescriptionModal";
 import ProductFAQSection from "@/app/components/ProductFAQSection";
 import type { ProductFAQItem } from "@/app/components/ProductFAQSection";
+import { getSalePercent, applyDiscount } from "@/lib/saleStore";
 
 // ─── MODULE-LEVEL CACHE ───────────────────────────────────────────────────────
 const _productCache = new Map<string, any>();
 const _inFlight = new Map<string, Promise<any>>();
 
-// ── sessionStorage persistence: laptop off/on, page refresh pe bhi instant data ──
 const PD_SESSION_KEY = "pd_product_cache_v2";
+const PD_LOCAL_KEY = "pd_product_cache_local_v2";
 
 function _saveProductToSession(key: string, data: any) {
   try {
+    // sessionStorage — same tab, fastest
     const raw = sessionStorage.getItem(PD_SESSION_KEY);
     const store: Record<string, any> = raw ? JSON.parse(raw) : {};
     store[key] = data;
-    // Max 20 products store karo (LRU style — oldest remove karo)
     const keys = Object.keys(store);
-    if (keys.length > 20) {
-      delete store[keys[0]];
-    }
+    if (keys.length > 20) delete store[keys[0]];
     sessionStorage.setItem(PD_SESSION_KEY, JSON.stringify(store));
+  } catch (_) {}
+  try {
+    // localStorage — persists across tabs, reloads, browser restarts
+    const raw = localStorage.getItem(PD_LOCAL_KEY);
+    const store: Record<string, any> = raw ? JSON.parse(raw) : {};
+    store[key] = { data, ts: Date.now() };
+    const keys = Object.keys(store);
+    if (keys.length > 20) delete store[keys[0]];
+    localStorage.setItem(PD_LOCAL_KEY, JSON.stringify(store));
   } catch (_) {}
 }
 
 function _loadProductSessionCache() {
+  // sessionStorage first
   try {
     const raw = sessionStorage.getItem(PD_SESSION_KEY);
-    if (!raw) return;
-    const store: Record<string, any> = JSON.parse(raw);
-    Object.entries(store).forEach(([key, data]) => {
-      if (!_productCache.has(key)) _productCache.set(key, data);
-    });
+    if (raw) {
+      const store: Record<string, any> = JSON.parse(raw);
+      Object.entries(store).forEach(([key, data]) => {
+        if (!_productCache.has(key)) _productCache.set(key, data);
+      });
+    }
+  } catch (_) {}
+  // Then localStorage (accepts up to 24h old data)
+  try {
+    const raw = localStorage.getItem(PD_LOCAL_KEY);
+    if (raw) {
+      const store: Record<string, any> = JSON.parse(raw);
+      Object.entries(store).forEach(([key, entry]: [string, any]) => {
+        if (
+          entry?.data &&
+          !_productCache.has(key) &&
+          Date.now() - (entry.ts || 0) < 86400000
+        ) {
+          _productCache.set(key, entry.data);
+        }
+      });
+    }
   } catch (_) {}
 }
 
@@ -538,6 +564,15 @@ export default function ProductDetail() {
   const { addToCart } = useCartStore();
   const { formatPrice, currency } = useCurrency();
 
+  // ── Sale discount state (client-only, localStorage se) ──
+  const [activeSalePercent, setActiveSalePercent] = useState<number | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setActiveSalePercent(getSalePercent());
+  }, []);
+
   // ── If cache already had the product, hydrate instantly ──
   useEffect(() => {
     if (!cacheKey) return;
@@ -595,7 +630,10 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!cacheKey) return;
 
-    // Already cached? Hydrate instantly without fetch — no loading, no notFound
+    // Re-read storage first — module-level Map can be empty after SPA navigation
+    _loadProductSessionCache();
+
+    // Already cached (memory or just restored from storage)? Hydrate instantly
     if (_productCache.has(cacheKey)) {
       hydrateFromData(_productCache.get(cacheKey));
       setLoading(false);
@@ -675,6 +713,62 @@ export default function ProductDetail() {
     window.addEventListener("online", handleOnline);
     return () => window.removeEventListener("online", handleOnline);
   }, [cacheKey, notFound, product, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── visibilitychange + pageshow + popstate: back/forward, tab switch ──
+  useEffect(() => {
+    if (!cacheKey) return;
+
+    function showFromCache() {
+      // Always re-read storage first — module-level cache can be empty
+      // if the JS module was re-evaluated after SPA navigation
+      _loadProductSessionCache();
+
+      if (_productCache.has(cacheKey)) {
+        hydrateFromData(_productCache.get(cacheKey));
+        setLoading(false);
+        setNotFound(false);
+        return;
+      }
+
+      // Not in any cache — trigger fresh fetch so we never stay stuck on loading
+      setLoading(true);
+      setNotFound(false);
+      fetchProductCached(cacheKey).then((data) => {
+        if (data) {
+          hydrateFromData(data);
+          setLoading(false);
+          setNotFound(false);
+        } else {
+          setLoading(false);
+          setNotFound(true);
+        }
+      });
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") showFromCache();
+    };
+
+    // pageshow fires on bfcache restore (browser back/forward)
+    const handlePageShow = (_e: PageTransitionEvent) => {
+      showFromCache();
+    };
+
+    // popstate fires on Next.js SPA back/forward navigation
+    const handlePopState = () => {
+      showFromCache();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [cacheKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Update description/images when variant changes ──
   // ALWAYS use product-level main description and images regardless of variant selected
@@ -799,13 +893,15 @@ export default function ProductDetail() {
 
   const getCurrentPrice = (): number => {
     if (selectedTier) return selectedTier.tier_price;
-    return selectedVariant?.price || product?.price || 0;
+    const base = selectedVariant?.price || product?.price || 0;
+    return activeSalePercent ? applyDiscount(base, activeSalePercent) : base;
   };
 
   const getPerPiecePrice = (): number => {
     if (selectedTier)
       return selectedTier.tier_price / selectedTier.min_quantity;
-    return selectedVariant?.price || product?.price || 0;
+    const base = selectedVariant?.price || product?.price || 0;
+    return activeSalePercent ? applyDiscount(base, activeSalePercent) : base;
   };
 
   const getQuantityToAdd = (): number => {
@@ -814,23 +910,33 @@ export default function ProductDetail() {
 
   const currentPrice = getCurrentPrice();
   const currentPerPiecePrice = getPerPiecePrice();
+
+  // Original price: agar sale active hai toh variant ka actual price dikhao as original
+  // warna existing original_price use karo
+  const rawVariantPrice = selectedVariant?.price || product?.price || 0;
   const currentOriginalPrice =
-    (selectedVariant as any)?.original_price ||
-    (product as any)?.original_price ||
-    0;
-  const currentStock = selectedVariant?.stock || product?.stock || 0;
-  const discount =
-    currentOriginalPrice > currentPerPiecePrice
+    activeSalePercent && rawVariantPrice > 0
+      ? rawVariantPrice
+      : (selectedVariant as any)?.original_price ||
+        (product as any)?.original_price ||
+        0;
+
+  // Discount: agar sale active hai toh activeSalePercent use karo
+  const discount = activeSalePercent
+    ? activeSalePercent
+    : currentOriginalPrice > currentPerPiecePrice
       ? Math.round(
           ((currentOriginalPrice - currentPerPiecePrice) /
             currentOriginalPrice) *
             100,
         )
       : 0;
+
   const savings =
     currentOriginalPrice > currentPerPiecePrice
       ? currentOriginalPrice - currentPerPiecePrice
       : 0;
+  const currentStock = selectedVariant?.stock || product?.stock || 0;
   const stockClass =
     currentStock === 0 ? "out" : currentStock < 5 ? "low" : "in";
   const stockLabel =
@@ -1595,7 +1701,9 @@ export default function ProductDetail() {
         <TrustBadges />
 
         {/* ── Reviews & Ratings ── */}
-        {product.id && <ProductReviews productId={product.id} />}
+        {(product as any)?.id && (
+          <ProductReviews productId={(product as any).id} />
+        )}
 
         {/* ── Related Products ── */}
         {product.id && (
