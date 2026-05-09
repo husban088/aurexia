@@ -1,5 +1,6 @@
 // lib/saleStore.ts
 
+import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
 let currentSalePercent: number | null = null;
