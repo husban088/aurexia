@@ -270,18 +270,19 @@ function ReviewsSlider({ reviews }: { reviews: Review[] }) {
   );
 }
 
-// ── Safe Cloudinary upload — 20s timeout, silent fail ────────────
+// ── ✅ FIXED: Cloudinary upload with better error handling ──
 async function uploadImageSafe(file: File): Promise<string | null> {
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_REVIEW_PRESET;
 
   if (!cloudName || !uploadPreset) {
-    console.warn("[Reviews] Cloudinary env missing — skipping image upload");
+    console.warn("[Reviews] Cloudinary env missing");
+    // Return null instead of failing - review can be submitted without images
     return null;
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20000);
+  const timer = setTimeout(() => controller.abort(), 15000);
 
   try {
     const fd = new FormData();
@@ -294,20 +295,21 @@ async function uploadImageSafe(file: File): Promise<string | null> {
     );
 
     if (!r.ok) {
-      console.warn("[Reviews] Cloudinary upload failed, status:", r.status);
+      const errorData = await r.json().catch(() => ({}));
+      console.warn("[Reviews] Cloudinary upload failed:", r.status, errorData);
       return null;
     }
     const j = await r.json();
     return (j?.secure_url as string) ?? null;
   } catch (err) {
-    console.warn("[Reviews] Image upload skipped:", err);
+    console.warn("[Reviews] Image upload error:", err);
     return null;
   } finally {
     clearTimeout(timer);
   }
 }
 
-// ── Main ProductReviews Component ──────────────────────────────
+// ── Main ProductReviews Component ──
 export default function ProductReviews({ productId }: ProductReviewsProps) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
@@ -325,9 +327,17 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
   const [submitError, setSubmitError] = useState<string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const isSubmittingRef = useRef(false);
+  const mountedRef = useRef(true);
 
-  // ── Fetch reviews ──────────────────────────────────────────────
+  // Cleanup on unmount
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // ── Fetch reviews ──
   const fetchReviews = useCallback(async () => {
     if (!productId) return;
     setLoadingReviews(true);
@@ -340,13 +350,15 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
 
       if (error) {
         console.error("[Reviews] Fetch error:", error);
-      } else {
+      } else if (mountedRef.current) {
         setReviews(data || []);
       }
     } catch (err) {
       console.error("[Reviews] Fetch exception:", err);
     } finally {
-      setLoadingReviews(false);
+      if (mountedRef.current) {
+        setLoadingReviews(false);
+      }
     }
   }, [productId]);
 
@@ -354,7 +366,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     fetchReviews();
   }, [fetchReviews]);
 
-  // ── Form helpers ───────────────────────────────────────────────
+  // ── Form helpers ──
   const resetForm = () => {
     setName("");
     setEmail("");
@@ -366,7 +378,6 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     setImagePreviews([]);
     setErrors({});
     setSubmitError("");
-    isSubmittingRef.current = false;
   };
 
   const avgRating =
@@ -408,28 +419,25 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     return e;
   };
 
-  // ── Submit — bulletproof, never stays stuck ────────────────────
+  // ── ✅ COMPLETELY FIXED Submit function ──
   const handleSubmit = async () => {
-    if (submitting || isSubmittingRef.current) return;
+    // Prevent double submission
+    if (submitting) {
+      console.log("[Reviews] Already submitting, skipping...");
+      return;
+    }
 
-    // UUID validation — case-insensitive
+    // Validate productId
     const UUID_RE =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const cleanProductId = productId?.trim();
 
-    if (!productId) {
-      setSubmitError("Product ID missing. Please refresh the page.");
+    if (!cleanProductId || !UUID_RE.test(cleanProductId)) {
+      setSubmitError("Invalid product ID. Please refresh the page.");
       return;
     }
 
-    const cleanProductId = productId.trim();
-
-    if (!UUID_RE.test(cleanProductId)) {
-      const msg = `Invalid product ID: "${cleanProductId}". Please refresh the page.`;
-      setSubmitError(msg);
-      console.error("[Reviews] Bad productId:", cleanProductId);
-      return;
-    }
-
+    // Validate form
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -439,20 +447,31 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     setErrors({});
     setSubmitError("");
     setSubmitting(true);
-    isSubmittingRef.current = true;
-
-    const snapshotFiles = [...imageFiles];
 
     try {
-      // Step 1: Upload all images in PARALLEL
       let uploadedUrls: string[] = [];
-      if (snapshotFiles.length > 0) {
-        const results = await Promise.all(
-          snapshotFiles.map((f) => uploadImageSafe(f)),
-        );
-        uploadedUrls = results.filter((u): u is string => u !== null);
+
+      // Upload images if any (WITHOUT blocking the submit)
+      if (imageFiles.length > 0) {
+        try {
+          const uploadPromises = imageFiles.map((file) =>
+            uploadImageSafe(file),
+          );
+          const results = await Promise.all(uploadPromises);
+          uploadedUrls = results.filter((url): url is string => url !== null);
+          console.log(
+            `[Reviews] Uploaded ${uploadedUrls.length} of ${imageFiles.length} images`,
+          );
+        } catch (uploadErr) {
+          console.warn(
+            "[Reviews] Image upload error (continuing without images):",
+            uploadErr,
+          );
+          // Continue without images - don't block the review submission
+        }
       }
 
+      // Insert review into Supabase
       const insertPayload = {
         product_id: cleanProductId,
         name: name.trim(),
@@ -463,45 +482,50 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
         images: uploadedUrls,
       };
 
-      console.log("[Reviews] Submitting:", insertPayload);
+      console.log("[Reviews] Submitting review...", {
+        productId: cleanProductId,
+        rating,
+        hasImages: uploadedUrls.length > 0,
+      });
 
-      // Step 2: Insert into Supabase
-      const { error: insertError } = await supabase
+      const { error: insertError, data: insertedData } = await supabase
         .from("product_reviews")
-        .insert(insertPayload);
+        .insert(insertPayload)
+        .select();
 
       if (insertError) {
-        console.error("[Reviews] Insert error code:", insertError.code);
-        console.error("[Reviews] Insert error message:", insertError.message);
-        console.error("[Reviews] Insert error details:", insertError.details);
-        console.error("[Reviews] Insert error hint:", insertError.hint);
-
+        console.error("[Reviews] Insert error:", insertError);
         let userMsg = `Submit failed: ${insertError.message || "Unknown error"}`;
 
         if (insertError.code === "23503") {
-          userMsg =
-            "This product was not found. Please refresh the page and try again. (FK violation)";
+          userMsg = "Product not found. Please refresh and try again.";
         } else if (insertError.code === "23502") {
-          userMsg =
-            "Missing required field. Please fill all fields and try again.";
+          userMsg = "Missing required field. Please fill all fields.";
         } else if (insertError.code === "42501") {
-          userMsg =
-            "Permission denied. Supabase INSERT policy is not set correctly. Run the RLS SQL fix.";
-        } else if (insertError.code === "PGRST301") {
-          userMsg = "Database JWT error. Please refresh the page.";
+          userMsg = "Permission denied. Please run the database RLS policy.";
         }
 
         setSubmitError(userMsg);
+        setSubmitting(false);
         return;
       }
 
-      // Step 3: Success
-      console.log("[Reviews] ✅ Review submitted successfully!");
+      console.log("[Reviews] ✅ Review submitted successfully!", insertedData);
+
+      // Success! Reset form and show success message
       resetForm();
       setShowForm(false);
       setSubmitted(true);
-      setTimeout(() => setSubmitted(false), 5000);
-      fetchReviews().catch(console.error);
+
+      // Refresh reviews to show the new one
+      await fetchReviews();
+
+      // Hide success message after 5 seconds
+      setTimeout(() => {
+        if (mountedRef.current) {
+          setSubmitted(false);
+        }
+      }, 5000);
     } catch (err: unknown) {
       const msg =
         err instanceof Error
@@ -510,9 +534,10 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       console.error("[Reviews] Caught exception:", err);
       setSubmitError(msg);
     } finally {
-      // ✅ ALWAYS runs — button NEVER stays stuck
-      setSubmitting(false);
-      isSubmittingRef.current = false;
+      // ✅ ALWAYS set submitting to false - button will never stay stuck
+      if (mountedRef.current) {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -625,30 +650,13 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
               </p>
             </div>
 
-            {/* ERROR BANNER — always visible, never hidden */}
             {submitError && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "10px",
-                  padding: "14px 18px",
-                  marginBottom: "20px",
-                  borderRadius: "10px",
-                  background: "rgba(220, 38, 38, 0.12)",
-                  border: "1.5px solid rgba(220, 38, 38, 0.5)",
-                  color: "#ef4444",
-                  fontSize: "14px",
-                  lineHeight: "1.6",
-                  wordBreak: "break-word",
-                }}
-              >
+              <div className="pr-error-banner">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
-                  style={{ width: 20, height: 20, flexShrink: 0, marginTop: 2 }}
                 >
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="8" x2="12" y2="12" />
@@ -835,7 +843,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                   {submitting ? (
                     <>
                       <span className="pr-spinner" />
-                      Submitting…
+                      Submitting...
                     </>
                   ) : (
                     <>
@@ -900,6 +908,29 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           <ReviewsSlider reviews={reviews} />
         )}
       </div>
+
+      <style jsx>{`
+        .pr-error-banner {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          padding: 14px 18px;
+          margin-bottom: 20px;
+          border-radius: 10px;
+          background: rgba(220, 38, 38, 0.12);
+          border: 1.5px solid rgba(220, 38, 38, 0.5);
+          color: #ef4444;
+          font-size: 14px;
+          line-height: 1.6;
+          word-break: break-word;
+        }
+        .pr-error-banner svg {
+          width: 20px;
+          height: 20px;
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+      `}</style>
     </section>
   );
 }

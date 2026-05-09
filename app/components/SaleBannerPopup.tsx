@@ -1,36 +1,85 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getSalePercent } from "@/lib/saleStore";
+import {
+  getSalePercent,
+  fetchSaleFromDB,
+  listenToSaleChanges,
+} from "@/lib/saleStore";
 
 export default function SaleBannerPopup() {
   const [visible, setVisible] = useState(false);
   const [percent, setPercent] = useState<number | null>(null);
+  const [hasClosed, setHasClosed] = useState(false);
+  const [loading, setLoading] = useState(true);
 
+  // Check sale on mount and listen for changes
   useEffect(() => {
-    const activePercent = getSalePercent();
-    if (!activePercent) return;
+    // Fetch from database on mount
+    fetchSaleFromDB().then((activePercent) => {
+      setPercent(activePercent);
+      setLoading(false);
 
-    setPercent(activePercent);
+      if (activePercent && !hasClosed) {
+        const timer = setTimeout(() => setVisible(true), 400);
+        return () => clearTimeout(timer);
+      }
+    });
 
-    const timer = setTimeout(() => {
-      setVisible(true);
-    }, 400);
+    // Listen for sale changes across tabs
+    const unsubscribe = listenToSaleChanges((newPercent) => {
+      setPercent(newPercent);
+      if (newPercent && !hasClosed) {
+        setVisible(true);
+      } else if (!newPercent) {
+        setVisible(false);
+      }
+    });
 
-    return () => clearTimeout(timer);
-  }, []);
+    return unsubscribe;
+  }, [hasClosed]);
+
+  // Listen for storage events (cross-tab)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "active_sale_percent") {
+        const newPercent = e.newValue ? parseInt(e.newValue, 10) : null;
+        setPercent(newPercent);
+        if (newPercent && !hasClosed) {
+          setVisible(true);
+        } else if (!newPercent) {
+          setVisible(false);
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [hasClosed]);
 
   const handleClose = useCallback(() => {
     setVisible(false);
+    setHasClosed(true);
+    sessionStorage.setItem("sale_banner_closed", "true");
   }, []);
 
+  // Check if user already closed banner in this session
+  useEffect(() => {
+    const wasClosed = sessionStorage.getItem("sale_banner_closed");
+    if (wasClosed === "true") {
+      setHasClosed(true);
+      setVisible(false);
+    }
+  }, []);
+
+  // Don't show while loading
+  if (loading) return null;
   if (!percent) return null;
 
   const imageSrc = `/sale-banner-${percent}.png`;
 
   return (
     <>
-      {/* ── Styles ── */}
       <style>{`
         .sb-overlay {
           position: fixed;
@@ -57,11 +106,7 @@ export default function SaleBannerPopup() {
           transition: opacity 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275),
                       transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
           pointer-events: none;
-
-          /* Responsive width — never overflow viewport */
           width: min(92vw, 680px);
-
-          /* Let height follow image naturally */
           border-radius: 14px;
           overflow: hidden;
           box-shadow: 0 28px 90px rgba(0, 0, 0, 0.88),
@@ -73,18 +118,16 @@ export default function SaleBannerPopup() {
           pointer-events: auto;
         }
 
-        /* Image fills the popup completely — no cropping, no stretching */
         .sb-img {
           display: block;
           width: 100%;
-          height: auto;        /* height follows image's natural ratio */
-          max-height: 90vh;    /* never taller than viewport */
-          object-fit: contain; /* show full image, no crop */
+          height: auto;
+          max-height: 90vh;
+          object-fit: contain;
           border-radius: 14px;
-          background: #0a0a0a; /* dark fill while loading */
+          background: #0a0a0a;
         }
 
-        /* Close button */
         .sb-close {
           position: absolute;
           top: 10px;
@@ -101,17 +144,14 @@ export default function SaleBannerPopup() {
           display: flex;
           align-items: center;
           justify-content: center;
-          line-height: 1;
           backdrop-filter: blur(6px);
           transition: background 0.2s ease, transform 0.15s ease;
-          padding: 0;
         }
         .sb-close:hover {
           background: rgba(218, 165, 32, 0.75);
           transform: scale(1.08);
         }
 
-        /* Mobile: even narrower screens */
         @media (max-width: 480px) {
           .sb-popup {
             width: 96vw;
@@ -122,23 +162,19 @@ export default function SaleBannerPopup() {
           }
         }
 
-        /* Very tall images on small phones — cap height */
         @media (max-height: 600px) {
           .sb-img {
             max-height: 80vh;
-            object-fit: contain;
           }
         }
       `}</style>
 
-      {/* Backdrop — click bahar pe close karo */}
       <div
         className={`sb-overlay${visible ? " sb-visible" : ""}`}
         onClick={handleClose}
         aria-hidden="true"
       />
 
-      {/* Popup — andar click pe close nahi hoga */}
       <div
         className={`sb-popup${visible ? " sb-visible" : ""}`}
         onClick={(e) => e.stopPropagation()}
@@ -146,7 +182,6 @@ export default function SaleBannerPopup() {
         aria-modal="true"
         aria-label={`${percent}% Sale Banner`}
       >
-        {/* Close Button */}
         <button
           className="sb-close"
           onClick={handleClose}
@@ -155,17 +190,9 @@ export default function SaleBannerPopup() {
           ✕
         </button>
 
-        {/* 
-          Image — object-fit: contain ensures:
-          ✅ Full image always visible
-          ✅ No cropping
-          ✅ No stretching
-          ✅ Responsive on all screen sizes
-          ✅ Height auto-adjusts to image ratio
-        */}
         <img
           src={imageSrc}
-          alt={`${percent}% Sale`}
+          alt={`${percent}% OFF Sale - Limited Time Offer`}
           className="sb-img"
           draggable={false}
         />

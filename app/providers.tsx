@@ -11,6 +11,7 @@ import WhatsAppWidget from "./components/WhatsAppWidget";
 import { useEffect, useState, useRef } from "react";
 import Footer from "./components/Footer";
 import SaleBannerPopup from "./components/SaleBannerPopup";
+import { initSaleStore } from "@/lib/saleStore";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -27,8 +28,16 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     setHydrated(true);
   }, []);
 
+  // Initialize sale store on app start (for ALL users)
+  useEffect(() => {
+    initSaleStore();
+  }, []);
+
   // Derive panel state - safe after client mount
   const isPanelPage = isClient && (pathname?.startsWith("/panel") ?? false);
+
+  // Check if on home page
+  const isHomePage = isClient && pathname === "/";
 
   // Cart init — run once on client mount
   const cartInitialized = useRef(false);
@@ -54,7 +63,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {isClient && pathname === "/" && <SaleBannerPopup />}
+      {/* ✅ Sale Banner - Only on home page, visible to ALL users */}
+      {isHomePage && <SaleBannerPopup />}
+
       {!isPanelPage && (
         <Navbar
           onMenuOpen={() => setSidebarOpen(true)}

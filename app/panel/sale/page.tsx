@@ -3,35 +3,75 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getSalePercent, setSalePercent } from "@/lib/saleStore";
+import {
+  getSalePercent,
+  setSalePercent,
+  fetchSaleFromDB,
+} from "@/lib/saleStore";
 
 const OPTIONS = [10, 20, 30] as const;
 
 export default function SalePanel() {
   const [selected, setSelected] = useState<10 | 20 | 30 | null>(null);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    setSelected(getSalePercent() as 10 | 20 | 30 | null);
+    // Fetch current sale from database
+    fetchSaleFromDB().then((percent) => {
+      setSelected(percent as 10 | 20 | 30 | null);
+      setLoading(false);
+    });
   }, []);
 
-  function handleApply(val: 10 | 20 | 30) {
-    // Save karo
-    setSalePercent(val);
-    setSelected(val);
-    setSaved(true);
+  async function handleApply(val: 10 | 20 | 30) {
+    setLoading(true);
+    // Save to database (will sync to all users)
+    const success = await setSalePercent(val);
+    if (success) {
+      setSelected(val);
+      setSaved(true);
 
-    // Foran home page pe redirect karo
-    setTimeout(() => {
-      router.push("/");
-    }, 300);
+      // Show success message briefly
+      setTimeout(() => {
+        router.push("/");
+      }, 500);
+    } else {
+      alert("Failed to apply sale. Please try again.");
+      setLoading(false);
+    }
   }
 
-  function handleRemove() {
-    setSalePercent(null);
-    setSelected(null);
-    setSaved(false);
+  async function handleRemove() {
+    setLoading(true);
+    const success = await setSalePercent(null);
+    if (success) {
+      setSelected(null);
+      setSaved(false);
+      setTimeout(() => {
+        router.push("/");
+      }, 300);
+    } else {
+      alert("Failed to remove sale. Please try again.");
+      setLoading(false);
+    }
+  }
+
+  if (loading && selected === null) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#0a0a0a",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div style={{ color: "#daa520" }}>Loading...</div>
+      </div>
+    );
   }
 
   return (
@@ -64,7 +104,7 @@ export default function SalePanel() {
             marginBottom: "0.5rem",
           }}
         >
-          Sale Banner Control
+          🏷️ Sale Banner Control
         </h1>
         <p
           style={{
@@ -74,7 +114,9 @@ export default function SalePanel() {
             marginBottom: "2rem",
           }}
         >
-          Click karo — discount apply hoga aur home page pe banner show hoga.
+          ✅ Click karo — discount apply hoga aur{" "}
+          <strong style={{ color: "#daa520" }}>SAB USERS</strong> ko banner show
+          hoga!
         </p>
 
         {/* Options */}
@@ -83,6 +125,7 @@ export default function SalePanel() {
             <button
               key={opt}
               onClick={() => handleApply(opt)}
+              disabled={loading}
               style={{
                 flex: 1,
                 padding: "1.2rem",
@@ -95,11 +138,12 @@ export default function SalePanel() {
                 fontFamily: "monospace",
                 fontSize: "1.4rem",
                 fontWeight: "700",
-                cursor: "pointer",
+                cursor: loading ? "not-allowed" : "pointer",
                 transition: "all 0.2s ease",
+                opacity: loading ? 0.5 : 1,
               }}
             >
-              {opt}%
+              {opt}% OFF
             </button>
           ))}
         </div>
@@ -117,17 +161,20 @@ export default function SalePanel() {
             color: "#555",
           }}
         >
-          Currently active:{" "}
-          <span style={{ color: selected ? "#daa520" : "#444" }}>
+          📢 Currently active:{" "}
+          <span
+            style={{ color: selected ? "#daa520" : "#444", fontWeight: 600 }}
+          >
             {selected
-              ? `${selected}% OFF — Sab products pe laga hua hai`
-              : "None (koi discount nahi)"}
+              ? `${selected}% OFF — All customers worldwide will see this discount!`
+              : "None (No active sale)"}
           </span>
         </div>
 
         {/* Remove button */}
         <button
           onClick={handleRemove}
+          disabled={loading || !selected}
           style={{
             width: "100%",
             padding: "0.9rem",
@@ -137,11 +184,12 @@ export default function SalePanel() {
             color: "#e05555",
             fontFamily: "monospace",
             fontSize: "0.85rem",
-            cursor: "pointer",
+            cursor: loading || !selected ? "not-allowed" : "pointer",
             transition: "all 0.2s ease",
+            opacity: loading || !selected ? 0.5 : 1,
           }}
         >
-          Remove Discount
+          🗑️ Remove Discount
         </button>
 
         {saved && (
@@ -152,9 +200,17 @@ export default function SalePanel() {
               fontSize: "0.8rem",
               textAlign: "center",
               marginTop: "1rem",
+              background: "rgba(76,175,80,0.1)",
+              padding: "8px",
+              borderRadius: "8px",
             }}
           >
             ✓ Saved! Home page pe redirect ho raha hai...
+            <br />
+            <span style={{ fontSize: "0.7rem", color: "#daa520" }}>
+              All users worldwide will now see the {selected}% OFF banner and
+              discounts!
+            </span>
           </p>
         )}
       </div>
