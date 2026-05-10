@@ -895,55 +895,64 @@ function ProductCardComponent({
             <span className="pg-card-discount">-{totalDiscount}%</span>
           )}
         </div>
-        {/* ── Rating — sirf tab show hoga jab valid reviews hon ── */}
-        {liveRating !== null &&
-          liveReviewCount !== null &&
-          liveReviewCount > 0 && (
-            <div className="pg-card-rating">
-              <StarDisplay rating={liveRating} size={11} />
-              <span className="pg-card-rating-count">({liveReviewCount})</span>
-            </div>
+        {/* ── Rating — div hamesha render hoti hai space reserve karne ke liye ── */}
+        <div className="pg-card-rating">
+          {liveRating !== null &&
+            liveReviewCount !== null &&
+            liveReviewCount > 0 && (
+              <>
+                <StarDisplay rating={liveRating} size={11} />
+                <span className="pg-card-rating-count">
+                  ({liveReviewCount})
+                </span>
+              </>
+            )}
+        </div>
+
+        {/* ── Variants — wrapper hamesha render hota hai fixed height ke liye ── */}
+        <div className="pg-card-variants-wrapper">
+          {colorVariants.length > 0 && (
+            <VariantThumbnails
+              variants={colorVariants}
+              type="color"
+              onSelect={handleVariantSelect}
+              currentValue={selectedVariant?.attribute_value || ""}
+              variantImagesMap={productData.variantImagesMap || {}}
+              getVariantImage={getVariantImage}
+            />
           )}
-        {colorVariants.length > 0 && (
-          <VariantThumbnails
-            variants={colorVariants}
-            type="color"
-            onSelect={handleVariantSelect}
-            currentValue={selectedVariant?.attribute_value || ""}
-            variantImagesMap={productData.variantImagesMap || {}}
-            getVariantImage={getVariantImage}
-          />
-        )}
-        {sizeVariants.length > 0 && (
-          <VariantThumbnails
-            variants={sizeVariants}
-            type="size"
-            onSelect={handleVariantSelect}
-            currentValue={selectedVariant?.attribute_value || ""}
-            variantImagesMap={productData.variantImagesMap || {}}
-            getVariantImage={getVariantImage}
-          />
-        )}
-        {materialVariants.length > 0 && (
-          <VariantThumbnails
-            variants={materialVariants}
-            type="material"
-            onSelect={handleVariantSelect}
-            currentValue={selectedVariant?.attribute_value || ""}
-            variantImagesMap={productData.variantImagesMap || {}}
-            getVariantImage={getVariantImage}
-          />
-        )}
-        {capacityVariants.length > 0 && (
-          <VariantThumbnails
-            variants={capacityVariants}
-            type="capacity"
-            onSelect={handleVariantSelect}
-            currentValue={selectedVariant?.attribute_value || ""}
-            variantImagesMap={productData.variantImagesMap || {}}
-            getVariantImage={getVariantImage}
-          />
-        )}
+          {sizeVariants.length > 0 && (
+            <VariantThumbnails
+              variants={sizeVariants}
+              type="size"
+              onSelect={handleVariantSelect}
+              currentValue={selectedVariant?.attribute_value || ""}
+              variantImagesMap={productData.variantImagesMap || {}}
+              getVariantImage={getVariantImage}
+            />
+          )}
+          {materialVariants.length > 0 && (
+            <VariantThumbnails
+              variants={materialVariants}
+              type="material"
+              onSelect={handleVariantSelect}
+              currentValue={selectedVariant?.attribute_value || ""}
+              variantImagesMap={productData.variantImagesMap || {}}
+              getVariantImage={getVariantImage}
+            />
+          )}
+          {capacityVariants.length > 0 && (
+            <VariantThumbnails
+              variants={capacityVariants}
+              type="capacity"
+              onSelect={handleVariantSelect}
+              currentValue={selectedVariant?.attribute_value || ""}
+              variantImagesMap={productData.variantImagesMap || {}}
+              getVariantImage={getVariantImage}
+            />
+          )}
+        </div>
+
         <div className={`pg-card-stock ${getStockClassText()}`}>
           {getStockLabelText()}
         </div>
@@ -1323,19 +1332,6 @@ export default function ProductGrid({
           border-radius: 4px !important;
           background: rgba(184, 150, 62, 0.12) !important;
           color: #b8963e !important;
-        }
-              .pg-card-rating {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          margin-top: 4px;
-          margin-bottom: 2px;
-        }
-        .pg-card-rating-count {
-          font-size: 11px;
-          color: rgba(0, 0, 0, 0.5);
-          font-weight: 400;
-          letter-spacing: 0.01em;
         }
         `}</style>
       {!limit && (

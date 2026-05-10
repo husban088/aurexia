@@ -604,11 +604,10 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-      CARD BODY
+      CARD BODY - FIXED HEIGHTS FOR PERFECT ALIGNMENT
    ═══════════════════════════════════════════════════════ */
 .pg-card-body {
   padding: 0.9rem 1rem 1rem;
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -617,6 +616,7 @@
   z-index: 2;
 }
 
+/* Brand — fixed height 18px, always reserves space */
 .pg-card-brand {
   font-family: var(--pg-sans);
   font-size: 0.55rem;
@@ -624,11 +624,17 @@
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--pg-gold-dark);
-  margin: 0 0 0.3rem;
-  min-height: 0.9rem;
-  line-height: 0.9rem;
+  margin: 0;
+  height: 18px;
+  min-height: 18px;
+  line-height: 18px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  display: block;
 }
 
+/* Name — fixed 2-line height */
 .pg-card-name {
   font-family: var(--pg-serif);
   font-size: 0.92rem;
@@ -644,19 +650,24 @@
   text-overflow: ellipsis;
   word-break: break-word;
   min-height: calc(0.92rem * 1.35 * 2);
+  max-height: calc(0.92rem * 1.35 * 2);
 }
 
 .pg-card:hover .pg-card-name {
   color: var(--pg-gold-deep);
 }
 
+/* Price row — fixed height */
 .pg-card-price-row {
   display: flex;
   align-items: baseline;
   gap: 0.45rem;
-  margin: 0 0 0.45rem;
+  margin: 0 0 0.3rem;
   flex-wrap: wrap;
   min-height: 1.8rem;
+  height: 1.8rem;
+  max-height: 1.8rem;
+  overflow: hidden;
 }
 
 .pg-card-price {
@@ -686,28 +697,44 @@
   letter-spacing: 0.04em;
 }
 
-/* Rating */
+/* Rating — FIXED HEIGHT 26px, always rendered, content conditional */
 .pg-card-rating {
   display: flex;
   align-items: center;
   gap: 5px;
-  margin: 2px 0 4px;
+  height: 26px;
+  min-height: 26px;
+  max-height: 26px;
+  margin: 0 0 0.2rem;
+  overflow: hidden;
 }
+
 .pg-card-rating-count {
   font-size: 10px;
   color: rgba(0, 0, 0, 0.5);
   font-weight: 400;
 }
 
-/* ── Variants ── */
+/* ── Variants Wrapper — FIXED HEIGHT 72px, always rendered ── */
+.pg-card-variants-wrapper {
+  min-height: 72px;
+  height: 72px;
+  max-height: 72px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0 0 0.25rem;
+}
+
+/* ── Variants inner ── */
 .pg-card-variants {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  flex-wrap: wrap;
-  min-height: 44px;
+  flex-wrap: nowrap;
+  overflow: hidden;
   align-content: flex-start;
-  margin-bottom: 0.2rem;
 }
 
 .pg-variant-label {
@@ -716,6 +743,7 @@
   font-weight: 600;
   color: var(--pg-gold-deep);
   letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 
 .pg-variant-thumbnails {
@@ -958,9 +986,21 @@
   }
   .pg-card-name {
     font-size: 0.88rem;
+    min-height: calc(0.88rem * 1.35 * 2);
+    max-height: calc(0.88rem * 1.35 * 2);
   }
   .pg-card-price {
     font-size: 1rem;
+  }
+  .pg-card-rating {
+    height: 24px;
+    min-height: 24px;
+    max-height: 24px;
+  }
+  .pg-card-variants-wrapper {
+    min-height: 64px;
+    height: 64px;
+    max-height: 64px;
   }
   .pg-icon-btn {
     width: 34px;
@@ -1007,12 +1047,24 @@
   }
   .pg-card-name {
     font-size: 0.82rem;
+    min-height: calc(0.82rem * 1.35 * 2);
+    max-height: calc(0.82rem * 1.35 * 2);
   }
   .pg-card-price {
     font-size: 0.95rem;
   }
   .pg-card-brand {
     font-size: 0.5rem;
+  }
+  .pg-card-rating {
+    height: 22px;
+    min-height: 22px;
+    max-height: 22px;
+  }
+  .pg-card-variants-wrapper {
+    min-height: 58px;
+    height: 58px;
+    max-height: 58px;
   }
   .pg-icon-btn {
     width: 32px;
@@ -1032,9 +1084,6 @@
   .pg-variant-name {
     font-size: 7px;
     max-width: 28px;
-  }
-  .pg-card-variants {
-    min-height: 38px;
   }
   .cat-subnav {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -1072,8 +1121,15 @@
   .pg-variant-name {
     display: none;
   }
+  .pg-card-variants-wrapper {
+    min-height: 48px;
+    height: 48px;
+    max-height: 48px;
+  }
   .pg-card-name {
     font-size: 0.78rem;
+    min-height: calc(0.78rem * 1.35 * 2);
+    max-height: calc(0.78rem * 1.35 * 2);
   }
   .pg-card-price {
     font-size: 0.9rem;

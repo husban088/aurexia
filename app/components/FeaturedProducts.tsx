@@ -771,55 +771,61 @@ function ProductCard({
           )}
         </div>
 
-        {liveRating !== null &&
-          liveReviewCount !== null &&
-          liveReviewCount > 0 && (
-            <div className="fp-card-rating">
-              <StarDisplay rating={liveRating} size={11} />
-              <span className="fp-card-rating-count">({liveReviewCount})</span>
-            </div>
-          )}
+        <div className="fp-card-rating">
+          {liveRating !== null &&
+            liveReviewCount !== null &&
+            liveReviewCount > 0 && (
+              <>
+                <StarDisplay rating={liveRating} size={11} />
+                <span className="fp-card-rating-count">
+                  ({liveReviewCount})
+                </span>
+              </>
+            )}
+        </div>
 
-        {colorVariants.length > 0 && (
-          <VariantThumbnails
-            variants={colorVariants}
-            type="color"
-            onSelect={handleVariantSelect}
-            currentValue={selectedVariant?.attribute_value || ""}
-            variantImagesMap={variantImagesMap}
-            getVariantImage={getVariantImage}
-          />
-        )}
-        {sizeVariants.length > 0 && (
-          <VariantThumbnails
-            variants={sizeVariants}
-            type="size"
-            onSelect={handleVariantSelect}
-            currentValue={selectedVariant?.attribute_value || ""}
-            variantImagesMap={variantImagesMap}
-            getVariantImage={getVariantImage}
-          />
-        )}
-        {materialVariants.length > 0 && (
-          <VariantThumbnails
-            variants={materialVariants}
-            type="material"
-            onSelect={handleVariantSelect}
-            currentValue={selectedVariant?.attribute_value || ""}
-            variantImagesMap={variantImagesMap}
-            getVariantImage={getVariantImage}
-          />
-        )}
-        {capacityVariants.length > 0 && (
-          <VariantThumbnails
-            variants={capacityVariants}
-            type="capacity"
-            onSelect={handleVariantSelect}
-            currentValue={selectedVariant?.attribute_value || ""}
-            variantImagesMap={variantImagesMap}
-            getVariantImage={getVariantImage}
-          />
-        )}
+        <div className="fp-card-variants-wrapper">
+          {colorVariants.length > 0 && (
+            <VariantThumbnails
+              variants={colorVariants}
+              type="color"
+              onSelect={handleVariantSelect}
+              currentValue={selectedVariant?.attribute_value || ""}
+              variantImagesMap={variantImagesMap}
+              getVariantImage={getVariantImage}
+            />
+          )}
+          {sizeVariants.length > 0 && (
+            <VariantThumbnails
+              variants={sizeVariants}
+              type="size"
+              onSelect={handleVariantSelect}
+              currentValue={selectedVariant?.attribute_value || ""}
+              variantImagesMap={variantImagesMap}
+              getVariantImage={getVariantImage}
+            />
+          )}
+          {materialVariants.length > 0 && (
+            <VariantThumbnails
+              variants={materialVariants}
+              type="material"
+              onSelect={handleVariantSelect}
+              currentValue={selectedVariant?.attribute_value || ""}
+              variantImagesMap={variantImagesMap}
+              getVariantImage={getVariantImage}
+            />
+          )}
+          {capacityVariants.length > 0 && (
+            <VariantThumbnails
+              variants={capacityVariants}
+              type="capacity"
+              onSelect={handleVariantSelect}
+              currentValue={selectedVariant?.attribute_value || ""}
+              variantImagesMap={variantImagesMap}
+              getVariantImage={getVariantImage}
+            />
+          )}
+        </div>
         <div className={`fp-card-stock ${getStockClass()}`}>
           {getStockLabel()}
         </div>

@@ -564,26 +564,48 @@ export default function Checkout() {
           setNotifStatus({ email: false, whatsapp: false });
         });
 
-      // Save to Supabase
+      // ✅ Save to Supabase — column names match orders table schema exactly
       supabase
         .from("orders")
         .insert({
           order_number: orderNumber,
-          customer_name: customerName,
-          customer_email: form.email,
-          customer_phone: fullPhone,
-          shipping_address: shippingAddress,
-          items: orderItems,
-          subtotal,
+          user_id: null,
+          first_name: form.firstName.trim(),
+          last_name: form.lastName.trim(),
+          email: form.email.trim().toLowerCase(),
+          phone: fullPhone,
+          address: form.address.trim(),
+          apartment: form.apartment?.trim() || null,
+          city: form.city.trim(),
+          zip: form.zip.trim(),
+          country: phoneInfo.name,
+          subtotal: snapSubtotal,
           shipping_cost: shipping,
-          total,
-          payment_method: paymentMethod === "card" ? "Stripe" : "PayPal",
-          currency: currency.code,
-          status: "confirmed",
-          created_at: new Date().toISOString(),
+          total_amount: snapSubtotal + shipping,
+          payment_method: paymentMethod,
+          status: "pending",
+          items: snapItems.map((item) => ({
+            product_id: item.product_id,
+            product_name: item.product?.name ?? item.variant_name ?? "Product",
+            variant_id: item.variant_id ?? null,
+            variant_name: item.variant_name ?? null,
+            variant_image: item.variant_image ?? null,
+            quantity: item.quantity,
+            price: item.variant_price ?? (item.product as any)?.price ?? 0,
+            pieces_per_unit: item.pieces_per_unit ?? 1,
+          })),
         })
         .then(({ error }) => {
-          if (error) console.warn("⚠️ DB save failed:", error);
+          if (error) {
+            console.error(
+              "⚠️ DB save failed — code:",
+              error.code,
+              "| msg:",
+              error.message,
+            );
+          } else {
+            console.log("✅ Order saved to Supabase:", orderNumber);
+          }
         });
     } catch (err) {
       console.warn("⚠️ Background tasks error:", err);

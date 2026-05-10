@@ -140,8 +140,10 @@
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  transition: transform 0.5s var(--rp-ease-out),
-    box-shadow 0.5s var(--rp-ease-out), border-color 0.4s ease;
+  transition:
+    transform 0.5s var(--rp-ease-out),
+    box-shadow 0.5s var(--rp-ease-out),
+    border-color 0.4s ease;
   width: 100%;
   text-decoration: none;
   color: inherit;
@@ -161,7 +163,9 @@
   );
   background-size: 200% 200%;
   opacity: 0;
-  transition: opacity 0.4s ease, background-position 0.6s ease;
+  transition:
+    opacity 0.4s ease,
+    background-position 0.6s ease;
   pointer-events: none;
   border-radius: 20px;
   z-index: 1;
@@ -185,7 +189,8 @@
 
 .rp-card:hover {
   transform: translateY(-10px);
-  box-shadow: 0 28px 55px rgba(201, 168, 76, 0.14),
+  box-shadow:
+    0 28px 55px rgba(201, 168, 76, 0.14),
     0 8px 20px rgba(0, 0, 0, 0.06);
   border-color: var(--rp-gold-border-h);
   background: var(--rp-card-hover);
@@ -216,7 +221,9 @@
   height: 100%;
   object-fit: cover;
   object-position: center center;
-  transition: transform 0.75s var(--rp-ease-out), opacity 0.3s ease;
+  transition:
+    transform 0.75s var(--rp-ease-out),
+    opacity 0.3s ease;
 }
 
 .rp-card:hover .rp-card-img img {
@@ -311,7 +318,9 @@
   z-index: 4;
   transform: translateY(6px);
   opacity: 0;
-  transition: transform 0.35s var(--rp-ease-out), opacity 0.3s ease;
+  transition:
+    transform 0.35s var(--rp-ease-out),
+    opacity 0.3s ease;
 }
 
 .rp-card:hover .rp-icon-buttons {
@@ -372,9 +381,11 @@
 /* ═══════════════════════════════════════════════════════
          CARD BODY
       ═══════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════
+         CARD BODY - FIXED HEIGHTS FOR PERFECT ALIGNMENT
+      ═══════════════════════════════════════════════════════ */
 .rp-card-body {
   padding: 1.1rem 1.15rem 1.2rem;
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -383,7 +394,7 @@
   z-index: 2;
 }
 
-/* ── Brand ── */
+/* ── Brand — fixed height 20px, hamesha space reserve ── */
 .rp-card-brand {
   font-family: var(--rp-sans);
   font-size: 0.58rem;
@@ -391,18 +402,23 @@
   letter-spacing: 0.26em;
   text-transform: uppercase;
   color: var(--rp-gold-dark);
-  margin: 0 0 0.35rem;
-  min-height: 1rem;
-  line-height: 1rem;
+  margin: 0;
+  height: 20px;
+  min-height: 20px;
+  line-height: 20px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  display: block;
 }
 
-/* ── Name ── */
+/* ── Name — 2-line fixed height ── */
 .rp-card-name {
   font-family: var(--rp-serif);
   font-size: 1rem;
   font-weight: 600;
   color: var(--rp-ink);
-  margin: 0 0 0.55rem;
+  margin: 0 0 0.45rem;
   line-height: 1.38;
   transition: color 0.35s ease;
   display: -webkit-box;
@@ -410,20 +426,24 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   min-height: calc(1rem * 1.38 * 2);
+  max-height: calc(1rem * 1.38 * 2);
 }
 
 .rp-card:hover .rp-card-name {
   color: var(--rp-gold-deep);
 }
 
-/* ── Price Row ── */
+/* ── Price Row — fixed height ── */
 .rp-card-price-row {
   display: flex;
   align-items: baseline;
   gap: 0.55rem;
-  margin: 0 0 0.55rem;
+  margin: 0 0 0.3rem;
   flex-wrap: wrap;
   min-height: 2rem;
+  height: 2rem;
+  max-height: 2rem;
+  overflow: hidden;
 }
 
 .rp-card-price {
@@ -453,15 +473,44 @@
   letter-spacing: 0.04em;
 }
 
-/* ── Variants ── */
+/* ── Rating — FIXED HEIGHT 26px, hamesha rendered ── */
+.rp-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 26px;
+  min-height: 26px;
+  max-height: 26px;
+  margin: 0 0 0.2rem;
+  overflow: hidden;
+}
+
+.rp-rating-count {
+  font-family: var(--rp-sans);
+  font-size: 0.58rem;
+  color: var(--rp-ink-muted);
+}
+
+/* ── Variants Wrapper — FIXED HEIGHT 76px, hamesha rendered ── */
+.rp-card-variants-wrapper {
+  min-height: 76px;
+  height: 76px;
+  max-height: 76px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0 0 0.25rem;
+}
+
+/* ── Variants inner row ── */
 .rp-card-variants {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  flex-wrap: wrap;
-  min-height: 50px;
+  flex-wrap: nowrap;
+  overflow: hidden;
   align-content: flex-start;
-  margin-bottom: 0.2rem;
 }
 
 .rp-variant-label {
@@ -470,6 +519,7 @@
   font-weight: 600;
   color: var(--rp-gold-deep);
   letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 
 .rp-variant-thumbnails {
@@ -549,20 +599,6 @@
   padding: 0.2rem 0.55rem;
   border-radius: 20px;
   border: 1px solid rgba(201, 168, 76, 0.18);
-}
-
-/* ── Rating ── */
-.rp-rating {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0.25rem 0 0;
-}
-
-.rp-rating-count {
-  font-family: var(--rp-sans);
-  font-size: 0.58rem;
-  color: var(--rp-ink-muted);
 }
 
 /* ── Stock Status ── */
@@ -702,7 +738,9 @@
 .rp-reveal {
   opacity: 0;
   transform: translateY(20px);
-  transition: opacity 0.7s var(--rp-ease-out), transform 0.7s var(--rp-ease-out);
+  transition:
+    opacity 0.7s var(--rp-ease-out),
+    transform 0.7s var(--rp-ease-out);
 }
 
 .rp-reveal.visible {
@@ -738,9 +776,21 @@
   }
   .rp-card-name {
     font-size: 0.95rem;
+    min-height: calc(0.95rem * 1.38 * 2);
+    max-height: calc(0.95rem * 1.38 * 2);
   }
   .rp-card-price {
     font-size: 1.15rem;
+  }
+  .rp-rating {
+    height: 24px;
+    min-height: 24px;
+    max-height: 24px;
+  }
+  .rp-card-variants-wrapper {
+    min-height: 68px;
+    height: 68px;
+    max-height: 68px;
   }
   .rp-icon-btn {
     width: 38px;
@@ -768,12 +818,24 @@
   }
   .rp-card-name {
     font-size: 0.9rem;
+    min-height: calc(0.9rem * 1.38 * 2);
+    max-height: calc(0.9rem * 1.38 * 2);
   }
   .rp-card-price {
     font-size: 1.1rem;
   }
   .rp-card-brand {
     font-size: 0.55rem;
+  }
+  .rp-rating {
+    height: 22px;
+    min-height: 22px;
+    max-height: 22px;
+  }
+  .rp-card-variants-wrapper {
+    min-height: 62px;
+    height: 62px;
+    max-height: 62px;
   }
   .rp-card-body {
     padding: 0.85rem 0.9rem 0.9rem;
@@ -793,9 +855,6 @@
   .rp-variant-thumb {
     width: 34px;
     height: 34px;
-  }
-  .rp-card-variants {
-    min-height: 44px;
   }
 }
 
@@ -830,8 +889,20 @@
   .rp-variant-label-text {
     display: none;
   }
+  .rp-card-variants-wrapper {
+    min-height: 48px;
+    height: 48px;
+    max-height: 48px;
+  }
+  .rp-rating {
+    height: 20px;
+    min-height: 20px;
+    max-height: 20px;
+  }
   .rp-card-name {
     font-size: 0.88rem;
+    min-height: calc(0.88rem * 1.38 * 2);
+    max-height: calc(0.88rem * 1.38 * 2);
   }
   .rp-card-price {
     font-size: 1.05rem;

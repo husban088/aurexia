@@ -619,53 +619,57 @@ function RelatedProductCard({
           )}
         </div>
 
-        {/* Rating */}
-        {liveRating !== null &&
-          liveReviewCount !== null &&
-          liveReviewCount > 0 && (
-            <div className="rp-rating">
-              <StarDisplay rating={liveRating} size={11} />
-              <span className="rp-rating-count">({liveReviewCount})</span>
-            </div>
-          )}
+        {/* Rating — div hamesha render hoti hai space reserve karne ke liye */}
+        <div className="rp-rating">
+          {liveRating !== null &&
+            liveReviewCount !== null &&
+            liveReviewCount > 0 && (
+              <>
+                <StarDisplay rating={liveRating} size={11} />
+                <span className="rp-rating-count">({liveReviewCount})</span>
+              </>
+            )}
+        </div>
 
-        {/* Variant Thumbnails - Like FeaturedProducts */}
-        {colorVariants.length > 0 && (
-          <VariantThumbnails
-            variants={colorVariants}
-            type="color"
-            onSelect={handleVariantSelect}
-            currentValue={selectedVariant?.attribute_value || ""}
-            variantImagesMap={product.variantImagesMap}
-          />
-        )}
-        {sizeVariants.length > 0 && (
-          <VariantThumbnails
-            variants={sizeVariants}
-            type="size"
-            onSelect={handleVariantSelect}
-            currentValue={selectedVariant?.attribute_value || ""}
-            variantImagesMap={product.variantImagesMap}
-          />
-        )}
-        {materialVariants.length > 0 && (
-          <VariantThumbnails
-            variants={materialVariants}
-            type="material"
-            onSelect={handleVariantSelect}
-            currentValue={selectedVariant?.attribute_value || ""}
-            variantImagesMap={product.variantImagesMap}
-          />
-        )}
-        {capacityVariants.length > 0 && (
-          <VariantThumbnails
-            variants={capacityVariants}
-            type="capacity"
-            onSelect={handleVariantSelect}
-            currentValue={selectedVariant?.attribute_value || ""}
-            variantImagesMap={product.variantImagesMap}
-          />
-        )}
+        {/* Variants — wrapper hamesha render hota hai fixed height ke liye */}
+        <div className="rp-card-variants-wrapper">
+          {colorVariants.length > 0 && (
+            <VariantThumbnails
+              variants={colorVariants}
+              type="color"
+              onSelect={handleVariantSelect}
+              currentValue={selectedVariant?.attribute_value || ""}
+              variantImagesMap={product.variantImagesMap}
+            />
+          )}
+          {sizeVariants.length > 0 && (
+            <VariantThumbnails
+              variants={sizeVariants}
+              type="size"
+              onSelect={handleVariantSelect}
+              currentValue={selectedVariant?.attribute_value || ""}
+              variantImagesMap={product.variantImagesMap}
+            />
+          )}
+          {materialVariants.length > 0 && (
+            <VariantThumbnails
+              variants={materialVariants}
+              type="material"
+              onSelect={handleVariantSelect}
+              currentValue={selectedVariant?.attribute_value || ""}
+              variantImagesMap={product.variantImagesMap}
+            />
+          )}
+          {capacityVariants.length > 0 && (
+            <VariantThumbnails
+              variants={capacityVariants}
+              type="capacity"
+              onSelect={handleVariantSelect}
+              currentValue={selectedVariant?.attribute_value || ""}
+              variantImagesMap={product.variantImagesMap}
+            />
+          )}
+        </div>
 
         {/* Stock Status */}
         <div className={`rp-card-stock ${getStockClass()}`}>
