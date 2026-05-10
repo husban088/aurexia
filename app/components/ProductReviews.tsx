@@ -270,24 +270,53 @@ function ReviewsSlider({ reviews }: { reviews: Review[] }) {
   );
 }
 
-// ── ✅ FIXED: Cloudinary upload with better error handling ──
-async function uploadImageSafe(file: File): Promise<string | null> {
+// ── Cloudinary upload — sequential with detailed error reporting ──
+async function uploadImageSafe(
+  file: File,
+  onProgress?: (msg: string) => void,
+): Promise<string | null> {
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
   const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_REVIEW_PRESET;
 
   if (!cloudName || !uploadPreset) {
-    console.warn("[Reviews] Cloudinary env missing");
-    // Return null instead of failing - review can be submitted without images
+    console.error(
+      "[Reviews] ❌ Cloudinary env vars missing! cloudName:",
+      cloudName,
+      "preset:",
+      uploadPreset,
+    );
+    onProgress?.("Config error — uploading without image");
     return null;
   }
 
+  // Compress large images before upload (max 1200px width)
+  let uploadFile = file;
+  if (file.size > 1_500_000) {
+    try {
+      uploadFile = await compressImage(file, 1200, 0.82);
+      console.log(
+        `[Reviews] Compressed ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(uploadFile.size / 1024).toFixed(0)}KB`,
+      );
+    } catch {
+      uploadFile = file; // fallback to original
+    }
+  }
+
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
+  // 60 second timeout per image — enough for slow connections
+  const timer = setTimeout(() => {
+    console.warn("[Reviews] ⏱️ Upload timeout after 60s for:", file.name);
+    controller.abort();
+  }, 60_000);
 
   try {
     const fd = new FormData();
-    fd.append("file", file);
+    fd.append("file", uploadFile);
     fd.append("upload_preset", uploadPreset);
+
+    console.log(
+      `[Reviews] 📤 Uploading "${file.name}" (${(uploadFile.size / 1024).toFixed(0)}KB) to cloud="${cloudName}" preset="${uploadPreset}"`,
+    );
 
     const r = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
@@ -295,18 +324,81 @@ async function uploadImageSafe(file: File): Promise<string | null> {
     );
 
     if (!r.ok) {
-      const errorData = await r.json().catch(() => ({}));
-      console.warn("[Reviews] Cloudinary upload failed:", r.status, errorData);
+      let errorMsg = `HTTP ${r.status}`;
+      try {
+        const errData = await r.json();
+        errorMsg = errData?.error?.message || errorMsg;
+        console.error(
+          `[Reviews] ❌ Cloudinary rejected upload: ${errorMsg}`,
+          errData,
+        );
+        // Surface the real reason so user/dev can fix it
+        if (
+          r.status === 400 &&
+          errorMsg.toLowerCase().includes("upload preset")
+        ) {
+          console.error(
+            '[Reviews] 🔑 FIX: Go to Cloudinary → Settings → Upload → Find preset "' +
+              uploadPreset +
+              '" → Change Signing Mode to "Unsigned"',
+          );
+        }
+      } catch {
+        console.error("[Reviews] ❌ Cloudinary error (unparseable):", r.status);
+      }
       return null;
     }
+
     const j = await r.json();
-    return (j?.secure_url as string) ?? null;
+    const url = (j?.secure_url as string) ?? null;
+    if (url) {
+      console.log(`[Reviews] ✅ Uploaded "${file.name}" →`, url);
+    } else {
+      console.warn("[Reviews] ⚠️ Cloudinary returned no secure_url", j);
+    }
+    return url;
   } catch (err) {
-    console.warn("[Reviews] Image upload error:", err);
+    if ((err as Error).name === "AbortError") {
+      console.warn("[Reviews] ⏱️ Upload aborted (timeout):", file.name);
+    } else {
+      console.error("[Reviews] ❌ Upload exception:", err);
+    }
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+// ── Helper: compress image via canvas ──
+function compressImage(
+  file: File,
+  maxWidth: number,
+  quality: number,
+): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxWidth / img.width);
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return reject(new Error("Canvas toBlob failed"));
+          resolve(new File([blob], file.name, { type: "image/jpeg" }));
+        },
+        "image/jpeg",
+        quality,
+      );
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
 }
 
 // ── Main ProductReviews Component ──
@@ -325,6 +417,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string>("");
+  const [uploadStatus, setUploadStatus] = useState<string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mountedRef = useRef(true);
@@ -378,6 +471,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     setImagePreviews([]);
     setErrors({});
     setSubmitError("");
+    setUploadStatus("");
   };
 
   const avgRating =
@@ -419,15 +513,10 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     return e;
   };
 
-  // ── ✅ COMPLETELY FIXED Submit function ──
+  // ── Submit function ──
   const handleSubmit = async () => {
-    // Prevent double submission
-    if (submitting) {
-      console.log("[Reviews] Already submitting, skipping...");
-      return;
-    }
+    if (submitting) return;
 
-    // Validate productId
     const UUID_RE =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const cleanProductId = productId?.trim();
@@ -437,7 +526,6 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       return;
     }
 
-    // Validate form
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -446,97 +534,75 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
 
     setErrors({});
     setSubmitError("");
+    setUploadStatus("");
     setSubmitting(true);
 
     try {
-      let uploadedUrls: string[] = [];
-
-      // Upload images if any (WITHOUT blocking the submit)
+      // ── Upload images ONE BY ONE (sequential = reliable) ──
+      const uploadedUrls: string[] = [];
       if (imageFiles.length > 0) {
-        try {
-          const uploadPromises = imageFiles.map((file) =>
-            uploadImageSafe(file),
-          );
-          const results = await Promise.all(uploadPromises);
-          uploadedUrls = results.filter((url): url is string => url !== null);
-          console.log(
-            `[Reviews] Uploaded ${uploadedUrls.length} of ${imageFiles.length} images`,
-          );
-        } catch (uploadErr) {
-          console.warn(
-            "[Reviews] Image upload error (continuing without images):",
-            uploadErr,
-          );
-          // Continue without images - don't block the review submission
+        for (let i = 0; i < imageFiles.length; i++) {
+          if (!mountedRef.current) break;
+          setUploadStatus(`Uploading photo ${i + 1} of ${imageFiles.length}…`);
+          try {
+            const url = await uploadImageSafe(imageFiles[i]);
+            if (url) uploadedUrls.push(url);
+          } catch {
+            // skip this image, continue with rest
+          }
         }
+        if (mountedRef.current) setUploadStatus("Saving review…");
       }
 
-      // Insert review into Supabase
-      const insertPayload = {
-        product_id: cleanProductId,
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        title: title.trim(),
-        body: body.trim(),
-        rating: Number(rating),
-        images: uploadedUrls,
-      };
-
-      console.log("[Reviews] Submitting review...", {
-        productId: cleanProductId,
-        rating,
-        hasImages: uploadedUrls.length > 0,
-      });
+      console.log(
+        `[Reviews] ${uploadedUrls.length}/${imageFiles.length} images uploaded, submitting review…`,
+      );
 
       const { error: insertError, data: insertedData } = await supabase
         .from("product_reviews")
-        .insert(insertPayload)
+        .insert({
+          product_id: cleanProductId,
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          title: title.trim(),
+          body: body.trim(),
+          rating: Number(rating),
+          images: uploadedUrls,
+        })
         .select();
 
       if (insertError) {
         console.error("[Reviews] Insert error:", insertError);
         let userMsg = `Submit failed: ${insertError.message || "Unknown error"}`;
-
-        if (insertError.code === "23503") {
+        if (insertError.code === "23503")
           userMsg = "Product not found. Please refresh and try again.";
-        } else if (insertError.code === "23502") {
+        else if (insertError.code === "23502")
           userMsg = "Missing required field. Please fill all fields.";
-        } else if (insertError.code === "42501") {
-          userMsg = "Permission denied. Please run the database RLS policy.";
-        }
-
+        else if (insertError.code === "42501")
+          userMsg = "Permission denied. Please check database RLS policy.";
         setSubmitError(userMsg);
-        setSubmitting(false);
         return;
       }
 
-      console.log("[Reviews] ✅ Review submitted successfully!", insertedData);
-
-      // Success! Reset form and show success message
+      console.log("[Reviews] ✅ Review submitted!", insertedData);
       resetForm();
       setShowForm(false);
       setSubmitted(true);
-
-      // Refresh reviews to show the new one
       await fetchReviews();
-
-      // Hide success message after 5 seconds
       setTimeout(() => {
-        if (mountedRef.current) {
-          setSubmitted(false);
-        }
+        if (mountedRef.current) setSubmitted(false);
       }, 5000);
     } catch (err: unknown) {
       const msg =
         err instanceof Error
           ? err.message
           : "Unexpected error. Please try again.";
-      console.error("[Reviews] Caught exception:", err);
+      console.error("[Reviews] Exception:", err);
       setSubmitError(msg);
     } finally {
-      // ✅ ALWAYS set submitting to false - button will never stay stuck
       if (mountedRef.current) {
         setSubmitting(false);
+        setUploadStatus("");
       }
     }
   };
@@ -843,7 +909,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                   {submitting ? (
                     <>
                       <span className="pr-spinner" />
-                      Submitting...
+                      {uploadStatus || "Submitting…"}
                     </>
                   ) : (
                     <>
