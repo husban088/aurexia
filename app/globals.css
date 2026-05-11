@@ -8,8 +8,9 @@
 :root {
   --background: #f5f0e8;
   --foreground: #f5f0e8;
-  --font-poppins: "Poppins", "Segoe UI", system-ui, -apple-system,
-    BlinkMacSystemFont, sans-serif;
+  --font-poppins:
+    "Poppins", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
   --font-cormorant: "Cormorant Garamond", serif;
 }
 

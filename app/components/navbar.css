@@ -54,7 +54,9 @@
   background: var(--nav-bg);
   border-bottom: 1px solid var(--nav-border);
   backdrop-filter: blur(0px);
-  transition: background var(--transition), box-shadow var(--transition);
+  transition:
+    background var(--transition),
+    box-shadow var(--transition);
 }
 
 .navbar.scrolled {
@@ -871,4 +873,54 @@ button,
     height: 29px;
     max-width: 96px;
   }
+}
+
+/* Language Selector positioning in navbar */
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Make sure LanguageSelector fits nicely */
+.navbar-left .language-selector {
+  margin-right: 0;
+}
+
+/* Adjust spacing for mobile */
+@media (max-width: 768px) {
+  .navbar-left {
+    gap: 0.5rem;
+  }
+}
+
+/* For very small screens */
+@media (max-width: 480px) {
+  .navbar-left {
+    gap: 0.25rem;
+  }
+}
+
+/* Ensure currency dropdown doesn't overlap with language selector */
+.currency-dropdown {
+  position: relative;
+}
+
+/* RTL Support for navbar */
+[dir="rtl"] .navbar-left {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .navbar-right {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .dropdown-menu {
+  right: 0;
+  left: auto;
+}
+
+[dir="rtl"] .nav-links a svg {
+  margin-left: 0;
+  margin-right: 5px;
 }

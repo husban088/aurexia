@@ -1,6 +1,7 @@
 // app/api/admin/orders/route.ts
 // ✅ Anon key se kaam karta hai — service_role ki zaroorat nahi
-// ✅ PATCH mein shipping fields (courier_name, courier_country, estimated_days, rider_number, shipped_at) support added
+// ✅ PATCH mein shipping fields support: courier_name, courier_country, estimated_days,
+//    tracking_number, courier_tracking_url, shipped_at
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -48,11 +49,11 @@ export async function PATCH(req: NextRequest) {
     const {
       orderId,
       status,
-      // ✅ Naye shipping fields
       courier_name,
       courier_country,
       estimated_days,
-      rider_number,
+      tracking_number, // ✅ rider_number ki jagah tracking_number
+      courier_tracking_url, // ✅ courier website link with tracking
       shipped_at,
     } = body;
 
@@ -70,9 +71,14 @@ export async function PATCH(req: NextRequest) {
 
     if (status !== undefined) updatePayload.status = status;
     if (courier_name !== undefined) updatePayload.courier_name = courier_name;
-    if (courier_country !== undefined) updatePayload.courier_country = courier_country;
-    if (estimated_days !== undefined) updatePayload.estimated_days = estimated_days;
-    if (rider_number !== undefined) updatePayload.rider_number = rider_number;
+    if (courier_country !== undefined)
+      updatePayload.courier_country = courier_country;
+    if (estimated_days !== undefined)
+      updatePayload.estimated_days = estimated_days;
+    if (tracking_number !== undefined)
+      updatePayload.tracking_number = tracking_number;
+    if (courier_tracking_url !== undefined)
+      updatePayload.courier_tracking_url = courier_tracking_url;
 
     // shipped_at: agar "now" string aaye toh current time use karo
     if (shipped_at !== undefined) {

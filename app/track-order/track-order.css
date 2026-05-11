@@ -871,3 +871,69 @@
   background: var(--trk-gold);
   border-radius: 2px;
 }
+
+/* ─── ADD THESE STYLES TO YOUR track-order.css ─────────────────────────────
+   Ye classes naye tracking link aur "Track Live" button ke liye hain
+   Apni existing track-order.css file mein paste karo
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Tracking number clickable link */
+.trk-tracking-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #6366f1;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.875rem;
+  word-break: break-all;
+  transition: color 0.15s;
+}
+.trk-tracking-link:hover {
+  color: #4f46e5;
+  text-decoration: underline;
+}
+
+/* "Track Live on [Courier]" full-width button */
+.trk-track-live-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 1rem;
+  padding: 0.6rem 1rem;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    opacity 0.15s,
+    transform 0.1s;
+  letter-spacing: 0.01em;
+}
+.trk-track-live-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+.trk-track-live-btn:active {
+  transform: translateY(0);
+}
+
+/* Add to track-order.css */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
