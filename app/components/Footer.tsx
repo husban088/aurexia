@@ -90,7 +90,7 @@ export default function Footer() {
           observer.disconnect();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     const footer = document.querySelector(".footer");
@@ -122,6 +122,11 @@ export default function Footer() {
       { name: "About Us", href: "/about", icon: <MdBusinessCenter /> },
       { name: "Privacy Policy", href: "/privacy", icon: <MdGavel /> },
       { name: "Terms of Service", href: "/terms", icon: <MdGavel /> },
+      {
+        name: "Track Your Order",
+        href: "/track-order",
+        icon: <MdLocalShipping />,
+      },
     ],
   };
 
@@ -293,8 +298,6 @@ export default function Footer() {
       href: null,
     },
   ];
-  
-
 
   return (
     <footer className="footer">
@@ -429,7 +432,7 @@ export default function Footer() {
                 onMouseLeave={() => setHoveredColumn(null)}
                 onClick={() =>
                   setActiveCategory(
-                    activeCategory === category.id ? null : category.id
+                    activeCategory === category.id ? null : category.id,
                   )
                 }
               >
@@ -478,7 +481,7 @@ export default function Footer() {
                           </span>
                         </Link>
                       </li>
-                    )
+                    ),
                   )}
                 </ul>
               </div>

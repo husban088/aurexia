@@ -33,13 +33,12 @@ interface ShippingSectionProps {
     country: string;
   };
   setFormField: (
-    key: keyof FormData
+    key: keyof FormData,
   ) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   getFieldError: (field: keyof FormData) => string | undefined;
   handleBlur: (field: keyof FormData) => void;
   focused: string | null;
   setFocused: (field: string | null) => void;
-  // These props are kept for backward compat but phone code now comes from currency
   selectedFlag?: string;
   selectedCountryCode?: string;
   phoneExample?: string;
@@ -55,26 +54,41 @@ export default function ShippingSection({
   focused,
   setFocused,
 }: ShippingSectionProps) {
-  // ✅ Phone code auto-detect from CurrencyContext (detected from user's country/IP)
   const { currency } = useCurrency();
 
-  // Map currency code → phone prefix + flag + example
   const phoneMap: Record<
     string,
-    { code: string; flag: string; example: string }
+    { code: string; flag: string; example: string; name: string }
   > = {
-    PKR: { code: "+92", flag: "🇵🇰", example: "3001234567" },
-    USD: { code: "+1", flag: "🇺🇸", example: "2125551234" },
-    GBP: { code: "+44", flag: "🇬🇧", example: "7123456789" },
-    EUR: { code: "+49", flag: "🇪🇺", example: "15123456789" },
-    AUD: { code: "+61", flag: "🇦🇺", example: "412345678" },
-    CAD: { code: "+1", flag: "🇨🇦", example: "4165551234" },
-    AED: { code: "+971", flag: "🇦🇪", example: "501234567" },
-    SAR: { code: "+966", flag: "🇸🇦", example: "501234567" },
-    INR: { code: "+91", flag: "🇮🇳", example: "9876543210" },
+    PKR: { code: "+92", flag: "🇵🇰", example: "3001234567", name: "Pakistan" },
+    USD: {
+      code: "+1",
+      flag: "🇺🇸",
+      example: "2125551234",
+      name: "United States",
+    },
+    GBP: {
+      code: "+44",
+      flag: "🇬🇧",
+      example: "7123456789",
+      name: "United Kingdom",
+    },
+    EUR: { code: "+49", flag: "🇪🇺", example: "15123456789", name: "Europe" },
+    AUD: { code: "+61", flag: "🇦🇺", example: "412345678", name: "Australia" },
+    CAD: { code: "+1", flag: "🇨🇦", example: "4165551234", name: "Canada" },
+    AED: { code: "+971", flag: "🇦🇪", example: "501234567", name: "UAE" },
+    SAR: {
+      code: "+966",
+      flag: "🇸🇦",
+      example: "501234567",
+      name: "Saudi Arabia",
+    },
+    INR: { code: "+91", flag: "🇮🇳", example: "9876543210", name: "India" },
   };
 
   const phoneInfo = phoneMap[currency.code] || phoneMap["USD"];
+
+  const isFieldFilled = (value: string) => value.trim().length > 0;
 
   return (
     <div className="ss-shipping-section">
@@ -85,9 +99,11 @@ export default function ShippingSection({
       <div className="ss-fields-grid">
         {/* First Name */}
         <div
-          className={`ss-field ss-field--half ${
+          className={`ss-field ${
             focused === "firstName" ? "ss-field--focused" : ""
-          } ${getFieldError("firstName") ? "ss-field--error" : ""}`}
+          } ${isFieldFilled(form.firstName) ? "ss-field--filled" : ""} ${
+            getFieldError("firstName") ? "ss-field--error" : ""
+          }`}
         >
           <label className="ss-label">First Name *</label>
           <div className="ss-input-wrap">
@@ -112,9 +128,11 @@ export default function ShippingSection({
 
         {/* Last Name */}
         <div
-          className={`ss-field ss-field--half ${
+          className={`ss-field ${
             focused === "lastName" ? "ss-field--focused" : ""
-          } ${getFieldError("lastName") ? "ss-field--error" : ""}`}
+          } ${isFieldFilled(form.lastName) ? "ss-field--filled" : ""} ${
+            getFieldError("lastName") ? "ss-field--error" : ""
+          }`}
         >
           <label className="ss-label">Last Name *</label>
           <div className="ss-input-wrap">
@@ -137,11 +155,13 @@ export default function ShippingSection({
           )}
         </div>
 
-        {/* Email */}
+        {/* Email - Full width */}
         <div
-          className={`ss-field ${
+          className={`ss-field ss-field--full ${
             focused === "email" ? "ss-field--focused" : ""
-          } ${getFieldError("email") ? "ss-field--error" : ""}`}
+          } ${isFieldFilled(form.email) ? "ss-field--filled" : ""} ${
+            getFieldError("email") ? "ss-field--error" : ""
+          }`}
         >
           <label className="ss-label">Email Address *</label>
           <div className="ss-input-wrap">
@@ -164,15 +184,16 @@ export default function ShippingSection({
           )}
         </div>
 
-        {/* Phone Number — auto country code from currency detection */}
+        {/* Phone Number - Full width */}
         <div
-          className={`ss-field ${
+          className={`ss-field ss-field--full ${
             focused === "phone" ? "ss-field--focused" : ""
-          } ${getFieldError("phone") ? "ss-field--error" : ""}`}
+          } ${isFieldFilled(form.phone) ? "ss-field--filled" : ""} ${
+            getFieldError("phone") ? "ss-field--error" : ""
+          }`}
         >
           <label className="ss-label">Phone Number *</label>
           <div className="ss-input-wrap">
-            {/* ✅ Auto-detected flag + code — no dropdown needed */}
             <div className="ss-phone-prefix">
               <span className="ss-phone-flag">{phoneInfo.flag}</span>
               <span className="ss-phone-code">{phoneInfo.code}</span>
@@ -199,11 +220,13 @@ export default function ShippingSection({
           </span>
         </div>
 
-        {/* Address */}
+        {/* Address - Full width */}
         <div
-          className={`ss-field ${
+          className={`ss-field ss-field--full ${
             focused === "address" ? "ss-field--focused" : ""
-          } ${getFieldError("address") ? "ss-field--error" : ""}`}
+          } ${isFieldFilled(form.address) ? "ss-field--filled" : ""} ${
+            getFieldError("address") ? "ss-field--error" : ""
+          }`}
         >
           <label className="ss-label">Street Address *</label>
           <div className="ss-input-wrap">
@@ -226,11 +249,11 @@ export default function ShippingSection({
           )}
         </div>
 
-        {/* Apartment (Optional) */}
+        {/* Apartment (Optional) - Full width */}
         <div
-          className={`ss-field ${
+          className={`ss-field ss-field--full ${
             focused === "apartment" ? "ss-field--focused" : ""
-          }`}
+          } ${isFieldFilled(form.apartment) ? "ss-field--filled" : ""}`}
         >
           <label className="ss-label">Apartment, Suite, etc. (Optional)</label>
           <div className="ss-input-wrap">
@@ -249,9 +272,11 @@ export default function ShippingSection({
 
         {/* City */}
         <div
-          className={`ss-field ss-field--half ${
+          className={`ss-field ${
             focused === "city" ? "ss-field--focused" : ""
-          } ${getFieldError("city") ? "ss-field--error" : ""}`}
+          } ${isFieldFilled(form.city) ? "ss-field--filled" : ""} ${
+            getFieldError("city") ? "ss-field--error" : ""
+          }`}
         >
           <label className="ss-label">City *</label>
           <div className="ss-input-wrap">
@@ -276,9 +301,11 @@ export default function ShippingSection({
 
         {/* ZIP */}
         <div
-          className={`ss-field ss-field--half ${
+          className={`ss-field ${
             focused === "zip" ? "ss-field--focused" : ""
-          } ${getFieldError("zip") ? "ss-field--error" : ""}`}
+          } ${isFieldFilled(form.zip) ? "ss-field--filled" : ""} ${
+            getFieldError("zip") ? "ss-field--error" : ""
+          }`}
         >
           <label className="ss-label">ZIP Code *</label>
           <div className="ss-input-wrap">

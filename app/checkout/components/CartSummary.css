@@ -1,27 +1,53 @@
-/* CartSummary.css */
+/* CartSummary.css - Fully Responsive Luxury Design */
 
 .cs-summary-card {
   background: #ffffff;
   border: 1px solid rgba(218, 165, 32, 0.15);
   border-radius: 16px;
-  padding: 1.75rem;
+  padding: clamp(1rem, 4vw, 1.75rem);
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: clamp(1rem, 3vw, 1.5rem);
+  transition: all 0.3s var(--co-ease, 0.5s cubic-bezier(0.22, 1, 0.36, 1));
+  position: relative;
+  overflow: hidden;
+}
+
+.cs-summary-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #daa520, #f0c040, #daa520);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.5s ease;
+}
+
+.cs-summary-card:hover::before {
+  transform: scaleX(1);
 }
 
 .cs-summary-title {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.75rem;
-  font-family: "Poppins", sans-serif;
-  font-size: 0.57rem;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: clamp(0.5rem, 2vw, 0.57rem);
   font-weight: 600;
   letter-spacing: 0.35em;
   text-transform: uppercase;
   color: #8b6914;
   margin: 0;
-  justify-content: center;
+}
+
+@media (max-width: 480px) {
+  .cs-summary-title {
+    gap: 0.5rem;
+  }
 }
 
 .cs-ey-line {
@@ -30,6 +56,12 @@
   height: 1px;
   background: #daa520;
   opacity: 0.6;
+}
+
+@media (max-width: 480px) {
+  .cs-ey-line {
+    width: 16px;
+  }
 }
 
 .cs-summary-items {
@@ -45,11 +77,26 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.cs-summary-item:hover {
+  background: rgba(218, 165, 32, 0.04);
+  transform: translateX(4px);
+}
+
+@media (max-width: 480px) {
+  .cs-summary-item {
+    gap: 0.5rem;
+    padding: 0.25rem;
+  }
 }
 
 .cs-summary-item-img {
-  width: 42px;
-  height: 42px;
+  width: clamp(36px, 8vw, 42px);
+  height: clamp(36px, 8vw, 42px);
   border-radius: 8px;
   background: #f5f0e8;
   border: 1px solid rgba(218, 165, 32, 0.15);
@@ -59,11 +106,12 @@
   flex-shrink: 0;
   color: rgba(218, 165, 32, 0.3);
   overflow: hidden;
+  transition: all 0.3s ease;
 }
 
-.cs-summary-item-img svg {
-  width: 22px;
-  height: 22px;
+.cs-summary-item:hover .cs-summary-item-img {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .cs-summary-item-info {
@@ -76,7 +124,7 @@
 
 .cs-summary-item-name {
   font-family: "Poppins", sans-serif;
-  font-size: 0.88rem;
+  font-size: clamp(0.75rem, 3vw, 0.88rem);
   font-weight: 600;
   color: #1a1a1a;
   white-space: nowrap;
@@ -86,7 +134,7 @@
 
 .cs-summary-item-variant {
   font-family: "Poppins", sans-serif;
-  font-size: 0.6rem;
+  font-size: clamp(0.55rem, 2vw, 0.6rem);
   font-weight: 400;
   color: #666666;
   letter-spacing: 0.04em;
@@ -94,20 +142,27 @@
 
 .cs-summary-item-price {
   font-family: "Poppins", sans-serif;
-  font-size: 0.95rem;
+  font-size: clamp(0.85rem, 3vw, 0.95rem);
   font-weight: 700;
   color: #8b6914;
+  white-space: nowrap;
 }
 
 .cs-summary-more {
   text-align: center;
   font-family: "Poppins", sans-serif;
-  font-size: 0.65rem;
+  font-size: clamp(0.6rem, 2vw, 0.65rem);
   font-weight: 400;
   letter-spacing: 0.08em;
   color: #999999;
   padding: 0.5rem 0;
   border-top: 1px solid rgba(139, 105, 20, 0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cs-summary-more:hover {
+  color: #daa520;
 }
 
 .cs-summary-breakdown {
@@ -123,7 +178,7 @@
   justify-content: space-between;
   align-items: center;
   font-family: "Poppins", sans-serif;
-  font-size: 0.72rem;
+  font-size: clamp(0.65rem, 2.5vw, 0.72rem);
   font-weight: 500;
   letter-spacing: 0.04em;
   color: #444444;
@@ -136,49 +191,232 @@
 }
 
 .cs-summary-total {
-  font-size: 0.82rem;
+  font-size: clamp(0.75rem, 3vw, 0.82rem);
   font-weight: 700;
   color: #1a1a1a;
 }
 
 .cs-summary-total span:last-child {
-  font-family: "Poppins", sans-serif;
-  font-size: 1.15rem;
+  font-size: clamp(1rem, 4vw, 1.15rem);
   color: #8b6914;
 }
 
-.cs-perks {
+/* Coupon Section */
+.cs-coupon-section {
+  margin: 0.5rem 0;
+  padding: clamp(0.75rem, 3vw, 0.85rem);
+  border: 1px solid rgba(218, 165, 32, 0.15);
+  border-radius: 12px;
+  background: rgba(218, 165, 32, 0.03);
+  transition: all 0.3s ease;
+}
+
+.cs-coupon-section:hover {
+  border-color: rgba(218, 165, 32, 0.3);
+  background: rgba(218, 165, 32, 0.05);
+}
+
+.cs-coupon-label {
+  font-size: clamp(0.6rem, 2.5vw, 0.68rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #888;
+  margin: 0 0 0.6rem;
+}
+
+.cs-coupon-row {
   display: flex;
-  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .cs-coupon-row {
+    flex-direction: column;
+  }
+  .cs-coupon-row .cs-coupon-input,
+  .cs-coupon-row .cs-coupon-btn {
+    width: 100%;
+  }
+}
+
+.cs-coupon-input {
+  flex: 1;
+  background: #f5f0e8;
+  border: 1px solid rgba(218, 165, 32, 0.3);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  color: #1a1a1a;
+  font-size: clamp(0.7rem, 2.5vw, 0.78rem);
+  font-family: monospace;
+  letter-spacing: 0.05em;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.cs-coupon-input:focus {
+  border-color: rgba(218, 165, 32, 0.7);
+  box-shadow: 0 0 0 3px rgba(218, 165, 32, 0.1);
+}
+
+.cs-coupon-btn {
+  padding: 0.5rem 1rem;
+  background: rgba(218, 165, 32, 0.15);
+  border: 1px solid rgba(218, 165, 32, 0.4);
+  border-radius: 8px;
+  color: #b8860b;
+  font-size: clamp(0.65rem, 2.5vw, 0.72rem);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.cs-coupon-btn:hover:not(:disabled) {
+  background: rgba(218, 165, 32, 0.25);
+  border-color: #daa520;
+  transform: translateY(-1px);
+}
+
+.cs-coupon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cs-coupon-applied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cs-coupon-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  background: rgba(46, 125, 50, 0.1);
+  border: 1px solid rgba(46, 125, 50, 0.3);
+  border-radius: 8px;
+  color: #2e7d32;
+  font-size: clamp(0.7rem, 2.5vw, 0.78rem);
+  flex: 1;
+}
+
+.cs-coupon-remove {
+  background: none;
+  border: 1px solid rgba(180, 0, 0, 0.25);
+  border-radius: 6px;
+  color: #c62828;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.35rem 0.6rem;
+  transition: all 0.2s ease;
+}
+
+.cs-coupon-remove:hover {
+  background: rgba(180, 0, 0, 0.08);
+  transform: scale(1.05);
+}
+
+.cs-coupon-success {
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(46, 125, 50, 0.08);
+  border: 1px solid rgba(46, 125, 50, 0.2);
+  border-radius: 8px;
+  color: #2e7d32;
+  font-size: clamp(0.65rem, 2.5vw, 0.72rem);
+  animation: slideDown 0.3s ease;
+}
+
+.cs-coupon-error {
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(198, 40, 40, 0.08);
+  border: 1px solid rgba(198, 40, 40, 0.2);
+  border-radius: 8px;
+  color: #c62828;
+  font-size: clamp(0.65rem, 2.5vw, 0.72rem);
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cs-summary-row--discount {
+  color: #2e7d32;
+}
+
+.cs-discount-value {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+/* Perks Section */
+.cs-perks {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.6rem;
   border-top: 1px solid rgba(139, 105, 20, 0.1);
   padding-top: 1rem;
+}
+
+@media (max-width: 480px) {
+  .cs-perks {
+    grid-template-columns: 1fr;
+  }
 }
 
 .cs-perk {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  padding: 0.4rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  cursor: default;
+}
+
+.cs-perk:hover {
+  background: rgba(218, 165, 32, 0.04);
+  transform: translateX(4px);
 }
 
 .cs-perk-icon {
-  font-size: 0.75rem;
+  font-size: clamp(0.7rem, 3vw, 0.75rem);
   color: #8b6914;
   opacity: 0.7;
   flex-shrink: 0;
-  width: 16px;
+  width: 20px;
   text-align: center;
+  transition: all 0.3s ease;
+}
+
+.cs-perk:hover .cs-perk-icon {
+  opacity: 1;
+  transform: scale(1.1);
 }
 
 .cs-perk-text {
   font-family: "Poppins", sans-serif;
-  font-size: 0.62rem;
+  font-size: clamp(0.55rem, 2.5vw, 0.62rem);
   font-weight: 400;
   letter-spacing: 0.04em;
   color: #999999;
 }
 
-/* Free shipping text styling */
 .free-shipping-text {
   color: #2e7d32;
   font-weight: 600;
@@ -186,20 +424,8 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  position: relative;
 }
 
-/* Total amount styling */
-.total-amount {
-  font-weight: 700;
-  font-size: 1.2rem;
-  background: linear-gradient(135deg, #daa520, #f5cb5c);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* Free shipping banner */
 .free-shipping-banner {
   background: linear-gradient(
     135deg,
@@ -214,17 +440,12 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: 0.8rem;
+  font-size: clamp(0.7rem, 2.5vw, 0.8rem);
   font-weight: 500;
   color: #2e7d32;
+  animation: subtlePulse 2s ease-in-out infinite;
 }
 
-.free-shipping-banner svg {
-  stroke: #2e7d32;
-  flex-shrink: 0;
-}
-
-/* If you want animation for free shipping banner */
 @keyframes subtlePulse {
   0%,
   100% {
@@ -235,141 +456,10 @@
   }
 }
 
-.free-shipping-banner {
-  animation: subtlePulse 2s ease-in-out infinite;
-}
-/* Add to CartSummary.css */
-
-/* Coupon Section */
-.cs-coupon-section {
-  margin: 1rem 0 1.25rem;
-  padding: 0.85rem 1rem;
-  border: 1px solid rgba(218, 165, 32, 0.15);
-  border-radius: 12px;
-  background: rgba(218, 165, 32, 0.03);
-}
-
-.cs-coupon-label {
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #888;
-  margin: 0 0 0.6rem;
-}
-
-.cs-coupon-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.cs-coupon-input {
-  flex: 1;
-  background: #f5f0e8;
-  border: 1px solid rgba(218, 165, 32, 0.3);
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
-  color: #1a1a1a;
-  font-size: 0.78rem;
-  font-family: monospace;
-  letter-spacing: 0.05em;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.cs-coupon-input:focus {
-  border-color: rgba(218, 165, 32, 0.7);
-}
-
-.cs-coupon-input::placeholder {
-  color: #aaa;
-  font-size: 0.7rem;
-}
-
-.cs-coupon-btn {
-  padding: 0.5rem 1rem;
-  background: rgba(218, 165, 32, 0.15);
-  border: 1px solid rgba(218, 165, 32, 0.4);
-  border-radius: 8px;
-  color: #b8860b;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.cs-coupon-btn:hover:not(:disabled) {
-  background: rgba(218, 165, 32, 0.25);
-  border-color: #daa520;
-}
-
-.cs-coupon-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.cs-coupon-applied {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.cs-coupon-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.75rem;
-  background: rgba(46, 125, 50, 0.1);
-  border: 1px solid rgba(46, 125, 50, 0.3);
-  border-radius: 8px;
-  color: #2e7d32;
-  font-size: 0.78rem;
-  flex: 1;
-}
-
-.cs-coupon-remove {
-  background: none;
-  border: 1px solid rgba(180, 0, 0, 0.25);
-  border-radius: 6px;
-  color: #c62828;
-  font-size: 0.75rem;
-  cursor: pointer;
-  padding: 0.35rem 0.6rem;
-  transition: all 0.2s;
-}
-
-.cs-coupon-remove:hover {
-  background: rgba(180, 0, 0, 0.08);
-}
-
-.cs-coupon-success {
-  margin: 0.6rem 0 0;
-  padding: 0.5rem 0.75rem;
-  background: rgba(46, 125, 50, 0.08);
-  border: 1px solid rgba(46, 125, 50, 0.2);
-  border-radius: 8px;
-  color: #2e7d32;
-  font-size: 0.72rem;
-}
-
-.cs-coupon-error {
-  margin: 0.6rem 0 0;
-  padding: 0.5rem 0.75rem;
-  background: rgba(198, 40, 40, 0.08);
-  border: 1px solid rgba(198, 40, 40, 0.2);
-  border-radius: 8px;
-  color: #c62828;
-  font-size: 0.72rem;
-}
-
-.cs-summary-row--discount {
-  color: #2e7d32;
-}
-
-.cs-discount-value {
-  color: #2e7d32;
-  font-weight: 600;
+.total-amount {
+  font-weight: 700;
+  background: linear-gradient(135deg, #daa520, #f5cb5c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }

@@ -8,6 +8,7 @@ import {
   setSalePercent,
   fetchSaleFromDB,
 } from "@/lib/saleStore";
+import "./sale-panel.css";
 
 const OPTIONS = [10, 20, 30] as const;
 
@@ -60,88 +61,36 @@ export default function SalePanel() {
 
   if (loading && selected === null) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#0a0a0a",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div style={{ color: "#daa520" }}>Loading...</div>
+      <div className="sale-panel-loader">
+        <div className="loader-spinner"></div>
+        <div className="loader-text">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#0a0a0a",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem",
-      }}
-    >
-      <div
-        style={{
-          background: "#111",
-          border: "1px solid #222",
-          borderRadius: "16px",
-          padding: "2.5rem",
-          maxWidth: "480px",
-          width: "100%",
-          boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
-        }}
-      >
-        <h1
-          style={{
-            color: "#daa520",
-            fontFamily: "monospace",
-            fontSize: "1.5rem",
-            marginBottom: "0.5rem",
-          }}
-        >
-          🏷️ Sale Banner Control
-        </h1>
-        <p
-          style={{
-            color: "#888",
-            fontFamily: "monospace",
-            fontSize: "0.85rem",
-            marginBottom: "2rem",
-          }}
-        >
-          ✅ Click karo — discount apply hoga aur{" "}
-          <strong style={{ color: "#daa520" }}>SAB USERS</strong> ko banner show
-          hoga!
-        </p>
+    <div className="sale-panel-container">
+      <div className="sale-panel-card">
+        <div className="sale-panel-header">
+          <h1 className="sale-panel-title">
+            🏷️ Sale Banner Control
+          </h1>
+          <p className="sale-panel-description">
+            ✅ Click karo — discount apply hoga aur{" "}
+            <strong className="highlight-text">SAB USERS</strong> ko banner show
+            hoga!
+          </p>
+        </div>
 
         {/* Options */}
-        <div style={{ display: "flex", gap: "1rem", marginBottom: "2rem" }}>
+        <div className="options-grid">
           {OPTIONS.map((opt) => (
             <button
               key={opt}
               onClick={() => handleApply(opt)}
               disabled={loading}
-              style={{
-                flex: 1,
-                padding: "1.2rem",
-                borderRadius: "12px",
-                border:
-                  selected === opt ? "2px solid #daa520" : "2px solid #333",
-                background:
-                  selected === opt ? "rgba(218,165,32,0.15)" : "#1a1a1a",
-                color: selected === opt ? "#daa520" : "#888",
-                fontFamily: "monospace",
-                fontSize: "1.4rem",
-                fontWeight: "700",
-                cursor: loading ? "not-allowed" : "pointer",
-                transition: "all 0.2s ease",
-                opacity: loading ? 0.5 : 1,
-              }}
+              className={`option-button ${selected === opt ? 'option-button-active' : ''}`}
+              data-percent={opt}
             >
               {opt}% OFF
             </button>
@@ -149,69 +98,33 @@ export default function SalePanel() {
         </div>
 
         {/* Current status */}
-        <div
-          style={{
-            background: "#0d0d0d",
-            border: "1px solid #1e1e1e",
-            borderRadius: "8px",
-            padding: "0.8rem 1rem",
-            marginBottom: "1.5rem",
-            fontFamily: "monospace",
-            fontSize: "0.85rem",
-            color: "#555",
-          }}
-        >
-          📢 Currently active:{" "}
-          <span
-            style={{ color: selected ? "#daa520" : "#444", fontWeight: 600 }}
-          >
+        <div className="status-card">
+          <div className="status-label">📢 Currently active:</div>
+          <div className={`status-value ${selected ? 'status-value-active' : 'status-value-inactive'}`}>
             {selected
               ? `${selected}% OFF — All customers worldwide will see this discount!`
               : "None (No active sale)"}
-          </span>
+          </div>
         </div>
 
         {/* Remove button */}
         <button
           onClick={handleRemove}
           disabled={loading || !selected}
-          style={{
-            width: "100%",
-            padding: "0.9rem",
-            borderRadius: "10px",
-            border: "1px solid #333",
-            background: "transparent",
-            color: "#e05555",
-            fontFamily: "monospace",
-            fontSize: "0.85rem",
-            cursor: loading || !selected ? "not-allowed" : "pointer",
-            transition: "all 0.2s ease",
-            opacity: loading || !selected ? 0.5 : 1,
-          }}
+          className="remove-button"
         >
           🗑️ Remove Discount
         </button>
 
         {saved && (
-          <p
-            style={{
-              color: "#4caf50",
-              fontFamily: "monospace",
-              fontSize: "0.8rem",
-              textAlign: "center",
-              marginTop: "1rem",
-              background: "rgba(76,175,80,0.1)",
-              padding: "8px",
-              borderRadius: "8px",
-            }}
-          >
-            ✓ Saved! Home page pe redirect ho raha hai...
-            <br />
-            <span style={{ fontSize: "0.7rem", color: "#daa520" }}>
-              All users worldwide will now see the {selected}% OFF banner and
-              discounts!
-            </span>
-          </p>
+          <div className="success-message">
+            <div className="success-message-main">
+              ✓ Saved! Home page pe redirect ho raha hai...
+            </div>
+            <div className="success-message-sub">
+              All users worldwide will now see the {selected}% OFF banner and discounts!
+            </div>
+          </div>
         )}
       </div>
     </div>
