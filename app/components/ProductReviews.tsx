@@ -401,10 +401,62 @@ function compressImage(
   });
 }
 
+// ── Persistent review cache — memory + localStorage, productId se keyed ──────────
+// Page reload pe bhi instant — Supabase call nahi hogi agar cache valid hai
+const PR_MEM: Record<string, Review[]> = {};
+const PR_LS_KEY = "pr_reviews_v1";
+const PR_LS_TTL = 10 * 60 * 1000; // 10 minutes
+
+function prLoadFromStorage(productId: string): Review[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(PR_LS_KEY);
+    if (!raw) return null;
+    const store = JSON.parse(raw);
+    const entry = store[productId];
+    if (!entry) return null;
+    if (Date.now() - entry.ts > PR_LS_TTL) {
+      delete store[productId];
+      localStorage.setItem(PR_LS_KEY, JSON.stringify(store));
+      return null;
+    }
+    return entry.data as Review[];
+  } catch {
+    return null;
+  }
+}
+
+function prSaveToStorage(productId: string, reviews: Review[]) {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(PR_LS_KEY);
+    const store = raw ? JSON.parse(raw) : {};
+    store[productId] = { data: reviews, ts: Date.now() };
+    localStorage.setItem(PR_LS_KEY, JSON.stringify(store));
+  } catch {}
+}
+
+function prGetCached(productId: string): Review[] | null {
+  // Memory first (fastest)
+  if (PR_MEM[productId]) return PR_MEM[productId];
+  // localStorage second (survives page reload)
+  const fromStorage = prLoadFromStorage(productId);
+  if (fromStorage) {
+    PR_MEM[productId] = fromStorage; // warm memory cache
+    return fromStorage;
+  }
+  return null;
+}
+
 // ── Main ProductReviews Component ──
 export default function ProductReviews({ productId }: ProductReviewsProps) {
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loadingReviews, setLoadingReviews] = useState(true);
+  // Synchronous init — memory + localStorage se, page reload pe bhi instant
+  const [reviews, setReviews] = useState<Review[]>(
+    () => prGetCached(productId) ?? [],
+  );
+  const [loadingReviews, setLoadingReviews] = useState<boolean>(
+    () => prGetCached(productId) === null,
+  );
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -431,33 +483,64 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
   }, []);
 
   // ── Fetch reviews ──
-  const fetchReviews = useCallback(async () => {
-    if (!productId) return;
-    setLoadingReviews(true);
-    try {
-      const { data, error } = await supabase
-        .from("product_reviews")
-        .select("*")
-        .eq("product_id", productId)
-        .order("created_at", { ascending: false });
+  const fetchReviews = useCallback(
+    async (forceRefresh = false) => {
+      if (!productId) return;
+      // Cache hit — memory ya localStorage se data hai, Supabase call nahi
+      if (!forceRefresh) {
+        const cached = prGetCached(productId);
+        if (cached) {
+          setReviews(cached);
+          setLoadingReviews(false);
+          return;
+        }
+      }
+      setLoadingReviews(true);
+      try {
+        const { data, error } = await supabase
+          .from("product_reviews")
+          .select("*")
+          .eq("product_id", productId)
+          .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("[Reviews] Fetch error:", error);
-      } else if (mountedRef.current) {
-        setReviews(data || []);
+        if (error) {
+          console.error("[Reviews] Fetch error:", error);
+        } else if (mountedRef.current) {
+          const result = data || [];
+          // Memory + localStorage dono mein save — reload pe bhi instant
+          PR_MEM[productId] = result;
+          prSaveToStorage(productId, result);
+          setReviews(result);
+        }
+      } catch (err) {
+        console.error("[Reviews] Fetch exception:", err);
+      } finally {
+        if (mountedRef.current) {
+          setLoadingReviews(false);
+        }
       }
-    } catch (err) {
-      console.error("[Reviews] Fetch exception:", err);
-    } finally {
-      if (mountedRef.current) {
-        setLoadingReviews(false);
-      }
-    }
-  }, [productId]);
+    },
+    [productId],
+  );
 
   useEffect(() => {
     fetchReviews();
   }, [fetchReviews]);
+
+  // ── BFCache restore fix — pageshow pe cache se instantly restore ──
+  useEffect(() => {
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        const cached = prGetCached(productId);
+        if (cached) {
+          setReviews(cached);
+          setLoadingReviews(false);
+        }
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, [productId]);
 
   // ── Form helpers ──
   const resetForm = () => {
@@ -588,7 +671,9 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       resetForm();
       setShowForm(false);
       setSubmitted(true);
-      await fetchReviews();
+      // Cache invalidate karo — naya review add hua hai
+      delete PR_MEM[productId];
+      await fetchReviews(true);
       setTimeout(() => {
         if (mountedRef.current) setSubmitted(false);
       }, 5000);

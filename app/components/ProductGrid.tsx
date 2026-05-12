@@ -1059,10 +1059,14 @@ export default function ProductGrid({
 
     loadData();
 
-    // ── pageshow: bfcache restore (browser back/forward) ──
-    const handlePageShow = (_e: PageTransitionEvent) => {
-      // Always restore — don't check persisted (Next.js SPA never sets it true)
-      applyFromCache();
+    // ── pageshow: BFCache restore (Chrome back/forward) ──
+    const handlePageShow = (e: PageTransitionEvent) => {
+      // e.persisted = true means page was restored from BFCache (Chrome back/forward)
+      // Also restore on normal load in case module cache was cleared
+      if (e.persisted || !MODULE_CACHE[key]) {
+        loadPgFromStorage();
+        applyFromCache();
+      }
     };
 
     // ── popstate: Next.js App Router SPA back/forward ──

@@ -848,20 +848,38 @@ function ProductCard({
 /* ─────────────────────────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────── */
+// ── Module-level init: storage se synchronously load karo IMMEDIATELY ──────────
+// Yeh module load hote hi chalta hai — component mount se pehle — BFCache pe bhi
+if (typeof window !== "undefined") {
+  loadFromStorageSync();
+}
+
 export default function FeaturedProducts() {
   const [activeTab, setActiveTab] = useState("Accessories");
-  const [isClient, setIsClient] = useState(false);
+  // isClient hata diya — synchronous init se kaam chalega, extra render cycle nahi
   const activeTabRef = useRef("Accessories");
 
-  const [products, setProducts] = useState<FeaturedProduct[]>([]);
+  // ── Synchronous initial state — agar cache mein hai toh seedha products ──────
+  const [products, setProducts] = useState<FeaturedProduct[]>(() => {
+    return MODULE_CACHE["Accessories"]?.products ?? [];
+  });
   const [variantsMap, setVariantsMap] = useState<
     Record<string, ProductVariant[]>
-  >({});
+  >(() => {
+    return MODULE_CACHE["Accessories"]?.variantsMap ?? {};
+  });
   const [variantImagesMap, setVariantImagesMap] = useState<
     Record<string, string[]>
-  >({});
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  >(() => {
+    return MODULE_CACHE["Accessories"]?.variantImagesMap ?? {};
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    // Agar cache mein data hai toh loading false — seedha products dikhenge
+    return !MODULE_CACHE["Accessories"];
+  });
+  const [initialLoadDone, setInitialLoadDone] = useState(() => {
+    return !!MODULE_CACHE["Accessories"];
+  });
 
   const [quickViewProduct, setQuickViewProduct] =
     useState<QuickViewProduct | null>(null);
@@ -881,53 +899,36 @@ export default function FeaturedProducts() {
   const nextRef = useRef<HTMLButtonElement>(null);
   const swiperRef = useRef<SwiperType | null>(null);
 
-  // Mark client-side after hydration
+  // ── Initial load & prefetch ──────────────────────────────────────────────────
   useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Load cached data from storage ONLY on client
-  useEffect(() => {
-    if (!isClient) return;
-
-    // Load from storage synchronously
-    loadFromStorageSync();
-
-    // Load initial tab data
-    const initialData = MODULE_CACHE["Accessories"];
-    if (initialData) {
-      setProducts(initialData.products);
-      setVariantsMap(initialData.variantsMap);
-      setVariantImagesMap(initialData.variantImagesMap);
-      setIsLoading(false);
-    } else {
-      setIsLoading(true);
-      ensureTabCached("Accessories").then((data) => {
-        if (data) {
-          setProducts(data.products);
-          setVariantsMap(data.variantsMap);
-          setVariantImagesMap(data.variantImagesMap);
-          setIsLoading(false);
-        }
-      });
+    if (initialLoadDone) {
+      // Cache hit — already showing products, just prefetch other tabs
+      setTimeout(() => {
+        ALL_TABS.forEach((tab) => {
+          if (!MODULE_CACHE[tab]) ensureTabCached(tab).catch(console.error);
+        });
+      }, 500);
+      return;
     }
-
-    setInitialLoadDone(true);
-
-    // Prefetch other tabs in background
+    // Cache miss on first render — fetch now
+    ensureTabCached("Accessories").then((data) => {
+      if (data) {
+        setProducts(data.products);
+        setVariantsMap(data.variantsMap);
+        setVariantImagesMap(data.variantImagesMap);
+        setIsLoading(false);
+        setInitialLoadDone(true);
+      }
+    });
     setTimeout(() => {
       ALL_TABS.forEach((tab) => {
-        if (!MODULE_CACHE[tab]) {
-          ensureTabCached(tab).catch(console.error);
-        }
+        if (!MODULE_CACHE[tab]) ensureTabCached(tab).catch(console.error);
       });
     }, 500);
-  }, [isClient]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Handle back/forward navigation (popstate)
+  // Handle back/forward navigation (popstate + BFCache)
   useEffect(() => {
-    if (!isClient) return;
-
     const handlePopState = () => {
       const cached = MODULE_CACHE[activeTabRef.current];
       if (cached) {
@@ -964,7 +965,7 @@ export default function FeaturedProducts() {
       window.removeEventListener("popstate", handlePopState);
       window.removeEventListener("pageshow", handlePageShow);
     };
-  }, [isClient]);
+  }, []);
 
   const handleTabChange = useCallback(
     async (tab: string) => {
@@ -1002,8 +1003,6 @@ export default function FeaturedProducts() {
   // Jab bhi koi product insert/update ho aur is_featured=true ho toh
   // us tab ka cache clear karke fresh data le aao — koi manual refresh ki zaroorat nahi
   useEffect(() => {
-    if (!isClient) return;
-
     const channel = supabase
       .channel("fp-featured-products-changes")
       .on(
@@ -1052,15 +1051,15 @@ export default function FeaturedProducts() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isClient]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (swiperRef.current && products.length > 0 && isClient) {
+    if (swiperRef.current && products.length > 0) {
       setTimeout(() => {
         swiperRef.current?.update();
       }, 50);
     }
-  }, [products, isClient]);
+  }, [products]);
 
   const handleQuickView = (
     product: FeaturedProduct,
@@ -1104,109 +1103,6 @@ export default function FeaturedProducts() {
   ].find((t) => t.key === activeTab);
 
   const SKELETON_COUNT = 4;
-
-  // Server-side render - show skeletons that match client's initial render
-  if (!isClient) {
-    return (
-      <section className="fp-section">
-        <div className="fp-header">
-          <p className="fp-eyebrow">
-            <span className="fp-ey-line" />
-            Curated Selection
-            <span className="fp-ey-line" />
-          </p>
-          <h2 className="fp-title">
-            Featured <em>Products</em>
-          </h2>
-          <p className="fp-subtitle">
-            Handpicked luxury essentials across our finest categories
-          </p>
-          {/* <div
-            style={{
-              width: "100%",
-              marginTop: "1.5rem",
-              display: "flex",
-              justifyContent: "center",
-              overflow: "hidden",
-            }}
-          >
-            <img
-              src="/feat.png"
-              alt="Featured Banner"
-              style={{
-                width: "100%",
-                height: "auto",
-                maxWidth: "100%",
-                objectFit: "contain",
-                display: "block",
-              }}
-            />
-          </div> */}
-          <div className="fp-tabs" style={{ marginTop: "2rem" }}>
-            {ALL_TABS.map((tab) => (
-              <button
-                key={tab}
-                className={`fp-tab${activeTab === tab ? " fp-tab--active" : ""}`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="fp-container">
-          <div className="fp-nav">
-            <button className="fp-nav-btn" aria-label="Previous">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <button className="fp-nav-btn" aria-label="Next">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: "1px",
-              paddingBottom: "3.5rem",
-            }}
-            className="fp-skeleton-grid"
-          >
-            {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-          <div className="fp-view-all-wrap">
-            <Link href="/accessories" className="fp-view-all" prefetch={false}>
-              <span>View All Accessories</span>
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <line x1="5" y1="12" x2="19" y2="12" />
-                <polyline points="12 5 19 12 12 19" />
-              </svg>
-            </Link>
-          </div>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <>

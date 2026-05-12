@@ -17,6 +17,45 @@ interface HomeReview {
   product_name?: string;
 }
 
+// ── Persistent cache — localStorage + memory, page reload pe bhi instant ────────
+const HR_LS_KEY = "hr_reviews_v1";
+const HR_LS_TTL = 10 * 60 * 1000; // 10 minutes
+
+// Memory cache — BFCache + SPA navigation ke liye
+let HR_MEM: HomeReview[] | null = null;
+
+// localStorage se synchronously load karo — module load hote hi
+function hrLoadFromStorage(): HomeReview[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(HR_LS_KEY);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (Date.now() - ts > HR_LS_TTL) {
+      localStorage.removeItem(HR_LS_KEY);
+      return null;
+    }
+    return data as HomeReview[];
+  } catch {
+    return null;
+  }
+}
+
+function hrSaveToStorage(reviews: HomeReview[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      HR_LS_KEY,
+      JSON.stringify({ data: reviews, ts: Date.now() }),
+    );
+  } catch {}
+}
+
+// Module load pe seedha storage se lo — component mount se pehle ready
+if (typeof window !== "undefined" && HR_MEM === null) {
+  HR_MEM = hrLoadFromStorage();
+}
+
 // ── Stars Component ─────────────────────────────────────────────────────
 function StarDisplay({ rating }: { rating: number }) {
   return (
@@ -124,10 +163,9 @@ function SkeletonCard() {
 
 // ── Main Component ─────────────────────────────────────────────────────
 export default function HomeReviews() {
-  const [reviews, setReviews] = useState<HomeReview[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isClient, setIsClient] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  // Synchronous init — memory/localStorage cache se, page reload pe bhi instant
+  const [reviews, setReviews] = useState<HomeReview[]>(() => HR_MEM ?? []);
+  const [loading, setLoading] = useState<boolean>(() => HR_MEM === null);
 
   // How many cards visible at once (responsive)
   const [visibleCount, setVisibleCount] = useState(3);
@@ -142,16 +180,8 @@ export default function HomeReviews() {
   // Autoplay timer
   const autoTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Mark client-side after hydration
+  // Responsive: update visible count
   useEffect(() => {
-    setIsClient(true);
-    setMounted(true);
-  }, []);
-
-  // Responsive: update visible count (only on client)
-  useEffect(() => {
-    if (!isClient) return;
-
     const update = () => {
       if (window.innerWidth >= 1024) setVisibleCount(3);
       else if (window.innerWidth >= 640) setVisibleCount(2);
@@ -160,14 +190,14 @@ export default function HomeReviews() {
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, [isClient]);
+  }, []);
 
-  // Fetch reviews from Supabase (only on client)
+  // Fetch reviews from Supabase
   useEffect(() => {
-    if (!isClient) return;
+    // Cache hit — already showing data from memory/localStorage
+    if (HR_MEM !== null) return;
 
     async function fetchAll() {
-      setLoading(true);
       try {
         const { data: reviewData, error } = await supabase
           .from("product_reviews")
@@ -192,12 +222,15 @@ export default function HomeReviews() {
           productMap[p.id] = p.name;
         });
 
-        setReviews(
-          reviewData.map((r) => ({
-            ...r,
-            product_name: productMap[r.product_id] || "Our Product",
-          })),
-        );
+        const formatted = reviewData.map((r) => ({
+          ...r,
+          product_name: productMap[r.product_id] || "Our Product",
+        }));
+
+        // Memory + localStorage dono mein save — reload pe bhi instant
+        HR_MEM = formatted;
+        hrSaveToStorage(formatted);
+        setReviews(formatted);
       } catch (err) {
         console.error("HomeReviews fetch:", err);
       } finally {
@@ -205,7 +238,7 @@ export default function HomeReviews() {
       }
     }
     fetchAll();
-  }, [isClient]);
+  }, []);
 
   const totalSlides = reviews.length;
   const canPrev = offset > 0;
@@ -250,23 +283,21 @@ export default function HomeReviews() {
 
   // Autoplay
   const startAutoplay = useCallback(() => {
-    if (!isClient) return;
     if (autoTimer.current) clearInterval(autoTimer.current);
     autoTimer.current = setInterval(() => next(), 5000);
-  }, [next, isClient]);
+  }, [next]);
 
   const stopAutoplay = useCallback(() => {
     if (autoTimer.current) clearInterval(autoTimer.current);
   }, []);
 
   useEffect(() => {
-    if (isClient && reviews.length > visibleCount) startAutoplay();
+    if (reviews.length > visibleCount) startAutoplay();
     return stopAutoplay;
-  }, [isClient, reviews.length, visibleCount, startAutoplay, stopAutoplay]);
+  }, [reviews.length, visibleCount, startAutoplay, stopAutoplay]);
 
   // Mouse drag
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (!isClient) return;
     dragStart.current = e.clientX;
     isDragging.current = false;
     stopAutoplay();
@@ -306,33 +337,7 @@ export default function HomeReviews() {
 
   const visibleReviews = reviews.slice(offset, offset + visibleCount);
 
-  // Don't render anything on server to prevent hydration mismatch
-  if (!isClient) {
-    // Return a minimal placeholder that matches the client's initial structure
-    return (
-      <section className="hr-section">
-        <div className="hr-content">
-          <div className="hr-header">
-            <p className="hr-eyebrow">
-              <span className="hr-eye-line" />
-              Customer Voices
-              <span className="hr-eye-line" />
-            </p>
-            <h2 className="hr-title">
-              What Our Customers <em>Say</em>
-            </h2>
-          </div>
-          <div className="hr-skeleton-row">
-            {[1, 2, 3].map((i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  // Show loading skeleton when data is being fetched
+  // Show loading skeleton — sirf pehli baar jab cache empty ho
   if (loading) {
     return (
       <section className="hr-section">

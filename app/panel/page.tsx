@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PanelNavbar from "@/app/components/PanelNavbar";
 import { supabase } from "@/lib/supabase";
-import { isOwner } from "@/lib/checkOwner";
 import { useCurrency } from "@/app/context/CurrencyContext";
 import { convertPriceFromPKR } from "@/lib/panelCurrency";
 import "./panel.css";
@@ -548,11 +546,8 @@ function CategorySection({
 // ─── Main Panel Dashboard Page ────────────────────────────────────────────────
 
 export default function PanelDashboardPage() {
-  const router = useRouter();
   const { currency, formatPrice } = useCurrency();
 
-  const [authorized, setAuthorized] = useState(false);
-  const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(true);
 
   const [allProducts, setAllProducts] = useState<PanelProduct[]>([]);
@@ -591,38 +586,6 @@ export default function PanelDashboardPage() {
     );
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 350);
   };
-
-  // ─── Auth ─────────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    let mounted = true;
-    const checkAuth = async () => {
-      try {
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser();
-        if (error || !user) {
-          router.push("/signin?redirectTo=/panel");
-          return;
-        }
-        if (!isOwner(user.email)) {
-          router.push("/");
-          return;
-        }
-        if (mounted) {
-          setAuthorized(true);
-          setChecking(false);
-        }
-      } catch {
-        router.push("/signin");
-      }
-    };
-    checkAuth();
-    return () => {
-      mounted = false;
-    };
-  }, [router]);
 
   // ─── Fetch Products ───────────────────────────────────────────────────────
 
@@ -705,8 +668,8 @@ export default function PanelDashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (authorized) fetchProducts();
-  }, [authorized, fetchProducts]);
+    fetchProducts();
+  }, [fetchProducts]);
 
   // ─── Delete ───────────────────────────────────────────────────────────────
 
@@ -777,48 +740,6 @@ export default function PanelDashboardPage() {
         (p) => p.category === cat && p.subcategory === sub,
       );
     }
-  }
-
-  // ─── Loading / Auth ───────────────────────────────────────────────────────
-
-  if (checking || !authorized) {
-    return (
-      <div className="p-root">
-        <div className="p-ambient" />
-        <div className="p-grain" />
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: "100vh",
-            flexDirection: "column",
-            gap: "1rem",
-          }}
-        >
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              border: "3px solid rgba(218,165,32,0.2)",
-              borderTopColor: "#daa520",
-              borderRadius: "50%",
-              animation: "pd-spin 0.8s linear infinite",
-            }}
-          />
-          <p
-            style={{
-              fontFamily: "Josefin Sans, sans-serif",
-              fontSize: "0.8rem",
-              color: "#666",
-            }}
-          >
-            Verifying access…
-          </p>
-        </div>
-        <style>{`@keyframes pd-spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────

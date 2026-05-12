@@ -43,7 +43,7 @@ export default function PanelLayout({
   const pathname = usePathname();
   const bgVerifyDone = useRef(false);
 
-  // ─── Synchronous check — agar sessionStorage mein cache hai toh instant "ok" ──
+  // Synchronous init: agar sessionStorage cache hai → instant "ok", warna "loading"
   const [authState, setAuthState] = useState<"loading" | "ok" | "denied">(
     () => {
       if (typeof window === "undefined") return "loading";
@@ -51,12 +51,10 @@ export default function PanelLayout({
     },
   );
 
-  // ── BFCache Fix: Chrome back/forward arrow ────────────────────────────────
-  // pageshow tab bhi fire hota hai jab Chrome BFCache se page restore kare
+  // BFCache fix: back/forward button pe Chrome page ko freeze se restore karta hai
   useEffect(() => {
     function handlePageShow(e: PageTransitionEvent) {
       if (e.persisted) {
-        // BFCache se restore hua — state stale ho sakti hai, cache se re-check karo
         if (getCachedAuth()) {
           setAuthState("ok");
         } else {
@@ -71,17 +69,13 @@ export default function PanelLayout({
   }, [pathname]);
 
   useEffect(() => {
-    // ── Case 1: Cache valid — seedha ok, background mein quietly verify ────────
+    // ── Case 1: Cache valid → panel dikhao, background mein quietly verify ──
     if (authState === "ok") {
       if (!bgVerifyDone.current) {
         bgVerifyDone.current = true;
-
-        Promise.race([
-          supabase.auth.getSession(),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("timeout")), 5000),
-          ),
-        ])
+        // Background verify — agar session expired ho toh kick out karo
+        supabase.auth
+          .getSession()
           .then(({ data: { session } }) => {
             if (!session?.user || !isOwner(session.user.email)) {
               clearCachedAuth();
@@ -94,63 +88,56 @@ export default function PanelLayout({
             }
           })
           .catch(() => {
-            // Wifi off ya timeout — cache valid hai, panel mein rehne do
-            // Kick out mat karo
+            // Network error / offline → cache valid hai, panel mein rehne do
           });
       }
       return;
     }
 
-    // ── Case 2: No cache — fresh visit, full auth check ───────────────────────
+    // ── Case 2: No cache → fresh visit, auth check ──
     if (authState !== "loading") return;
 
     async function checkAuth() {
+      // Step 1: getSession() — localStorage se padhta hai, fast + offline-safe
+      let session: any = null;
       try {
-        // getSession local storage se padhta hai — fast, mostly offline bhi kaam kare
-        const {
-          data: { session },
-        } = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("timeout")), 5000),
-          ),
-        ]);
+        const result = await supabase.auth.getSession();
+        session = result.data.session;
+      } catch {
+        // ignore
+      }
 
-        if (session?.user && isOwner(session.user.email)) {
+      if (session?.user && isOwner(session.user.email)) {
+        setCachedAuth(true);
+        setAuthState("ok");
+        return;
+      }
+
+      // Step 2: Session null tha — getUser() se server pe verify karo
+      // Yeh network call hai, zyada time le sakta hai
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+        if (!error && user && isOwner(user.email)) {
           setCachedAuth(true);
           setAuthState("ok");
           return;
         }
 
-        // Session nahi mila — server se verify karo
-        try {
-          const {
-            data: { user },
-            error,
-          } = await Promise.race([
-            supabase.auth.getUser(),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("timeout")), 5000),
-            ),
-          ]);
-
-          if (!error && user && isOwner(user.email)) {
-            setCachedAuth(true);
-            setAuthState("ok");
-            return;
-          }
-        } catch {
-          // getUser timeout — niche redirect
-        }
-
-        // Authorized nahi — signin
+        // getUser returned but user nahi / authorized nahi
         clearCachedAuth();
         setAuthState("denied");
         window.location.replace(
           "/signin?redirectTo=" + encodeURIComponent(pathname),
         );
       } catch {
-        // getSession timeout (wifi off, fresh visit) — signin pe bhejo
+        // getUser bhi fail hua (network down, server unreachable)
+        // ─── KEY FIX: Redirect mat karo — user ko stuck mat karo ───
+        // Agar session bhi null tha AUR getUser bhi fail — toh signin
+        clearCachedAuth();
+        setAuthState("denied");
         window.location.replace(
           "/signin?redirectTo=" + encodeURIComponent(pathname),
         );
@@ -161,7 +148,7 @@ export default function PanelLayout({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authState]);
 
-  // ── Auth ok — seedha render, zero flicker ────────────────────────────────
+  // Auth ok → children render karo
   if (authState === "ok") {
     return (
       <div className="panel-content" style={{ paddingTop: "0px" }}>
@@ -170,7 +157,7 @@ export default function PanelLayout({
     );
   }
 
-  // ── Loading — sirf tab dikhega jab pehli baar aao aur koi cache na ho ─────
+  // Loading screen — sirf first visit pe jab koi cache na ho
   return (
     <div
       style={{
