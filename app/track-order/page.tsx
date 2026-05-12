@@ -1,595 +1,1163 @@
+// app/track-order/page.tsx
+// ✅ Customer apna order number + email se track kar sakta hai
+// ✅ Complete order details (checkout form + cart items) show hote hain
+// ✅ Live tracking timeline (shipped_at + estimated_days se build hoti hai)
+// ✅ Direct courier website ka link bhi milta hai
+// ✅ Fake tracking number test karne ke liye console mein bhi log hoga
+
 "use client";
 
-import { useState } from "react";
-import dynamic from "next/dynamic";
+import { useState, useEffect } from "react";
 
-// Lazy load live tracking (avoids SSR issues)
-const LiveTracking = dynamic(() => import("@/app/components/LiveTracking"), {
-  ssr: false,
-  loading: () => (
-    <div className="mt-4 p-4 bg-gray-50 rounded-xl text-sm text-gray-500 animate-pulse">
-      Loading live tracker…
-    </div>
-  ),
-});
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-/* ─── Types ─── */
+interface OrderItem {
+  product_id?: string;
+  product_name?: string;
+  variant_id?: string;
+  variant_name?: string;
+  variant_image?: string;
+  quantity: number;
+  price: number;
+  pieces_per_unit?: number;
+}
+
+interface TrackingCheckpoint {
+  date: string;
+  location: string;
+  status: string;
+  message: string;
+  tag: string;
+}
+
 interface Order {
   id: string;
   order_number: string;
+  first_name: string;
+  last_name: string;
   email: string;
+  phone: string;
+  address: string;
+  apartment?: string;
+  city: string;
+  zip: string;
+  country: string;
+  subtotal: number;
+  shipping_cost: number;
+  total_amount: number;
+  payment_method?: string;
   status: string;
+  items: OrderItem[];
   created_at: string;
-  updated_at?: string;
-  // shipping
+  updated_at: string;
+  // Shipping fields
   courier_name?: string;
   courier_country?: string;
   tracking_number?: string;
   courier_tracking_url?: string;
   estimated_days?: string;
   shipped_at?: string;
-  // customer
-  full_name?: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  // items
-  items?: any[];
-  total?: number;
-  currency?: string;
-}
-
-/* ─── Helpers ─── */
-function statusColor(s: string) {
-  const map: Record<string, string> = {
-    pending: "#f59e0b",
-    processing: "#6366f1",
-    shipped: "#3b82f6",
-    delivered: "#10b981",
-    cancelled: "#ef4444",
+  // Live tracking cache
+  live_tracking_data?: {
+    checkpoints?: TrackingCheckpoint[];
+    delivered?: boolean;
+    tracking_url?: string;
   };
-  return map[s?.toLowerCase()] ?? "#6b7280";
 }
 
-function statusBg(s: string) {
-  const map: Record<string, string> = {
-    pending: "#fffbeb",
-    processing: "#eef2ff",
-    shipped: "#eff6ff",
-    delivered: "#ecfdf5",
-    cancelled: "#fef2f2",
-  };
-  return map[s?.toLowerCase()] ?? "#f9fafb";
+interface LiveTracking {
+  tracking_number: string;
+  courier: string;
+  delivered: boolean;
+  estimated_delivery: string;
+  last_updated: string;
+  status_message: string;
+  checkpoints: TrackingCheckpoint[];
+  tracking_url: string;
+  used_api: boolean;
 }
 
-function fmt(iso?: string) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-PK", {
+// ─── Status Config ────────────────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; bg: string; border: string; icon: string }
+> = {
+  pending: {
+    label: "Pending",
+    color: "#d97706",
+    bg: "rgba(245,158,11,0.1)",
+    border: "rgba(245,158,11,0.25)",
+    icon: "⏳",
+  },
+  processing: {
+    label: "Processing",
+    color: "#2563eb",
+    bg: "rgba(37,99,235,0.1)",
+    border: "rgba(37,99,235,0.25)",
+    icon: "⚙️",
+  },
+  confirmed: {
+    label: "Confirmed",
+    color: "#7c3aed",
+    bg: "rgba(124,58,237,0.1)",
+    border: "rgba(124,58,237,0.25)",
+    icon: "✅",
+  },
+  shipped: {
+    label: "Shipped",
+    color: "#0891b2",
+    bg: "rgba(8,145,178,0.1)",
+    border: "rgba(8,145,178,0.25)",
+    icon: "🚚",
+  },
+  delivered: {
+    label: "Delivered",
+    color: "#16a34a",
+    bg: "rgba(22,163,74,0.1)",
+    border: "rgba(22,163,74,0.25)",
+    icon: "📦",
+  },
+  cancelled: {
+    label: "Cancelled",
+    color: "#dc2626",
+    bg: "rgba(220,38,38,0.1)",
+    border: "rgba(220,38,38,0.25)",
+    icon: "❌",
+  },
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
   });
 }
 
-/* ════════════════════════════════════════════
-   PAGE
-════════════════════════════════════════════ */
+function formatPKR(amount: number) {
+  return "PKR " + Number(amount).toLocaleString("en-PK");
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
 export default function TrackOrderPage() {
   const [orderNumber, setOrderNumber] = useState("");
   const [email, setEmail] = useState("");
-  const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [order, setOrder] = useState<Order | null>(null);
+  const [liveTracking, setLiveTracking] = useState<LiveTracking | null>(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  async function handleTrack(e: React.FormEvent) {
-    e.preventDefault();
-    if (!orderNumber.trim() || !email.trim()) return;
+  // ── Track Order ──
+  async function handleTrack() {
+    const num = orderNumber.trim().toUpperCase();
+    const em = email.trim().toLowerCase();
+
+    if (!num || !em) {
+      setError("Please enter both order number and email address.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
 
     setLoading(true);
-    setError(null);
+    setError("");
     setOrder(null);
-    setSearched(false);
+    setLiveTracking(null);
+    setSearched(true);
 
     try {
-      const params = new URLSearchParams({
-        order_number: orderNumber.trim().toUpperCase(),
-        email: email.trim().toLowerCase(),
-      });
-      const res = await fetch(`/api/track-order?${params}`);
+      const res = await fetch(
+        `/api/track-order?order_number=${encodeURIComponent(num)}&email=${encodeURIComponent(em)}`,
+      );
       const json = await res.json();
 
-      if (!res.ok) throw new Error(json.error || "Something went wrong");
-      setOrder(json.order ?? null);
-      setSearched(true);
-    } catch (e: any) {
-      setError(e.message);
+      if (!res.ok) {
+        setError(json.error || "Something went wrong. Please try again.");
+        return;
+      }
+
+      console.log("[TrackOrder] API Response:", json);
+
+      if (!json.order) {
+        setError(
+          "No order found with this order number and email. Please check your details and try again.",
+        );
+        return;
+      }
+
+      setOrder(json.order);
+
+      // Agar order shipped hai aur tracking number hai — live tracking fetch karo
+      if (json.order.tracking_number && json.order.courier_name) {
+        fetchLiveTracking(
+          json.order.tracking_number,
+          json.order.courier_name,
+          json.order.id,
+        );
+      }
+    } catch (err: any) {
+      setError("Network error. Please check your connection and try again.");
+      console.error("[TrackOrder] Error:", err);
     } finally {
       setLoading(false);
     }
   }
 
-  const hasTracking = order?.tracking_number && order?.courier_name;
+  // ── Live Tracking Fetch ──
+  async function fetchLiveTracking(
+    trackingNum: string,
+    courierName: string,
+    orderId: string,
+  ) {
+    setTrackingLoading(true);
+    try {
+      const res = await fetch(
+        `/api/track-live?tracking=${encodeURIComponent(trackingNum)}&courier=${encodeURIComponent(courierName)}&orderId=${encodeURIComponent(orderId)}`,
+      );
+      const json = await res.json();
+
+      console.log("[TrackOrder] Live Tracking Response:", json);
+
+      if (res.ok && json.checkpoints) {
+        setLiveTracking(json);
+      }
+    } catch (err) {
+      console.error("[TrackOrder] Live tracking error:", err);
+    } finally {
+      setTrackingLoading(false);
+    }
+  }
+
+  // Enter key support
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") handleTrack();
+  }
+
+  const statusCfg = order
+    ? STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
+    : null;
 
   return (
-    <main style={pageStyles.main}>
-      <div style={pageStyles.container}>
-        {/* ── Hero ── */}
-        <div style={pageStyles.hero}>
-          <h1 style={pageStyles.title}>Track Your Order</h1>
-          <p style={pageStyles.subtitle}>
-            Enter your order number and email to get live delivery updates
-          </p>
-        </div>
-
-        {/* ── Search form ── */}
-        <form onSubmit={handleTrack} style={pageStyles.form}>
-          <div style={pageStyles.inputGroup}>
-            <label style={pageStyles.label}>Order Number</label>
-            <input
-              type="text"
-              placeholder="e.g. ORD-12345"
-              value={orderNumber}
-              onChange={(e) => setOrderNumber(e.target.value)}
-              style={pageStyles.input}
-              required
-            />
+    <div style={styles.page}>
+      {/* ── Header ── */}
+      <div style={styles.header}>
+        <div style={styles.headerInner}>
+          <div style={styles.logo}>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              width="28"
+              height="28"
+            >
+              <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
+              <path d="M16 3H8l-2 4h12l-2-4z" />
+            </svg>
           </div>
-          <div style={pageStyles.inputGroup}>
-            <label style={pageStyles.label}>Email Address</label>
-            <input
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={pageStyles.input}
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              ...pageStyles.trackBtn,
-              opacity: loading ? 0.7 : 1,
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            {loading ? "🔍 Searching…" : "🔍 Track Order"}
-          </button>
-        </form>
-
-        {/* ── Error ── */}
-        {error && <div style={pageStyles.errorBox}>⚠️ {error}</div>}
-
-        {/* ── Not found ── */}
-        {searched && !order && !error && (
-          <div style={pageStyles.notFoundBox}>
-            <p style={{ fontWeight: 700, color: "#374151" }}>Order Not Found</p>
-            <p style={{ color: "#6b7280", fontSize: 13, marginTop: 4 }}>
-              Please check your order number and email address.
+          <div>
+            <h1 style={styles.headerTitle}>Track Your Order</h1>
+            <p style={styles.headerSub}>
+              Enter your order number and email to see real-time updates
             </p>
           </div>
-        )}
+        </div>
+      </div>
 
-        {/* ════════════════════════════════════════
-            ORDER FOUND
-        ════════════════════════════════════════ */}
-        {order && (
-          <div style={pageStyles.resultWrap}>
-            {/* ── Order summary card ── */}
-            <div style={pageStyles.card}>
-              <div style={pageStyles.cardHeader}>
-                <div>
-                  <p style={pageStyles.orderNumLabel}>Order Number</p>
-                  <p style={pageStyles.orderNum}>{order.order_number}</p>
-                </div>
-                <span
-                  style={{
-                    ...pageStyles.statusBadge,
-                    color: statusColor(order.status),
-                    background: statusBg(order.status),
-                    border: `1.5px solid ${statusColor(order.status)}30`,
-                  }}
-                >
-                  {order.status?.toUpperCase()}
-                </span>
+      <div style={styles.container}>
+        {/* ── Search Form ── */}
+        <div style={styles.searchCard}>
+          <div style={styles.searchGrid}>
+            <div style={styles.fieldWrap}>
+              <label style={styles.label}>Order Number</label>
+              <input
+                type="text"
+                placeholder="e.g. ORD-ABC123"
+                value={orderNumber}
+                onChange={(e) => setOrderNumber(e.target.value)}
+                onKeyDown={handleKeyDown}
+                style={styles.input}
+              />
+            </div>
+            <div style={styles.fieldWrap}>
+              <label style={styles.label}>Email Address</label>
+              <input
+                type="email"
+                placeholder="e.g. you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={handleKeyDown}
+                style={styles.input}
+              />
+            </div>
+            <button
+              onClick={handleTrack}
+              disabled={loading}
+              style={{
+                ...styles.trackBtn,
+                opacity: loading ? 0.7 : 1,
+                cursor: loading ? "not-allowed" : "pointer",
+              }}
+            >
+              {loading ? (
+                <>
+                  <span style={styles.spinner} />
+                  Searching…
+                </>
+              ) : (
+                <>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    width="16"
+                    height="16"
+                  >
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
+                  </svg>
+                  Track Order
+                </>
+              )}
+            </button>
+          </div>
+
+          {error && (
+            <div style={styles.errorBox}>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                width="16"
+                height="16"
+                style={{ flexShrink: 0 }}
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              {error}
+            </div>
+          )}
+
+          {/* How to find order number tip */}
+          {!searched && (
+            <p style={styles.tip}>
+              💡 Your order number is in your confirmation email — it looks like{" "}
+              <strong>ORD-XXXX</strong>
+            </p>
+          )}
+        </div>
+
+        {/* ── Order Results ── */}
+        {order && statusCfg && (
+          <div style={styles.resultsWrap}>
+            {/* Status Badge + Order Number */}
+            <div style={styles.orderHeader}>
+              <div style={styles.orderNumWrap}>
+                <span style={styles.orderNumLabel}>Order</span>
+                <span style={styles.orderNum}>#{order.order_number}</span>
               </div>
-
-              <div style={pageStyles.infoGrid}>
-                <InfoRow label="Order Date" value={fmt(order.created_at)} />
-                <InfoRow label="Name" value={order.full_name || "—"} />
-                {order.city && <InfoRow label="City" value={order.city} />}
-                {order.total && (
-                  <InfoRow
-                    label="Total"
-                    value={`${order.currency ?? "PKR"} ${order.total}`}
-                  />
-                )}
+              <div
+                style={{
+                  ...styles.statusBadge,
+                  color: statusCfg.color,
+                  background: statusCfg.bg,
+                  border: `1px solid ${statusCfg.border}`,
+                }}
+              >
+                {statusCfg.icon} {statusCfg.label}
               </div>
             </div>
 
-            {/* ════════════════════════════
-                TRACKING NUMBER SECTION
-                (Only show if tracking exists)
-            ════════════════════════════ */}
-            {hasTracking ? (
-              <div style={pageStyles.card}>
-                <h2 style={pageStyles.sectionTitle}>📦 Shipment Tracking</h2>
-
-                {/* Tracking details row */}
-                <div style={pageStyles.shippingDetailsGrid}>
-                  <ShipDetail
-                    icon="🚚"
-                    label="Courier"
-                    value={order.courier_name!}
+            <div style={styles.twoCol}>
+              {/* ── LEFT COLUMN ── */}
+              <div style={styles.leftCol}>
+                {/* Order Summary */}
+                <Section title="📋 Order Summary">
+                  <Row label="Order Number" value={`#${order.order_number}`} />
+                  <Row label="Placed On" value={formatDate(order.created_at)} />
+                  <Row
+                    label="Payment Method"
+                    value={order.payment_method || "N/A"}
                   />
-                  <ShipDetail
-                    icon="🔢"
-                    label="Tracking Number"
-                    value={order.tracking_number!}
-                    mono
+                  <Row
+                    label="Order Status"
+                    value={
+                      <span style={{ color: statusCfg.color, fontWeight: 700 }}>
+                        {statusCfg.icon} {statusCfg.label}
+                      </span>
+                    }
                   />
-                  {order.courier_country && (
-                    <ShipDetail
-                      icon="🌍"
-                      label="Country"
-                      value={order.courier_country}
-                    />
-                  )}
-                  {order.estimated_days && (
-                    <ShipDetail
-                      icon="📅"
-                      label="Est. Delivery"
-                      value={`${order.estimated_days} days`}
-                    />
-                  )}
-                  {order.shipped_at && (
-                    <ShipDetail
-                      icon="📤"
-                      label="Shipped On"
-                      value={fmt(order.shipped_at)}
-                    />
-                  )}
-                </div>
+                </Section>
 
-                {/* ── LIVE TRACKING COMPONENT ── */}
-                <LiveTracking
-                  trackingNumber={order.tracking_number!}
-                  courierName={order.courier_name!}
-                  orderId={order.id}
-                  refreshInterval={60}
-                />
+                {/* Customer Details */}
+                <Section title="👤 Customer Details">
+                  <Row
+                    label="Name"
+                    value={`${order.first_name} ${order.last_name}`}
+                  />
+                  <Row label="Email" value={order.email} />
+                  <Row label="Phone" value={order.phone} />
+                </Section>
+
+                {/* Shipping Address */}
+                <Section title="📍 Shipping Address">
+                  <Row label="Address" value={order.address} />
+                  {order.apartment && (
+                    <Row label="Apt / Suite" value={order.apartment} />
+                  )}
+                  <Row label="City" value={order.city} />
+                  <Row label="ZIP / Postal" value={order.zip} />
+                  <Row label="Country" value={order.country} />
+                </Section>
+
+                {/* Courier Info (if shipped) */}
+                {order.courier_name && (
+                  <Section title="🚚 Shipping Details">
+                    <Row label="Courier" value={order.courier_name} />
+                    {order.courier_country && (
+                      <Row label="Ship To" value={order.courier_country} />
+                    )}
+                    {order.tracking_number && (
+                      <Row
+                        label="Tracking #"
+                        value={
+                          <span
+                            style={{ fontFamily: "monospace", fontWeight: 700 }}
+                          >
+                            {order.tracking_number}
+                          </span>
+                        }
+                      />
+                    )}
+                    {order.estimated_days && (
+                      <Row label="Est. Delivery" value={order.estimated_days} />
+                    )}
+                    {order.shipped_at && (
+                      <Row
+                        label="Shipped At"
+                        value={formatDate(order.shipped_at)}
+                      />
+                    )}
+                    {order.courier_tracking_url && order.tracking_number && (
+                      <div style={{ marginTop: "10px" }}>
+                        <a
+                          href={order.courier_tracking_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={styles.courierLink}
+                        >
+                          🔗 Track on {order.courier_name} website →
+                        </a>
+                      </div>
+                    )}
+                  </Section>
+                )}
               </div>
-            ) : (
-              /* No tracking yet */
-              order.status !== "delivered" && (
-                <div style={pageStyles.noTrackingBox}>
-                  <span style={{ fontSize: 28 }}>📦</span>
-                  <div>
-                    <p style={{ fontWeight: 700, color: "#374151", margin: 0 }}>
-                      Tracking Not Available Yet
-                    </p>
-                    <p
-                      style={{
-                        color: "#6b7280",
-                        fontSize: 13,
-                        margin: "4px 0 0",
-                      }}
-                    >
-                      Your order is being prepared. Tracking details will appear
-                      here once your order is shipped.
-                    </p>
-                  </div>
-                </div>
-              )
-            )}
 
-            {/* ── Items (if available) ── */}
-            {order.items && order.items.length > 0 && (
-              <div style={pageStyles.card}>
-                <h2 style={pageStyles.sectionTitle}>🛍️ Items Ordered</h2>
-                <div>
-                  {order.items.map((item: any, i: number) => (
-                    <div key={i} style={pageStyles.itemRow}>
-                      {item.image && (
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          style={pageStyles.itemImg}
-                        />
-                      )}
-                      <div style={{ flex: 1 }}>
-                        <p style={pageStyles.itemName}>{item.name}</p>
-                        {item.variant && (
-                          <p style={pageStyles.itemVariant}>{item.variant}</p>
+              {/* ── RIGHT COLUMN ── */}
+              <div style={styles.rightCol}>
+                {/* Cart Items */}
+                <Section title="🛒 Your Items">
+                  {order.items && order.items.length > 0 ? (
+                    order.items.map((item, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          ...styles.itemRow,
+                          borderBottom:
+                            i < order.items.length - 1
+                              ? "1px solid rgba(255,255,255,0.06)"
+                              : "none",
+                        }}
+                      >
+                        {item.variant_image && (
+                          <img
+                            src={item.variant_image}
+                            alt={item.product_name || "Product"}
+                            style={styles.itemImg}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display =
+                                "none";
+                            }}
+                          />
                         )}
+                        <div style={styles.itemInfo}>
+                          <div style={styles.itemName}>
+                            {item.product_name || "Product"}
+                          </div>
+                          {item.variant_name && (
+                            <div style={styles.itemVariant}>
+                              {item.variant_name}
+                            </div>
+                          )}
+                          {item.pieces_per_unit && item.pieces_per_unit > 1 && (
+                            <div style={styles.itemVariant}>
+                              {item.pieces_per_unit} pieces/unit
+                            </div>
+                          )}
+                          <div style={styles.itemMeta}>
+                            <span>Qty: {item.quantity}</span>
+                            <span style={styles.itemPrice}>
+                              {formatPKR(item.price * item.quantity)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div style={{ textAlign: "right" }}>
-                        <p style={pageStyles.itemQty}>×{item.qty ?? 1}</p>
-                        {item.price && (
-                          <p style={pageStyles.itemPrice}>
-                            {order.currency ?? "PKR"} {item.price}
-                          </p>
-                        )}
-                      </div>
+                    ))
+                  ) : (
+                    <p style={{ color: "#888", fontSize: "0.8rem" }}>
+                      No items found.
+                    </p>
+                  )}
+
+                  {/* Price Breakdown */}
+                  <div style={styles.priceBreakdown}>
+                    <PriceRow
+                      label="Subtotal"
+                      value={formatPKR(order.subtotal)}
+                    />
+                    <PriceRow
+                      label="Shipping"
+                      value={
+                        order.shipping_cost > 0
+                          ? formatPKR(order.shipping_cost)
+                          : "Free"
+                      }
+                    />
+                    <div style={styles.totalRow}>
+                      <span>Total</span>
+                      <span style={{ color: "#daa520", fontWeight: 800 }}>
+                        {formatPKR(order.total_amount)}
+                      </span>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                </Section>
+
+                {/* Live Tracking Timeline */}
+                {(order.status === "shipped" || order.status === "delivered") &&
+                  order.tracking_number && (
+                    <Section title="📡 Live Tracking Timeline">
+                      {trackingLoading ? (
+                        <div style={styles.trackingLoading}>
+                          <span style={styles.spinner} />
+                          <span style={{ color: "#888", fontSize: "0.8rem" }}>
+                            Fetching live tracking…
+                          </span>
+                        </div>
+                      ) : liveTracking ? (
+                        <LiveTrackingView tracking={liveTracking} />
+                      ) : (
+                        <div style={{ color: "#888", fontSize: "0.8rem" }}>
+                          Tracking information not available yet. Please check
+                          back soon.
+                        </div>
+                      )}
+                    </Section>
+                  )}
               </div>
-            )}
+            </div>
           </div>
         )}
-      </div>
 
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(0.85); }
-        }
-        input:focus { outline: 2px solid #6366f1; outline-offset: 0; }
-      `}</style>
-    </main>
+        {/* ── Empty State (searched but no result, handled by error) ── */}
+      </div>
+    </div>
   );
 }
 
-/* ─── Sub-components ─── */
-function InfoRow({ label, value }: { label: string; value: string }) {
+// ─── Live Tracking View ───────────────────────────────────────────────────────
+
+function LiveTrackingView({ tracking }: { tracking: LiveTracking }) {
   return (
-    <div style={{ marginBottom: 4 }}>
-      <span style={{ color: "#9ca3af", fontSize: 11, fontWeight: 600 }}>
-        {label}
-      </span>
-      <p style={{ margin: 0, color: "#374151", fontSize: 14, fontWeight: 500 }}>
-        {value}
+    <div>
+      {/* Status + ETA */}
+      <div style={styles.trackingStatus}>
+        <div style={styles.trackingStatusLeft}>
+          <div style={styles.trackingStatusLabel}>Current Status</div>
+          <div
+            style={{
+              ...styles.trackingStatusValue,
+              color: tracking.delivered ? "#16a34a" : "#0891b2",
+            }}
+          >
+            {tracking.delivered
+              ? "📦 Delivered"
+              : `🚚 ${tracking.status_message}`}
+          </div>
+        </div>
+        <div style={styles.trackingStatusRight}>
+          <div style={styles.trackingStatusLabel}>Est. Delivery</div>
+          <div style={styles.trackingStatusDate}>
+            {formatDateShort(tracking.estimated_delivery)}
+          </div>
+        </div>
+      </div>
+
+      {/* Courier tracking link */}
+      {tracking.tracking_url && (
+        <a
+          href={tracking.tracking_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={styles.liveTrackBtn}
+        >
+          🔗 Open Live Tracking on {tracking.courier} →
+        </a>
+      )}
+
+      {/* Timeline Checkpoints */}
+      <div style={styles.timeline}>
+        {tracking.checkpoints.map((cp, i) => {
+          const isFirst = i === 0;
+          const isDelivered = cp.tag === "Delivered";
+          const dotColor = isDelivered
+            ? "#16a34a"
+            : isFirst
+              ? "#0891b2"
+              : "#555";
+
+          return (
+            <div key={i} style={styles.timelineItem}>
+              {/* Line */}
+              {i < tracking.checkpoints.length - 1 && (
+                <div style={styles.timelineLine} />
+              )}
+
+              {/* Dot */}
+              <div
+                style={{
+                  ...styles.timelineDot,
+                  background: dotColor,
+                  boxShadow: isFirst ? `0 0 0 4px ${dotColor}22` : "none",
+                  transform: isFirst ? "scale(1.2)" : "scale(1)",
+                }}
+              />
+
+              {/* Content */}
+              <div style={styles.timelineContent}>
+                <div
+                  style={{
+                    ...styles.timelineStatus,
+                    color: isFirst ? "#fff" : "#ccc",
+                  }}
+                >
+                  {cp.status}
+                </div>
+                <div style={styles.timelineMsg}>{cp.message}</div>
+                <div style={styles.timelineDate}>
+                  📍 {cp.location} · {formatDate(cp.date)}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <p style={styles.lastUpdated}>
+        Last updated: {formatDate(tracking.last_updated)}
       </p>
     </div>
   );
 }
 
-function ShipDetail({
-  icon,
-  label,
-  value,
-  mono,
+// ─── Reusable Components ──────────────────────────────────────────────────────
+
+function Section({
+  title,
+  children,
 }: {
-  icon: string;
-  label: string;
-  value: string;
-  mono?: boolean;
+  title: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div style={pageStyles.shipDetailBox}>
-      <span style={{ fontSize: 18 }}>{icon}</span>
-      <div>
-        <p
-          style={{
-            margin: 0,
-            fontSize: 10,
-            color: "#9ca3af",
-            fontWeight: 700,
-            letterSpacing: 0.5,
-          }}
-        >
-          {label.toUpperCase()}
-        </p>
-        <p
-          style={{
-            margin: 0,
-            fontSize: 14,
-            color: "#111827",
-            fontWeight: 700,
-            fontFamily: mono ? "monospace" : "inherit",
-          }}
-        >
-          {value}
-        </p>
-      </div>
+    <div style={styles.section}>
+      <h3 style={styles.sectionTitle}>{title}</h3>
+      <div style={styles.sectionBody}>{children}</div>
     </div>
   );
 }
 
-/* ─── Page styles ─── */
-const pageStyles: Record<string, any> = {
-  main: {
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div style={styles.row}>
+      <span style={styles.rowLabel}>{label}</span>
+      <span style={styles.rowValue}>{value}</span>
+    </div>
+  );
+}
+
+function PriceRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={styles.priceRow}>
+      <span style={styles.priceLabel}>{label}</span>
+      <span style={styles.priceValue}>{value}</span>
+    </div>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const styles: Record<string, React.CSSProperties> = {
+  page: {
     minHeight: "100vh",
-    background: "linear-gradient(135deg, #f0f4ff 0%, #fafafa 100%)",
-    padding: "40px 16px 80px",
-    fontFamily: "'Segoe UI', system-ui, sans-serif",
+    background: "#111",
+    fontFamily:
+      "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    color: "#e0e0e0",
+  },
+  header: {
+    background: "linear-gradient(135deg, #1a1a1a 0%, #222 100%)",
+    borderBottom: "1px solid rgba(218,165,32,0.2)",
+    padding: "24px 20px",
+    paddingTop: "80px",
+  },
+  headerInner: {
+    maxWidth: "1000px",
+    margin: "0 auto",
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+  },
+  logo: {
+    width: "52px",
+    height: "52px",
+    borderRadius: "14px",
+    background: "rgba(218,165,32,0.15)",
+    border: "1px solid rgba(218,165,32,0.3)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#daa520",
+    flexShrink: 0,
+  },
+  headerTitle: {
+    margin: 0,
+    fontSize: "clamp(1.1rem, 3vw, 1.5rem)",
+    fontWeight: 700,
+    color: "#daa520",
+    letterSpacing: "-0.02em",
+  },
+  headerSub: {
+    margin: "4px 0 0",
+    fontSize: "0.8rem",
+    color: "#888",
   },
   container: {
-    maxWidth: 620,
+    maxWidth: "1000px",
     margin: "0 auto",
+    padding: "32px 20px",
   },
-  hero: {
-    textAlign: "center",
-    marginBottom: 32,
+  searchCard: {
+    background: "#1a1a1a",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "20px",
+    padding: "28px",
+    marginBottom: "32px",
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 900,
-    color: "#111827",
-    margin: "0 0 8px",
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    color: "#6b7280",
-    fontSize: 14,
-    margin: 0,
-  },
-  form: {
-    background: "#fff",
-    borderRadius: 16,
-    padding: "24px",
-    boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
-    border: "1px solid #e5e7eb",
-    marginBottom: 20,
+  searchGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr auto",
+    gap: "12px",
+    alignItems: "end",
+  } as React.CSSProperties,
+  fieldWrap: {
     display: "flex",
-    flexDirection: "column" as const,
-    gap: 16,
-  },
-  inputGroup: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 6,
+    flexDirection: "column",
+    gap: "6px",
   },
   label: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#374151",
-    letterSpacing: 0.3,
+    fontSize: "0.7rem",
+    fontWeight: 600,
+    color: "#888",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.08em",
   },
   input: {
-    border: "1.5px solid #e5e7eb",
-    borderRadius: 10,
-    padding: "10px 14px",
-    fontSize: 14,
-    color: "#111827",
-    transition: "border-color 0.2s",
+    padding: "11px 14px",
+    borderRadius: "12px",
+    border: "1px solid rgba(255,255,255,0.1)",
+    background: "rgba(255,255,255,0.04)",
+    color: "#fff",
+    fontSize: "0.88rem",
+    outline: "none",
+    width: "100%",
+    boxSizing: "border-box" as const,
   },
   trackBtn: {
-    background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-    color: "#fff",
+    padding: "11px 24px",
+    borderRadius: "12px",
     border: "none",
-    borderRadius: 12,
-    padding: "12px 24px",
-    fontSize: 15,
-    fontWeight: 800,
-    cursor: "pointer",
-    letterSpacing: 0.3,
-    boxShadow: "0 4px 14px rgba(99,102,241,0.35)",
-    transition: "opacity 0.2s",
+    background: "linear-gradient(135deg, #daa520, #b8860b)",
+    color: "#1a1a1a",
+    fontSize: "0.88rem",
+    fontWeight: 700,
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    whiteSpace: "nowrap" as const,
+    transition: "all 0.2s",
+  },
+  spinner: {
+    display: "inline-block",
+    width: "14px",
+    height: "14px",
+    border: "2px solid rgba(26,26,26,0.3)",
+    borderTop: "2px solid #1a1a1a",
+    borderRadius: "50%",
+    animation: "spin 0.7s linear infinite",
   },
   errorBox: {
-    background: "#fef2f2",
-    border: "1px solid #fca5a5",
-    color: "#dc2626",
-    borderRadius: 10,
+    marginTop: "16px",
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "10px",
     padding: "12px 16px",
-    fontSize: 13,
-    marginBottom: 16,
+    background: "rgba(220,38,38,0.08)",
+    border: "1px solid rgba(220,38,38,0.2)",
+    borderRadius: "12px",
+    color: "#ef4444",
+    fontSize: "0.83rem",
+    lineHeight: 1.5,
   },
-  notFoundBox: {
-    background: "#f9fafb",
-    border: "1px solid #e5e7eb",
-    borderRadius: 12,
-    padding: "20px 24px",
+  tip: {
+    marginTop: "14px",
+    fontSize: "0.75rem",
+    color: "#666",
     textAlign: "center" as const,
   },
-  resultWrap: {
+
+  // Results
+  resultsWrap: {
     display: "flex",
     flexDirection: "column" as const,
-    gap: 16,
+    gap: "24px",
   },
-  card: {
-    background: "#fff",
-    border: "1px solid #e5e7eb",
-    borderRadius: 16,
+  orderHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap" as const,
+    gap: "12px",
     padding: "20px 24px",
-    boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+    background: "#1a1a1a",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "16px",
   },
-  cardHeader: {
+  orderNumWrap: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: "8px",
+  },
+  orderNumLabel: {
+    fontSize: "0.75rem",
+    color: "#666",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.08em",
+  },
+  orderNum: {
+    fontSize: "1.4rem",
+    fontWeight: 800,
+    color: "#fff",
+    letterSpacing: "-0.02em",
+  },
+  statusBadge: {
+    padding: "8px 18px",
+    borderRadius: "40px",
+    fontSize: "0.83rem",
+    fontWeight: 700,
+  },
+
+  twoCol: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "20px",
+    alignItems: "start",
+  } as React.CSSProperties,
+  leftCol: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "16px",
+  },
+  rightCol: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "16px",
+  },
+
+  // Section
+  section: {
+    background: "#1a1a1a",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "16px",
+    overflow: "hidden",
+  },
+  sectionTitle: {
+    margin: 0,
+    padding: "14px 20px",
+    fontSize: "0.78rem",
+    fontWeight: 700,
+    color: "#daa520",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.08em",
+    borderBottom: "1px solid rgba(255,255,255,0.06)",
+  },
+  sectionBody: {
+    padding: "16px 20px",
+  },
+
+  // Row
+  row: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 16,
-    flexWrap: "wrap" as const,
-    gap: 8,
+    gap: "12px",
+    padding: "6px 0",
+    borderBottom: "1px solid rgba(255,255,255,0.04)",
+    fontSize: "0.82rem",
   },
-  orderNumLabel: {
-    margin: 0,
-    fontSize: 10,
-    fontWeight: 700,
-    color: "#9ca3af",
-    letterSpacing: 1,
+  rowLabel: {
+    color: "#888",
+    flexShrink: 0,
+    minWidth: "90px",
   },
-  orderNum: {
-    margin: 0,
-    fontSize: 20,
-    fontWeight: 900,
-    color: "#111827",
+  rowValue: {
+    color: "#e0e0e0",
+    fontWeight: 500,
+    textAlign: "right" as const,
+    wordBreak: "break-word" as const,
   },
-  statusBadge: {
-    display: "inline-block",
-    padding: "5px 14px",
-    borderRadius: 20,
-    fontSize: 11,
-    fontWeight: 800,
-    letterSpacing: 0.5,
-  },
-  infoGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "8px 16px",
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: 800,
-    color: "#111827",
-    margin: "0 0 14px",
-    letterSpacing: -0.2,
-  },
-  shippingDetailsGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 12,
-    marginBottom: 4,
-  },
-  shipDetailBox: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 10,
-    background: "#f9fafb",
-    borderRadius: 10,
-    padding: "10px 12px",
-    border: "1px solid #f3f4f6",
-  },
-  noTrackingBox: {
-    background: "#fffbeb",
-    border: "1px solid #fde68a",
-    borderRadius: 12,
-    padding: "16px 20px",
-    display: "flex",
-    alignItems: "center",
-    gap: 14,
-    color: "#92400e",
-  },
+
+  // Cart items
   itemRow: {
     display: "flex",
-    alignItems: "center",
-    gap: 12,
+    gap: "12px",
     padding: "10px 0",
-    borderBottom: "1px solid #f3f4f6",
   },
   itemImg: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
+    width: "52px",
+    height: "52px",
+    borderRadius: "10px",
     objectFit: "cover" as const,
-    border: "1px solid #e5e7eb",
+    border: "1px solid rgba(255,255,255,0.1)",
+    flexShrink: 0,
+  },
+  itemInfo: {
+    flex: 1,
+    minWidth: 0,
   },
   itemName: {
-    margin: 0,
+    fontSize: "0.85rem",
     fontWeight: 600,
-    fontSize: 14,
-    color: "#111827",
+    color: "#e0e0e0",
+    marginBottom: "2px",
   },
   itemVariant: {
-    margin: 0,
-    fontSize: 12,
-    color: "#6b7280",
+    fontSize: "0.72rem",
+    color: "#888",
+    marginBottom: "4px",
   },
-  itemQty: {
-    margin: 0,
-    fontSize: 13,
-    color: "#6b7280",
-    fontWeight: 600,
+  itemMeta: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    fontSize: "0.75rem",
+    color: "#aaa",
   },
   itemPrice: {
-    margin: 0,
-    fontSize: 13,
+    color: "#daa520",
     fontWeight: 700,
-    color: "#111827",
+  },
+
+  // Price breakdown
+  priceBreakdown: {
+    marginTop: "14px",
+    paddingTop: "14px",
+    borderTop: "1px solid rgba(255,255,255,0.08)",
+  },
+  priceRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "0.8rem",
+    color: "#888",
+    padding: "4px 0",
+  },
+  priceLabel: {},
+  priceValue: {
+    color: "#ccc",
+  },
+  totalRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "0.95rem",
+    fontWeight: 700,
+    color: "#fff",
+    padding: "10px 0 0",
+    marginTop: "6px",
+    borderTop: "1px solid rgba(218,165,32,0.2)",
+  },
+
+  // Courier link
+  courierLink: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "4px",
+    padding: "8px 14px",
+    background: "rgba(8,145,178,0.1)",
+    border: "1px solid rgba(8,145,178,0.25)",
+    borderRadius: "8px",
+    color: "#22d3ee",
+    fontSize: "0.78rem",
+    textDecoration: "none",
+    fontWeight: 600,
+    transition: "all 0.15s",
+  },
+
+  // Live tracking
+  trackingLoading: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "8px 0",
+  },
+  trackingStatus: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    padding: "12px 14px",
+    background: "rgba(255,255,255,0.03)",
+    borderRadius: "12px",
+    marginBottom: "12px",
+    flexWrap: "wrap" as const,
+  },
+  trackingStatusLeft: {},
+  trackingStatusRight: {
+    textAlign: "right" as const,
+  },
+  trackingStatusLabel: {
+    fontSize: "0.65rem",
+    color: "#666",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.07em",
+    marginBottom: "3px",
+  },
+  trackingStatusValue: {
+    fontSize: "0.9rem",
+    fontWeight: 700,
+  },
+  trackingStatusDate: {
+    fontSize: "0.85rem",
+    fontWeight: 600,
+    color: "#ccc",
+  },
+  liveTrackBtn: {
+    display: "block",
+    padding: "9px 14px",
+    background: "rgba(8,145,178,0.1)",
+    border: "1px solid rgba(8,145,178,0.25)",
+    borderRadius: "10px",
+    color: "#22d3ee",
+    fontSize: "0.78rem",
+    textDecoration: "none",
+    fontWeight: 600,
+    marginBottom: "16px",
+    textAlign: "center" as const,
+  },
+
+  // Timeline
+  timeline: {
+    position: "relative" as const,
+    paddingLeft: "24px",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "0",
+  },
+  timelineItem: {
+    position: "relative" as const,
+    paddingBottom: "20px",
+    paddingLeft: "16px",
+  },
+  timelineLine: {
+    position: "absolute" as const,
+    left: "-1px",
+    top: "10px",
+    bottom: "-10px",
+    width: "2px",
+    background: "rgba(255,255,255,0.08)",
+  },
+  timelineDot: {
+    position: "absolute" as const,
+    left: "-5px",
+    top: "4px",
+    width: "10px",
+    height: "10px",
+    borderRadius: "50%",
+    transition: "all 0.2s",
+  },
+  timelineContent: {
+    paddingLeft: "4px",
+  },
+  timelineStatus: {
+    fontSize: "0.83rem",
+    fontWeight: 700,
+    marginBottom: "2px",
+  },
+  timelineMsg: {
+    fontSize: "0.75rem",
+    color: "#aaa",
+    marginBottom: "3px",
+    lineHeight: 1.4,
+  },
+  timelineDate: {
+    fontSize: "0.68rem",
+    color: "#666",
+  },
+  lastUpdated: {
+    fontSize: "0.65rem",
+    color: "#555",
+    marginTop: "8px",
+    textAlign: "right" as const,
   },
 };
+
+// ─── Keyframes (global) ───────────────────────────────────────────────────────
+// Add this in your global CSS or layout:
+// @keyframes spin { to { transform: rotate(360deg); } }
+// Ya neeche wala style tag HTML mein inject karo:
+
+if (typeof document !== "undefined") {
+  const id = "track-order-keyframes";
+  if (!document.getElementById(id)) {
+    const s = document.createElement("style");
+    s.id = id;
+    s.textContent = `
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @media (max-width: 700px) {
+        .toc-grid { grid-template-columns: 1fr !important; }
+        .toc-search-grid { grid-template-columns: 1fr !important; }
+      }
+    `;
+    document.head.appendChild(s);
+  }
+}

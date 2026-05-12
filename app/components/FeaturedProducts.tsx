@@ -1121,7 +1121,7 @@ export default function FeaturedProducts() {
           <p className="fp-subtitle">
             Handpicked luxury essentials across our finest categories
           </p>
-          <div
+          {/* <div
             style={{
               width: "100%",
               marginTop: "1.5rem",
@@ -1141,7 +1141,7 @@ export default function FeaturedProducts() {
                 display: "block",
               }}
             />
-          </div>
+          </div> */}
           <div className="fp-tabs" style={{ marginTop: "2rem" }}>
             {ALL_TABS.map((tab) => (
               <button
@@ -1224,7 +1224,7 @@ export default function FeaturedProducts() {
             Handpicked luxury essentials across our finest categories
           </p>
 
-          <div
+          {/* <div
             style={{
               width: "100%",
               marginTop: "1.5rem",
@@ -1245,7 +1245,7 @@ export default function FeaturedProducts() {
               }}
               suppressHydrationWarning
             />
-          </div>
+          </div> */}
 
           <div className="fp-tabs" style={{ marginTop: "2rem" }}>
             {ALL_TABS.map((tab) => (

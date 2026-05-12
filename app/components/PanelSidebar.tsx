@@ -107,6 +107,25 @@ const panelLinks = [
       </svg>
     ),
   },
+  // In PanelSidebar.tsx, add this to the panelLinks array
+
+  {
+    href: "/panel/coupons",
+    label: "Coupons",
+    exact: false,
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <path d="M20 12V8H4v4M12 4v4M8 8h8M20 12v4H4v-4M8 16h8" />
+        <rect x="2" y="4" width="20" height="16" rx="2" />
+        <path d="M9 8h6M9 16h6" />
+      </svg>
+    ),
+  },
 ];
 
 export default function PanelSidebar({ isOpen, onClose }: PanelSidebarProps) {

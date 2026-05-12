@@ -3,6 +3,7 @@
 
 import { usePathname } from "next/navigation";
 import { useCartStore } from "@/lib/cartStore";
+import { useCouponStore } from "@/lib/couponStore"; // ✅ Import coupon store
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
 import SearchSidebar from "./components/SearchSidebar";
@@ -31,6 +32,12 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   // Initialize sale store on app start (for ALL users)
   useEffect(() => {
     initSaleStore();
+  }, []);
+
+  // ✅ Initialize coupon settings on app start
+  useEffect(() => {
+    const { fetchCouponSettings } = useCouponStore.getState();
+    fetchCouponSettings();
   }, []);
 
   // Derive panel state - safe after client mount

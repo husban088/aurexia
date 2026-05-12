@@ -31,6 +31,7 @@ export default function Cart() {
     removeCoupon,
     getDiscountAmount,
     getFinalTotal,
+    fetchCouponSettings, // ✅ Added fetchCouponSettings
   } = useCouponStore();
 
   // ✅ Coupon UI state
@@ -60,6 +61,11 @@ export default function Cart() {
       fetchCart();
     }
   }, [isMounted, initialized, items.length, fetchCart]);
+
+  // ✅ Refresh coupon settings when page loads
+  useEffect(() => {
+    fetchCouponSettings();
+  }, [fetchCouponSettings]);
 
   const subtotalPKR = getSubtotal();
   const cartCount = getCartCount();
@@ -473,7 +479,7 @@ export default function Cart() {
                     <input
                       type="text"
                       className="cart-coupon-input"
-                      placeholder="Enter code"
+                      placeholder="Enter coupon code"
                       value={couponInput}
                       onChange={(e) => {
                         setCouponInput(e.target.value.toUpperCase());

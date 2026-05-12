@@ -2,39 +2,49 @@
 
 import { useEffect, useState, useCallback } from "react";
 import {
-  getSalePercent,
   fetchSaleFromDB,
   listenToSaleChanges,
+  isBannerEnabled,
 } from "@/lib/saleStore";
 
 export default function SaleBannerPopup() {
   const [visible, setVisible] = useState(false);
   const [percent, setPercent] = useState<number | null>(null);
+  const [bannerEnabled, setBannerEnabled] = useState(false);
   const [hasClosed, setHasClosed] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Check sale on mount and listen for changes
   useEffect(() => {
     // Fetch from database on mount
-    fetchSaleFromDB().then((activePercent) => {
-      setPercent(activePercent);
-      setLoading(false);
+    fetchSaleFromDB().then(
+      ({ percent: activePercent, bannerEnabled: enabled }) => {
+        setPercent(activePercent);
+        setBannerEnabled(enabled);
+        setLoading(false);
 
-      if (activePercent && !hasClosed) {
-        const timer = setTimeout(() => setVisible(true), 400);
-        return () => clearTimeout(timer);
-      }
-    });
+        // Only show if sale exists AND banner is enabled AND user hasn't closed it
+        if (activePercent && enabled && !hasClosed) {
+          const timer = setTimeout(() => setVisible(true), 400);
+          return () => clearTimeout(timer);
+        }
+      },
+    );
 
     // Listen for sale changes across tabs
-    const unsubscribe = listenToSaleChanges((newPercent) => {
-      setPercent(newPercent);
-      if (newPercent && !hasClosed) {
-        setVisible(true);
-      } else if (!newPercent) {
-        setVisible(false);
-      }
-    });
+    const unsubscribe = listenToSaleChanges(
+      ({ percent: newPercent, bannerEnabled: enabled }) => {
+        setPercent(newPercent);
+        setBannerEnabled(enabled);
+
+        // Only show if sale exists AND banner is enabled AND user hasn't closed it
+        if (newPercent && enabled && !hasClosed) {
+          setVisible(true);
+        } else {
+          setVisible(false);
+        }
+      },
+    );
 
     return unsubscribe;
   }, [hasClosed]);
@@ -45,9 +55,22 @@ export default function SaleBannerPopup() {
       if (e.key === "active_sale_percent") {
         const newPercent = e.newValue ? parseInt(e.newValue, 10) : null;
         setPercent(newPercent);
-        if (newPercent && !hasClosed) {
+        const enabled = isBannerEnabled();
+        setBannerEnabled(enabled);
+
+        if (newPercent && enabled && !hasClosed) {
           setVisible(true);
-        } else if (!newPercent) {
+        } else {
+          setVisible(false);
+        }
+      }
+      if (e.key === "sale_banner_enabled") {
+        const enabled = e.newValue === "true";
+        setBannerEnabled(enabled);
+
+        if (percent && enabled && !hasClosed) {
+          setVisible(true);
+        } else {
           setVisible(false);
         }
       }
@@ -55,7 +78,7 @@ export default function SaleBannerPopup() {
 
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, [hasClosed]);
+  }, [hasClosed, percent]);
 
   const handleClose = useCallback(() => {
     setVisible(false);
@@ -72,9 +95,10 @@ export default function SaleBannerPopup() {
     }
   }, []);
 
-  // Don't show while loading
+  // Don't show while loading, or if no sale, or if banner is disabled
   if (loading) return null;
   if (!percent) return null;
+  if (!bannerEnabled) return null;
 
   const imageSrc = `/sale-banner-${percent}.png`;
 

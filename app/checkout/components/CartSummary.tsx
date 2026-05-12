@@ -1,7 +1,7 @@
 // app/checkout/components/CartSummary.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useCurrency } from "@/app/context/CurrencyContext";
 import { useCouponStore } from "@/lib/couponStore"; // ✅ Import coupon store
 import "./CartSummary.css";
@@ -66,7 +66,13 @@ export default function CartSummary({
     removeCoupon,
     getDiscountAmount,
     getFinalTotal,
+    fetchCouponSettings, // ✅ Added fetchCouponSettings
   } = useCouponStore();
+
+  // ✅ Refresh coupon settings when component mounts
+  useEffect(() => {
+    fetchCouponSettings();
+  }, [fetchCouponSettings]);
 
   // ✅ Coupon UI state
   const [couponInput, setCouponInput] = useState("");
@@ -218,7 +224,7 @@ export default function CartSummary({
             <input
               type="text"
               className="cs-coupon-input"
-              placeholder="Enter code (e.g. TECH4U)"
+              placeholder="Enter coupon code"
               value={couponInput}
               onChange={(e) => {
                 setCouponInput(e.target.value.toUpperCase());

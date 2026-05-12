@@ -57,6 +57,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     removeCoupon,
     getDiscountAmount,
     getFinalTotal,
+    fetchCouponSettings, // ✅ Added fetchCouponSettings
   } = useCouponStore();
 
   // Coupon calculations
@@ -107,6 +108,13 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
       fetchCart();
     }
   }, [isOpen, initialized, fetchCart, mounted]);
+
+  // ✅ Refresh coupon settings when sidebar opens
+  useEffect(() => {
+    if (isOpen && mounted) {
+      fetchCouponSettings();
+    }
+  }, [isOpen, mounted, fetchCouponSettings]);
 
   // Handle body scroll lock
   useEffect(() => {

@@ -4,35 +4,56 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
 let currentSalePercent: number | null = null;
-let listeners: ((percent: number | null) => void)[] = [];
+let currentBannerEnabled: boolean = false;
+let listeners: ((data: {
+  percent: number | null;
+  bannerEnabled: boolean;
+}) => void)[] = [];
 
 // Get current active sale from database
-export async function fetchSaleFromDB(): Promise<number | null> {
-  if (typeof window === "undefined") return currentSalePercent;
+export async function fetchSaleFromDB(): Promise<{
+  percent: number | null;
+  bannerEnabled: boolean;
+}> {
+  if (typeof window === "undefined")
+    return { percent: currentSalePercent, bannerEnabled: currentBannerEnabled };
 
   try {
-    const { data, error } = await supabase
+    // Fetch sale percent
+    const { data: saleData, error: saleError } = await supabase
       .from("site_settings")
       .select("value")
       .eq("key", "active_sale_percent")
       .single();
 
-    if (error || !data) {
-      // If no record exists, return null
-      return null;
+    // Fetch banner enabled setting
+    const { data: bannerData, error: bannerError } = await supabase
+      .from("site_settings")
+      .select("value")
+      .eq("key", "sale_banner_enabled")
+      .single();
+
+    let percent: number | null = null;
+    if (!saleError && saleData) {
+      const p = saleData.value;
+      if ([10, 20, 30].includes(p)) {
+        percent = p;
+        currentSalePercent = percent;
+        localStorage.setItem("active_sale_percent", String(percent));
+      }
     }
 
-    const percent = data.value;
-    if ([10, 20, 30].includes(percent)) {
-      currentSalePercent = percent;
-      // Cache in localStorage for faster access
-      localStorage.setItem("active_sale_percent", String(percent));
-      return percent;
+    let bannerEnabled: boolean = false;
+    if (!bannerError && bannerData) {
+      bannerEnabled = bannerData.value === true;
+      currentBannerEnabled = bannerEnabled;
+      localStorage.setItem("sale_banner_enabled", String(bannerEnabled));
     }
-    return null;
+
+    return { percent, bannerEnabled };
   } catch (err) {
     console.warn("[saleStore] Failed to fetch from DB:", err);
-    return null;
+    return { percent: null, bannerEnabled: false };
   }
 }
 
@@ -40,10 +61,8 @@ export async function fetchSaleFromDB(): Promise<number | null> {
 export function getSalePercent(): number | null {
   if (typeof window === "undefined") return currentSalePercent;
 
-  // First check memory
   if (currentSalePercent !== null) return currentSalePercent;
 
-  // Then check localStorage cache
   const cached = localStorage.getItem("active_sale_percent");
   if (cached) {
     const num = parseInt(cached, 10);
@@ -54,6 +73,22 @@ export function getSalePercent(): number | null {
   }
 
   return null;
+}
+
+// Get banner enabled status
+export function isBannerEnabled(): boolean {
+  if (typeof window === "undefined") return currentBannerEnabled;
+
+  if (currentBannerEnabled !== null) return currentBannerEnabled;
+
+  const cached = localStorage.getItem("sale_banner_enabled");
+  if (cached) {
+    const enabled = cached === "true";
+    currentBannerEnabled = enabled;
+    return enabled;
+  }
+
+  return false;
 }
 
 // Set sale (admin panel se call hoga) - saves to DATABASE
@@ -91,17 +126,72 @@ export async function setSalePercent(
       sessionStorage.setItem("active_sale_percent", String(percent));
     }
 
-    // Notify all listeners
-    listeners.forEach((listener) => listener(currentSalePercent));
+    // Notify all listeners with current banner state
+    listeners.forEach((listener) =>
+      listener({
+        percent: currentSalePercent,
+        bannerEnabled: currentBannerEnabled,
+      }),
+    );
 
     // Dispatch event for cross-tab communication
     window.dispatchEvent(
-      new CustomEvent("salePercentChanged", { detail: currentSalePercent }),
+      new CustomEvent("saleDataChanged", {
+        detail: {
+          percent: currentSalePercent,
+          bannerEnabled: currentBannerEnabled,
+        },
+      }),
     );
 
     return true;
   } catch (err) {
     console.error("[saleStore] Failed to save sale:", err);
+    return false;
+  }
+}
+
+// Set banner visibility (admin panel se call hoga)
+export async function setBannerEnabled(enabled: boolean): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+
+  try {
+    const { error } = await supabase.from("site_settings").upsert(
+      {
+        key: "sale_banner_enabled",
+        value: enabled,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "key" },
+    );
+
+    if (error) throw error;
+
+    currentBannerEnabled = enabled;
+    localStorage.setItem("sale_banner_enabled", String(enabled));
+    sessionStorage.setItem("sale_banner_enabled", String(enabled));
+
+    // Notify all listeners
+    listeners.forEach((listener) =>
+      listener({
+        percent: currentSalePercent,
+        bannerEnabled: currentBannerEnabled,
+      }),
+    );
+
+    // Dispatch event for cross-tab communication
+    window.dispatchEvent(
+      new CustomEvent("saleDataChanged", {
+        detail: {
+          percent: currentSalePercent,
+          bannerEnabled: currentBannerEnabled,
+        },
+      }),
+    );
+
+    return true;
+  } catch (err) {
+    console.error("[saleStore] Failed to save banner setting:", err);
     return false;
   }
 }
@@ -114,7 +204,7 @@ export function applyDiscount(price: number, percent: number | null): number {
 
 // Listen for sale changes
 export function listenToSaleChanges(
-  callback: (percent: number | null) => void,
+  callback: (data: { percent: number | null; bannerEnabled: boolean }) => void,
 ) {
   listeners.push(callback);
   return () => {
@@ -129,22 +219,42 @@ export async function initSaleStore() {
 
 // For components that need to sync with DB
 export function useSaleSync() {
-  const [salePercent, setSalePercentState] = useState<number | null>(() =>
-    getSalePercent(),
-  );
+  const [saleData, setSaleData] = useState<{
+    percent: number | null;
+    bannerEnabled: boolean;
+  }>(() => ({
+    percent: getSalePercent(),
+    bannerEnabled: isBannerEnabled(),
+  }));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Fetch from DB on mount
-    fetchSaleFromDB().then((percent) => {
-      setSalePercentState(percent);
+    fetchSaleFromDB().then((data) => {
+      setSaleData(data);
       setLoading(false);
     });
 
     // Listen for changes
-    const unsubscribe = listenToSaleChanges(setSalePercentState);
-    return unsubscribe;
+    const unsubscribe = listenToSaleChanges(setSaleData);
+
+    // Listen for custom event
+    const handleCustomEvent = (e: CustomEvent) => {
+      setSaleData(e.detail);
+    };
+    window.addEventListener(
+      "saleDataChanged",
+      handleCustomEvent as EventListener,
+    );
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener(
+        "saleDataChanged",
+        handleCustomEvent as EventListener,
+      );
+    };
   }, []);
 
-  return { salePercent, loading };
+  return { saleData, loading };
 }
