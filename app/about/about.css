@@ -590,3 +590,61 @@
     transition: none;
   }
 }
+
+/* ========== RTL SUPPORT FOR ABOUT PAGE ========== */
+[dir="rtl"] .ab-value-card {
+  text-align: right;
+}
+
+[dir="rtl"] .ab-value-line {
+  left: auto;
+  right: 0;
+}
+
+[dir="rtl"] .ab-value-card:hover .ab-value-line {
+  width: 100%;
+}
+
+[dir="rtl"] .ab-stat {
+  text-align: center;
+}
+
+[dir="rtl"] .ab-cta-btn svg {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .ab-cta-btn:hover svg {
+  transform: scaleX(-1) translateX(-4px);
+}
+
+[dir="rtl"] .ab-cta-btn--primary {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .ab-eyebrow {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .ab-corner--tl {
+  left: auto;
+  right: 1.5rem;
+  border-left: none;
+  border-right: 1px solid rgba(184, 134, 11, 0.4);
+}
+
+[dir="rtl"] .ab-corner--tr {
+  right: auto;
+  left: 1.5rem;
+  border-right: none;
+  border-left: 1px solid rgba(184, 134, 11, 0.4);
+}
+
+[dir="rtl"] .ab-statement-quote::before,
+[dir="rtl"] .ab-statement-quote::after {
+  display: inline-block;
+}
+
+[dir="rtl"] .ab-hero-ring {
+  right: auto;
+  left: -120px;
+}

@@ -599,3 +599,58 @@
     transition: none;
   }
 }
+
+/* ========== RTL SUPPORT FOR SIGNUP PAGE ========== */
+[dir="rtl"] .su-brand-perks li {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+[dir="rtl"] .su-input-icon {
+  left: auto;
+  right: 0;
+}
+
+[dir="rtl"] .su-input {
+  padding-left: 0;
+  padding-right: 1.8rem;
+}
+
+[dir="rtl"] .su-eye-btn {
+  right: auto;
+  left: 0;
+}
+
+[dir="rtl"] .su-submit-btn svg {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .su-submit-btn:hover svg {
+  transform: scaleX(-1) translateX(-3px);
+}
+
+[dir="rtl"] .su-switch-link svg {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .su-brand-eyebrow {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .su-form-eyebrow {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .su-corner--tl {
+  left: auto;
+  right: 1.5rem;
+  border-left: none;
+  border-right: 1px solid rgba(184, 134, 11, 0.4);
+}
+
+[dir="rtl"] .su-corner--tr {
+  right: auto;
+  left: 1.5rem;
+  border-right: none;
+  border-left: 1px solid rgba(184, 134, 11, 0.4);
+}

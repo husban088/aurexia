@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { signOutUser } from "@/lib/auth";
+import { useLanguage } from "@/app/context/LanguageContext";
 import "./profile.css";
 
 type ProfileData = {
@@ -14,8 +15,138 @@ type ProfileData = {
   updated_at: string;
 };
 
+const profileTranslations = {
+  // Aside
+  member: { en: "Member", ar: "عضو", de: "Mitglied" },
+  status: { en: "Status", ar: "الحالة", de: "Status" },
+  active: { en: "Active", ar: "نشط", de: "Aktiv" },
+  joined: { en: "Joined", ar: "انضم", de: "Beigetreten" },
+  updated: { en: "Updated", ar: "تم التحديث", de: "Aktualisiert" },
+  signOut: { en: "Sign Out", ar: "تسجيل الخروج", de: "Abmelden" },
+
+  // Main Header
+  yourAccount: { en: "Your Account", ar: "حسابك", de: "Ihr Konto" },
+  myProfile: { en: "My", ar: "ملفي", de: "Mein" },
+  profileEm: { en: "Profile", ar: "الشخصي", de: "Profil" },
+  manageInfo: {
+    en: "Manage your personal information and security settings",
+    ar: "إدارة معلوماتك الشخصية وإعدادات الأمان",
+    de: "Verwalten Sie Ihre persönlichen Daten und Sicherheitseinstellungen",
+  },
+
+  // Tabs
+  profileInfo: {
+    en: "Profile Info",
+    ar: "معلومات الملف",
+    de: "Profilinformationen",
+  },
+  security: { en: "Security", ar: "الأمان", de: "Sicherheit" },
+
+  // Form Labels
+  username: { en: "Username", ar: "اسم المستخدم", de: "Benutzername" },
+  usernamePlaceholder: {
+    en: "your_username",
+    ar: "اسم_المستخدم",
+    de: "ihr_benutzername",
+  },
+  emailAddress: {
+    en: "Email Address",
+    ar: "البريد الإلكتروني",
+    de: "E-Mail-Adresse",
+  },
+  memberSince: { en: "Member Since", ar: "عضو منذ", de: "Mitglied seit" },
+  userId: { en: "User ID", ar: "معرف المستخدم", de: "Benutzer-ID" },
+
+  // Password
+  newPassword: {
+    en: "New Password",
+    ar: "كلمة المرور الجديدة",
+    de: "Neues Passwort",
+  },
+  confirmPassword: {
+    en: "Confirm New Password",
+    ar: "تأكيد كلمة المرور الجديدة",
+    de: "Neues Passwort bestätigen",
+  },
+  passwordPlaceholder: { en: "••••••••", ar: "••••••••", de: "••••••••" },
+
+  // Buttons
+  saveChanges: {
+    en: "Save Changes",
+    ar: "حفظ التغييرات",
+    de: "Änderungen speichern",
+  },
+  updatePassword: {
+    en: "Update Password",
+    ar: "تحديث كلمة المرور",
+    de: "Passwort aktualisieren",
+  },
+
+  // Info texts
+  emailNote: {
+    en: "Email address cannot be changed. Only username is editable.",
+    ar: "لا يمكن تغيير عنوان البريد الإلكتروني. فقط اسم المستخدم قابل للتعديل.",
+    de: "E-Mail-Adresse kann nicht geändert werden. Nur der Benutzername ist bearbeitbar.",
+  },
+  passwordNote: {
+    en: "Password must be at least 6 characters long.",
+    ar: "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.",
+    de: "Das Passwort muss mindestens 6 Zeichen lang sein.",
+  },
+
+  // Alerts
+  usernameEmpty: {
+    en: "Username cannot be empty.",
+    ar: "اسم المستخدم لا يمكن أن يكون فارغًا.",
+    de: "Benutzername darf nicht leer sein.",
+  },
+  usernameTaken: {
+    en: "This username is already taken.",
+    ar: "اسم المستخدم هذا مستخدم بالفعل.",
+    de: "Dieser Benutzername ist bereits vergeben.",
+  },
+  updateSuccess: {
+    en: "Profile updated successfully!",
+    ar: "تم تحديث الملف الشخصي بنجاح!",
+    de: "Profil erfolgreich aktualisiert!",
+  },
+  updateFailed: {
+    en: "Failed to update profile. Please try again.",
+    ar: "فشل تحديث الملف الشخصي. يرجى المحاولة مرة أخرى.",
+    de: "Profilaktualisierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+  },
+  passwordShort: {
+    en: "New password must be at least 6 characters.",
+    ar: "يجب أن تتكون كلمة المرور الجديدة من 6 أحرف على الأقل.",
+    de: "Das neue Passwort muss mindestens 6 Zeichen lang sein.",
+  },
+  passwordMismatch: {
+    en: "Passwords do not match.",
+    ar: "كلمات المرور غير متطابقة.",
+    de: "Passwörter stimmen nicht überein.",
+  },
+  passwordChangeSuccess: {
+    en: "Password changed successfully!",
+    ar: "تم تغيير كلمة المرور بنجاح!",
+    de: "Passwort erfolgreich geändert!",
+  },
+  passwordChangeFailed: {
+    en: "Failed to change password.",
+    ar: "فشل تغيير كلمة المرور.",
+    de: "Passwortänderung fehlgeschlagen.",
+  },
+};
+
+const getProfileTranslation = (
+  key: keyof typeof profileTranslations,
+  lang: "en" | "ar" | "de",
+): string => {
+  return (
+    profileTranslations[key]?.[lang] || profileTranslations[key]?.en || key
+  );
+};
+
 // ─── MODULE-LEVEL CACHE ───────────────────────────────────────────────────────
-// Survives Next.js client-side navigation — profile loads instantly on revisit
 let _cachedProfile: ProfileData | null = null;
 let _fetchPromise: Promise<ProfileData | null> | null = null;
 
@@ -36,7 +167,6 @@ function loadProfileFromStorage(): ProfileData | null {
     const raw = localStorage.getItem(PF_LOCAL_KEY);
     if (!raw) return null;
     const entry = JSON.parse(raw);
-    // Accept up to 1 hour old — profile doesn't change often
     if (entry?.data && Date.now() - (entry.ts || 0) < 3600000) {
       _cachedProfile = entry.data;
       return entry.data;
@@ -45,20 +175,16 @@ function loadProfileFromStorage(): ProfileData | null {
   return null;
 }
 
-// Restore immediately on module load
 if (typeof window !== "undefined") {
   loadProfileFromStorage();
 }
 
 async function getProfile(): Promise<ProfileData | null> {
-  // 1. Return memory cache instantly
   if (_cachedProfile) return _cachedProfile;
 
-  // 2. Try localStorage (fast, survives navigation)
   const fromStorage = loadProfileFromStorage();
   if (fromStorage) return fromStorage;
 
-  // 3. Dedupe in-flight calls
   if (_fetchPromise) return _fetchPromise;
 
   _fetchPromise = (async () => {
@@ -73,7 +199,6 @@ async function getProfile(): Promise<ProfileData | null> {
         return null;
       }
 
-      // Try fetching profile
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*")
@@ -81,7 +206,6 @@ async function getProfile(): Promise<ProfileData | null> {
         .single();
 
       if (profileError || !profileData) {
-        // Profile doesn't exist yet — create it
         const { data: newProfile, error: insertError } = await supabase
           .from("profiles")
           .insert({
@@ -128,7 +252,6 @@ async function getProfile(): Promise<ProfileData | null> {
   return _fetchPromise;
 }
 
-// Clear cache on sign-out so next user gets fresh data
 function clearProfileCache() {
   _cachedProfile = null;
   _fetchPromise = null;
@@ -136,12 +259,12 @@ function clearProfileCache() {
     localStorage.removeItem(PF_LOCAL_KEY);
   } catch (_) {}
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { language, isRTLMode } = useLanguage();
+  const lang = language;
 
-  // Sync-init: reads memory cache OR localStorage — instant render on back-nav
   const [profile, setProfile] = useState<ProfileData | null>(
     () => _cachedProfile ?? loadProfileFromStorage(),
   );
@@ -150,7 +273,6 @@ export default function ProfilePage() {
   );
   const [activeTab, setActiveTab] = useState<"info" | "security">("info");
 
-  // Edit states
   const [username, setUsername] = useState(
     () => (_cachedProfile ?? loadProfileFromStorage())?.username ?? "",
   );
@@ -161,16 +283,12 @@ export default function ProfilePage() {
     msg: string;
   } | null>(null);
 
-  // Password states
-  const [currentPass, setCurrentPass] = useState("");
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
-  const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [passLoading, setPassLoading] = useState(false);
 
-  // ── Helper: apply profile data to all state at once ──
   const applyProfile = useCallback((data: ProfileData) => {
     setProfile(data);
     setUsername(data.username);
@@ -180,31 +298,23 @@ export default function ProfilePage() {
   useEffect(() => {
     let active = true;
 
-    // Try memory + storage first — instant, no network
     const instant = _cachedProfile ?? loadProfileFromStorage();
-    if (instant) {
-      applyProfile(instant);
-    }
+    if (instant) applyProfile(instant);
 
-    // Always verify with server in background (keeps data fresh)
-    // But don't show loading if we already have cached data
     getProfile().then((result) => {
       if (!active) return;
       if (!result) {
-        // Not logged in — redirect
         if (!instant) router.replace("/signin?redirectTo=/profile");
         return;
       }
       applyProfile(result);
     });
 
-    // ── pageshow: bfcache restore ──
     const handlePageShow = (_e: PageTransitionEvent) => {
       const cached = _cachedProfile ?? loadProfileFromStorage();
       if (cached) applyProfile(cached);
     };
 
-    // ── popstate: Next.js SPA back/forward ──
     const handlePopState = () => {
       const cached = _cachedProfile ?? loadProfileFromStorage();
       if (cached) applyProfile(cached);
@@ -220,17 +330,19 @@ export default function ProfilePage() {
     };
   }, [router, applyProfile]);
 
-  const getInitials = (name: string) => {
-    return name?.slice(0, 2)?.toUpperCase() || "??";
-  };
+  const getInitials = (name: string) =>
+    name?.slice(0, 2)?.toUpperCase() || "??";
 
   const formatDate = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
+      return new Date(dateStr).toLocaleDateString(
+        lang === "ar" ? "ar-AE" : lang === "de" ? "de-DE" : "en-US",
+        {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        },
+      );
     } catch {
       return "—";
     }
@@ -245,7 +357,10 @@ export default function ProfilePage() {
     try {
       const trimmed = username.trim();
       if (!trimmed) {
-        setAlert({ type: "error", msg: "Username cannot be empty." });
+        setAlert({
+          type: "error",
+          msg: getProfileTranslation("usernameEmpty", lang),
+        });
         setSaving(false);
         return;
       }
@@ -258,7 +373,10 @@ export default function ProfilePage() {
         .maybeSingle();
 
       if (existing) {
-        setAlert({ type: "error", msg: "This username is already taken." });
+        setAlert({
+          type: "error",
+          msg: getProfileTranslation("usernameTaken", lang),
+        });
         setSaving(false);
         return;
       }
@@ -272,17 +390,18 @@ export default function ProfilePage() {
 
       if (error) throw error;
 
-      // Update cache so next navigation is also instant with new username
       _cachedProfile = updated;
       saveProfileToStorage(updated);
       setProfile(updated);
       setUsername(updated.username);
-      setAlert({ type: "success", msg: "Profile updated successfully!" });
+      setAlert({
+        type: "success",
+        msg: getProfileTranslation("updateSuccess", lang),
+      });
     } catch (err) {
-      console.error(err);
       setAlert({
         type: "error",
-        msg: "Failed to update profile. Please try again.",
+        msg: getProfileTranslation("updateFailed", lang),
       });
     } finally {
       setSaving(false);
@@ -298,13 +417,16 @@ export default function ProfilePage() {
       if (!newPass || newPass.length < 6) {
         setAlert({
           type: "error",
-          msg: "New password must be at least 6 characters.",
+          msg: getProfileTranslation("passwordShort", lang),
         });
         setPassLoading(false);
         return;
       }
       if (newPass !== confirmPass) {
-        setAlert({ type: "error", msg: "Passwords do not match." });
+        setAlert({
+          type: "error",
+          msg: getProfileTranslation("passwordMismatch", lang),
+        });
         setPassLoading(false);
         return;
       }
@@ -312,14 +434,17 @@ export default function ProfilePage() {
       const { error } = await supabase.auth.updateUser({ password: newPass });
       if (error) throw error;
 
-      setCurrentPass("");
       setNewPass("");
       setConfirmPass("");
-      setAlert({ type: "success", msg: "Password changed successfully!" });
+      setAlert({
+        type: "success",
+        msg: getProfileTranslation("passwordChangeSuccess", lang),
+      });
     } catch (err: any) {
       setAlert({
         type: "error",
-        msg: err?.message || "Failed to change password.",
+        msg:
+          err?.message || getProfileTranslation("passwordChangeFailed", lang),
       });
     } finally {
       setPassLoading(false);
@@ -327,16 +452,15 @@ export default function ProfilePage() {
   };
 
   const handleSignOut = async () => {
-    clearProfileCache(); // Clear cache so fresh user starts clean
+    clearProfileCache();
     await signOutUser();
     window.location.href = "/signin";
   };
 
-  // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="pf-loading">
-        <div className="pf-loading-ring" style={{ position: "relative" }}>
+      <div className="pf-loading" dir={isRTLMode ? "rtl" : "ltr"}>
+        <div className="pf-loading-ring">
           <div className="pf-loading-inner" />
         </div>
         <p className="pf-loading-text">Loading Profile...</p>
@@ -347,7 +471,7 @@ export default function ProfilePage() {
   if (!profile) return null;
 
   return (
-    <div className="pf-root">
+    <div className="pf-root" dir={isRTLMode ? "rtl" : "ltr"}>
       <div className="pf-grain" aria-hidden="true" />
       <div className="pf-bg-lines" aria-hidden="true">
         <span />
@@ -361,7 +485,6 @@ export default function ProfilePage() {
       <div className="pf-corner pf-corner--br" aria-hidden="true" />
 
       <div className="pf-container">
-        {/* ── Aside ── */}
         <aside className="pf-aside">
           <div className="pf-avatar-wrap">
             <div className="pf-avatar-glow" aria-hidden="true" />
@@ -373,40 +496,45 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-
           <div className="pf-aside-info">
             <p className="pf-aside-eyebrow">
               <span className="pf-ey-line" />
-              Member
+              {getProfileTranslation("member", lang)}
               <span className="pf-ey-line" />
             </p>
             <h2 className="pf-aside-name">{profile.username}</h2>
             <p className="pf-aside-email">{profile.email}</p>
             <div className="pf-aside-divider" aria-hidden="true" />
           </div>
-
           <div className="pf-aside-meta">
             <div className="pf-meta-item">
-              <span className="pf-meta-label">Status</span>
+              <span className="pf-meta-label">
+                {getProfileTranslation("status", lang)}
+              </span>
               <span className="pf-meta-value">
                 <span className="pf-dot" />
-                <span className="pf-meta-active">Active</span>
+                <span className="pf-meta-active">
+                  {getProfileTranslation("active", lang)}
+                </span>
               </span>
             </div>
             <div className="pf-meta-item">
-              <span className="pf-meta-label">Joined</span>
+              <span className="pf-meta-label">
+                {getProfileTranslation("joined", lang)}
+              </span>
               <span className="pf-meta-value">
                 {formatDate(profile.created_at)}
               </span>
             </div>
             <div className="pf-meta-item">
-              <span className="pf-meta-label">Updated</span>
+              <span className="pf-meta-label">
+                {getProfileTranslation("updated", lang)}
+              </span>
               <span className="pf-meta-value">
                 {formatDate(profile.updated_at)}
               </span>
             </div>
           </div>
-
           <button className="pf-signout-btn" onClick={handleSignOut}>
             <svg
               viewBox="0 0 24 24"
@@ -418,31 +546,28 @@ export default function ProfilePage() {
               <polyline points="16 17 21 12 16 7" />
               <line x1="21" y1="12" x2="9" y2="12" />
             </svg>
-            Sign Out
+            {getProfileTranslation("signOut", lang)}
           </button>
         </aside>
 
-        {/* ── Main ── */}
         <main className="pf-main">
           <div className="pf-main-header">
             <p className="pf-main-eyebrow">
               <span className="pf-ey-line" />
-              Your Account
+              {getProfileTranslation("yourAccount", lang)}
             </p>
             <h1 className="pf-main-title">
-              My <em>Profile</em>
+              {getProfileTranslation("myProfile", lang)}{" "}
+              <em>{getProfileTranslation("profileEm", lang)}</em>
             </h1>
             <p className="pf-main-sub">
-              Manage your personal information and security settings
+              {getProfileTranslation("manageInfo", lang)}
             </p>
           </div>
 
-          {/* Tabs */}
           <div className="pf-tabs">
             <button
-              className={`pf-tab${
-                activeTab === "info" ? " pf-tab--active" : ""
-              }`}
+              className={`pf-tab${activeTab === "info" ? " pf-tab--active" : ""}`}
               onClick={() => {
                 setActiveTab("info");
                 setAlert(null);
@@ -457,12 +582,10 @@ export default function ProfilePage() {
                 <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
-              Profile Info
+              {getProfileTranslation("profileInfo", lang)}
             </button>
             <button
-              className={`pf-tab${
-                activeTab === "security" ? " pf-tab--active" : ""
-              }`}
+              className={`pf-tab${activeTab === "security" ? " pf-tab--active" : ""}`}
               onClick={() => {
                 setActiveTab("security");
                 setAlert(null);
@@ -477,11 +600,10 @@ export default function ProfilePage() {
                 <rect x="3" y="11" width="18" height="11" rx="2" />
                 <path d="M7 11V7a5 5 0 0110 0v4" />
               </svg>
-              Security
+              {getProfileTranslation("security", lang)}
             </button>
           </div>
 
-          {/* Alert */}
           {alert && (
             <div className={`pf-alert pf-alert--${alert.type}`} role="alert">
               <svg
@@ -506,18 +628,14 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* ── Profile Info Tab ── */}
           {activeTab === "info" && (
             <form className="pf-form" onSubmit={handleSaveProfile} noValidate>
               <div className="pf-form-grid">
-                {/* Username */}
                 <div
-                  className={`pf-field${
-                    focused === "un" ? " pf-field--focused" : ""
-                  }${username ? " pf-field--filled" : ""}`}
+                  className={`pf-field${focused === "un" ? " pf-field--focused" : ""}${username ? " pf-field--filled" : ""}`}
                 >
                   <label className="pf-label" htmlFor="pf-username">
-                    Username
+                    {getProfileTranslation("username", lang)}
                   </label>
                   <div className="pf-input-wrap">
                     <span className="pf-input-icon" aria-hidden="true">
@@ -539,17 +657,19 @@ export default function ProfilePage() {
                       onChange={(e) => setUsername(e.target.value)}
                       onFocus={() => setFocused("un")}
                       onBlur={() => setFocused(null)}
-                      placeholder="your_username"
+                      placeholder={getProfileTranslation(
+                        "usernamePlaceholder",
+                        lang,
+                      )}
                       autoComplete="username"
                     />
                   </div>
                   <div className="pf-field-line" aria-hidden="true" />
                 </div>
 
-                {/* Email (read-only) */}
                 <div className="pf-field pf-field--filled">
                   <label className="pf-label" htmlFor="pf-email">
-                    Email Address
+                    {getProfileTranslation("emailAddress", lang)}
                   </label>
                   <div className="pf-input-wrap">
                     <span className="pf-input-icon" aria-hidden="true">
@@ -575,9 +695,10 @@ export default function ProfilePage() {
                   <div className="pf-field-line" aria-hidden="true" />
                 </div>
 
-                {/* Member Since (read-only) */}
                 <div className="pf-field pf-field--filled">
-                  <label className="pf-label">Member Since</label>
+                  <label className="pf-label">
+                    {getProfileTranslation("memberSince", lang)}
+                  </label>
                   <div className="pf-input-wrap">
                     <span className="pf-input-icon" aria-hidden="true">
                       <svg
@@ -603,9 +724,10 @@ export default function ProfilePage() {
                   <div className="pf-field-line" aria-hidden="true" />
                 </div>
 
-                {/* User ID (read-only) */}
                 <div className="pf-field pf-field--filled">
-                  <label className="pf-label">User ID</label>
+                  <label className="pf-label">
+                    {getProfileTranslation("userId", lang)}
+                  </label>
                   <div className="pf-input-wrap">
                     <span className="pf-input-icon" aria-hidden="true">
                       <svg
@@ -648,7 +770,7 @@ export default function ProfilePage() {
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
-                Email address cannot be changed. Only username is editable.
+                {getProfileTranslation("emailNote", lang)}
               </p>
 
               <button type="submit" className="pf-save-btn" disabled={saving}>
@@ -656,7 +778,7 @@ export default function ProfilePage() {
                   <span className="pf-spinner" />
                 ) : (
                   <>
-                    <span>Save Changes</span>
+                    <span>{getProfileTranslation("saveChanges", lang)}</span>
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -675,7 +797,6 @@ export default function ProfilePage() {
             </form>
           )}
 
-          {/* ── Security Tab ── */}
           {activeTab === "security" && (
             <form
               className="pf-form"
@@ -683,14 +804,11 @@ export default function ProfilePage() {
               noValidate
             >
               <div className="pf-form-grid pf-form-grid--single">
-                {/* New Password */}
                 <div
-                  className={`pf-field${
-                    focused === "np" ? " pf-field--focused" : ""
-                  }${newPass ? " pf-field--filled" : ""}`}
+                  className={`pf-field${focused === "np" ? " pf-field--focused" : ""}${newPass ? " pf-field--filled" : ""}`}
                 >
                   <label className="pf-label" htmlFor="pf-new-pass">
-                    New Password
+                    {getProfileTranslation("newPassword", lang)}
                   </label>
                   <div className="pf-input-wrap">
                     <span className="pf-input-icon" aria-hidden="true">
@@ -708,7 +826,10 @@ export default function ProfilePage() {
                       id="pf-new-pass"
                       type={showNew ? "text" : "password"}
                       className="pf-input"
-                      placeholder="••••••••"
+                      placeholder={getProfileTranslation(
+                        "passwordPlaceholder",
+                        lang,
+                      )}
                       value={newPass}
                       onChange={(e) => setNewPass(e.target.value)}
                       onFocus={() => setFocused("np")}
@@ -744,14 +865,11 @@ export default function ProfilePage() {
                   <div className="pf-field-line" aria-hidden="true" />
                 </div>
 
-                {/* Confirm Password */}
                 <div
-                  className={`pf-field${
-                    focused === "cp" ? " pf-field--focused" : ""
-                  }${confirmPass ? " pf-field--filled" : ""}`}
+                  className={`pf-field${focused === "cp" ? " pf-field--focused" : ""}${confirmPass ? " pf-field--filled" : ""}`}
                 >
                   <label className="pf-label" htmlFor="pf-confirm-pass">
-                    Confirm New Password
+                    {getProfileTranslation("confirmPassword", lang)}
                   </label>
                   <div className="pf-input-wrap">
                     <span className="pf-input-icon" aria-hidden="true">
@@ -769,7 +887,10 @@ export default function ProfilePage() {
                       id="pf-confirm-pass"
                       type={showConfirm ? "text" : "password"}
                       className="pf-input"
-                      placeholder="••••••••"
+                      placeholder={getProfileTranslation(
+                        "passwordPlaceholder",
+                        lang,
+                      )}
                       value={confirmPass}
                       onChange={(e) => setConfirmPass(e.target.value)}
                       onFocus={() => setFocused("cp")}
@@ -819,7 +940,7 @@ export default function ProfilePage() {
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
-                Password must be at least 6 characters long.
+                {getProfileTranslation("passwordNote", lang)}
               </p>
 
               <button
@@ -831,7 +952,7 @@ export default function ProfilePage() {
                   <span className="pf-spinner" />
                 ) : (
                   <>
-                    <span>Update Password</span>
+                    <span>{getProfileTranslation("updatePassword", lang)}</span>
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"

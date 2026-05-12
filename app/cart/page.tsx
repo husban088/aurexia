@@ -1,14 +1,144 @@
-// app/cart/page.tsx - WITH COUPON CODE SYSTEM
+// app/cart/page.tsx - WITH COUPON CODE SYSTEM + RTL + TRANSLATIONS
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCartStore } from "@/lib/cartStore";
-import { useCouponStore } from "@/lib/couponStore"; // ✅ Coupon store import
+import { useCouponStore } from "@/lib/couponStore";
 import "./cart.css";
 import { useCurrency } from "../context/CurrencyContext";
+import { useLanguage } from "../context/LanguageContext";
+
+/* ═══════════════════════════════════════════
+   TRANSLATIONS
+═══════════════════════════════════════════ */
+const cartPageTranslations = {
+  // Page Header
+  yourSelection: { en: "Your Selection", ar: "اختيارك", de: "Ihre Auswahl" },
+  yourCart: { en: "Your Cart", ar: "سلة التسوق", de: "Ihr Warenkorb" },
+  item: { en: "Item", ar: "عنصر", de: "Artikel" },
+  items: { en: "Items", ar: "عناصر", de: "Artikel" },
+  itemsInCart: { en: "in Cart", ar: "في السلة", de: "im Warenkorb" },
+
+  // Shipping
+  freeShipping: {
+    en: "Free Shipping",
+    ar: "شحن مجاني",
+    de: "Kostenloser Versand",
+  },
+
+  // Loading
+  loadingCart: {
+    en: "Loading your cart...",
+    ar: "جاري تحميل سلة التسوق...",
+    de: "Ihr Warenkorb wird geladen...",
+  },
+
+  // Empty State
+  emptyTitle: {
+    en: "Your cart is empty",
+    ar: "سلة التسوق فارغة",
+    de: "Ihr Warenkorb ist leer",
+  },
+  emptySub: {
+    en: "Explore our luxury collections to begin.",
+    ar: "استكشف مجموعاتنا الفاخرة لتبدأ.",
+    de: "Entdecken Sie unsere Luxus-Kollektionen, um zu beginnen.",
+  },
+  discoverCollections: {
+    en: "Discover Collections",
+    ar: "استكشف المجموعات",
+    de: "Kollektionen entdecken",
+  },
+
+  // Continue Shopping
+  continueShopping: {
+    en: "Continue Shopping",
+    ar: "مواصلة التسوق",
+    de: "Weiter einkaufen",
+  },
+
+  // Coupon
+  haveCoupon: {
+    en: "Have a coupon code?",
+    ar: "هل لديك رمز خصم؟",
+    de: "Haben Sie einen Gutscheincode?",
+  },
+  couponPlaceholder: {
+    en: "Enter coupon code",
+    ar: "أدخل رمز الخصم",
+    de: "Gutscheincode eingeben",
+  },
+  apply: { en: "Apply", ar: "تطبيق", de: "Anwenden" },
+  discountPercentOff: { en: "off", ar: "خصم", de: "Rabatt" },
+
+  // Order Summary
+  orderSummary: {
+    en: "Order Summary",
+    ar: "ملخص الطلب",
+    de: "Bestellübersicht",
+  },
+  subtotal: { en: "Subtotal", ar: "المجموع الفرعي", de: "Zwischensumme" },
+  discount: { en: "Discount", ar: "خصم", de: "Rabatt" },
+  shipping: { en: "Shipping", ar: "الشحن", de: "Versand" },
+  total: { en: "Total", ar: "الإجمالي", de: "Gesamt" },
+
+  // Buttons
+  proceedToCheckout: {
+    en: "Proceed to Checkout",
+    ar: "المتابعة للدفع",
+    de: "Zur Kasse gehen",
+  },
+
+  // Trust Badges
+  secureCheckout: { en: "Secure Checkout", ar: "دفع آمن", de: "Sichere Kasse" },
+  thirtyDayReturns: {
+    en: "30-Day Returns",
+    ar: "إرجاع خلال 30 يومًا",
+    de: "30-Tage-Rückgabe",
+  },
+  luxuryPackaging: {
+    en: "Luxury Packaging",
+    ar: "تغليف فاخر",
+    de: "Luxusverpackung",
+  },
+  freeShippingBadge: {
+    en: "Free Shipping",
+    ar: "شحن مجاني",
+    de: "Kostenloser Versand",
+  },
+
+  // Stock status
+  outOfStock: { en: "Out of Stock", ar: "غير متوفر", de: "Nicht auf Lager" },
+  lowStock: {
+    en: "Low Stock",
+    ar: "مخزون محدود",
+    de: "Niedriger Lagerbestand",
+  },
+  lowStockLeft: { en: "left", ar: "متبقي", de: "vorrätig" },
+  inStock: { en: "In Stock", ar: "متوفر", de: "Auf Lager" },
+
+  // Item details
+  pieces: { en: "pcs", ar: "قطعة", de: "Stk" },
+  pcsTotal: { en: "pcs total", ar: "قطعة إجمالي", de: "Stk insgesamt" },
+  unit: { en: "unit", ar: "وحدة", de: "Einheit" },
+  units: { en: "units", ar: "وحدات", de: "Einheiten" },
+  perPc: { en: "/ pc", ar: "/ قطعة", de: "/ Stk" },
+};
+
+const getCartPageTranslation = (
+  key: keyof typeof cartPageTranslations,
+  lang: "en" | "ar" | "de",
+): string => {
+  return (
+    cartPageTranslations[key]?.[lang] || cartPageTranslations[key]?.en || key
+  );
+};
 
 export default function Cart() {
+  const { language, isRTLMode } = useLanguage();
+  const lang = language;
+
   const {
     items,
     loading,
@@ -22,7 +152,6 @@ export default function Cart() {
 
   const { formatPrice, currency, loading: currencyLoading } = useCurrency();
 
-  // ✅ Coupon store
   const {
     appliedCode,
     discountPercent,
@@ -31,38 +160,30 @@ export default function Cart() {
     removeCoupon,
     getDiscountAmount,
     getFinalTotal,
-    fetchCouponSettings, // ✅ Added fetchCouponSettings
+    fetchCouponSettings,
   } = useCouponStore();
 
-  // ✅ Coupon UI state
   const [couponInput, setCouponInput] = useState("");
   const [couponMessage, setCouponMessage] = useState<{
     text: string;
     success: boolean;
   } | null>(null);
 
-  // Track hydration to prevent flash
   const [isHydrated, setIsHydrated] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Wait for component to mount on client
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Handle hydration and fetch cart only once
   useEffect(() => {
     if (!isMounted) return;
-
     setIsHydrated(true);
-
     if (!initialized || items.length === 0) {
-      console.log("🛒 Fetching cart on mount...");
       fetchCart();
     }
   }, [isMounted, initialized, items.length, fetchCart]);
 
-  // ✅ Refresh coupon settings when page loads
   useEffect(() => {
     fetchCouponSettings();
   }, [fetchCouponSettings]);
@@ -70,12 +191,10 @@ export default function Cart() {
   const subtotalPKR = getSubtotal();
   const cartCount = getCartCount();
 
-  // ✅ Coupon calculations
   const discountAmountPKR = getDiscountAmount(subtotalPKR);
-  const shippingPKR = 0; // FREE SHIPPING ALWAYS
+  const shippingPKR = 0;
   const totalPKR = getFinalTotal(subtotalPKR) + shippingPKR;
 
-  // ✅ Handle coupon apply
   const handleApplyCoupon = () => {
     if (!couponInput.trim()) {
       setCouponMessage({ text: "Please enter a coupon code.", success: false });
@@ -84,43 +203,41 @@ export default function Cart() {
     const result = applyCoupon(couponInput);
     setCouponMessage({ text: result.message, success: result.success });
     if (result.success) {
-      setCouponInput(""); // Clear input after successful apply
+      setCouponInput("");
     }
   };
 
-  // ✅ Handle coupon remove
   const handleRemoveCoupon = () => {
     removeCoupon();
     setCouponMessage(null);
     setCouponInput("");
   };
 
-  // ✅ Handle Enter key in coupon input
   const handleCouponKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       handleApplyCoupon();
     }
   };
 
-  // Show loading until mounted and initialized
   if (!isMounted || !isHydrated || (!initialized && loading)) {
     return (
-      <div className="cart-root">
+      <div className="cart-root" dir={isRTLMode ? "rtl" : "ltr"}>
         <div className="cart-grain" aria-hidden="true" />
         <div className="cart-wrap">
           <div className="cart-empty">
             <div className="cart-spinner" />
-            <p className="cart-empty-title">Loading your cart...</p>
+            <p className="cart-empty-title">
+              {getCartPageTranslation("loadingCart", lang)}
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  // Show empty cart state
   if (items.length === 0 && initialized) {
     return (
-      <div className="cart-root">
+      <div className="cart-root" dir={isRTLMode ? "rtl" : "ltr"}>
         <div className="cart-grain" aria-hidden="true" />
         <div className="cart-lines" aria-hidden="true">
           {[...Array(5)].map((_, i) => (
@@ -135,10 +252,12 @@ export default function Cart() {
           <div className="cart-page-header">
             <p className="cart-eyebrow">
               <span className="cart-ey-line" />
-              Your Selection
+              {getCartPageTranslation("yourSelection", lang)}
               <span className="cart-ey-line" />
             </p>
-            <h1 className="cart-page-title">Your Cart</h1>
+            <h1 className="cart-page-title">
+              {getCartPageTranslation("yourCart", lang)}
+            </h1>
           </div>
           <div className="cart-empty">
             <div className="cart-empty-icon">
@@ -153,12 +272,14 @@ export default function Cart() {
                 <path d="M16 10a4 4 0 01-8 0" />
               </svg>
             </div>
-            <h2 className="cart-empty-title">Your cart is empty</h2>
+            <h2 className="cart-empty-title">
+              {getCartPageTranslation("emptyTitle", lang)}
+            </h2>
             <p className="cart-empty-sub">
-              Explore our luxury collections to begin.
+              {getCartPageTranslation("emptySub", lang)}
             </p>
             <Link href="/watches" className="cart-empty-cta">
-              <span>Discover Collections</span>
+              <span>{getCartPageTranslation("discoverCollections", lang)}</span>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -181,7 +302,7 @@ export default function Cart() {
   }
 
   return (
-    <div className="cart-root">
+    <div className="cart-root" dir={isRTLMode ? "rtl" : "ltr"}>
       <div className="cart-grain" aria-hidden="true" />
       <div className="cart-lines" aria-hidden="true">
         {[...Array(5)].map((_, i) => (
@@ -196,22 +317,24 @@ export default function Cart() {
         <div className="cart-page-header">
           <p className="cart-eyebrow">
             <span className="cart-ey-line" />
-            Your Selection
+            {getCartPageTranslation("yourSelection", lang)}
             <span className="cart-ey-line" />
           </p>
           <h1 className="cart-page-title">
             {items.length === 0 ? (
-              "Your Cart"
+              getCartPageTranslation("yourCart", lang)
             ) : (
               <>
-                <em>{cartCount}</em> {cartCount === 1 ? "Item" : "Items"} in
-                Cart
+                <em>{cartCount}</em>{" "}
+                {cartCount === 1
+                  ? getCartPageTranslation("item", lang)
+                  : getCartPageTranslation("items", lang)}{" "}
+                {getCartPageTranslation("itemsInCart", lang)}
               </>
             )}
           </h1>
         </div>
 
-        {/* ✅ FREE SHIPPING BANNER */}
         {items.length > 0 && (
           <div className="cart-ship-bar cart-ship-bar--done">
             <p className="cart-ship-text cart-ship-text--done">
@@ -229,7 +352,7 @@ export default function Cart() {
                   strokeLinejoin="round"
                 />
               </svg>
-              Free Shipping
+              {getCartPageTranslation("freeShipping", lang)}
             </p>
           </div>
         )}
@@ -280,9 +403,11 @@ export default function Cart() {
                   (rawStock >= 999999 || item.quantity * ppu < rawStock);
 
                 const getStockLabel = () => {
-                  if (isOutOfStock) return "Out of Stock";
-                  if (isLowStock) return `Low Stock (${rawStock} left)`;
-                  return "In Stock";
+                  if (isOutOfStock)
+                    return getCartPageTranslation("outOfStock", lang);
+                  if (isLowStock)
+                    return `${getCartPageTranslation("lowStock", lang)} (${rawStock} ${getCartPageTranslation("lowStockLeft", lang)})`;
+                  return getCartPageTranslation("inStock", lang);
                 };
 
                 const handleRemoveClick = async () => {
@@ -337,9 +462,14 @@ export default function Cart() {
                             margin: "0.15rem 0",
                           }}
                         >
-                          {formatPrice(itemPricePKR)} × {ppu} pcs ×{" "}
-                          {item.quantity} unit{item.quantity !== 1 ? "s" : ""} ={" "}
-                          {totalPieces} pcs total
+                          {formatPrice(itemPricePKR)} × {ppu}{" "}
+                          {getCartPageTranslation("pieces", lang)} ×{" "}
+                          {item.quantity}{" "}
+                          {item.quantity !== 1
+                            ? getCartPageTranslation("units", lang)
+                            : getCartPageTranslation("unit", lang)}{" "}
+                          = {totalPieces}{" "}
+                          {getCartPageTranslation("pcsTotal", lang)}
                         </p>
                       )}
                       {ppu === 1 && item.quantity > 1 && (
@@ -350,14 +480,13 @@ export default function Cart() {
                             margin: "0.15rem 0",
                           }}
                         >
-                          {formatPrice(itemPricePKR)} / pc
+                          {formatPrice(itemPricePKR)}{" "}
+                          {getCartPageTranslation("perPc", lang)}
                         </p>
                       )}
 
                       <p
-                        className={`cart-item-stock ${
-                          isOutOfStock ? "out" : isLowStock ? "low" : "in"
-                        }`}
+                        className={`cart-item-stock ${isOutOfStock ? "out" : isLowStock ? "low" : "in"}`}
                       >
                         {getStockLabel()}
                       </p>
@@ -456,34 +585,36 @@ export default function Cart() {
                   strokeLinejoin="round"
                 />
               </svg>
-              Continue Shopping
+              {getCartPageTranslation("continueShopping", lang)}
             </Link>
           </div>
 
-          {/* ✅ Order Summary with Coupon Code */}
           <div className="cart-summary-col">
             <div className="cart-summary-card">
               <p className="cart-summary-heading">
                 <span className="cart-ey-line" />
-                Order Summary
+                {getCartPageTranslation("orderSummary", lang)}
                 <span className="cart-ey-line" />
               </p>
 
-              {/* ✅ COUPON CODE SECTION */}
               <div className="cart-coupon-section">
-                <p className="cart-coupon-label">Have a coupon code?</p>
+                <p className="cart-coupon-label">
+                  {getCartPageTranslation("haveCoupon", lang)}
+                </p>
 
                 {!appliedCode ? (
-                  // Show input when no coupon is applied
                   <div className="cart-coupon-row">
                     <input
                       type="text"
                       className="cart-coupon-input"
-                      placeholder="Enter coupon code"
+                      placeholder={getCartPageTranslation(
+                        "couponPlaceholder",
+                        lang,
+                      )}
                       value={couponInput}
                       onChange={(e) => {
                         setCouponInput(e.target.value.toUpperCase());
-                        setCouponMessage(null); // Clear message on type
+                        setCouponMessage(null);
                       }}
                       onKeyDown={handleCouponKeyDown}
                       maxLength={20}
@@ -493,11 +624,10 @@ export default function Cart() {
                       onClick={handleApplyCoupon}
                       disabled={!couponInput.trim()}
                     >
-                      Apply
+                      {getCartPageTranslation("apply", lang)}
                     </button>
                   </div>
                 ) : (
-                  // Show applied coupon badge
                   <div className="cart-coupon-applied">
                     <div className="cart-coupon-badge">
                       <svg
@@ -528,7 +658,6 @@ export default function Cart() {
                   </div>
                 )}
 
-                {/* ✅ Success / Error Message */}
                 {couponMessage && (
                   <p
                     className={
@@ -542,18 +671,25 @@ export default function Cart() {
                 )}
               </div>
 
-              {/* ✅ Price Breakdown */}
               <div className="cart-breakdown">
                 <div className="cart-breakdown-row">
-                  <span>Subtotal ({cartCount} items)</span>
+                  <span>
+                    {getCartPageTranslation("subtotal", lang)} ({cartCount}{" "}
+                    {cartCount === 1
+                      ? getCartPageTranslation("item", lang)
+                      : getCartPageTranslation("items", lang)}
+                    )
+                  </span>
                   <span>{formatPrice(subtotalPKR)}</span>
                 </div>
 
-                {/* ✅ Discount Row - Only when coupon applied */}
                 {appliedCode && discountAmountPKR > 0 && (
                   <div className="cart-breakdown-row cart-breakdown-row--discount">
                     <span>
-                      Discount ({discountPercent}% off — {appliedCode})
+                      {getCartPageTranslation("discount", lang)} (
+                      {discountPercent}%{" "}
+                      {getCartPageTranslation("discountPercentOff", lang)} —{" "}
+                      {appliedCode})
                     </span>
                     <span className="cart-discount-value">
                       − {formatPrice(discountAmountPKR)}
@@ -561,23 +697,23 @@ export default function Cart() {
                   </div>
                 )}
 
-                {/* ✅ Shipping Row - Always Free */}
                 <div className="cart-breakdown-row">
-                  <span>Shipping</span>
-                  <span className="free-shipping-text">Free</span>
+                  <span>{getCartPageTranslation("shipping", lang)}</span>
+                  <span className="free-shipping-text">
+                    {getCartPageTranslation("freeShipping", lang)}
+                  </span>
                 </div>
 
                 <div className="cart-breakdown-divider" />
 
-                {/* ✅ Total Row */}
                 <div className="cart-breakdown-row cart-breakdown-row--total">
-                  <span>Total</span>
+                  <span>{getCartPageTranslation("total", lang)}</span>
                   <span>{formatPrice(totalPKR)}</span>
                 </div>
               </div>
 
               <Link href="/checkout" className="cart-checkout-btn">
-                <span>Proceed to Checkout</span>
+                <span>{getCartPageTranslation("proceedToCheckout", lang)}</span>
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -596,14 +732,19 @@ export default function Cart() {
 
               <div className="cart-trust">
                 {[
-                  { icon: "🔒", label: "Secure Checkout" },
-                  { icon: "↩", label: "30-Day Returns" },
-                  { icon: "✦", label: "Luxury Packaging" },
-                  { icon: "🚚", label: "Free Shipping" },
+                  { icon: "🔒", labelKey: "secureCheckout" },
+                  { icon: "↩", labelKey: "thirtyDayReturns" },
+                  { icon: "✦", labelKey: "luxuryPackaging" },
+                  { icon: "🚚", labelKey: "freeShippingBadge" },
                 ].map((b) => (
-                  <div key={b.label} className="cart-trust-badge">
+                  <div key={b.labelKey} className="cart-trust-badge">
                     <span className="cart-trust-icon">{b.icon}</span>
-                    <span className="cart-trust-label">{b.label}</span>
+                    <span className="cart-trust-label">
+                      {getCartPageTranslation(
+                        b.labelKey as keyof typeof cartPageTranslations,
+                        lang,
+                      )}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -612,9 +753,7 @@ export default function Cart() {
         </div>
       </div>
 
-      {/* ✅ Coupon CSS Styles */}
       <style jsx>{`
-        /* === COUPON SECTION === */
         .cart-coupon-section {
           margin-bottom: 1.25rem;
           padding: 1rem;
@@ -622,7 +761,6 @@ export default function Cart() {
           border-radius: 8px;
           background: rgba(218, 165, 32, 0.03);
         }
-
         .cart-coupon-label {
           font-size: 0.72rem;
           letter-spacing: 0.08em;
@@ -630,13 +768,11 @@ export default function Cart() {
           color: #888;
           margin: 0 0 0.6rem;
         }
-
         .cart-coupon-row {
           display: flex;
           gap: 0.5rem;
           align-items: center;
         }
-
         .cart-coupon-input {
           flex: 1;
           background: rgba(255, 255, 255, 0.05);
@@ -650,17 +786,14 @@ export default function Cart() {
           outline: none;
           transition: border-color 0.2s;
         }
-
         .cart-coupon-input:focus {
           border-color: rgba(218, 165, 32, 0.7);
         }
-
         .cart-coupon-input::placeholder {
           color: #555;
           font-size: 0.75rem;
           letter-spacing: 0.02em;
         }
-
         .cart-coupon-btn {
           padding: 0.5rem 1rem;
           background: rgba(218, 165, 32, 0.15);
@@ -674,25 +807,20 @@ export default function Cart() {
           transition: all 0.2s;
           white-space: nowrap;
         }
-
         .cart-coupon-btn:hover:not(:disabled) {
           background: rgba(218, 165, 32, 0.25);
           border-color: rgba(218, 165, 32, 0.7);
         }
-
         .cart-coupon-btn:disabled {
           opacity: 0.4;
           cursor: not-allowed;
         }
-
-        /* Applied coupon badge */
         .cart-coupon-applied {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 0.5rem;
         }
-
         .cart-coupon-badge {
           display: flex;
           align-items: center;
@@ -705,7 +833,6 @@ export default function Cart() {
           font-size: 0.8rem;
           flex: 1;
         }
-
         .cart-coupon-remove {
           background: none;
           border: 1px solid rgba(180, 0, 0, 0.25);
@@ -717,12 +844,9 @@ export default function Cart() {
           transition: all 0.2s;
           line-height: 1;
         }
-
         .cart-coupon-remove:hover {
           background: rgba(180, 0, 0, 0.08);
         }
-
-        /* ✅ SUCCESS message - GREEN */
         .cart-coupon-success {
           margin: 0.6rem 0 0;
           padding: 0.5rem 0.75rem;
@@ -733,8 +857,6 @@ export default function Cart() {
           font-size: 0.78rem;
           line-height: 1.5;
         }
-
-        /* ✅ ERROR message - RED */
         .cart-coupon-error {
           margin: 0.6rem 0 0;
           padding: 0.5rem 0.75rem;
@@ -745,17 +867,13 @@ export default function Cart() {
           font-size: 0.78rem;
           line-height: 1.5;
         }
-
-        /* ✅ Discount row */
         .cart-breakdown-row--discount {
           color: #2e7d32;
         }
-
         .cart-discount-value {
           color: #2e7d32;
           font-weight: 600;
         }
-
         .free-shipping-text {
           color: #2e7d32;
           font-weight: 500;

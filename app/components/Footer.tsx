@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useLanguage } from "../context/LanguageContext";
 import {
   FaFacebookF,
   FaInstagram,
@@ -16,11 +17,6 @@ import {
   FaPaypal,
   FaApple,
   FaGoogle,
-  FaStar,
-  FaCrown,
-  FaEnvelope,
-  FaMapMarkerAlt,
-  FaPhoneAlt,
 } from "react-icons/fa";
 import {
   MdKeyboardArrowRight,
@@ -33,21 +29,11 @@ import {
   MdBusinessCenter,
   MdGavel,
   MdLocalShipping,
-  MdSupport as MdSupportIcon,
-  MdVerified,
-  MdSecurity,
 } from "react-icons/md";
-import {
-  GiCarKey,
-  GiWatch,
-  GiLaurelCrown,
-  GiReturnArrow,
-} from "react-icons/gi";
+import { GiCarKey, GiWatch, GiLaurelCrown } from "react-icons/gi";
 import "./footer.css";
 
 // ─── Pre-computed static particle positions ───────────────────────────────────
-// Math.random() in JSX causes React hydration mismatch (SSR vs CSR diff).
-// Fixed values eliminate the mismatch and make footer render instantly.
 const PARTICLES = [
   { left: "5%", delay: "0s", duration: "8s" },
   { left: "12%", delay: "1.2s", duration: "12s" },
@@ -70,7 +56,6 @@ const PARTICLES = [
   { left: "58%", delay: "1.5s", duration: "9s" },
   { left: "96%", delay: "0.3s", duration: "12s" },
 ];
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function Footer() {
   const [email, setEmail] = useState("");
@@ -79,10 +64,10 @@ export default function Footer() {
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const { language, isRTLMode } = useLanguage();
 
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -92,10 +77,8 @@ export default function Footer() {
       },
       { threshold: 0.1 },
     );
-
     const footer = document.querySelector(".footer");
     if (footer) observer.observe(footer);
-
     return () => observer.disconnect();
   }, []);
 
@@ -135,49 +118,42 @@ export default function Footer() {
       name: "Facebook",
       icon: <FaFacebookF />,
       href: "https://www.facebook.com/share/17a6uqbE89/",
-      color: "#1877F2",
       gradient: "linear-gradient(135deg, #1877F2, #0d5bb5)",
     },
     {
       name: "Instagram",
       icon: <FaInstagram />,
       href: "https://www.instagram.com/tech4ruu?igsh=NjRrZGl5dTd6cDNk",
-      color: "#E4405F",
       gradient: "linear-gradient(135deg, #f09433, #d62976, #962fbf)",
     },
     {
       name: "TikTok",
       icon: <FaTiktok />,
       href: "https://www.tiktok.com/@tech4ru?lang=en-GB",
-      color: "#000000",
       gradient: "linear-gradient(135deg, #00f2ea, #ff0050)",
     },
     {
       name: "Twitter",
       icon: <FaTwitter />,
       href: "https://twitter.com/tech4u",
-      color: "#1DA1F2",
       gradient: "linear-gradient(135deg, #1DA1F2, #0d8bec)",
     },
     {
       name: "YouTube",
       icon: <FaYoutube />,
       href: "https://youtube.com/tech4u",
-      color: "#FF0000",
       gradient: "linear-gradient(135deg, #FF0000, #cc0000)",
     },
     {
       name: "Pinterest",
       icon: <FaPinterestP />,
       href: "https://pinterest.com/tech4u",
-      color: "#BD081C",
       gradient: "linear-gradient(135deg, #BD081C, #8a0613)",
     },
     {
       name: "LinkedIn",
       icon: <FaLinkedinIn />,
       href: "https://linkedin.com/company/tech4u",
-      color: "#0A66C2",
       gradient: "linear-gradient(135deg, #0A66C2, #074a8a)",
     },
   ];
@@ -192,12 +168,7 @@ export default function Footer() {
   ];
 
   const categories = [
-    {
-      id: "pages",
-      title: "Quick Links",
-      icon: <MdHome />,
-      color: "#daa520",
-    },
+    { id: "pages", title: "Quick Links", icon: <MdHome />, color: "#daa520" },
     {
       id: "company",
       title: "Company",
@@ -300,8 +271,7 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="footer">
-      {/* ── Features Strip ── */}
+    <footer className="footer" dir={isRTLMode ? "rtl" : "ltr"}>
       <div className="footer-features">
         <div className="footer-features-grid">
           {features.map((feature, idx) => (
@@ -321,10 +291,7 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* 3D Glassmorphism Overlay */}
       <div className="footer-glass-overlay" />
-
-      {/* Particles — fixed positions, no Math.random(), no hydration mismatch */}
       <div className="footer-particles">
         {PARTICLES.map((p, i) => (
           <div
@@ -339,14 +306,11 @@ export default function Footer() {
         ))}
       </div>
 
-      {/* Gold decorative line top */}
       <div className="footer-gold-line">
         <div className="footer-gold-shine" />
       </div>
 
-      {/* Main Footer Content */}
       <div className={`footer-container ${isVisible ? "visible" : ""}`}>
-        {/* Left Section - Brand & Social & Contact */}
         <div className="footer-brand">
           <div className="footer-logo-wrapper">
             <div className="footer-logo-3d">
@@ -360,19 +324,15 @@ export default function Footer() {
               <GiLaurelCrown />
             </div>
           </div>
-
           <p className="footer-tagline">
             <span className="tagline-gold">✦</span> Luxury in Every Detail{" "}
             <span className="tagline-gold">✦</span>
           </p>
-
           <p className="footer-description">
             Curating the finest in watches, automotive elegance, home decor, and
             tech accessories for those who demand nothing but the extraordinary.
             <span className="footer-description-glow">Since 2026</span>
           </p>
-
-          {/* Social Links */}
           <div className="footer-social">
             {socialLinks.map((social, index) => (
               <a
@@ -384,9 +344,7 @@ export default function Footer() {
                 aria-label={social.name}
                 style={{
                   animationDelay: `${index * 0.05}s`,
-                  background:
-                    social.gradient ||
-                    `linear-gradient(135deg, ${social.color}, ${social.color}cc)`,
+                  background: social.gradient,
                 }}
               >
                 <span className="footer-social-icon">{social.icon}</span>
@@ -395,8 +353,6 @@ export default function Footer() {
               </a>
             ))}
           </div>
-
-          {/* Contact Info */}
           <div className="footer-contact-section">
             <div className="footer-contact-list">
               {contactInfo.map((item, idx) => (
@@ -418,16 +374,12 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Right Section - Links Grid + Newsletter */}
         <div className="footer-right-section">
-          {/* Links Grid - Two Columns */}
           <div className="footer-links-grid">
             {categories.map((category) => (
               <div
                 key={category.id}
-                className={`footer-links-column ${
-                  hoveredColumn === category.id ? "hovered" : ""
-                }`}
+                className={`footer-links-column ${hoveredColumn === category.id ? "hovered" : ""}`}
                 onMouseEnter={() => setHoveredColumn(category.id)}
                 onMouseLeave={() => setHoveredColumn(null)}
                 onClick={() =>
@@ -456,9 +408,7 @@ export default function Footer() {
                   </button>
                 </div>
                 <ul
-                  className={`footer-links-list ${
-                    activeCategory === category.id ? "active" : ""
-                  }`}
+                  className={`footer-links-list ${activeCategory === category.id ? "active" : ""}`}
                 >
                   {footerLinks[category.id as keyof typeof footerLinks].map(
                     (link, idx) => (
@@ -469,11 +419,9 @@ export default function Footer() {
                       >
                         <Link href={link.href} className="footer-link">
                           <span className="footer-link-icon-wrapper">
-                            {(link as any).icon && (
-                              <span className="footer-link-icon">
-                                {(link as any).icon}
-                              </span>
-                            )}
+                            <span className="footer-link-icon">
+                              {link.icon}
+                            </span>
                           </span>
                           <span className="footer-link-text">{link.name}</span>
                           <span className="footer-link-arrow">
@@ -488,7 +436,6 @@ export default function Footer() {
             ))}
           </div>
 
-          {/* Newsletter Section - Below both link columns */}
           <div className="footer-newsletter-wrapper">
             <div className="footer-newsletter">
               <div className="footer-newsletter-header">
@@ -530,10 +477,8 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Bottom Bar */}
       <div className="footer-bottom">
         <div className="footer-bottom-container">
-          {/* Payment Methods */}
           <div className="footer-payment">
             <span className="payment-label">Secure Payments</span>
             <div className="payment-icons">
@@ -553,22 +498,17 @@ export default function Footer() {
               ))}
             </div>
           </div>
-
-          {/* Copyright */}
           <div className="footer-copyright">
             <div className="copyright-gold-line" />
             <p>
               © {currentYear}{" "}
-              <span className="footer-copyright-brand">TECH4U</span>
-              <span className="copyright-separator">◆</span>
-              Luxury in Every Detail
-              <span className="copyright-separator">◆</span>
-              All rights reserved.
+              <span className="footer-copyright-brand">TECH4U</span>{" "}
+              <span className="copyright-separator">◆</span> Luxury in Every
+              Detail <span className="copyright-separator">◆</span> All rights
+              reserved.
             </p>
             <div className="copyright-gold-line right" />
           </div>
-
-          {/* Back to Top */}
           <button
             className="footer-back-to-top"
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
@@ -583,12 +523,9 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Animated border gradient bottom */}
       <div className="footer-bottom-gold">
         <div className="gold-wave" />
       </div>
-
-      {/* Floating Orbs */}
       <div className="footer-orb orb-1" />
       <div className="footer-orb orb-2" />
       <div className="footer-orb orb-3" />

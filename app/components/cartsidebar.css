@@ -11,7 +11,8 @@
   backdrop-filter: blur(0px);
   z-index: 998;
   pointer-events: none;
-  transition: background 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+  transition:
+    background 0.6s cubic-bezier(0.16, 1, 0.3, 1),
     backdrop-filter 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -744,4 +745,64 @@
     rgba(27, 94, 32, 0.05) 100%
   );
   border-color: rgba(46, 125, 50, 0.2);
+}
+
+/* ========== RTL SUPPORT FOR CART SIDEBAR ========== */
+[dir="rtl"] .cs-header {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .cs-header-left {
+  text-align: right;
+}
+
+[dir="rtl"] .cs-item {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+[dir="rtl"] .cs-item-info {
+  text-align: right;
+}
+
+[dir="rtl"] .cs-item-bottom {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+[dir="rtl"] .cs-qty {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+[dir="rtl"] .cs-item-price {
+  margin-right: auto;
+  margin-left: 0;
+}
+
+[dir="rtl"] .cs-item-remove {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+[dir="rtl"] .cs-summary-row {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .cs-checkout-btn svg,
+[dir="rtl"] .cs-view-cart-btn svg {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .cs-eyebrow {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .cs-close-btn:hover {
+  transform: rotate(-90deg);
+}
+
+[dir="rtl"] .cs-deco {
+  right: auto;
+  left: -80px;
 }

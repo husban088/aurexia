@@ -8,6 +8,9 @@ import { isOwner } from "@/lib/checkOwner";
 import { useCartStore } from "@/lib/cartStore";
 import "./navbar.css";
 import { useCurrency } from "../context/CurrencyContext";
+import { useLanguage } from "../context/LanguageContext";
+import { SupportedLanguage } from "@/lib/translations";
+import LanguageDropdown from "./LanguageDropdown";
 
 interface NavbarProps {
   onMenuOpen: () => void;
@@ -15,16 +18,90 @@ interface NavbarProps {
   onCartOpen: () => void;
 }
 
-const navLinks = [
-  { href: "/", label: "Home" },
-  { href: "/accessories", label: "Accessories" },
-  { href: "/watches", label: "Watches" },
-  { href: "/automotive", label: "Automotive" },
-  { href: "/home-decor", label: "Home Decor" },
-  { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact" },
-];
+// ✅ Category translations — FULL TRANSLATIONS for all languages
+const categoryLabels: Record<string, Record<"en" | "ar" | "de", string>> = {
+  "/accessories": { en: "Accessories", ar: "الإكسسوارات", de: "Zubehör" },
+  "/watches": { en: "Watches", ar: "الساعات", de: "Uhren" },
+  "/automotive": { en: "Automotive", ar: "السيارات", de: "Automobil" },
+  "/home-decor": { en: "Home Decor", ar: "ديكور المنزل", de: "Wohnkultur" },
+};
 
+// ✅ Subcategory translations
+const subcategoryTranslations: Record<
+  string,
+  Record<"en" | "ar" | "de", string>
+> = {
+  // Accessories subcategories
+  Chargers: { en: "Chargers", ar: "شواحن", de: "Ladegeräte" },
+  Cables: { en: "Cables", ar: "كابلات", de: "Kabel" },
+  "Phone Holders": {
+    en: "Phone Holders",
+    ar: "حوامل الهاتف",
+    de: "Telefonhalter",
+  },
+  "Tech Gadgets": { en: "Tech Gadgets", ar: "أدوات تقنية", de: "Tech-Gadgets" },
+  "Smart Accessories": {
+    en: "Smart Accessories",
+    ar: "إكسسوارات ذكية",
+    de: "Intelligentes Zubehör",
+  },
+  // Watches subcategories
+  "Men Watches": { en: "Men Watches", ar: "ساعات رجالية", de: "Herrenuhren" },
+  "Women Watches": {
+    en: "Women Watches",
+    ar: "ساعات نسائية",
+    de: "Damenuhren",
+  },
+  "Smart Watches": {
+    en: "Smart Watches",
+    ar: "ساعات ذكية",
+    de: "Smartwatches",
+  },
+  "Luxury Watches": {
+    en: "Luxury Watches",
+    ar: "ساعات فاخرة",
+    de: "Luxusuhren",
+  },
+  // Automotive subcategories
+  "Car Accessories": {
+    en: "Car Accessories",
+    ar: "إكسسوارات السيارة",
+    de: "Auto-Zubehör",
+  },
+  "Car Cleaning Tools": {
+    en: "Car Cleaning Tools",
+    ar: "أدوات تنظيف السيارة",
+    de: "Auto-Reinigungswerkzeuge",
+  },
+  "Interior Accessories": {
+    en: "Interior Accessories",
+    ar: "إكسسوارات داخلية",
+    de: "Innenausstattung",
+  },
+  // Home Decor subcategories
+  "Wall Decor": { en: "Wall Decor", ar: "ديكور الحائط", de: "Wanddekoration" },
+  Lighting: { en: "Lighting", ar: "إضاءة", de: "Beleuchtung" },
+  "Kitchen Essentials": {
+    en: "Kitchen Essentials",
+    ar: "أساسيات المطبخ",
+    de: "Küchenutensilien",
+  },
+  "Storage & Organizers": {
+    en: "Storage & Organizers",
+    ar: "تخزين ومنظمات",
+    de: "Aufbewahrung & Organizer",
+  },
+};
+
+// Get translated subcategory name
+function getTranslatedSubcategory(
+  originalName: string,
+  language: SupportedLanguage,
+): string {
+  return subcategoryTranslations[originalName]?.[language] || originalName;
+}
+
+// Subcategories data (keep original names, translate dynamically)
 const categorySubcategories: Record<string, { name: string; href: string }[]> =
   {
     "/accessories": [
@@ -57,6 +134,12 @@ const categorySubcategories: Record<string, { name: string; href: string }[]> =
     ],
   };
 
+// Currency to language mapping
+const CURRENCY_TO_LANGUAGE: Record<string, SupportedLanguage | null> = {
+  EUR: "de",
+  AED: null,
+};
+
 export default function Navbar({
   onMenuOpen,
   onSearchOpen,
@@ -75,8 +158,26 @@ export default function Navbar({
   const items = useCartStore((state) => state.items);
   const cartCount = items.reduce((total, item) => total + item.quantity, 0);
 
-  // ✅ Get live currencies from context (auto-updated rates)
   const { currency, currencies, setCurrency } = useCurrency();
+  const {
+    t,
+    showLanguageDropdown,
+    setLanguage,
+    language,
+    availableLanguages,
+    isRTLMode,
+  } = useLanguage();
+
+  // ✅ FULLY TRANSLATED nav links
+  const navLinks = [
+    { href: "/", label: t.nav.home },
+    { href: "/accessories", label: categoryLabels["/accessories"][language] },
+    { href: "/watches", label: categoryLabels["/watches"][language] },
+    { href: "/automotive", label: categoryLabels["/automotive"][language] },
+    { href: "/home-decor", label: categoryLabels["/home-decor"][language] },
+    { href: "/about", label: t.nav.about },
+    { href: "/contact", label: t.nav.contact },
+  ];
 
   useEffect(() => {
     setMounted(true);
@@ -126,8 +227,32 @@ export default function Navbar({
   const authResolved = user !== undefined;
   const isSignedIn = authResolved && user !== null;
 
-  // ✅ Filter out PKR from dropdown — show all foreign currencies
   const availableCurrencies = currencies.filter((c) => c.code !== "PKR");
+
+  const handleCurrencySelect = (cur: (typeof currencies)[0]) => {
+    setCurrency(cur);
+    setCurrencyOpen(false);
+
+    const langAction = CURRENCY_TO_LANGUAGE[cur.code];
+
+    if (cur.code === "EUR") {
+      setLanguage("de");
+    } else if (cur.code === "AED") {
+      if (language === "de") setLanguage("en");
+      window.dispatchEvent(
+        new CustomEvent("force-language-dropdown", {
+          detail: { country: "AE" },
+        }),
+      );
+    } else {
+      if (language === "de" || language === "ar") setLanguage("en");
+      window.dispatchEvent(
+        new CustomEvent("force-language-dropdown", {
+          detail: { country: "OTHER" },
+        }),
+      );
+    }
+  };
 
   const handleDropdownEnter = (href: string) => {
     if (dropdownTimeoutRef.current) {
@@ -157,13 +282,10 @@ export default function Navbar({
     window.location.href = href;
   };
 
-  // ✅ REMOVED currencyLoading check — no more navbar delay!
-  // Navbar renders immediately with PKR, then silently updates
   if (!mounted) {
     return (
       <nav className="navbar">
         <div className="navbar-container">
-          {/* CENTER — Logo */}
           <div className="navbar-center">
             <a
               href="/"
@@ -174,7 +296,7 @@ export default function Navbar({
               }}
             >
               <img
-                src="nav__logo.png"
+                src="/nav__logo.png"
                 alt="TECH4U"
                 className="navbar-logo-img"
               />
@@ -186,7 +308,10 @@ export default function Navbar({
   }
 
   return (
-    <nav className={`navbar${scrolled ? " scrolled" : ""}`}>
+    <nav
+      className={`navbar${scrolled ? " scrolled" : ""}`}
+      dir={isRTLMode ? "rtl" : "ltr"}
+    >
       <div className="navbar-container">
         {/* LEFT — Currency & Search */}
         <div className="navbar-left">
@@ -216,13 +341,8 @@ export default function Navbar({
                   {availableCurrencies.map((cur) => (
                     <button
                       key={cur.code}
-                      className={`currency-option${
-                        currency.code === cur.code ? " active" : ""
-                      }`}
-                      onClick={() => {
-                        setCurrency(cur);
-                        setCurrencyOpen(false);
-                      }}
+                      className={`currency-option${currency.code === cur.code ? " active" : ""}`}
+                      onClick={() => handleCurrencySelect(cur)}
                     >
                       <span className="currency-option-flag">{cur.flag}</span>
                       <span className="currency-option-symbol">
@@ -232,17 +352,11 @@ export default function Navbar({
                       <span className="currency-option-name">{cur.name}</span>
                     </button>
                   ))}
-                  {/* ✅ Also show PKR option for Pakistan users */}
                   <button
-                    className={`currency-option${
-                      currency.code === "PKR" ? " active" : ""
-                    }`}
+                    className={`currency-option${currency.code === "PKR" ? " active" : ""}`}
                     onClick={() => {
                       const pkr = currencies.find((c) => c.code === "PKR");
-                      if (pkr) {
-                        setCurrency(pkr);
-                        setCurrencyOpen(false);
-                      }
+                      if (pkr) handleCurrencySelect(pkr);
                     }}
                   >
                     <span className="currency-option-flag">🇵🇰</span>
@@ -263,7 +377,7 @@ export default function Navbar({
               e.preventDefault();
               onSearchOpen();
             }}
-            aria-label="Search"
+            aria-label={t.nav.search}
           >
             <svg
               viewBox="0 0 24 24"
@@ -274,12 +388,10 @@ export default function Navbar({
               <circle cx="11" cy="11" r="7" />
               <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
             </svg>
-            <span className="nav-icon-tooltip">Search</span>
+            <span className="nav-icon-tooltip">{t.nav.search}</span>
           </button>
         </div>
 
-        {/* CENTER — Logo */}
-        {/* CENTER — Logo */}
         {/* CENTER — Logo */}
         <div className="navbar-center">
           <a
@@ -298,13 +410,17 @@ export default function Navbar({
           </a>
         </div>
 
-        {/* RIGHT — User & Cart */}
+        {/* RIGHT — Language Dropdown + User + Cart */}
         <div className="navbar-right">
+          {showLanguageDropdown && (
+            <LanguageDropdown className="nav-desktop-only" />
+          )}
+
           <div className="nav-desktop-only">
             <a
               href={isSignedIn ? "/profile" : "/signin"}
               className="nav-icon-btn user-btn"
-              aria-label={isSignedIn ? "My Profile" : "Sign In"}
+              aria-label={isSignedIn ? "My Profile" : t.nav.home}
               onClick={(e) => {
                 e.preventDefault();
                 navigateTo(isSignedIn ? "/profile" : "/signin");
@@ -332,7 +448,7 @@ export default function Navbar({
               e.preventDefault();
               onCartOpen();
             }}
-            aria-label="Cart"
+            aria-label={t.nav.cart}
           >
             <svg
               viewBox="0 0 24 24"
@@ -345,7 +461,7 @@ export default function Navbar({
               <path d="M16 10a4 4 0 01-8 0" />
             </svg>
             {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
-            <span className="nav-icon-tooltip">Cart</span>
+            <span className="nav-icon-tooltip">{t.nav.cart}</span>
           </button>
 
           <button
@@ -354,17 +470,17 @@ export default function Navbar({
               e.preventDefault();
               onMenuOpen();
             }}
-            aria-label="Menu"
+            aria-label={t.nav.menu}
           >
             <span />
             <span />
             <span />
-            <span className="nav-icon-tooltip">Menu</span>
+            <span className="nav-icon-tooltip">{t.nav.menu}</span>
           </button>
         </div>
       </div>
 
-      {/* BOTTOM NAV — Desktop */}
+      {/* BOTTOM NAV — Desktop with FULL TRANSLATIONS */}
       <div className="navbar-bottom desktop-only">
         <ul className="nav-links">
           {navLinks.map((link) => {
@@ -373,9 +489,7 @@ export default function Navbar({
             return (
               <li
                 key={link.href}
-                className={`nav-item${hasDropdown ? " has-dropdown" : ""}${
-                  openDropdown === link.href ? " dropdown-active" : ""
-                }`}
+                className={`nav-item${hasDropdown ? " has-dropdown" : ""}${openDropdown === link.href ? " dropdown-active" : ""}`}
                 onMouseEnter={() =>
                   hasDropdown && handleDropdownEnter(link.href)
                 }
@@ -411,15 +525,13 @@ export default function Navbar({
                       <a
                         key={sub.href}
                         href={sub.href}
-                        className={`dropdown-item${
-                          currentPath === sub.href ? " active" : ""
-                        }`}
+                        className={`dropdown-item${currentPath === sub.href ? " active" : ""}`}
                         onClick={(e) => {
                           e.preventDefault();
                           navigateTo(sub.href);
                         }}
                       >
-                        {sub.name}
+                        {getTranslatedSubcategory(sub.name, language)}
                       </a>
                     ))}
                   </div>

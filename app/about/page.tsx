@@ -1,60 +1,167 @@
 "use client";
 
 import Link from "next/link";
+import { useLanguage } from "@/app/context/LanguageContext";
 import "./about.css";
 
 /* ═══════════════════════════════════════════
-   STATIC DATA — defined at module level so
-   they are never re-created on re-renders
+   TRANSLATIONS
 ═══════════════════════════════════════════ */
-const values = [
-  {
-    num: "01",
-    title: "Craftsmanship",
-    desc: "Every piece is born from hours of meticulous handwork, blending old-world artisan skill with modern precision engineering.",
+const aboutTranslations = {
+  // Hero
+  heroEyebrow: { en: "Our Story", ar: "قصتنا", de: "Unsere Geschichte" },
+  heroTitle1: { en: "Born from a", ar: "ولد من", de: "Geboren aus einer" },
+  heroTitleEm1: { en: "Passion", ar: "شغف", de: "Leidenschaft" },
+  heroTitle2: { en: "for timeless", ar: "للخلود", de: "für zeitlose" },
+  heroTitleEm2: { en: "Elegance", ar: "أناقة", de: "Eleganz" },
+  heroSub: {
+    en: "Tech4U was founded on a single belief — that luxury should feel personal, not distant. From our first timepiece to our latest mobile accessory, every object carries that promise.",
+    ar: "تأسست تيك4يو على اعتقاد واحد - أن الفخامة يجب أن تبدو شخصية، وليست بعيدة. من ساعتنا الأولى إلى أحدث إكسسوارات الجوال، كل قطعة تحمل هذا الوعد.",
+    de: "Tech4U wurde mit einer einzigen Überzeugung gegründet - dass Luxus persönlich und nicht distanziert sein sollte. Von unserer ersten Uhr bis zum neuesten Mobilzubehör trägt jedes Objekt dieses Versprechen.",
   },
-  {
-    num: "02",
-    title: "Exclusivity",
-    desc: "Our collections are strictly limited. When you wear Tech4U, you wear something few in the world ever will.",
-  },
-  {
-    num: "03",
-    title: "Legacy",
-    desc: "We design heirlooms — objects meant to outlast trends, seasons, and generations.",
-  },
-  {
-    num: "04",
-    title: "Integrity",
-    desc: "Transparent sourcing, ethical production, and honest pricing. Luxury without compromise.",
-  },
-];
 
-const stats = [
-  { value: "2024", label: "Founded" },
-  { value: "48+", label: "Timepieces" },
-  { value: "12K+", label: "Members" },
-  { value: "99%", label: "Satisfaction" },
-];
+  // Stats
+  statFounded: { en: "Founded", ar: "تأسست", de: "Gegründet" },
+  statTimepieces: { en: "Timepieces", ar: "ساعات", de: "Zeitmesser" },
+  statMembers: { en: "Members", ar: "أعضاء", de: "Mitglieder" },
+  statSatisfaction: { en: "Satisfaction", ar: "رضا", de: "Zufriedenheit" },
+
+  // Statement
+  statementEyebrow: {
+    en: "Brand Statement",
+    ar: "بيان العلامة التجارية",
+    de: "Markenstatement",
+  },
+  statementQuote: {
+    en: "We do not simply sell watches. We offer you a relationship with time — intimate, deliberate, and yours alone.",
+    ar: "نحن لا نبيع الساعات فقط. نحن نقدم لك علاقة مع الوقت - حميمة، ومتعمدة، وخاصة بك وحدك.",
+    de: "Wir verkaufen nicht einfach Uhren. Wir bieten Ihnen eine Beziehung zur Zeit - intim, bewusst und nur Ihnen allein.",
+  },
+
+  // Values Section
+  valuesEyebrow: {
+    en: "What We Stand For",
+    ar: "ما نمثله",
+    de: "Wofür wir stehen",
+  },
+  valuesTitle: { en: "Our", ar: "قيم", de: "Unsere" },
+  valuesTitleEm: { en: "Values", ar: "نا", de: "Werte" },
+
+  // Values Cards
+  values: [
+    {
+      titleEn: "Craftsmanship",
+      titleAr: "الحرفية",
+      titleDe: "Handwerkskunst",
+      descEn:
+        "Every piece is born from hours of meticulous handwork, blending old-world artisan skill with modern precision engineering.",
+      descAr:
+        "كل قطعة تولد من ساعات من العمل اليدوي الدقيق، تمزج بين مهارة الحرفي القديم والهندسة الدقيقة الحديثة.",
+      descDe:
+        "Jedes Stück entsteht aus stundenlanger sorgfältiger Handarbeit, die alte Handwerkskunst mit moderner Präzisionstechnik verbindet.",
+    },
+    {
+      titleEn: "Exclusivity",
+      titleAr: "الحصرية",
+      titleDe: "Exklusivität",
+      descEn:
+        "Our collections are strictly limited. When you wear Tech4U, you wear something few in the world ever will.",
+      descAr:
+        "مجموعاتنا محدودة للغاية. عندما ترتدي تيك4يو، فإنك ترتدي شيئًا لا يرتديه سوى القليل في العالم.",
+      descDe:
+        "Unsere Kollektionen sind streng limitiert. Wenn Sie Tech4U tragen, tragen Sie etwas, das nur wenige auf der Welt je tragen werden.",
+    },
+    {
+      titleEn: "Legacy",
+      titleAr: "الإرث",
+      titleDe: "Vermächtnis",
+      descEn:
+        "We design heirlooms — objects meant to outlast trends, seasons, and generations.",
+      descAr: "نصمم إرثًا - أشياء مصممة لتدوم أكثر من المواسم والأجيال.",
+      descDe:
+        "Wir entwerfen Erbstücke - Objekte, die Trends, Jahreszeiten und Generationen überdauern sollen.",
+    },
+    {
+      titleEn: "Integrity",
+      titleAr: "النزاهة",
+      titleDe: "Integrität",
+      descEn:
+        "Transparent sourcing, ethical production, and honest pricing. Luxury without compromise.",
+      descAr: "مصادر شفافة، إنتاج أخلاقي، وتسعير صادق. فخامة بدون تنازلات.",
+      descDe:
+        "Transparente Beschaffung, ethische Produktion und ehrliche Preise. Luxus ohne Kompromisse.",
+    },
+  ],
+
+  // CTA Section
+  ctaEyebrow: {
+    en: "Begin Your Journey",
+    ar: "ابدأ رحلتك",
+    de: "Beginnen Sie Ihre Reise",
+  },
+  ctaTitle: {
+    en: "Ready to wear",
+    ar: "هل أنت مستعد لارتداء",
+    de: "Bereit für",
+  },
+  ctaTitleEm: { en: "Tech4U?", ar: "تيك4يو؟", de: "Tech4U?" },
+  ctaBtn1: {
+    en: "Explore Collections",
+    ar: "استكشف المجموعات",
+    de: "Kollektionen entdecken",
+  },
+  ctaBtn2: { en: "Contact Us", ar: "اتصل بنا", de: "Kontaktieren Sie uns" },
+};
+
+const getAboutTranslation = (
+  key: keyof typeof aboutTranslations,
+  lang: "en" | "ar" | "de",
+  subKey?: string,
+): string => {
+  if (
+    subKey &&
+    aboutTranslations[key] &&
+    (aboutTranslations[key] as any)[subKey]
+  ) {
+    return (aboutTranslations[key] as any)[subKey][lang];
+  }
+  if (aboutTranslations[key] && (aboutTranslations[key] as any)[lang]) {
+    return (aboutTranslations[key] as any)[lang];
+  }
+  return (aboutTranslations[key] as any)?.en || "";
+};
 
 /* ═══════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════ */
 export default function About() {
+  const { language, isRTLMode } = useLanguage();
+  const lang = language;
+
+  const stats = [
+    { value: "2024", label: getAboutTranslation("statFounded", lang) },
+    { value: "48+", label: getAboutTranslation("statTimepieces", lang) },
+    { value: "12K+", label: getAboutTranslation("statMembers", lang) },
+    { value: "99%", label: getAboutTranslation("statSatisfaction", lang) },
+  ];
+
+  const values = aboutTranslations.values.map((v, idx) => ({
+    num: `0${idx + 1}`,
+    title: lang === "en" ? v.titleEn : lang === "ar" ? v.titleAr : v.titleDe,
+    desc: lang === "en" ? v.descEn : lang === "ar" ? v.descAr : v.descDe,
+  }));
+
   return (
-    <div className="ab-root">
-      {/* Ambient bg */}
+    <div className="ab-root" dir={isRTLMode ? "rtl" : "ltr"}>
       <div className="ab-ambient" aria-hidden="true" />
       <div className="ab-grain" aria-hidden="true" />
 
-      {/* Vertical lines */}
       <div className="ab-lines" aria-hidden="true">
         {[...Array(5)].map((_, i) => (
           <span key={i} />
         ))}
       </div>
 
-      {/* Corner marks */}
       <div className="ab-corner ab-corner--tl" aria-hidden="true" />
       <div className="ab-corner ab-corner--tr" aria-hidden="true" />
 
@@ -63,21 +170,18 @@ export default function About() {
         <div className="ab-hero-inner">
           <p className="ab-eyebrow">
             <span className="ab-ey-line" />
-            Our Story
+            {getAboutTranslation("heroEyebrow", lang)}
             <span className="ab-ey-line" />
           </p>
           <h1 className="ab-hero-title">
-            Born from a <em>Passion</em>
+            {getAboutTranslation("heroTitle1", lang)}{" "}
+            <em>{getAboutTranslation("heroTitleEm1", lang)}</em>
             <br />
-            for timeless <em>Elegance.</em>
+            {getAboutTranslation("heroTitle2", lang)}{" "}
+            <em>{getAboutTranslation("heroTitleEm2", lang)}.</em>
           </h1>
-          <p className="ab-hero-sub">
-            Tech4U was founded on a single belief — that luxury should feel
-            personal, not distant. From our first timepiece to our latest mobile
-            accessory, every object carries that promise.
-          </p>
+          <p className="ab-hero-sub">{getAboutTranslation("heroSub", lang)}</p>
 
-          {/* Stat strip */}
           <div className="ab-stats">
             {stats.map((s) => (
               <div key={s.label} className="ab-stat">
@@ -88,7 +192,6 @@ export default function About() {
           </div>
         </div>
 
-        {/* Decorative watch ring */}
         <div className="ab-hero-ring" aria-hidden="true">
           <div className="ab-ring-1" />
           <div className="ab-ring-2" />
@@ -99,12 +202,16 @@ export default function About() {
       {/* ══ BRAND STATEMENT ══ */}
       <section className="ab-statement">
         <div className="ab-statement-inner">
+          <p className="ab-eyebrow">
+            <span className="ab-ey-line" />
+            {getAboutTranslation("statementEyebrow", lang)}
+            <span className="ab-ey-line" />
+          </p>
           <div className="ab-statement-num" aria-hidden="true">
             ✦
           </div>
           <blockquote className="ab-statement-quote">
-            "We do not simply sell watches. We offer you a relationship with
-            time — intimate, deliberate, and yours alone."
+            "{getAboutTranslation("statementQuote", lang)}"
           </blockquote>
         </div>
       </section>
@@ -114,11 +221,12 @@ export default function About() {
         <div className="ab-section-header">
           <p className="ab-eyebrow">
             <span className="ab-ey-line" />
-            What We Stand For
+            {getAboutTranslation("valuesEyebrow", lang)}
             <span className="ab-ey-line" />
           </p>
           <h2 className="ab-section-title">
-            Our <em>Values</em>
+            {getAboutTranslation("valuesTitle", lang)}{" "}
+            <em>{getAboutTranslation("valuesTitleEm", lang)}</em>
           </h2>
         </div>
 
@@ -141,15 +249,16 @@ export default function About() {
         <div className="ab-cta-inner">
           <p className="ab-eyebrow">
             <span className="ab-ey-line" />
-            Begin Your Journey
+            {getAboutTranslation("ctaEyebrow", lang)}
             <span className="ab-ey-line" />
           </p>
           <h2 className="ab-cta-title">
-            Ready to wear <em>Tech4U?</em>
+            {getAboutTranslation("ctaTitle", lang)}{" "}
+            <em>{getAboutTranslation("ctaTitleEm", lang)}</em>
           </h2>
           <div className="ab-cta-btns">
             <Link href="/watches" className="ab-cta-btn ab-cta-btn--primary">
-              <span>Explore Collections</span>
+              <span>{getAboutTranslation("ctaBtn1", lang)}</span>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -167,12 +276,11 @@ export default function About() {
               </svg>
             </Link>
             <Link href="/contact" className="ab-cta-btn ab-cta-btn--ghost">
-              <span>Contact Us</span>
+              <span>{getAboutTranslation("ctaBtn2", lang)}</span>
             </Link>
           </div>
         </div>
 
-        {/* Deco rings */}
         <div className="ab-cta-ring ab-cta-ring--1" aria-hidden="true" />
         <div className="ab-cta-ring ab-cta-ring--2" aria-hidden="true" />
       </section>

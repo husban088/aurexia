@@ -924,3 +924,62 @@ button,
   margin-left: 0;
   margin-right: 5px;
 }
+
+/* Add to the end of navbar.css */
+
+/* ========== LANGUAGE DROPDOWN INTEGRATION ========== */
+.navbar-left .language-dropdown-wrapper {
+  margin-right: 0;
+}
+
+/* RTL Support for navbar */
+[dir="rtl"] .navbar-left {
+  flex-direction: row;
+}
+
+[dir="rtl"] .navbar-right {
+  flex-direction: row;
+}
+
+[dir="rtl"] .dropdown-menu {
+  right: 0;
+  left: auto;
+}
+
+[dir="rtl"] .nav-links a svg {
+  margin-left: 0;
+  margin-right: 5px;
+}
+
+[dir="rtl"] .currency-menu {
+  left: auto;
+  right: 0;
+}
+
+[dir="rtl"] .lang-menu {
+  left: 0;
+  right: auto;
+}
+
+/* RTL text alignment for nav items */
+[dir="rtl"] .nav-item > a {
+  text-align: right;
+}
+
+[dir="rtl"] .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .nav-item.dropdown-active .dropdown-arrow {
+  transform: rotate(0deg);
+}
+
+/* Currency dropdown RTL */
+[dir="rtl"] .currency-option {
+  text-align: right;
+}
+
+[dir="rtl"] .currency-option:hover {
+  padding-left: 16px;
+  padding-right: 22px;
+}

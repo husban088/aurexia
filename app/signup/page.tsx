@@ -4,23 +4,139 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/app/context/LanguageContext";
 import "./signup.css";
 
 /* ═══════════════════════════════════════════
-   STATIC DATA — module level, never re-created
+   TRANSLATIONS
 ═══════════════════════════════════════════ */
-const PERKS = [
-  "Exclusive member pricing",
-  "Early access to collections",
-  "Free shipping on all orders",
-  "Dedicated concierge support",
-] as const;
+const signupTranslations = {
+  // Brand Panel
+  brandEyebrow: {
+    en: "Join Tech4U",
+    ar: "انضم إلى تيك4يو",
+    de: "Treten Sie Tech4U bei",
+  },
+  brandTitle: { en: "Tech4U", ar: "تيك4يو", de: "Tech4U" },
+  brandTagline1: {
+    en: "Begin your journey",
+    ar: "ابدأ رحلتك",
+    de: "Beginnen Sie Ihre Reise",
+  },
+  brandTagline2: { en: "into", ar: "في", de: "in den" },
+  brandTaglineEm: { en: "luxury.", ar: "الفخامة.", de: "Luxus." },
+
+  // Perks
+  perk1: {
+    en: "Exclusive member pricing",
+    ar: "أسعار حصرية للأعضاء",
+    de: "Exklusive Mitgliederpreise",
+  },
+  perk2: {
+    en: "Early access to collections",
+    ar: "وصول مبكر إلى المجموعات",
+    de: "Früher Zugang zu Kollektionen",
+  },
+  perk3: {
+    en: "Free shipping on all orders",
+    ar: "شحن مجاني على جميع الطلبات",
+    de: "Kostenloser Versand auf alle Bestellungen",
+  },
+  perk4: {
+    en: "Dedicated concierge support",
+    ar: "دعم مخصص",
+    de: "Dedizierter Concierge-Support",
+  },
+
+  // Form Panel
+  formEyebrow: { en: "New Member", ar: "عضو جديد", de: "Neues Mitglied" },
+  formTitle: { en: "Create", ar: "إنشاء", de: "Konto" },
+  formTitleEm: { en: "Account", ar: "حساب", de: "erstellen" },
+  formSub: {
+    en: "Set up your Tech4U profile in seconds",
+    ar: "أنشئ ملفك الشخصي في تيك4يو في ثوانٍ",
+    de: "Erstellen Sie Ihr Tech4U-Profil in Sekunden",
+  },
+
+  // Form Labels
+  usernameLabel: { en: "Username", ar: "اسم المستخدم", de: "Benutzername" },
+  usernamePlaceholder: {
+    en: "your_username",
+    ar: "اسم_المستخدم",
+    de: "ihr_benutzername",
+  },
+  usernameErrorExists: {
+    en: "This username is already taken. Please choose another.",
+    ar: "اسم المستخدم هذا مستخدم بالفعل. يرجى اختيار آخر.",
+    de: "Dieser Benutzername ist bereits vergeben. Bitte wählen Sie einen anderen.",
+  },
+
+  emailLabel: {
+    en: "Email Address",
+    ar: "البريد الإلكتروني",
+    de: "E-Mail-Adresse",
+  },
+  emailPlaceholder: {
+    en: "your@email.com",
+    ar: "بريدك@example.com",
+    de: "ihre@email.de",
+  },
+
+  passwordLabel: { en: "Password", ar: "كلمة المرور", de: "Passwort" },
+  passwordPlaceholder: { en: "••••••••", ar: "••••••••", de: "••••••••" },
+
+  // Submit Button
+  createAccount: {
+    en: "Create Account",
+    ar: "إنشاء حساب",
+    de: "Konto erstellen",
+  },
+  creatingAccount: {
+    en: "Creating...",
+    ar: "جاري الإنشاء...",
+    de: "Erstelle...",
+  },
+
+  // or divider
+  orText: { en: "or", ar: "أو", de: "oder" },
+
+  // Switch to signin
+  switchText: {
+    en: "Already have an account?",
+    ar: "هل لديك حساب بالفعل؟",
+    de: "Sie haben bereits ein Konto?",
+  },
+  switchLink: { en: "Sign in", ar: "تسجيل الدخول", de: "Anmelden" },
+
+  // Error messages
+  signUpError: {
+    en: "Sign up failed. Please try again.",
+    ar: "فشل التسجيل. يرجى المحاولة مرة أخرى.",
+    de: "Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+  },
+  signInError: {
+    en: "Auto sign-in failed. Please sign in manually.",
+    ar: "فشل تسجيل الدخول التلقائي. يرجى تسجيل الدخول يدويًا.",
+    de: "Automatische Anmeldung fehlgeschlagen. Bitte melden Sie sich manuell an.",
+  },
+};
+
+const getSignupTranslation = (
+  key: keyof typeof signupTranslations,
+  lang: "en" | "ar" | "de",
+): string => {
+  return signupTranslations[key]?.[lang] || signupTranslations[key]?.en || key;
+};
+
+const PERKS_KEYS = ["perk1", "perk2", "perk3", "perk4"];
 
 /* ═══════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════ */
 export default function SignUp() {
   const router = useRouter();
+  const { language, isRTLMode } = useLanguage();
+  const lang = language;
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -30,13 +146,11 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /* ── Form submit ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    /* Check username uniqueness */
     const { data: existing } = await supabase
       .from("profiles")
       .select("id")
@@ -44,34 +158,30 @@ export default function SignUp() {
       .maybeSingle();
 
     if (existing) {
-      setError("This username is already taken. Please choose another.");
+      setError(getSignupTranslation("usernameErrorExists", lang));
       setLoading(false);
       return;
     }
 
-    /* Register user */
     const { error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: {
-        data: { username: username.trim() },
-      },
+      options: { data: { username: username.trim() } },
     });
 
     if (signUpError) {
-      setError(signUpError.message);
+      setError(getSignupTranslation("signUpError", lang));
       setLoading(false);
       return;
     }
 
-    /* Auto sign in immediately after signup */
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
 
     if (signInError) {
-      setError(signInError.message);
+      setError(getSignupTranslation("signInError", lang));
       setLoading(false);
       return;
     }
@@ -79,12 +189,8 @@ export default function SignUp() {
     router.push("/profile");
   };
 
-  /* ═══════════════════════════════════════════
-     RENDER
-  ═══════════════════════════════════════════ */
   return (
-    <div className="su-root">
-      {/* Decorative overlays */}
+    <div className="su-root" dir={isRTLMode ? "rtl" : "ltr"}>
       <div className="su-grain" aria-hidden="true" />
       <div className="su-bg-lines" aria-hidden="true">
         <span />
@@ -94,31 +200,33 @@ export default function SignUp() {
         <span />
       </div>
 
-      {/* Corner brackets */}
       <div className="su-corner su-corner--tl" aria-hidden="true" />
       <div className="su-corner su-corner--tr" aria-hidden="true" />
       <div className="su-corner su-corner--bl" aria-hidden="true" />
       <div className="su-corner su-corner--br" aria-hidden="true" />
 
       <div className="su-card">
-        {/* ══ LEFT: Brand Panel ══ */}
+        {/* LEFT: Brand Panel */}
         <div className="su-brand">
           <div className="su-brand-inner">
             <p className="su-brand-eyebrow">
               <span className="su-ey-line" />
-              Join Tech4U
+              {getSignupTranslation("brandEyebrow", lang)}
               <span className="su-ey-line" />
             </p>
-            <h1 className="su-brand-title">Tech4U</h1>
+            <h1 className="su-brand-title">
+              {getSignupTranslation("brandTitle", lang)}
+            </h1>
             <p className="su-brand-tagline">
-              Begin your journey
+              {getSignupTranslation("brandTagline1", lang)}
               <br />
-              into <em>luxury.</em>
+              {getSignupTranslation("brandTagline2", lang)}{" "}
+              <em>{getSignupTranslation("brandTaglineEm", lang)}</em>
             </p>
             <div className="su-brand-divider" aria-hidden="true" />
             <ul className="su-brand-perks">
-              {PERKS.map((perk) => (
-                <li key={perk}>
+              {PERKS_KEYS.map((perkKey) => (
+                <li key={perkKey}>
                   <svg
                     viewBox="0 0 20 20"
                     width="12"
@@ -128,7 +236,10 @@ export default function SignUp() {
                   >
                     <polygon points="10,1 12.9,7 19.5,8.1 14.7,12.7 16,19.5 10,16.2 4,19.5 5.3,12.7 0.5,8.1 7.1,7" />
                   </svg>
-                  {perk}
+                  {getSignupTranslation(
+                    perkKey as keyof typeof signupTranslations,
+                    lang,
+                  )}
                 </li>
               ))}
             </ul>
@@ -138,25 +249,25 @@ export default function SignUp() {
           </div>
         </div>
 
-        {/* ══ RIGHT: Form Panel ══ */}
+        {/* RIGHT: Form Panel */}
         <div className="su-form-panel">
           <div className="su-form-wrap">
             <div className="su-form-header">
               <p className="su-form-eyebrow">
                 <span className="su-ey-line" />
-                New Member
+                {getSignupTranslation("formEyebrow", lang)}
                 <span className="su-ey-line" />
               </p>
               <h2 className="su-form-title">
-                Create <em>Account</em>
+                {getSignupTranslation("formTitle", lang)}{" "}
+                <em>{getSignupTranslation("formTitleEm", lang)}</em>
               </h2>
               <p className="su-form-sub">
-                Set up your Tech4U profile in seconds
+                {getSignupTranslation("formSub", lang)}
               </p>
             </div>
 
             <form className="su-form" onSubmit={handleSubmit} noValidate>
-              {/* Error alert */}
               {error && (
                 <div className="su-error-box" role="alert">
                   <svg
@@ -178,12 +289,10 @@ export default function SignUp() {
 
               {/* Username */}
               <div
-                className={`su-field${
-                  focused === "un" ? " su-field--focused" : ""
-                }${username ? " su-field--filled" : ""}`}
+                className={`su-field${focused === "un" ? " su-field--focused" : ""}${username ? " su-field--filled" : ""}`}
               >
                 <label className="su-label" htmlFor="su-username">
-                  Username
+                  {getSignupTranslation("usernameLabel", lang)}
                 </label>
                 <div className="su-input-wrap">
                   <span className="su-input-icon" aria-hidden="true">
@@ -201,7 +310,10 @@ export default function SignUp() {
                     id="su-username"
                     type="text"
                     className="su-input"
-                    placeholder="your_username"
+                    placeholder={getSignupTranslation(
+                      "usernamePlaceholder",
+                      lang,
+                    )}
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     onFocus={() => setFocused("un")}
@@ -215,12 +327,10 @@ export default function SignUp() {
 
               {/* Email */}
               <div
-                className={`su-field${
-                  focused === "em" ? " su-field--focused" : ""
-                }${email ? " su-field--filled" : ""}`}
+                className={`su-field${focused === "em" ? " su-field--focused" : ""}${email ? " su-field--filled" : ""}`}
               >
                 <label className="su-label" htmlFor="su-email">
-                  Email Address
+                  {getSignupTranslation("emailLabel", lang)}
                 </label>
                 <div className="su-input-wrap">
                   <span className="su-input-icon" aria-hidden="true">
@@ -238,7 +348,7 @@ export default function SignUp() {
                     id="su-email"
                     type="email"
                     className="su-input"
-                    placeholder="your@email.com"
+                    placeholder={getSignupTranslation("emailPlaceholder", lang)}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     onFocus={() => setFocused("em")}
@@ -252,12 +362,10 @@ export default function SignUp() {
 
               {/* Password */}
               <div
-                className={`su-field${
-                  focused === "pw" ? " su-field--focused" : ""
-                }${password ? " su-field--filled" : ""}`}
+                className={`su-field${focused === "pw" ? " su-field--focused" : ""}${password ? " su-field--filled" : ""}`}
               >
                 <label className="su-label" htmlFor="su-password">
-                  Password
+                  {getSignupTranslation("passwordLabel", lang)}
                 </label>
                 <div className="su-input-wrap">
                   <span className="su-input-icon" aria-hidden="true">
@@ -275,7 +383,10 @@ export default function SignUp() {
                     id="su-password"
                     type={showPass ? "text" : "password"}
                     className="su-input"
-                    placeholder="••••••••"
+                    placeholder={getSignupTranslation(
+                      "passwordPlaceholder",
+                      lang,
+                    )}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onFocus={() => setFocused("pw")}
@@ -319,7 +430,6 @@ export default function SignUp() {
                 <div className="su-field-line" aria-hidden="true" />
               </div>
 
-              {/* Submit button */}
               <button
                 type="submit"
                 className="su-submit-btn"
@@ -330,7 +440,7 @@ export default function SignUp() {
                   <span className="su-spinner" aria-hidden="true" />
                 ) : (
                   <>
-                    <span>Create Account</span>
+                    {getSignupTranslation("createAccount", lang)}
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -349,18 +459,18 @@ export default function SignUp() {
               </button>
             </form>
 
-            {/* Divider */}
             <div className="su-or" aria-hidden="true">
               <span className="su-or-line" />
-              <span className="su-or-text">or</span>
+              <span className="su-or-text">
+                {getSignupTranslation("orText", lang)}
+              </span>
               <span className="su-or-line" />
             </div>
 
-            {/* Switch to signin */}
             <p className="su-switch">
-              Already have an account?{" "}
+              {getSignupTranslation("switchText", lang)}{" "}
               <Link href="/signin" className="su-switch-link">
-                Sign in
+                {getSignupTranslation("switchLink", lang)}
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"

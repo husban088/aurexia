@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useCartStore } from "@/lib/cartStore";
 import "@/app/styles/product-grid.css";
 import { useCurrency } from "../context/CurrencyContext";
+import { useLanguage } from "../context/LanguageContext";
 import FilterSidebar from "@/app/components/ProductGridFilters";
 import "@/app/styles/grid-controls.css";
 import { getSalePercent, applyDiscount } from "@/lib/saleStore";
@@ -67,11 +68,64 @@ interface ProductGridProps {
   onQuickView?: (productId: string) => void;
 }
 
+// ─── Translations for Product Grid ──────────────────────────────────────────
+const pgTranslations = {
+  filters: { en: "Filters", ar: "تصفية", de: "Filter" },
+  newest: { en: "Newest First", ar: "الأحدث أولاً", de: "Neueste zuerst" },
+  priceLowHigh: {
+    en: "Price: Low → High",
+    ar: "السعر: من الأقل إلى الأعلى",
+    de: "Preis: Niedrig → Hoch",
+  },
+  priceHighLow: {
+    en: "Price: High → Low",
+    ar: "السعر: من الأعلى إلى الأقل",
+    de: "Preis: Hoch → Niedrig",
+  },
+  featuredFirst: {
+    en: "Featured First",
+    ar: "المميزة أولاً",
+    de: "Ausgewählte zuerst",
+  },
+  item: { en: "item", ar: "عنصر", de: "Artikel" },
+  items: { en: "items", ar: "عناصر", de: "Artikel" },
+  noProductsTitle: {
+    en: "No products found",
+    ar: "لا توجد منتجات",
+    de: "Keine Produkte gefunden",
+  },
+  noProductsSub: {
+    en: "Check back soon for new arrivals",
+    ar: "تفقد قريبًا للحصول على إصدارات جديدة",
+    de: "Schauen Sie bald wieder vorbei für neue Artikel",
+  },
+  noResultsSub: {
+    en: "No results for",
+    ar: "لا توجد نتائج لـ",
+    de: "Keine Ergebnisse für",
+  },
+  searchPlaceholder: {
+    en: "Search products...",
+    ar: "ابحث عن منتجات...",
+    de: "Produkte suchen...",
+  },
+  outOfStock: { en: "Out of Stock", ar: "غير متوفر", de: "Nicht auf Lager" },
+  lowStock: { en: "Only", ar: "فقط", de: "Nur noch" },
+  left: { en: "left", ar: "متبقي", de: "vorrätig" },
+  inStock: { en: "In Stock", ar: "متوفر", de: "Auf Lager" },
+};
+
+const getPgTranslation = (
+  key: keyof typeof pgTranslations,
+  lang: "en" | "ar" | "de",
+): string => {
+  return pgTranslations[key]?.[lang] || pgTranslations[key]?.en || key;
+};
+
 // ─── MODULE-LEVEL CACHE ──────────────────────────────────────────────────────
 const MODULE_CACHE: Record<string, ExtendedProduct[]> = {};
 const FETCH_IN_FLIGHT: Record<string, Promise<ExtendedProduct[]>> = {};
 
-// ─── localStorage keys for back/forward cache survival ───────────────────────
 const PG_SESSION_KEY = "pg_cache_v1";
 const PG_LOCAL_KEY = "pg_cache_local_v1";
 
@@ -80,7 +134,6 @@ function savePgToStorage(key: string, data: ExtendedProduct[]) {
     const raw = sessionStorage.getItem(PG_SESSION_KEY);
     const store: Record<string, any> = raw ? JSON.parse(raw) : {};
     store[key] = data;
-    // Keep max 10 keys
     const keys = Object.keys(store);
     if (keys.length > 10) delete store[keys[0]];
     sessionStorage.setItem(PG_SESSION_KEY, JSON.stringify(store));
@@ -96,7 +149,6 @@ function savePgToStorage(key: string, data: ExtendedProduct[]) {
 }
 
 function loadPgFromStorage(): void {
-  // sessionStorage first (freshest)
   try {
     const raw = sessionStorage.getItem(PG_SESSION_KEY);
     if (raw) {
@@ -106,7 +158,6 @@ function loadPgFromStorage(): void {
       });
     }
   } catch (_) {}
-  // localStorage second (up to 24h old)
   try {
     const raw = localStorage.getItem(PG_LOCAL_KEY);
     if (raw) {
@@ -125,7 +176,6 @@ function loadPgFromStorage(): void {
   } catch (_) {}
 }
 
-// Restore on module load — instant init before any component mounts
 if (typeof window !== "undefined") {
   loadPgFromStorage();
 }
@@ -136,12 +186,9 @@ function cacheKey(
   limit?: number,
   featured?: boolean,
 ) {
-  return `${category}|${subcategory ?? ""}|${limit ?? ""}|${
-    featured ? "1" : "0"
-  }`;
+  return `${category}|${subcategory ?? ""}|${limit ?? ""}|${featured ? "1" : "0"}`;
 }
 
-// ─── Prefetch all common category combinations ───────────────────────────────
 const ALL_CATEGORIES = ["Accessories", "Watches", "Automotive", "Home Decor"];
 const ALL_SUBCATEGORIES: Record<string, string[]> = {
   Accessories: [
@@ -185,7 +232,6 @@ async function ensureCategoryCached(
 ): Promise<ExtendedProduct[]> {
   const key = cacheKey(category, subcategory, limit, featured);
 
-  // Check memory first, then storage
   if (!MODULE_CACHE[key]) loadPgFromStorage();
   if (MODULE_CACHE[key]) return MODULE_CACHE[key];
 
@@ -202,7 +248,7 @@ async function ensureCategoryCached(
 
   const data = await promise;
   MODULE_CACHE[key] = data;
-  savePgToStorage(key, data); // persist for back/forward nav
+  savePgToStorage(key, data);
   delete FETCH_IN_FLIGHT[key];
   return data;
 }
@@ -220,21 +266,6 @@ const getStockStatus = (
   if (stock >= 999999) return "in_stock";
   if (threshold && threshold > 0 && stock <= threshold) return "low_stock";
   return "in_stock";
-};
-
-const getStockLabel = (
-  status: "in_stock" | "out_of_stock" | "low_stock",
-  stock: number,
-) => {
-  if (status === "out_of_stock") return "Out of Stock";
-  if (status === "low_stock") return `Only ${stock} left`;
-  return "In Stock";
-};
-
-const getStockClass = (status: "in_stock" | "out_of_stock" | "low_stock") => {
-  if (status === "out_of_stock") return "out";
-  if (status === "low_stock") return "low";
-  return "in";
 };
 
 async function fetchProductsWithVariants(
@@ -374,6 +405,7 @@ function VariantThumbnails({
   currentValue,
   variantImagesMap,
   getVariantImage,
+  isRTL,
 }: {
   variants: ProductVariant[];
   type: string;
@@ -381,6 +413,7 @@ function VariantThumbnails({
   currentValue: string;
   variantImagesMap: VariantImagesMap;
   getVariantImage: (variantId: string) => string | null;
+  isRTL: boolean;
 }) {
   if (!variants || variants.length === 0) return null;
 
@@ -418,7 +451,7 @@ function VariantThumbnails({
   const hasMore = variants.length > 4;
 
   return (
-    <div className="pg-card-variants">
+    <div className="pg-card-variants" dir={isRTL ? "rtl" : "ltr"}>
       <span className="pg-variant-label">
         {getIcon()} {getTypeLabel()}:
       </span>
@@ -525,6 +558,7 @@ function ProductCardComponent({
   onQuickView,
   formatPrice,
   addToCart,
+  isRTL,
 }: {
   productData: ExtendedProduct;
   onQuickView?: (productId: string) => void;
@@ -535,6 +569,7 @@ function ProductCardComponent({
     quantity: number,
     maxStock?: number,
   ) => Promise<void>;
+  isRTL: boolean;
 }) {
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
@@ -558,7 +593,6 @@ function ProductCardComponent({
   });
   const [addToCartLoading, setAddToCartLoading] = useState(false);
 
-  /* ── Live rating state ── */
   const [liveRating, setLiveRating] = useState<number | null>(
     productData.rating != null && productData.rating > 0
       ? productData.rating
@@ -570,7 +604,6 @@ function ProductCardComponent({
       : null,
   );
 
-  /* ── Realtime subscription for new reviews ── */
   useEffect(() => {
     const channel = supabase
       .channel(`pg-rating-${productData.id}`)
@@ -589,17 +622,14 @@ function ProductCardComponent({
             .eq("id", productData.id)
             .single();
           if (data) {
-            if (data.rating != null && data.rating > 0) {
+            if (data.rating != null && data.rating > 0)
               setLiveRating(data.rating);
-            }
-            if (data.reviews_count != null && data.reviews_count > 0) {
+            if (data.reviews_count != null && data.reviews_count > 0)
               setLiveReviewCount(data.reviews_count);
-            }
           }
         },
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
@@ -643,20 +673,14 @@ function ProductCardComponent({
 
   const handleVariantSelect = (variant: ProductVariant) => {
     setSelectedVariant(variant);
-    const newImages = getVariantImages(variant.id);
-    setCurrentImages(newImages);
+    setCurrentImages(getVariantImages(variant.id));
     setIsHovered(false);
   };
 
   const handleMouseEnter = () => setIsHovered(true);
   const handleMouseLeave = () => setIsHovered(false);
 
-  const getDisplayImage = () => {
-    if (currentImages.length === 0) return null;
-    return currentImages[0];
-  };
-
-  const displayImage = getDisplayImage();
+  const displayImage = currentImages.length > 0 ? currentImages[0] : null;
 
   const discount =
     selectedVariant?.original_price &&
@@ -683,36 +707,16 @@ function ProductCardComponent({
   const isOutOfStock = stockStatus === "out_of_stock";
   const currentStock = selectedVariant?.stock || productData.stock || 0;
 
-  const getStockLabelText = () => {
-    if (isOutOfStock) return "Out of Stock";
-    if (isLowStock) return `Only ${currentStock} left`;
-    return "In Stock";
-  };
-
-  const getStockClassText = () => {
-    if (isOutOfStock) return "out";
-    if (isLowStock) return "low";
-    return "in";
-  };
-
   const truncatedName = truncateProductName(productData.name, 45);
 
-  // ── Sale Discount Logic ──
   const activeSalePercent = getSalePercent();
-
-  // Base prices (variant ya product se)
   const basePrice = selectedVariant?.price ?? productData.price;
   const baseOriginalPrice =
     selectedVariant?.original_price ?? productData.original_price ?? null;
 
-  // Discounted price calculate karo
   const finalPrice = activeSalePercent
     ? applyDiscount(basePrice, activeSalePercent)
     : basePrice;
-
-  // Original price for strikethrough:
-  // Agar sale active hai → base price hi original ban jaata hai
-  // Warna existing original_price use hogi
   const originalPriceForDisplay =
     activeSalePercent && basePrice > 0
       ? basePrice
@@ -725,8 +729,6 @@ function ProductCardComponent({
     originalPriceForDisplay && originalPriceForDisplay > finalPrice
       ? formatPrice(originalPriceForDisplay)
       : null;
-
-  // Discount badge: sale percent ya existing product discount
   const totalDiscount = activeSalePercent ? activeSalePercent : discount;
 
   const handleAddToCartClick = async (
@@ -879,7 +881,7 @@ function ProductCardComponent({
           </button>
         </div>
       </div>
-      <div className="pg-card-body">
+      <div className="pg-card-body" dir={isRTL ? "rtl" : "ltr"}>
         {productData.brand && (
           <p className="pg-card-brand">{productData.brand}</p>
         )}
@@ -895,7 +897,6 @@ function ProductCardComponent({
             <span className="pg-card-discount">-{totalDiscount}%</span>
           )}
         </div>
-        {/* ── Rating — div hamesha render hoti hai space reserve karne ke liye ── */}
         <div className="pg-card-rating">
           {liveRating !== null &&
             liveReviewCount !== null &&
@@ -908,8 +909,6 @@ function ProductCardComponent({
               </>
             )}
         </div>
-
-        {/* ── Variants — wrapper hamesha render hota hai fixed height ke liye ── */}
         <div className="pg-card-variants-wrapper">
           {colorVariants.length > 0 && (
             <VariantThumbnails
@@ -919,6 +918,7 @@ function ProductCardComponent({
               currentValue={selectedVariant?.attribute_value || ""}
               variantImagesMap={productData.variantImagesMap || {}}
               getVariantImage={getVariantImage}
+              isRTL={isRTL}
             />
           )}
           {sizeVariants.length > 0 && (
@@ -929,6 +929,7 @@ function ProductCardComponent({
               currentValue={selectedVariant?.attribute_value || ""}
               variantImagesMap={productData.variantImagesMap || {}}
               getVariantImage={getVariantImage}
+              isRTL={isRTL}
             />
           )}
           {materialVariants.length > 0 && (
@@ -939,6 +940,7 @@ function ProductCardComponent({
               currentValue={selectedVariant?.attribute_value || ""}
               variantImagesMap={productData.variantImagesMap || {}}
               getVariantImage={getVariantImage}
+              isRTL={isRTL}
             />
           )}
           {capacityVariants.length > 0 && (
@@ -949,12 +951,18 @@ function ProductCardComponent({
               currentValue={selectedVariant?.attribute_value || ""}
               variantImagesMap={productData.variantImagesMap || {}}
               getVariantImage={getVariantImage}
+              isRTL={isRTL}
             />
           )}
         </div>
-
-        <div className={`pg-card-stock ${getStockClassText()}`}>
-          {getStockLabelText()}
+        <div
+          className={`pg-card-stock ${isOutOfStock ? "out" : isLowStock ? "low" : "in"}`}
+        >
+          {isOutOfStock
+            ? getPgTranslation("outOfStock", isRTL ? "ar" : isRTL ? "ar" : "en")
+            : isLowStock
+              ? `${getPgTranslation("lowStock", isRTL ? "ar" : isRTL ? "ar" : "en")} ${currentStock} ${getPgTranslation("left", isRTL ? "ar" : isRTL ? "ar" : "en")}`
+              : getPgTranslation("inStock", isRTL ? "ar" : isRTL ? "ar" : "en")}
         </div>
       </div>
       <div className="pg-card-line" />
@@ -971,8 +979,8 @@ export default function ProductGrid({
   onQuickView,
 }: ProductGridProps) {
   const key = cacheKey(category, subcategory, limit, featured);
+  const { language, isRTLMode } = useLanguage();
 
-  // ── State initializers: always read storage first so back-nav is instant ──
   const [products, setProducts] = useState<ExtendedProduct[]>(() => {
     if (MODULE_CACHE[key]) return MODULE_CACHE[key];
     loadPgFromStorage();
@@ -1008,9 +1016,7 @@ export default function ProductGrid({
   useEffect(() => {
     let isMounted = true;
 
-    // Helper: read storage then apply to state
     function applyFromCache() {
-      // Always re-read storage — module cache can be empty after SPA navigation
       loadPgFromStorage();
       const cached = MODULE_CACHE[key];
       if (cached && cached.length > 0) {
@@ -1024,10 +1030,7 @@ export default function ProductGrid({
     }
 
     async function loadData() {
-      // Try cache/storage first
       if (applyFromCache()) return;
-
-      // In-flight request?
       const inFlightPromise = FETCH_IN_FLIGHT[key];
       if (inFlightPromise) {
         const data = await inFlightPromise;
@@ -1037,8 +1040,6 @@ export default function ProductGrid({
         }
         return;
       }
-
-      // Fresh fetch
       setLoading(true);
       try {
         const data = await ensureCategoryCached(
@@ -1059,22 +1060,15 @@ export default function ProductGrid({
 
     loadData();
 
-    // ── pageshow: BFCache restore (Chrome back/forward) ──
     const handlePageShow = (e: PageTransitionEvent) => {
-      // e.persisted = true means page was restored from BFCache (Chrome back/forward)
-      // Also restore on normal load in case module cache was cleared
       if (e.persisted || !MODULE_CACHE[key]) {
         loadPgFromStorage();
         applyFromCache();
       }
     };
-
-    // ── popstate: Next.js App Router SPA back/forward ──
     const handlePopState = () => {
       applyFromCache();
     };
-
-    // ── visibilitychange: switching browser tabs ──
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") applyFromCache();
     };
@@ -1089,20 +1083,19 @@ export default function ProductGrid({
       window.removeEventListener("popstate", handlePopState);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [key, category, subcategory, limit, featured]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key, category, subcategory, limit, featured]);
 
   const getFilterOptions = useMemo(() => {
-    const categories = new Set<string>();
-    const subcategories = new Set<string>();
+    const categoriesSet = new Set<string>();
+    const subcategoriesSet = new Set<string>();
     const colors = new Set<string>();
     const sizes = new Set<string>();
     const capacities = new Set<string>();
     const materials = new Set<string>();
 
     products.forEach((product) => {
-      categories.add(product.category);
-      subcategories.add(product.subcategory);
-
+      categoriesSet.add(product.category);
+      subcategoriesSet.add(product.subcategory);
       product.variants?.forEach((variant) => {
         if (variant.attribute_type === "color")
           colors.add(variant.attribute_value);
@@ -1116,8 +1109,8 @@ export default function ProductGrid({
     });
 
     return {
-      categories: Array.from(categories).sort(),
-      subcategories: Array.from(subcategories).sort(),
+      categories: Array.from(categoriesSet).sort(),
+      subcategories: Array.from(subcategoriesSet).sort(),
       colors: Array.from(colors).sort(),
       sizes: Array.from(sizes).sort(),
       capacities: Array.from(capacities).sort(),
@@ -1127,18 +1120,15 @@ export default function ProductGrid({
 
   const filteredProducts = useMemo(() => {
     let filtered = [...products];
-
-    if (selectedFilters.category !== "All") {
+    if (selectedFilters.category !== "All")
       filtered = filtered.filter(
         (p) => p.category === selectedFilters.category,
       );
-    }
-    if (selectedFilters.subcategory !== "All") {
+    if (selectedFilters.subcategory !== "All")
       filtered = filtered.filter(
         (p) => p.subcategory === selectedFilters.subcategory,
       );
-    }
-    if (selectedFilters.color !== "All") {
+    if (selectedFilters.color !== "All")
       filtered = filtered.filter((p) =>
         p.variants?.some(
           (v) =>
@@ -1146,8 +1136,7 @@ export default function ProductGrid({
             v.attribute_value === selectedFilters.color,
         ),
       );
-    }
-    if (selectedFilters.size !== "All") {
+    if (selectedFilters.size !== "All")
       filtered = filtered.filter((p) =>
         p.variants?.some(
           (v) =>
@@ -1155,8 +1144,7 @@ export default function ProductGrid({
             v.attribute_value === selectedFilters.size,
         ),
       );
-    }
-    if (selectedFilters.capacity !== "All") {
+    if (selectedFilters.capacity !== "All")
       filtered = filtered.filter((p) =>
         p.variants?.some(
           (v) =>
@@ -1164,8 +1152,7 @@ export default function ProductGrid({
             v.attribute_value === selectedFilters.capacity,
         ),
       );
-    }
-    if (selectedFilters.material !== "All") {
+    if (selectedFilters.material !== "All")
       filtered = filtered.filter((p) =>
         p.variants?.some(
           (v) =>
@@ -1173,8 +1160,6 @@ export default function ProductGrid({
             v.attribute_value === selectedFilters.material,
         ),
       );
-    }
-
     return filtered;
   }, [products, selectedFilters]);
 
@@ -1233,10 +1218,7 @@ export default function ProductGrid({
     const skeletonCount = limit ?? 8;
     return (
       <>
-        <style>{`
-          @keyframes pg-spin { to { transform: rotate(360deg); } }
-          @keyframes pg-skeleton-pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-        `}</style>
+        <style>{`@keyframes pg-spin { to { transform: rotate(360deg); } } @keyframes pg-skeleton-pulse { 0%,100%{opacity:1} 50%{opacity:.4} }`}</style>
         <div className="pg-grid">
           {Array.from({ length: skeletonCount }).map((_, i) => (
             <SkeletonCard key={i} />
@@ -1260,11 +1242,13 @@ export default function ProductGrid({
             <path d="M21 21l-4.35-4.35" />
           </svg>
         </div>
-        <p className="pg-empty-title">No products found</p>
+        <p className="pg-empty-title">
+          {getPgTranslation("noProductsTitle", language)}
+        </p>
         <p className="pg-empty-sub">
           {search
-            ? `No results for "${search}"`
-            : "Check back soon for new arrivals"}
+            ? `${getPgTranslation("noResultsSub", language)} "${search}"`
+            : getPgTranslation("noProductsSub", language)}
         </p>
       </div>
     );
@@ -1284,63 +1268,29 @@ export default function ProductGrid({
             <path d="M21 21l-4.35-4.35" />
           </svg>
         </div>
-        <p className="pg-empty-title">No products found</p>
-        <p className="pg-empty-sub">Check back soon for new arrivals</p>
+        <p className="pg-empty-title">
+          {getPgTranslation("noProductsTitle", language)}
+        </p>
+        <p className="pg-empty-sub">
+          {getPgTranslation("noProductsSub", language)}
+        </p>
       </div>
     );
   }
 
   return (
     <>
-      <style>{`@keyframes pg-spin { to { transform: rotate(360deg); } }
-        .pg-variant-thumb {
-          display: flex !important;
-          flex-direction: column !important;
-          align-items: center !important;
-          gap: 3px !important;
-          padding: 3px 4px 4px !important;
-        }
-        .pg-variant-thumb img {
-          width: 32px !important;
-          height: 32px !important;
-          object-fit: cover !important;
-          border-radius: 4px !important;
-          display: block !important;
-        }
-        .pg-variant-name {
-          display: block !important;
-          font-size: 9px !important;
-          line-height: 1.2 !important;
-          text-align: center !important;
-          color: rgba(0, 0, 0, 0.6) !important;
-          max-width: 40px !important;
-          overflow: hidden !important;
-          text-overflow: ellipsis !important;
-          white-space: nowrap !important;
-          margin-top: 1px !important;
-          font-weight: 500 !important;
-          letter-spacing: 0.01em !important;
-        }
-        .pg-variant-thumb.active .pg-variant-name {
-          color: #b8963e !important;
-          font-weight: 600 !important;
-        }
-        .pg-variant-text {
-          width: 32px !important;
-          height: 32px !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          font-size: 13px !important;
-          font-weight: 600 !important;
-          border-radius: 4px !important;
-          background: rgba(184, 150, 62, 0.12) !important;
-          color: #b8963e !important;
-        }
-        `}</style>
+      <style>{`
+        @keyframes pg-spin { to { transform: rotate(360deg); } }
+        .pg-variant-thumb { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 3px !important; padding: 3px 4px 4px !important; }
+        .pg-variant-thumb img { width: 32px !important; height: 32px !important; object-fit: cover !important; border-radius: 4px !important; display: block !important; }
+        .pg-variant-name { display: block !important; font-size: 9px !important; line-height: 1.2 !important; text-align: center !important; color: rgba(0,0,0,0.6) !important; max-width: 40px !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; margin-top: 1px !important; font-weight: 500 !important; letter-spacing: 0.01em !important; }
+        .pg-variant-thumb.active .pg-variant-name { color: #b8963e !important; font-weight: 600 !important; }
+        .pg-variant-text { width: 32px !important; height: 32px !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 13px !important; font-weight: 600 !important; border-radius: 4px !important; background: rgba(184,150,62,0.12) !important; color: #b8963e !important; }
+      `}</style>
       {!limit && (
         <>
-          <div className="grid-controls-bar">
+          <div className="grid-controls-bar" dir={isRTLMode ? "rtl" : "ltr"}>
             <div className="grid-controls-left">
               <button
                 className="filter-trigger"
@@ -1354,12 +1304,11 @@ export default function ProductGrid({
                 >
                   <polygon points="22 3 2 3 10 13 10 21 14 18 14 13 22 3" />
                 </svg>
-                Filters
+                {getPgTranslation("filters", language)}
                 {activeFilterCount > 0 && (
                   <span className="filter-active-dot" />
                 )}
               </button>
-
               <div className="per-row-selector">
                 <button
                   className={`per-row-btn ${columns === 2 ? "active" : ""}`}
@@ -1411,25 +1360,33 @@ export default function ProductGrid({
                 </button>
               </div>
             </div>
-
             <div className="grid-controls-right">
               <select
                 className="grid-sort-select"
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
               >
-                <option value="newest">Newest First</option>
-                <option value="price-asc">Price: Low → High</option>
-                <option value="price-desc">Price: High → Low</option>
-                <option value="featured">Featured First</option>
+                <option value="newest">
+                  {getPgTranslation("newest", language)}
+                </option>
+                <option value="price-asc">
+                  {getPgTranslation("priceLowHigh", language)}
+                </option>
+                <option value="price-desc">
+                  {getPgTranslation("priceHighLow", language)}
+                </option>
+                <option value="featured">
+                  {getPgTranslation("featuredFirst", language)}
+                </option>
               </select>
               <span className="grid-result-count">
                 <em>{filteredAndSorted.length}</em>{" "}
-                {filteredAndSorted.length === 1 ? "item" : "items"}
+                {filteredAndSorted.length === 1
+                  ? getPgTranslation("item", language)
+                  : getPgTranslation("items", language)}
               </span>
             </div>
           </div>
-
           <FilterSidebar
             isOpen={isFilterOpen}
             onClose={() => setIsFilterOpen(false)}
@@ -1440,7 +1397,10 @@ export default function ProductGrid({
           />
         </>
       )}
-      <div className={`pg-grid pg-grid--cols-${columns}`}>
+      <div
+        className={`pg-grid pg-grid--cols-${columns}`}
+        dir={isRTLMode ? "rtl" : "ltr"}
+      >
         {filteredAndSorted.map((product) => (
           <ProductCardComponent
             key={product.id}
@@ -1448,6 +1408,7 @@ export default function ProductGrid({
             onQuickView={onQuickView}
             formatPrice={formatPrice}
             addToCart={addToCart}
+            isRTL={isRTLMode}
           />
         ))}
       </div>

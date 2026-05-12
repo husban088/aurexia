@@ -1045,3 +1045,89 @@
     height: 20px;
   }
 }
+
+/* ========== RTL SUPPORT FOR CONTACT PAGE ========== */
+[dir="rtl"] .co-info-card {
+  text-align: right;
+}
+
+[dir="rtl"] .co-info-card::before {
+  left: auto;
+  right: 0;
+}
+
+[dir="rtl"] .co-info-card:hover {
+  transform: translateX(-4px);
+}
+
+[dir="rtl"] .co-input-icon {
+  left: auto;
+  right: 0;
+}
+
+[dir="rtl"] .co-input {
+  padding-left: 0;
+  padding-right: 1.8rem;
+}
+
+[dir="rtl"] .co-textarea {
+  padding-left: 0;
+  padding-right: 1.8rem;
+}
+
+[dir="rtl"] .co-submit-btn svg {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .co-submit-btn:hover svg {
+  transform: scaleX(-1) translateX(-4px);
+}
+
+[dir="rtl"] .co-social-icons {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .co-map-view {
+  display: inline-flex;
+  flex-direction: row-reverse;
+  gap: 0.3rem;
+}
+
+[dir="rtl"] .co-map-view::after {
+  content: "←";
+  margin-left: 0;
+  margin-right: 0.3rem;
+}
+
+[dir="rtl"] .co-map-view {
+  direction: ltr;
+}
+
+[dir="rtl"] .co-toast-wrap {
+  right: auto;
+  left: 2rem;
+}
+
+@media (max-width: 600px) {
+  [dir="rtl"] .co-toast-wrap {
+    left: 1rem;
+  }
+}
+
+[dir="rtl"] .co-toast-close svg {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .co-form-corner--tr {
+  left: 16px;
+  right: auto;
+  border-left: 2px solid rgba(184, 134, 11, 0.4);
+  border-right: none;
+}
+
+[dir="rtl"] .co-form-corner--bl {
+  right: 16px;
+  left: auto;
+  border-right: 2px solid rgba(184, 134, 11, 0.4);
+  border-left: none;
+}

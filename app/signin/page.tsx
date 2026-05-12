@@ -4,27 +4,126 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { isOwner } from "@/lib/checkOwner";
+import { useLanguage } from "@/app/context/LanguageContext";
 import "./signin.css";
 
 /* ═══════════════════════════════════════════
-   SESSION CACHE HELPERS
-   Same pattern as layout.tsx — set BEFORE
-   redirect so layout gets cache instantly
+   TRANSLATIONS
 ═══════════════════════════════════════════ */
+const signinTranslations = {
+  // Brand Panel
+  brandEyebrow: {
+    en: "Welcome Back",
+    ar: "مرحباً بعودتك",
+    de: "Willkommen zurück",
+  },
+  brandTitle: { en: "Tech4U", ar: "تيك4يو", de: "Tech4U" },
+  brandTagline1: {
+    en: "Luxury lives in every",
+    ar: "الفخامة تعيش في كل",
+    de: "Luxus lebt in jedem",
+  },
+  brandTaglineEm: { en: "detail.", ar: "تفصيل.", de: "Detail." },
+  brandQuote: {
+    en: "Time is the most precious luxury — wear it well.",
+    ar: "الوقت هو أثمن رفاهية - ارتديه جيدًا.",
+    de: "Zeit ist der kostbarste Luxus - tragen Sie sie gut.",
+  },
+
+  // Form Panel
+  formEyebrow: {
+    en: "Member Access",
+    ar: "وصول الأعضاء",
+    de: "Mitgliederzugang",
+  },
+  formTitle: { en: "Sign", ar: "تسجيل", de: "Anmelden" },
+  formTitleEm: { en: "In", ar: "الدخول", de: "" },
+  formSub: {
+    en: "Enter your credentials to access your account",
+    ar: "أدخل بيانات الاعتماد الخاصة بك للوصول إلى حسابك",
+    de: "Geben Sie Ihre Anmeldeinformationen ein, um auf Ihr Konto zuzugreifen",
+  },
+
+  // Form Labels
+  identifierLabel: {
+    en: "Username or Email",
+    ar: "اسم المستخدم أو البريد الإلكتروني",
+    de: "Benutzername oder E-Mail",
+  },
+  identifierPlaceholder: {
+    en: "your@email.com or username",
+    ar: "بريدك@example.com أو اسم المستخدم",
+    de: "ihre@email.de oder Benutzername",
+  },
+
+  passwordLabel: { en: "Password", ar: "كلمة المرور", de: "Passwort" },
+  passwordPlaceholder: { en: "••••••••", ar: "••••••••", de: "••••••••" },
+
+  // Forgot password
+  forgotLink: {
+    en: "Forgot password?",
+    ar: "نسيت كلمة المرور؟",
+    de: "Passwort vergessen?",
+  },
+
+  // Submit Button
+  signInBtn: { en: "Sign In", ar: "تسجيل الدخول", de: "Anmelden" },
+
+  // or divider
+  orText: { en: "or", ar: "أو", de: "oder" },
+
+  // Switch to signup
+  switchText: {
+    en: "Don't have an account?",
+    ar: "ليس لديك حساب؟",
+    de: "Sie haben kein Konto?",
+  },
+  switchLink: {
+    en: "Sign up for free",
+    ar: "اشترك مجانًا",
+    de: "Kostenlos registrieren",
+  },
+
+  // Error messages
+  usernameNotFound: {
+    en: "No account found with that username.",
+    ar: "لم يتم العثور على حساب بهذا الاسم.",
+    de: "Kein Konto mit diesem Benutzernamen gefunden.",
+  },
+  invalidCredentials: {
+    en: "Incorrect credentials. Please check your email/username and password.",
+    ar: "بيانات اعتماد غير صحيحة. يرجى التحقق من بريدك الإلكتروني/اسم المستخدم وكلمة المرور.",
+    de: "Falsche Anmeldeinformationen. Bitte überprüfen Sie Ihre E-Mail/Benutzername und Passwort.",
+  },
+  resetSuccess: {
+    en: "Password reset successful! Please sign in with your new password.",
+    ar: "تم إعادة تعيين كلمة المرور بنجاح! يرجى تسجيل الدخول بكلمة المرور الجديدة.",
+    de: "Passwort-Reset erfolgreich! Bitte melden Sie sich mit Ihrem neuen Passwort an.",
+  },
+};
+
+const getSigninTranslation = (
+  key: keyof typeof signinTranslations,
+  lang: "en" | "ar" | "de",
+): string => {
+  return signinTranslations[key]?.[lang] || signinTranslations[key]?.en || key;
+};
+
 const CACHE_KEY = "panel_auth_ok";
 
 function setCachedAuth(ok: boolean) {
   try {
     sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ok, ts: Date.now() }));
-  } catch {
-    // sessionStorage not available (SSR / private mode) — silently ignore
-  }
+  } catch {}
 }
 
 /* ═══════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════ */
 export default function SignIn() {
+  const { language, isRTLMode } = useLanguage();
+  const lang = language;
+
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -33,7 +132,6 @@ export default function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
-  /* ── On mount: skip form if already signed in ── */
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -43,7 +141,7 @@ export default function SignIn() {
         if (owner) {
           setCachedAuth(true);
           window.location.replace(
-            redirectTo?.startsWith("/panel") ? redirectTo : "/panel"
+            redirectTo?.startsWith("/panel") ? redirectTo : "/panel",
           );
         } else {
           window.location.replace("/profile");
@@ -51,17 +149,13 @@ export default function SignIn() {
       }
     });
 
-    /* ── Show success message after password reset ── */
     const params = new URLSearchParams(window.location.search);
     if (params.get("reset") === "success") {
-      setResetSuccess(
-        "Password reset successful! Please sign in with your new password."
-      );
+      setResetSuccess(getSigninTranslation("resetSuccess", lang));
       window.history.replaceState(null, "", window.location.pathname);
     }
-  }, []);
+  }, [lang]);
 
-  /* ── Form submit ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -70,7 +164,6 @@ export default function SignIn() {
     let emailToUse = identifier.trim();
     const isEmail = identifier.includes("@");
 
-    /* Username → email lookup */
     if (!isEmail) {
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
@@ -79,29 +172,24 @@ export default function SignIn() {
         .maybeSingle();
 
       if (profileError || !profile) {
-        setError("No account found with that username.");
+        setError(getSigninTranslation("usernameNotFound", lang));
         setLoading(false);
         return;
       }
       emailToUse = profile.email;
     }
 
-    /* Sign in */
     const { data: signInData, error: signInError } =
       await supabase.auth.signInWithPassword({ email: emailToUse, password });
 
     if (signInError) {
-      setError(
-        "Incorrect credentials. Please check your email/username and password."
-      );
+      setError(getSigninTranslation("invalidCredentials", lang));
       setLoading(false);
       return;
     }
 
     const userEmail = signInData?.user?.email ?? null;
     const ownerUser = isOwner(userEmail);
-
-    /* Cache BEFORE redirect — layout gets it instantly */
     setCachedAuth(ownerUser);
 
     const params = new URLSearchParams(window.location.search);
@@ -109,19 +197,15 @@ export default function SignIn() {
 
     if (ownerUser) {
       window.location.replace(
-        redirectTo?.startsWith("/panel") ? redirectTo : "/panel"
+        redirectTo?.startsWith("/panel") ? redirectTo : "/panel",
       );
     } else {
       window.location.replace("/profile");
     }
   };
 
-  /* ═══════════════════════════════════════════
-     RENDER
-  ═══════════════════════════════════════════ */
   return (
-    <div className="si-root">
-      {/* Decorative overlays */}
+    <div className="si-root" dir={isRTLMode ? "rtl" : "ltr"}>
       <div className="si-grain" aria-hidden="true" />
       <div className="si-bg-lines" aria-hidden="true">
         <span />
@@ -131,30 +215,31 @@ export default function SignIn() {
         <span />
       </div>
 
-      {/* Corner brackets */}
       <div className="si-corner si-corner--tl" aria-hidden="true" />
       <div className="si-corner si-corner--tr" aria-hidden="true" />
       <div className="si-corner si-corner--bl" aria-hidden="true" />
       <div className="si-corner si-corner--br" aria-hidden="true" />
 
       <div className="si-card">
-        {/* ══ LEFT: Brand Panel ══ */}
+        {/* LEFT: Brand Panel */}
         <div className="si-brand">
           <div className="si-brand-inner">
             <p className="si-brand-eyebrow">
               <span className="si-ey-line" />
-              Welcome Back
+              {getSigninTranslation("brandEyebrow", lang)}
               <span className="si-ey-line" />
             </p>
-            <h1 className="si-brand-title">Tech4U</h1>
+            <h1 className="si-brand-title">
+              {getSigninTranslation("brandTitle", lang)}
+            </h1>
             <p className="si-brand-tagline">
-              Luxury lives in every
+              {getSigninTranslation("brandTagline1", lang)}
               <br />
-              <em>detail.</em>
+              <em>{getSigninTranslation("brandTaglineEm", lang)}</em>
             </p>
             <div className="si-brand-divider" aria-hidden="true" />
             <p className="si-brand-quote">
-              &ldquo;Time is the most precious luxury — wear it well.&rdquo;
+              {getSigninTranslation("brandQuote", lang)}
             </p>
             <div className="si-watch-ring" aria-hidden="true">
               <div className="si-watch-inner" />
@@ -162,10 +247,9 @@ export default function SignIn() {
           </div>
         </div>
 
-        {/* ══ RIGHT: Form Panel ══ */}
+        {/* RIGHT: Form Panel */}
         <div className="si-form-panel">
           <div className="si-form-wrap">
-            {/* Password reset success alert */}
             {resetSuccess && (
               <div className="si-success-box" role="alert">
                 <svg
@@ -186,19 +270,19 @@ export default function SignIn() {
             <div className="si-form-header">
               <p className="si-form-eyebrow">
                 <span className="si-ey-line" />
-                Member Access
+                {getSigninTranslation("formEyebrow", lang)}
                 <span className="si-ey-line" />
               </p>
               <h2 className="si-form-title">
-                Sign <em>In</em>
+                {getSigninTranslation("formTitle", lang)}{" "}
+                <em>{getSigninTranslation("formTitleEm", lang)}</em>
               </h2>
               <p className="si-form-sub">
-                Enter your credentials to access your account
+                {getSigninTranslation("formSub", lang)}
               </p>
             </div>
 
             <form className="si-form" onSubmit={handleSubmit} noValidate>
-              {/* Error alert */}
               {error && (
                 <div className="si-error-box" role="alert">
                   <svg
@@ -218,14 +302,12 @@ export default function SignIn() {
                 </div>
               )}
 
-              {/* Username / Email field */}
+              {/* Username/Email */}
               <div
-                className={`si-field${
-                  focused === "id" ? " si-field--focused" : ""
-                }${identifier ? " si-field--filled" : ""}`}
+                className={`si-field${focused === "id" ? " si-field--focused" : ""}${identifier ? " si-field--filled" : ""}`}
               >
                 <label className="si-label" htmlFor="si-identifier">
-                  Username or Email
+                  {getSigninTranslation("identifierLabel", lang)}
                 </label>
                 <div className="si-input-wrap">
                   <span className="si-input-icon" aria-hidden="true">
@@ -243,7 +325,10 @@ export default function SignIn() {
                     id="si-identifier"
                     type="text"
                     className="si-input"
-                    placeholder="your@email.com or username"
+                    placeholder={getSigninTranslation(
+                      "identifierPlaceholder",
+                      lang,
+                    )}
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     onFocus={() => setFocused("id")}
@@ -255,14 +340,12 @@ export default function SignIn() {
                 <div className="si-field-line" aria-hidden="true" />
               </div>
 
-              {/* Password field */}
+              {/* Password */}
               <div
-                className={`si-field${
-                  focused === "pw" ? " si-field--focused" : ""
-                }${password ? " si-field--filled" : ""}`}
+                className={`si-field${focused === "pw" ? " si-field--focused" : ""}${password ? " si-field--filled" : ""}`}
               >
                 <label className="si-label" htmlFor="si-password">
-                  Password
+                  {getSigninTranslation("passwordLabel", lang)}
                 </label>
                 <div className="si-input-wrap">
                   <span className="si-input-icon" aria-hidden="true">
@@ -280,7 +363,10 @@ export default function SignIn() {
                     id="si-password"
                     type={showPass ? "text" : "password"}
                     className="si-input"
-                    placeholder="••••••••"
+                    placeholder={getSigninTranslation(
+                      "passwordPlaceholder",
+                      lang,
+                    )}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onFocus={() => setFocused("pw")}
@@ -323,14 +409,12 @@ export default function SignIn() {
                 <div className="si-field-line" aria-hidden="true" />
               </div>
 
-              {/* Forgot password link */}
               <div className="si-forgot-row">
                 <Link href="/forgot-password" className="si-forgot-link">
-                  Forgot password?
+                  {getSigninTranslation("forgotLink", lang)}
                 </Link>
               </div>
 
-              {/* Submit button */}
               <button
                 type="submit"
                 className="si-submit-btn"
@@ -338,12 +422,12 @@ export default function SignIn() {
                 aria-busy={loading}
               >
                 {loading ? (
-                  <span className="si-btn-loader" aria-hidden="true">
+                  <span className="si-btn-loader">
                     <span className="si-spinner" />
                   </span>
                 ) : (
                   <>
-                    <span>Sign In</span>
+                    {getSigninTranslation("signInBtn", lang)}
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -362,18 +446,18 @@ export default function SignIn() {
               </button>
             </form>
 
-            {/* Divider */}
             <div className="si-or" aria-hidden="true">
               <span className="si-or-line" />
-              <span className="si-or-text">or</span>
+              <span className="si-or-text">
+                {getSigninTranslation("orText", lang)}
+              </span>
               <span className="si-or-line" />
             </div>
 
-            {/* Switch to signup */}
             <p className="si-switch">
-              Don&apos;t have an account?{" "}
+              {getSigninTranslation("switchText", lang)}{" "}
               <Link href="/signup" className="si-switch-link">
-                Sign up for free
+                {getSigninTranslation("switchLink", lang)}
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"

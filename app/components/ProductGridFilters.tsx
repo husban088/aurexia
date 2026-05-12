@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useLanguage } from "../context/LanguageContext";
 import "./ProductGridFilters.css";
 
 interface FilterSidebarProps {
@@ -26,6 +27,35 @@ interface FilterSidebarProps {
   onClearAll: () => void;
 }
 
+// Translations for filter sidebar
+const filterTranslations = {
+  title: { en: "Filters", ar: "تصفية", de: "Filter" },
+  clearAll: { en: "Clear All", ar: "مسح الكل", de: "Alle löschen" },
+  applyFilters: {
+    en: "Apply Filters",
+    ar: "تطبيق التصفية",
+    de: "Filter anwenden",
+  },
+  categories: { en: "Category", ar: "الفئة", de: "Kategorie" },
+  subcategories: {
+    en: "Subcategory",
+    ar: "الفئة الفرعية",
+    de: "Unterkategorie",
+  },
+  colors: { en: "Colors", ar: "الألوان", de: "Farben" },
+  sizes: { en: "Sizes", ar: "المقاسات", de: "Größen" },
+  capacities: { en: "Capacity", ar: "السعة", de: "Kapazität" },
+  materials: { en: "Material", ar: "المواد", de: "Material" },
+  all: { en: "All", ar: "الكل", de: "Alle" },
+};
+
+function getFilterTranslation(
+  key: keyof typeof filterTranslations,
+  lang: "en" | "ar" | "de",
+): string {
+  return filterTranslations[key]?.[lang] || filterTranslations[key]?.en || key;
+}
+
 export default function FilterSidebar({
   isOpen,
   onClose,
@@ -36,8 +66,8 @@ export default function FilterSidebar({
 }: FilterSidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const { language, isRTLMode } = useLanguage();
 
-  // Close on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -52,7 +82,6 @@ export default function FilterSidebar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen, onClose]);
 
-  // Prevent body scroll when sidebar is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -67,25 +96,30 @@ export default function FilterSidebar({
   const filterSections = [
     {
       id: "category",
-      label: "Category",
+      labelKey: "categories",
       icon: "🏷️",
       items: filters.categories,
     },
     {
       id: "subcategory",
-      label: "Subcategory",
+      labelKey: "subcategories",
       icon: "📂",
       items: filters.subcategories,
     },
-    { id: "color", label: "Colors", icon: "🎨", items: filters.colors },
-    { id: "size", label: "Sizes", icon: "📏", items: filters.sizes },
+    { id: "color", labelKey: "colors", icon: "🎨", items: filters.colors },
+    { id: "size", labelKey: "sizes", icon: "📏", items: filters.sizes },
     {
       id: "capacity",
-      label: "Capacity",
+      labelKey: "capacities",
       icon: "⚡",
       items: filters.capacities,
     },
-    { id: "material", label: "Material", icon: "🔧", items: filters.materials },
+    {
+      id: "material",
+      labelKey: "materials",
+      icon: "🔧",
+      items: filters.materials,
+    },
   ];
 
   const getActiveCount = () => {
@@ -97,21 +131,22 @@ export default function FilterSidebar({
 
   return (
     <>
-      {/* Overlay */}
       <div
         className={`filter-overlay ${isOpen ? "active" : ""}`}
         onClick={onClose}
       />
 
-      {/* Sidebar */}
       <div
         ref={sidebarRef}
         className={`filter-sidebar ${isOpen ? "open" : ""}`}
+        dir={isRTLMode ? "rtl" : "ltr"}
       >
         <div className="filter-header">
           <div className="filter-header-left">
             <span className="filter-icon">⚡</span>
-            <h3 className="filter-title">Filters</h3>
+            <h3 className="filter-title">
+              {getFilterTranslation("title", language)}
+            </h3>
             {activeCount > 0 && (
               <span className="filter-count">{activeCount}</span>
             )}
@@ -135,18 +170,19 @@ export default function FilterSidebar({
               section.items.length > 0 && (
                 <div key={section.id} className="filter-section">
                   <button
-                    className={`filter-section-header ${
-                      activeSection === section.id ? "active" : ""
-                    }`}
+                    className={`filter-section-header ${activeSection === section.id ? "active" : ""}`}
                     onClick={() =>
                       setActiveSection(
-                        activeSection === section.id ? null : section.id
+                        activeSection === section.id ? null : section.id,
                       )
                     }
                   >
                     <span className="filter-section-icon">{section.icon}</span>
                     <span className="filter-section-label">
-                      {section.label}
+                      {getFilterTranslation(
+                        section.labelKey as keyof typeof filterTranslations,
+                        language,
+                      )}
                     </span>
                     {selectedFilters[
                       section.id as keyof typeof selectedFilters
@@ -157,9 +193,7 @@ export default function FilterSidebar({
                         <span className="filter-section-active-dot" />
                       )}
                     <svg
-                      className={`filter-section-arrow ${
-                        activeSection === section.id ? "open" : ""
-                      }`}
+                      className={`filter-section-arrow ${activeSection === section.id ? "open" : ""}`}
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -184,7 +218,7 @@ export default function FilterSidebar({
                         }`}
                         onClick={() => onFilterChange(section.id, "All")}
                       >
-                        All
+                        {getFilterTranslation("all", language)}
                       </button>
                       {section.items.map((item) => (
                         <button
@@ -210,7 +244,7 @@ export default function FilterSidebar({
                     </div>
                   )}
                 </div>
-              )
+              ),
           )}
         </div>
 
@@ -228,11 +262,11 @@ export default function FilterSidebar({
                 <line x1="10" y1="11" x2="10" y2="17" />
                 <line x1="14" y1="11" x2="14" y2="17" />
               </svg>
-              Clear All ({activeCount})
+              {getFilterTranslation("clearAll", language)} ({activeCount})
             </button>
           )}
           <button className="filter-apply-btn" onClick={onClose}>
-            Apply Filters
+            {getFilterTranslation("applyFilters", language)}
           </button>
         </div>
       </div>

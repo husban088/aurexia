@@ -6,13 +6,107 @@ import { useCartStore } from "@/lib/cartStore";
 import { useCouponStore } from "@/lib/couponStore";
 import "./cartsidebar.css";
 import { useCurrency } from "../context/CurrencyContext";
+import { useLanguage } from "../context/LanguageContext";
 
 interface CartSidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+/* ═══════════════════════════════════════════
+   TRANSLATIONS
+═══════════════════════════════════════════ */
+const cartSidebarTranslations = {
+  // Header
+  yourCart: { en: "Your Cart", ar: "سلة التسوق", de: "Ihr Warenkorb" },
+  empty: { en: "Empty", ar: "فارغ", de: "Leer" },
+  item: { en: "Item", ar: "عنصر", de: "Artikel" },
+  items: { en: "Items", ar: "عناصر", de: "Artikel" },
+
+  // Shipping
+  freeShipping: {
+    en: "Free Shipping",
+    ar: "شحن مجاني",
+    de: "Kostenloser Versand",
+  },
+
+  // Empty state
+  emptyTitle: {
+    en: "Your cart is empty",
+    ar: "سلة التسوق فارغة",
+    de: "Ihr Warenkorb ist leer",
+  },
+  emptySub: {
+    en: "Explore our luxury collections to begin.",
+    ar: "استكشف مجموعاتنا الفاخرة لتبدأ.",
+    de: "Entdecken Sie unsere Luxus-Kollektionen, um zu beginnen.",
+  },
+  discoverCollections: {
+    en: "Discover Collections",
+    ar: "استكشف المجموعات",
+    de: "Kollektionen entdecken",
+  },
+
+  // Loading
+  loadingCart: {
+    en: "Loading cart...",
+    ar: "جاري تحميل السلة...",
+    de: "Warenkorb wird geladen...",
+  },
+
+  // Stock status
+  outOfStock: { en: "Out of Stock", ar: "غير متوفر", de: "Nicht auf Lager" },
+  lowStock: {
+    en: "Low Stock",
+    ar: "مخزون محدود",
+    de: "Niedriger Lagerbestand",
+  },
+  lowStockLeft: { en: "left", ar: "متبقي", de: "vorrätig" },
+  inStock: { en: "In Stock", ar: "متوفر", de: "Auf Lager" },
+
+  // Item details
+  pieces: { en: "pcs", ar: "قطعة", de: "Stk" },
+  pieces_total: { en: "pcs total", ar: "قطعة إجمالي", de: "Stk insgesamt" },
+  unit: { en: "unit", ar: "وحدة", de: "Einheit" },
+  units: { en: "units", ar: "وحدات", de: "Einheiten" },
+  perPc: { en: "/ pc", ar: "/ قطعة", de: "/ Stk" },
+
+  // Summary
+  subtotal: { en: "Subtotal", ar: "المجموع الفرعي", de: "Zwischensumme" },
+  piece: { en: "piece", ar: "قطعة", de: "Stück" },
+  piecesCount: { en: "pieces", ar: "قطع", de: "Stücke" },
+  discount: { en: "Discount", ar: "خصم", de: "Rabatt" },
+  shipping: { en: "Shipping", ar: "الشحن", de: "Versand" },
+  total: { en: "Total", ar: "الإجمالي", de: "Gesamt" },
+
+  // Buttons
+  proceedToCheckout: {
+    en: "Proceed to Checkout",
+    ar: "المتابعة للدفع",
+    de: "Zur Kasse gehen",
+  },
+  viewFullCart: {
+    en: "View Full Cart",
+    ar: "عرض السلة الكاملة",
+    de: "Vollständigen Warenkorb anzeigen",
+  },
+};
+
+const getCartSidebarTranslation = (
+  key: keyof typeof cartSidebarTranslations,
+  lang: "en" | "ar" | "de",
+): string => {
+  return (
+    cartSidebarTranslations[key]?.[lang] ||
+    cartSidebarTranslations[key]?.en ||
+    key
+  );
+};
+
 export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
+  const { language, isRTLMode } = useLanguage();
+  const lang = language;
+
   const [mounted, setMounted] = useState(false);
   const [couponInput, setCouponInput] = useState("");
   const [couponMessage, setCouponMessage] = useState<{
@@ -48,7 +142,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
 
-  // Coupon store
   const {
     appliedCode,
     discountPercent,
@@ -57,15 +150,13 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     removeCoupon,
     getDiscountAmount,
     getFinalTotal,
-    fetchCouponSettings, // ✅ Added fetchCouponSettings
+    fetchCouponSettings,
   } = useCouponStore();
 
-  // Coupon calculations
   const discountAmountPKR = getDiscountAmount(subtotalPKR);
   const shippingPKR = 0;
   const totalPKR = getFinalTotal(subtotalPKR) + shippingPKR;
 
-  // Handle coupon apply
   const handleApplyCoupon = () => {
     if (!couponInput.trim()) {
       setCouponMessage({ text: "Please enter a coupon code.", success: false });
@@ -78,45 +169,38 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     }
   };
 
-  // Handle coupon remove
   const handleRemoveCoupon = () => {
     removeCoupon();
     setCouponMessage(null);
     setCouponInput("");
   };
 
-  // Handle Enter key
   const handleCouponKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       handleApplyCoupon();
     }
   };
 
-  // Mark client-side after hydration
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Set mounted after hydration
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Fetch cart when sidebar opens and not initialized
   useEffect(() => {
     if (isOpen && !initialized && mounted) {
       fetchCart();
     }
   }, [isOpen, initialized, fetchCart, mounted]);
 
-  // ✅ Refresh coupon settings when sidebar opens
   useEffect(() => {
     if (isOpen && mounted) {
       fetchCouponSettings();
     }
   }, [isOpen, mounted, fetchCouponSettings]);
 
-  // Handle body scroll lock
   useEffect(() => {
     if (!mounted) return;
     document.body.style.overflow = isOpen ? "hidden" : "";
@@ -125,7 +209,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     };
   }, [isOpen, mounted]);
 
-  // Handle escape key
   useEffect(() => {
     if (!mounted) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -135,7 +218,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     return () => document.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose, mounted]);
 
-  // Auto remove out of stock items
   useEffect(() => {
     if (!items.length || !mounted) return;
     items.forEach((item) => {
@@ -177,7 +259,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
   const showSpinner = loading && items.length === 0;
 
-  // Don't render anything on server to prevent hydration mismatch
   if (!isClient) {
     return null;
   }
@@ -198,6 +279,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
         aria-label="Shopping cart"
         onClick={handleSidebarClick}
         suppressHydrationWarning
+        dir={isRTLMode ? "rtl" : "ltr"}
       >
         <div className="cs-deco" aria-hidden="true">
           <div className="cs-deco-ring" />
@@ -208,7 +290,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           <div className="cs-header-left">
             <p className="cs-eyebrow">
               <span className="cs-ey-line" />
-              Your Cart
+              {getCartSidebarTranslation("yourCart", lang)}
               <span className="cs-ey-line" />
             </p>
             <h2 className="cs-title">
@@ -216,12 +298,14 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 showSpinner ? (
                   "..."
                 ) : (
-                  "Empty"
+                  getCartSidebarTranslation("empty", lang)
                 )
               ) : (
                 <>
                   <em>{cartUnitCount}</em>{" "}
-                  {cartUnitCount === 1 ? "Item" : "Items"}
+                  {cartUnitCount === 1
+                    ? getCartSidebarTranslation("item", lang)
+                    : getCartSidebarTranslation("items", lang)}
                 </>
               )}
             </h2>
@@ -242,7 +326,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           </button>
         </div>
 
-        {/* FREE SHIPPING BANNER */}
         {cartUnitCount > 0 && (
           <div className="cs-shipping-bar cs-shipping-bar--achieved">
             <p className="cs-shipping-text">
@@ -260,7 +343,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   strokeLinejoin="round"
                 />
               </svg>
-              Free Shipping
+              {getCartSidebarTranslation("freeShipping", lang)}
             </p>
           </div>
         )}
@@ -269,7 +352,9 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           {showSpinner ? (
             <div className="cs-empty">
               <div className="cs-spinner" />
-              <p className="cs-empty-title">Loading cart...</p>
+              <p className="cs-empty-title">
+                {getCartSidebarTranslation("loadingCart", lang)}
+              </p>
             </div>
           ) : cartUnitCount === 0 ? (
             <div className="cs-empty">
@@ -285,13 +370,15 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   <path d="M16 10a4 4 0 01-8 0" />
                 </svg>
               </div>
-              <h3 className="cs-empty-title">Your cart is empty</h3>
+              <h3 className="cs-empty-title">
+                {getCartSidebarTranslation("emptyTitle", lang)}
+              </h3>
               <p className="cs-empty-sub">
-                Explore our luxury collections to begin.
+                {getCartSidebarTranslation("emptySub", lang)}
               </p>
               <button className="cs-empty-cta" onClick={onClose}>
                 <Link href="/watches" prefetch={false}>
-                  Discover Collections
+                  {getCartSidebarTranslation("discoverCollections", lang)}
                 </Link>
               </button>
             </div>
@@ -327,10 +414,10 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 const isBeingRemoved = removingItems.has(item.id);
 
                 const stockLabel = isOutOfStock
-                  ? "Out of Stock"
+                  ? getCartSidebarTranslation("outOfStock", lang)
                   : isLowStock
-                    ? `Low Stock (${rawStock} left)`
-                    : "In Stock";
+                    ? `${getCartSidebarTranslation("lowStock", lang)} (${rawStock} ${getCartSidebarTranslation("lowStockLeft", lang)})`
+                    : getCartSidebarTranslation("inStock", lang);
 
                 const canDecrement = item.quantity > 1 && !isOutOfStock;
                 const canIncrement =
@@ -396,30 +483,27 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                       {productBrand && (
                         <p className="cs-item-brand">{productBrand}</p>
                       )}
-
                       <p className="cs-item-name">{displayName}</p>
-
                       {productSubcategory && (
                         <p className="cs-item-variant">{productSubcategory}</p>
                       )}
-
                       <p className="cs-item-breakdown">
-                        {formatPrice(pricePerPiecePKR)} × {ppu} pcs ×{" "}
-                        {item.quantity} unit
-                        {item.quantity !== 1 ? "s" : ""} = {rowPhysicalPieces}{" "}
-                        pcs total
+                        {formatPrice(pricePerPiecePKR)} × {ppu}{" "}
+                        {getCartSidebarTranslation("pieces", lang)} ×{" "}
+                        {item.quantity}{" "}
+                        {item.quantity !== 1
+                          ? getCartSidebarTranslation("units", lang)
+                          : getCartSidebarTranslation("unit", lang)}{" "}
+                        = {rowPhysicalPieces}{" "}
+                        {getCartSidebarTranslation("pieces_total", lang)}
                       </p>
-
                       <div className="cs-item-stock">
                         <span
-                          className={`cs-stock-badge ${
-                            isOutOfStock ? "out" : isLowStock ? "low" : "in"
-                          }`}
+                          className={`cs-stock-badge ${isOutOfStock ? "out" : isLowStock ? "low" : "in"}`}
                         >
                           {stockLabel}
                         </span>
                       </div>
-
                       <div className="cs-item-bottom">
                         <div className="cs-qty">
                           <button
@@ -441,14 +525,12 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                               <path d="M5 12h14" strokeLinecap="round" />
                             </svg>
                           </button>
-
                           <span className="cs-qty-num">
                             {item.quantity}
                             {ppu > 1 && (
                               <span className="cs-qty-ppu">×{ppu}</span>
                             )}
                           </span>
-
                           <button
                             className="cs-qty-btn"
                             onClick={() =>
@@ -472,7 +554,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                             </svg>
                           </button>
                         </div>
-
                         <p className="cs-item-price">
                           {formatPrice(itemTotalPKR)}
                         </p>
@@ -508,24 +589,22 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           )}
         </div>
 
-        {/* Footer with Totals */}
         {cartUnitCount > 0 && (
           <div className="cs-footer">
-            {/* Summary totals */}
             <div className="cs-summary">
               <div className="cs-summary-row">
                 <span>
-                  Subtotal ({totalPieces}{" "}
-                  {totalPieces === 1 ? "piece" : "pieces"})
+                  {getCartSidebarTranslation("subtotal", lang)} ({totalPieces}{" "}
+                  {getCartSidebarTranslation("piecesCount", lang)})
                 </span>
                 <span>{formatPrice(subtotalPKR)}</span>
               </div>
 
-              {/* Discount row - only when coupon applied */}
               {appliedCode && discountAmountPKR > 0 && (
                 <div className="cs-summary-row cs-summary-row--discount">
                   <span>
-                    Discount ({discountPercent}% — {appliedCode})
+                    {getCartSidebarTranslation("discount", lang)} (
+                    {discountPercent}% — {appliedCode})
                   </span>
                   <span className="cs-discount-value">
                     − {formatPrice(discountAmountPKR)}
@@ -534,20 +613,24 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               )}
 
               <div className="cs-summary-row">
-                <span>Shipping</span>
-                <span className="free-shipping-text">Free</span>
+                <span>{getCartSidebarTranslation("shipping", lang)}</span>
+                <span className="free-shipping-text">
+                  {getCartSidebarTranslation("freeShipping", lang)}
+                </span>
               </div>
 
               <div className="cs-summary-divider" />
 
               <div className="cs-summary-row cs-summary-total">
-                <span>Total</span>
+                <span>{getCartSidebarTranslation("total", lang)}</span>
                 <span>{formatPrice(totalPKR)}</span>
               </div>
             </div>
 
             <button className="cs-checkout-btn" onClick={handleCheckoutClick}>
-              <span>Proceed to Checkout</span>
+              <span>
+                {getCartSidebarTranslation("proceedToCheckout", lang)}
+              </span>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -575,7 +658,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 <line x1="3" y1="6" x2="21" y2="6" />
                 <path d="M16 10a4 4 0 01-8 0" />
               </svg>
-              View Full Cart
+              {getCartSidebarTranslation("viewFullCart", lang)}
             </button>
           </div>
         )}

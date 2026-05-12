@@ -381,7 +381,8 @@
 
 .footer-input-wrapper:focus-within {
   border-color: var(--footer-gold);
-  box-shadow: 0 0 0 4px rgba(218, 165, 32, 0.2),
+  box-shadow:
+    0 0 0 4px rgba(218, 165, 32, 0.2),
     0 0 20px rgba(218, 165, 32, 0.1);
   transform: scale(1.01);
 }
@@ -535,7 +536,9 @@
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.3);
   transform: translate(-50%, -50%);
-  transition: width 0.5s, height 0.5s;
+  transition:
+    width 0.5s,
+    height 0.5s;
 }
 
 .footer-social-link:hover .footer-social-ripple {
@@ -1488,5 +1491,79 @@ html {
   .orb-2,
   .orb-3 {
     display: none;
+  }
+}
+
+/* ========== RTL SUPPORT FOR FOOTER ========== */
+[dir="rtl"] .footer-container {
+  direction: rtl;
+}
+
+[dir="rtl"] .footer-links-header {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .footer-links-icon {
+  margin-left: 0.5rem;
+  margin-right: 0;
+}
+
+[dir="rtl"] .footer-link-arrow svg {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .footer-link:hover .footer-link-text {
+  transform: translateX(-5px);
+}
+
+[dir="rtl"] .footer-contact-item {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .footer-contact-icon {
+  margin-left: 0.85rem;
+  margin-right: 0;
+}
+
+[dir="rtl"] .footer-newsletter-btn svg {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .footer-newsletter-btn:hover svg {
+  transform: rotate(180deg) translateX(-5px);
+}
+
+[dir="rtl"] .footer-social-link:hover .footer-social-tooltip {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+
+[dir="rtl"] .footer-back-to-top .back-to-top-ring svg {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .copyright-gold-line {
+  background: linear-gradient(90deg, #daa520, transparent);
+}
+
+[dir="rtl"] .copyright-gold-line.right {
+  background: linear-gradient(90deg, transparent, #daa520);
+}
+
+[dir="rtl"] .footer-feature-card {
+  flex-direction: row;
+}
+
+[dir="rtl"] .footer-feature-text {
+  text-align: right;
+}
+
+@media (max-width: 768px) {
+  [dir="rtl"] .footer-links-header {
+    flex-direction: row-reverse;
+  }
+  [dir="rtl"] .footer-links-mobile-toggle svg.rotated {
+    transform: rotate(-90deg);
   }
 }

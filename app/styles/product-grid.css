@@ -1158,3 +1158,77 @@
     transform: none;
   }
 }
+
+/* ========== RTL SUPPORT FOR PRODUCT GRID ========== */
+[dir="rtl"] .pg-card-body {
+  text-align: right;
+}
+
+[dir="rtl"] .pg-card-price-row {
+  justify-content: flex-start;
+  flex-direction: row;
+}
+
+[dir="rtl"] .pg-card-variants {
+  flex-direction: row;
+}
+
+[dir="rtl"] .pg-variant-thumbnails {
+  flex-direction: row;
+}
+
+[dir="rtl"] .pg-card-cta svg {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .pg-card:hover .pg-card-cta svg {
+  transform: rotate(180deg) translateX(-5px);
+}
+
+[dir="rtl"] .grid-controls-bar {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+[dir="rtl"] .grid-controls-left {
+  flex-direction: row;
+}
+
+[dir="rtl"] .grid-sort-select {
+  background-position: left 0.8rem center;
+  padding-left: 2rem;
+  padding-right: 1rem;
+}
+
+[dir="rtl"] .per-row-btn[data-tooltip]::before {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* RTL for filter sidebar */
+[dir="rtl"] .filter-sidebar {
+  right: auto;
+  left: 0;
+  transform: translateX(-100%);
+}
+
+[dir="rtl"] .filter-sidebar.open {
+  transform: translateX(0);
+}
+
+[dir="rtl"] .filter-section-header {
+  text-align: right;
+}
+
+[dir="rtl"] .filter-section-label {
+  text-align: right;
+}
+
+[dir="rtl"] .filter-section-content {
+  padding-right: 3rem;
+  padding-left: 1.5rem;
+}
+
+[dir="rtl"] .filter-close:hover {
+  transform: rotate(-90deg);
+}

@@ -150,7 +150,13 @@ function processProductData(data: any): any {
       variant_images: variant.variant_images || [],
     };
   });
-  return { ...data, product_variants: variants };
+  return {
+    ...data,
+    product_variants: variants,
+    // Explicitly preserve these so they survive any type-casting
+    _description: data.description || "",
+    _description_images: data.description_images || [],
+  };
 }
 
 /* ── Fetch by ID — direct, fast, 100% reliable ── */
@@ -159,7 +165,9 @@ async function fetchById(id: string, retries = 3): Promise<any | null> {
     try {
       const { data, error } = await supabase
         .from("products")
-        .select("*, product_variants(*, variant_images(*))")
+        .select(
+          "*, description, description_images, product_variants(*, description_rich, description_images, description, variant_images(*))",
+        )
         .eq("id", id)
         .eq("is_active", true)
         .single();
@@ -195,7 +203,9 @@ async function fetchBySlugSearch(
     try {
       const { data, error } = await supabase
         .from("products")
-        .select("*, product_variants(*, variant_images(*))")
+        .select(
+          "*, description, description_images, product_variants(*, description_rich, description_images, description, variant_images(*))",
+        )
         .eq("is_active", true);
 
       if (error || !data) {
@@ -244,6 +254,28 @@ async function fetchProductCached(key: string): Promise<any | null> {
 
   _inFlight.set(key, promise);
   return promise;
+}
+
+/* ── Invalidate all caches for a product ID/slug ── */
+function _invalidateProductCache(key: string) {
+  _productCache.delete(key);
+  _inFlight.delete(key);
+  try {
+    const raw = sessionStorage.getItem(PD_SESSION_KEY);
+    if (raw) {
+      const store: Record<string, any> = JSON.parse(raw);
+      delete store[key];
+      sessionStorage.setItem(PD_SESSION_KEY, JSON.stringify(store));
+    }
+  } catch (_) {}
+  try {
+    const raw = localStorage.getItem(PD_LOCAL_KEY);
+    if (raw) {
+      const store: Record<string, any> = JSON.parse(raw);
+      delete store[key];
+      localStorage.setItem(PD_LOCAL_KEY, JSON.stringify(store));
+    }
+  } catch (_) {}
 }
 
 /* ═══════════════════════════════════════════
@@ -590,8 +622,29 @@ export default function ProductDetail() {
     setNotFound(false);
     setLiveRating(productData.rating || null);
     setLiveReviewCount(productData.reviews_count || null);
-    setCurrentDescription(productData.description || "");
-    setCurrentDescriptionImages(productData.description_images || []);
+
+    // ✅ Description: product level pehle, phir pehle variant ki description_rich
+    const productDesc =
+      productData._description || productData.description || "";
+    const productDescImages =
+      productData._description_images || productData.description_images || [];
+
+    // Agar product level description nahi hai toh kisi bhi variant se lo
+    const fallbackVariant = (productData.product_variants || []).find(
+      (v: any) => v.description_rich || v.description,
+    );
+    const finalDesc =
+      productDesc ||
+      fallbackVariant?.description_rich ||
+      fallbackVariant?.description ||
+      "";
+    const finalDescImages =
+      productDescImages.length > 0
+        ? productDescImages
+        : fallbackVariant?.description_images || [];
+
+    setCurrentDescription(finalDesc);
+    setCurrentDescriptionImages(finalDescImages);
 
     document.title = `${productData.name} | Tech4U`;
 
@@ -633,8 +686,22 @@ export default function ProductDetail() {
     // Re-read storage first — module-level Map can be empty after SPA navigation
     _loadProductSessionCache();
 
+    // ── Check if we're coming from edit page (refresh=1 param) ──
+    const searchParams = new URLSearchParams(window.location.search);
+    const forceRefresh = searchParams.get("refresh") === "1";
+
+    if (forceRefresh) {
+      // Clear all caches for this product so fresh data loads
+      _invalidateProductCache(cacheKey);
+      if (urlId) _invalidateProductCache(urlId);
+      if (urlSlug) _invalidateProductCache(urlSlug);
+      // Remove the param from URL without reload
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, "", newUrl);
+    }
+
     // Already cached (memory or just restored from storage)? Hydrate instantly
-    if (_productCache.has(cacheKey)) {
+    if (!forceRefresh && _productCache.has(cacheKey)) {
       hydrateFromData(_productCache.get(cacheKey));
       setLoading(false);
       setNotFound(false);
@@ -723,7 +790,18 @@ export default function ProductDetail() {
       // if the JS module was re-evaluated after SPA navigation
       _loadProductSessionCache();
 
-      if (_productCache.has(cacheKey)) {
+      // ── If returning from edit page, force fresh fetch ──
+      const searchParams = new URLSearchParams(window.location.search);
+      const forceRefresh = searchParams.get("refresh") === "1";
+      if (forceRefresh) {
+        _invalidateProductCache(cacheKey);
+        if (urlId) _invalidateProductCache(urlId);
+        if (urlSlug) _invalidateProductCache(urlSlug);
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
+      }
+
+      if (!forceRefresh && _productCache.has(cacheKey)) {
         hydrateFromData(_productCache.get(cacheKey));
         setLoading(false);
         setNotFound(false);
@@ -770,13 +848,31 @@ export default function ProductDetail() {
     };
   }, [cacheKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Update description/images when variant changes ──
-  // ALWAYS use product-level main description and images regardless of variant selected
-  // Variant descriptions are NOT shown on the product detail page bottom section
+  // ── Update description/images when product loads ──
   useEffect(() => {
     if (product) {
-      setCurrentDescription(product.description || "");
-      setCurrentDescriptionImages((product as any)?.description_images || []);
+      const p = product as any;
+      // Product level description pehle
+      const productDesc = p._description || p.description || "";
+      const productDescImages =
+        p._description_images || p.description_images || [];
+
+      // Fallback: agar product level description nahi toh variant se lo
+      const fallbackVariant = (p.product_variants || []).find(
+        (v: any) => v.description_rich || v.description,
+      );
+      const finalDesc =
+        productDesc ||
+        fallbackVariant?.description_rich ||
+        fallbackVariant?.description ||
+        "";
+      const finalDescImages =
+        productDescImages.length > 0
+          ? productDescImages
+          : fallbackVariant?.description_images || [];
+
+      setCurrentDescription(finalDesc);
+      setCurrentDescriptionImages(finalDescImages);
     }
   }, [product]);
 

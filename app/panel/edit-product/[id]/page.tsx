@@ -2719,6 +2719,47 @@ export default function EditProduct() {
         currency.code
       }!`,
     );
+
+    // ── Cache clear karo taake product detail page fresh data dikhaaye ──
+    try {
+      // sessionStorage cache clear
+      const PD_SESSION_KEY = "pd_product_cache_v2";
+      const rawSession = sessionStorage.getItem(PD_SESSION_KEY);
+      if (rawSession) {
+        const store: Record<string, any> = JSON.parse(rawSession);
+        // Is product ki saari keys delete karo
+        Object.keys(store).forEach((k) => {
+          if (
+            store[k]?.id === productId ||
+            k === productId ||
+            k.endsWith(productId)
+          ) {
+            delete store[k];
+          }
+        });
+        sessionStorage.setItem(PD_SESSION_KEY, JSON.stringify(store));
+      }
+    } catch (_) {}
+
+    try {
+      // localStorage cache clear
+      const PD_LOCAL_KEY = "pd_product_cache_local_v2";
+      const rawLocal = localStorage.getItem(PD_LOCAL_KEY);
+      if (rawLocal) {
+        const store: Record<string, any> = JSON.parse(rawLocal);
+        Object.keys(store).forEach((k) => {
+          if (
+            store[k]?.data?.id === productId ||
+            k === productId ||
+            k.endsWith(productId)
+          ) {
+            delete store[k];
+          }
+        });
+        localStorage.setItem(PD_LOCAL_KEY, JSON.stringify(store));
+      }
+    } catch (_) {}
+
     setTimeout(() => router.push("/panel"), 1500);
   };
 

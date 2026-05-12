@@ -4,6 +4,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 import { CurrencyProvider } from "./context/CurrencyContext";
+import { LanguageProvider } from "./context/LanguageContext";
 
 // Poppins font configuration
 const poppins = Poppins({
@@ -28,11 +29,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${poppins.variable} h-full antialiased`}>
+    // NOTE: dir="ltr" is default — LanguageContext will update it client-side
+    // when Arabic is detected (UAE). This avoids SSR mismatch.
+    <html
+      lang="en"
+      dir="ltr"
+      className={`${poppins.variable} h-full antialiased`}
+    >
       <body className="min-h-full flex flex-col">
-        <CurrencyProvider>
-          <Providers>{children}</Providers>
-        </CurrencyProvider>
+        {/*
+          LanguageProvider wraps everything so ALL components can access
+          translations via useLanguage() hook.
+          CurrencyProvider is kept inside so it can coexist.
+        */}
+        <LanguageProvider>
+          <CurrencyProvider>
+            <Providers>{children}</Providers>
+          </CurrencyProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

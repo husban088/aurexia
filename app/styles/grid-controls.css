@@ -225,3 +225,25 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ========== RTL SUPPORT FOR GRID CONTROLS ========== */
+[dir="rtl"] .grid-controls-bar {
+  flex-direction: row;
+}
+
+[dir="rtl"] .grid-controls-left {
+  flex-direction: row;
+}
+
+[dir="rtl"] .grid-sort-select {
+  background-position: left 0.8rem center;
+  padding: 0.55rem 1rem 0.55rem 2rem;
+}
+
+[dir="rtl"] .filter-trigger svg {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .per-row-btn svg {
+  transform: scaleX(-1);
+}

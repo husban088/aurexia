@@ -1,71 +1,170 @@
 "use client";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HeroSection.tsx — Hydration-error-free version
-//
-// FIX: Instead of conditionally rendering slides based on isMounted,
-// we render all slides immediately on both server and client,
-// then initialize Swiper after hydration.
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useLanguage } from "@/app/context/LanguageContext";
 import "./hero.css";
 
-/* ──────────────────────────────────────────
-   SLIDE DATA
-────────────────────────────────────────── */
-const slides = [
+// ─────────────────────────────────────────────────────────────
+// COMPLETE SLIDE DATA WITH ALL TRANSLATIONS
+// ─────────────────────────────────────────────────────────────
+
+const headingLine1Translations: Record<
+  string,
+  Record<"en" | "ar" | "de", string>
+> = {
+  watches: { en: "Tech4U", ar: "تيك4يو", de: "Tech4U" },
+  accessories: { en: "Mobile", ar: "موبايل", de: "Mobil" },
+  decor: { en: "Home", ar: "المنزل", de: "Zuhause" },
+  automotive: { en: "Auto", ar: "سيارة", de: "Auto" },
+};
+
+const headingItalicTranslations: Record<
+  string,
+  Record<"en" | "ar" | "de", string>
+> = {
+  watches: { en: " Watches", ar: " ساعات", de: " Uhren" },
+  accessories: { en: " Accessories", ar: " إكسسوارات", de: " Zubehör" },
+  decor: { en: " Décor", ar: " ديكور", de: " Dekor" },
+  automotive: { en: " Motive", ar: " محرك", de: " Antrieb" },
+};
+
+const badgeTexts: Record<string, Record<"en" | "ar" | "de", string>> = {
+  watches: {
+    en: "New Collection 2025",
+    ar: "مجموعة جديدة 2025",
+    de: "Neue Kollektion 2025",
+  },
+  accessories: {
+    en: "Premium Tech Accessories",
+    ar: "إكسسوارات تقنية فاخرة",
+    de: "Premium Tech-Zubehör",
+  },
+  decor: {
+    en: "Curated Living",
+    ar: "معيشة منسقة",
+    de: "Kuratiertes Wohnen",
+  },
+  automotive: {
+    en: "Premium Automotive Gear",
+    ar: "معدات سيارات فاخرة",
+    de: "Premium-Automobilausrüstung",
+  },
+};
+
+const paraTexts: Record<string, Record<"en" | "ar" | "de", string>> = {
+  watches: {
+    en: "Timepieces engineered for those who command attention. Each watch a statement — each second, a signature of precision.",
+    ar: "ساعات مصممة لأولئك الذين يلفتون الأنظار. كل ساعة هي بيان - كل ثانية هي توقيع على الدقة.",
+    de: "Zeitmesser, die für Aufmerksamkeit sorgen. Jede Uhr eine Aussage - jede Sekunde eine Signatur der Präzision.",
+  },
+  accessories: {
+    en: "Elevate every interaction. Precision-crafted cases, wireless charging, and accessories designed for the discerning.",
+    ar: "ارتقِ بكل تفاعل. حقائب مصنوعة بدقة، وشحن لاسلكي، وإكسسوارات مصممة للخبراء.",
+    de: "Steigern Sie jede Interaktion. Präzise gefertigte Hüllen, kabelloses Laden und Zubehör für anspruchsvolle Nutzer.",
+  },
+  decor: {
+    en: "Transform your space into a sanctuary. Artisanal pieces that speak in silence — luxury defined by the spaces between.",
+    ar: "حوّل مساحتك إلى ملاذ. قطع حرفية تتحدث في صمت - الفخامة تحددها المسافات بينها.",
+    de: "Verwandeln Sie Ihren Raum in ein Heiligtum. Kunsthandwerkliche Stücke, die in Stille sprechen - Luxus, definiert durch die Zwischenräume.",
+  },
+  automotive: {
+    en: "Drive with distinction. Premium car accessories, smart tech integration, and luxury finishes for the modern driver who demands excellence on every road.",
+    ar: "قد بتميز. إكسسوارات سيارات فاخرة، وتكامل تقني ذكي، ولمسات نهائية فاخرة للسائق العصري الذي يطلب التميز في كل طريق.",
+    de: "Fahren Sie mit Stil. Premium-Autozubehör, intelligente Technologieintegration und luxuriöse Oberflächen für den modernen Fahrer, der auf jeder Straße Exzellenz fordert.",
+  },
+};
+
+const ctaLabels: Record<string, Record<"en" | "ar" | "de", string>> = {
+  exploreWatches: {
+    en: "Explore Watches",
+    ar: "استكشف الساعات",
+    de: "Uhren entdecken",
+  },
+  viewLookbook: {
+    en: "View Lookbook",
+    ar: "عرض المظهر",
+    de: "Lookbook ansehen",
+  },
+  shopAccessories: {
+    en: "Shop Accessories",
+    ar: "تسوق الإكسسوارات",
+    de: "Zubehör kaufen",
+  },
+  browseAll: {
+    en: "Browse All",
+    ar: "تصفح الكل",
+    de: "Alle durchsuchen",
+  },
+  discoverDecor: {
+    en: "Discover Décor",
+    ar: "اكتشف الديكور",
+    de: "Dekor entdecken",
+  },
+  viewCatalogue: {
+    en: "View Catalogue",
+    ar: "عرض الكتالوج",
+    de: "Katalog ansehen",
+  },
+  exploreAutomotive: {
+    en: "Explore Automotive",
+    ar: "استكشف السيارات",
+    de: "Automobil entdecken",
+  },
+  viewCollection: {
+    en: "View Collection",
+    ar: "عرض المجموعة",
+    de: "Kollektion ansehen",
+  },
+};
+
+const slidesConfig = [
   {
     id: 1,
-    badge: "New Collection 2025",
-    headingLine1: "Tech4U",
-    headingItalic: " Watches",
-    para: "Timepieces engineered for those who command attention. Each watch a statement — each second, a signature of precision.",
-    cta: { label: "Explore Watches", href: "/watches" },
-    ghost: { label: "View Lookbook", href: "/lookbook" },
+    type: "watches",
+    ctaKey: "exploreWatches",
+    ghostKey: "viewLookbook",
+    ctaHref: "/watches",
+    ghostHref: "/lookbook",
     imageSrc: "/banner1.jpg",
     placeholderClass: "hero-ph-1",
   },
   {
     id: 2,
-    badge: "Premium Tech Accessories",
-    headingLine1: "Mobile",
-    headingItalic: " Accessories",
-    para: "Elevate every interaction. Precision-crafted cases, wireless charging, and accessories designed for the discerning.",
-    cta: { label: "Shop Accessories", href: "/accessories" },
-    ghost: { label: "Browse All", href: "/accessories" },
+    type: "accessories",
+    ctaKey: "shopAccessories",
+    ghostKey: "browseAll",
+    ctaHref: "/accessories",
+    ghostHref: "/accessories",
     imageSrc: "/banner2.webp",
     placeholderClass: "hero-ph-2",
   },
   {
     id: 3,
-    badge: "Curated Living",
-    headingLine1: "Home",
-    headingItalic: " Décor",
-    para: "Transform your space into a sanctuary. Artisanal pieces that speak in silence — luxury defined by the spaces between.",
-    cta: { label: "Discover Décor", href: "/home-decor" },
-    ghost: { label: "View Catalogue", href: "/catalogue" },
+    type: "decor",
+    ctaKey: "discoverDecor",
+    ghostKey: "viewCatalogue",
+    ctaHref: "/home-decor",
+    ghostHref: "/catalogue",
     imageSrc: "/banner3.webp",
     placeholderClass: "hero-ph-3",
   },
   {
     id: 4,
-    badge: "Premium Automotive Gear",
-    headingLine1: "Auto",
-    headingItalic: " Motive",
-    para: "Drive with distinction. Premium car accessories, smart tech integration, and luxury finishes for the modern driver who demands excellence on every road.",
-    cta: { label: "Explore Automotive", href: "/automotive" },
-    ghost: { label: "View Collection", href: "/auto-collection" },
+    type: "automotive",
+    ctaKey: "exploreAutomotive",
+    ghostKey: "viewCollection",
+    ctaHref: "/automotive",
+    ghostHref: "/auto-collection",
     imageSrc: "/banner4.png",
     placeholderClass: "hero-ph-4",
   },
 ];
 
-/* ──────────────────────────────────────────
-   SWIPER CDN LOADER
-────────────────────────────────────────── */
+// ─────────────────────────────────────────────────────────────
+// SWIPER CDN LOADER
+// ─────────────────────────────────────────────────────────────
 let swiperCDNLoaded = false;
 let swiperCDNLoading: Promise<void> | null = null;
 
@@ -121,22 +220,27 @@ function loadSwiperCDN(): Promise<void> {
   return swiperCDNLoading;
 }
 
-/* ──────────────────────────────────────────
-   STATIC SLIDES RENDER (used on both server and client)
-────────────────────────────────────────── */
-function StaticSlides() {
+// ─────────────────────────────────────────────────────────────
+// STATIC SLIDES COMPONENT
+// ─────────────────────────────────────────────────────────────
+function StaticSlides({
+  language,
+  isRTL,
+}: {
+  language: "en" | "ar" | "de";
+  isRTL: boolean;
+}) {
   return (
     <>
-      {slides.map((slide) => (
+      {slidesConfig.map((slide) => (
         <div key={slide.id} className="swiper-slide">
-          {/* Background image */}
           {slide.imageSrc ? (
             <Image
               src={slide.imageSrc}
-              alt={`${slide.headingLine1}${slide.headingItalic} banner`}
+              alt={`${headingLine1Translations[slide.type][language]}${headingItalicTranslations[slide.type][language]} banner`}
               fill
               className="hero-slide-img"
-              priority
+              priority={slide.id === 1}
               sizes="100vw"
               quality={85}
               suppressHydrationWarning
@@ -145,29 +249,31 @@ function StaticSlides() {
             <div
               className={`hero-slide-placeholder ${slide.placeholderClass}`}
               role="img"
-              aria-label={`${slide.headingLine1}${slide.headingItalic} background`}
+              aria-label={`${headingLine1Translations[slide.type][language]}${headingItalicTranslations[slide.type][language]} background`}
             />
           )}
 
-          {/* Overlay */}
           <div className="hero-slide-overlay" aria-hidden="true" />
 
-          {/* Content */}
-          <div className="hero-slide-content">
-            <p className="hero-badge">{slide.badge}</p>
+          <div className="hero-slide-content" dir={isRTL ? "rtl" : "ltr"}>
+            <p className="hero-badge">{badgeTexts[slide.type][language]}</p>
+
             <h2 className="hero-heading">
-              {slide.headingLine1}
-              <em>{slide.headingItalic}</em>
+              {headingLine1Translations[slide.type][language]}
+              <em>{headingItalicTranslations[slide.type][language]}</em>
             </h2>
+
             <div className="hero-divider" aria-hidden="true" />
-            <p className="hero-para">{slide.para}</p>
+
+            <p className="hero-para">{paraTexts[slide.type][language]}</p>
+
             <div className="hero-btn-wrap">
               <Link
-                href={slide.cta.href}
+                href={slide.ctaHref}
                 className="hero-btn-primary"
                 prefetch={false}
               >
-                {slide.cta.label}
+                {ctaLabels[slide.ctaKey][language]}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path
                     d="M5 12h14M12 5l7 7-7 7"
@@ -177,11 +283,11 @@ function StaticSlides() {
                 </svg>
               </Link>
               <Link
-                href={slide.ghost.href}
+                href={slide.ghostHref}
                 className="hero-btn-ghost"
                 prefetch={false}
               >
-                {slide.ghost.label}
+                {ctaLabels[slide.ghostKey][language]}
               </Link>
             </div>
           </div>
@@ -191,12 +297,13 @@ function StaticSlides() {
   );
 }
 
-/* ──────────────────────────────────────────
-   MAIN COMPONENT
-────────────────────────────────────────── */
+// ─────────────────────────────────────────────────────────────
+// MAIN HERO SECTION COMPONENT
+// ─────────────────────────────────────────────────────────────
 export default function HeroSection() {
   const [isClient, setIsClient] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(1);
+  const { language, isRTLMode } = useLanguage();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const swiperInstanceRef = useRef<any>(null);
@@ -204,12 +311,10 @@ export default function HeroSection() {
   const prevBtnRef = useRef<HTMLButtonElement>(null);
   const nextBtnRef = useRef<HTMLButtonElement>(null);
 
-  // Mark client-side after hydration
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  /* ── Swiper init (only on client) ── */
   const initSwiper = useCallback(() => {
     if (typeof window === "undefined") return;
     if (initAttempted.current) return;
@@ -261,7 +366,6 @@ export default function HeroSection() {
     }
   }, []);
 
-  // Load CDN and initialize Swiper after client hydration
   useEffect(() => {
     if (!isClient) return;
 
@@ -287,7 +391,6 @@ export default function HeroSection() {
     };
   }, [isClient, initSwiper]);
 
-  // Handle window resize
   useEffect(() => {
     if (!isClient || !swiperInstanceRef.current) return;
 
@@ -315,15 +418,14 @@ export default function HeroSection() {
     <section
       className="hero-section"
       aria-label="Hero banner"
+      dir={isRTLMode ? "rtl" : "ltr"}
       suppressHydrationWarning
     >
-      {/* Decorative corners */}
       <div className="hero-corner-tl" aria-hidden="true" />
       <div className="hero-corner-tr" aria-hidden="true" />
       <div className="hero-corner-bl" aria-hidden="true" />
       <div className="hero-corner-br" aria-hidden="true" />
 
-      {/* Slide counter - visible on client only */}
       <div
         className="hero-counter"
         aria-hidden="true"
@@ -331,16 +433,14 @@ export default function HeroSection() {
       >
         <span className="hero-counter-num">0{currentSlide}</span>
         <span className="hero-counter-line" />
-        <span>0{slides.length}</span>
+        <span>0{slidesConfig.length}</span>
       </div>
 
-      {/* Scroll hint */}
       <div className="hero-scroll-hint" aria-hidden="true">
         <span>Scroll</span>
         <div className="hero-scroll-line" />
       </div>
 
-      {/* Arrow buttons - always rendered */}
       <button
         ref={prevBtnRef}
         className="hero-nav-btn hero-nav-prev"
@@ -373,19 +473,13 @@ export default function HeroSection() {
         </svg>
       </button>
 
-      {/* 
-        CRITICAL FIX: 
-        - Render slides on BOTH server and client (same content)
-        - This ensures hydration doesn't fail
-        - Swiper will enhance the existing DOM after initialization
-      */}
       <div
         ref={containerRef}
         className="hero-swiper swiper"
         suppressHydrationWarning
       >
         <div className="swiper-wrapper">
-          <StaticSlides />
+          <StaticSlides language={language} isRTL={isRTLMode} />
         </div>
 
         <div

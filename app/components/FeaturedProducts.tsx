@@ -12,6 +12,7 @@ import "@/app/styles/featured-products.css";
 import { supabase } from "@/lib/supabase";
 import { useCartStore } from "@/lib/cartStore";
 import { useCurrency } from "../context/CurrencyContext";
+import { useLanguage } from "../context/LanguageContext";
 import QuickView from "./QuickView";
 import { getSalePercent, applyDiscount } from "@/lib/saleStore";
 
@@ -79,6 +80,67 @@ interface VariantImagesMap {
   [variantId: string]: string[];
 }
 
+/* ── Translations for Featured Products Section ── */
+const fpTranslations = {
+  eyebrow: {
+    en: "Curated Selection",
+    ar: "مجموعة منسقة",
+    de: "Kurierte Auswahl",
+  },
+  title: {
+    en: "Featured",
+    ar: "المميزة",
+    de: "Ausgewählte",
+  },
+  titleItalic: {
+    en: "Products",
+    ar: "المنتجات",
+    de: "Produkte",
+  },
+  subtitle: {
+    en: "Handpicked luxury essentials across our finest categories",
+    ar: "أساسيات فاخرة منتقاة عبر أفضل الفئات",
+    de: "Handverlesene Luxus-Essentials aus unseren besten Kategorien",
+  },
+  viewAllPrefix: {
+    en: "View All ",
+    ar: "عرض الكل ",
+    de: "Alle anzeigen ",
+  },
+  // Tab labels
+  tabs: {
+    Accessories: { en: "Accessories", ar: "الإكسسوارات", de: "Zubehör" },
+    Watches: { en: "Watches", ar: "الساعات", de: "Uhren" },
+    Automotive: { en: "Automotive", ar: "السيارات", de: "Automobil" },
+    "Home Decor": { en: "Home Decor", ar: "ديكور المنزل", de: "Wohnkultur" },
+  },
+  // Empty state
+  emptyTitle: {
+    en: "No featured products found",
+    ar: "لا توجد منتجات مميزة",
+    de: "Keine ausgewählten Produkte gefunden",
+  },
+  emptySub: {
+    en: "Check back soon for new arrivals",
+    ar: "تفقد قريبًا للحصول على إصدارات جديدة",
+    de: "Schauen Sie bald wieder vorbei für neue Artikel",
+  },
+};
+
+const getFpTranslation = (
+  key: keyof typeof fpTranslations,
+  lang: "en" | "ar" | "de",
+  subKey?: string,
+): string => {
+  if (subKey && fpTranslations[key] && (fpTranslations[key] as any)[subKey]) {
+    return (fpTranslations[key] as any)[subKey][lang];
+  }
+  if (fpTranslations[key] && (fpTranslations[key] as any)[lang]) {
+    return (fpTranslations[key] as any)[lang];
+  }
+  return (fpTranslations[key] as any)?.en || "";
+};
+
 /* ── Helpers ── */
 const truncateProductName = (name: string, maxLength = 50) =>
   name.length <= maxLength ? name : name.substring(0, maxLength).trim() + "...";
@@ -102,7 +164,6 @@ async function fetchFeaturedTabDataFast(tab: string): Promise<CachedData> {
     .eq("is_featured", true)
     .eq("category", tab)
     .order("created_at", { ascending: false });
-  // ✅ NO .limit() — sabhi featured products fetch hongi, koi limit nahi
 
   if (error || !productsData || productsData.length === 0) {
     return {
@@ -171,7 +232,6 @@ async function fetchFeaturedTabDataFast(tab: string): Promise<CachedData> {
   return result;
 }
 
-/* ── Prefetch all tabs into module cache ── */
 const ALL_TABS = ["Accessories", "Watches", "Automotive", "Home Decor"];
 
 async function ensureTabCached(tab: string): Promise<CachedData> {
@@ -189,9 +249,7 @@ async function ensureTabCached(tab: string): Promise<CachedData> {
   return await promise;
 }
 
-/* ── Force refresh a tab (cache invalidate + re-fetch) ── */
 async function invalidateAndRefetch(tab: string): Promise<CachedData> {
-  // Remove from all cache layers so fresh data is fetched
   delete MODULE_CACHE[tab];
   delete FETCH_IN_FLIGHT[tab];
   try {
@@ -233,7 +291,6 @@ function saveToStorage(tab: string, data: CachedData) {
   } catch (_) {}
 }
 
-// ⚠️ CRITICAL: This function only runs on client-side (typeof window check)
 function loadFromStorageSync(): void {
   if (typeof window === "undefined") return;
 
@@ -328,10 +385,7 @@ function LoadingSpinner({ size = 18 }: { size?: number }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   VARIANT THUMBNAILS
-───────────────────────────────────────────────────────────── */
-/* ─────────────────────────────────────────────────────────────
-   VARIANT THUMBNAILS - FIXED VERSION
+   VARIANT THUMBNAILS with RTL support
 ───────────────────────────────────────────────────────────── */
 function VariantThumbnails({
   variants,
@@ -340,6 +394,7 @@ function VariantThumbnails({
   currentValue,
   variantImagesMap,
   getVariantImage,
+  isRTL,
 }: {
   variants: ProductVariant[];
   type: string;
@@ -347,6 +402,7 @@ function VariantThumbnails({
   currentValue: string;
   variantImagesMap: VariantImagesMap;
   getVariantImage: (variantId: string) => string | null;
+  isRTL: boolean;
 }) {
   if (!variants || variants.length === 0) return null;
 
@@ -384,7 +440,7 @@ function VariantThumbnails({
   const hasMore = variants.length > 4;
 
   return (
-    <div className="fp-card-variants">
+    <div className="fp-card-variants" dir={isRTL ? "rtl" : "ltr"}>
       <span className="fp-variant-label">
         {getIcon()} {getTypeLabel()}:
       </span>
@@ -433,13 +489,14 @@ function VariantThumbnails({
 }
 
 /* ─────────────────────────────────────────────────────────────
-   PRODUCT CARD
+   PRODUCT CARD with RTL
 ───────────────────────────────────────────────────────────── */
 function ProductCard({
   product,
   variants,
   variantImagesMap,
   onQuickView,
+  isRTL,
 }: {
   product: FeaturedProduct;
   variants: ProductVariant[];
@@ -455,6 +512,7 @@ function ProductCard({
     lowStockThreshold: number | null | undefined,
     variantImages: VariantImagesMap,
   ) => void;
+  isRTL: boolean;
 }) {
   const { formatPrice } = useCurrency();
   const router = useRouter();
@@ -636,15 +694,12 @@ function ProductCard({
     setQuickViewLoading(false);
   };
 
-  // ── Sale Discount Logic ──
   const activeSalePercent = getSalePercent();
   const basePrice = selectedVariant?.price || 0;
   const discountedPrice = activeSalePercent
     ? applyDiscount(basePrice, activeSalePercent)
     : basePrice;
 
-  // Original price: agar sale active hai toh basePrice as original dikhao,
-  // warna product ka existing original_price use karo
   const originalForDisplay =
     activeSalePercent && basePrice > 0
       ? basePrice
@@ -656,7 +711,6 @@ function ProductCard({
       ? formatPrice(originalForDisplay)
       : null;
 
-  // Discount badge: sale percent ya existing product discount
   const totalDiscount = activeSalePercent ? activeSalePercent : discount;
 
   const productSlug = product.name
@@ -756,7 +810,7 @@ function ProductCard({
         </div>
       </div>
 
-      <div className="fp-card-body">
+      <div className="fp-card-body" dir={isRTL ? "rtl" : "ltr"}>
         {product.brand && <p className="fp-card-brand">{product.brand}</p>}
         <h3 className="fp-card-name" title={product.name}>
           {truncateProductName(product.name, 45)}
@@ -793,6 +847,7 @@ function ProductCard({
               currentValue={selectedVariant?.attribute_value || ""}
               variantImagesMap={variantImagesMap}
               getVariantImage={getVariantImage}
+              isRTL={isRTL}
             />
           )}
           {sizeVariants.length > 0 && (
@@ -803,6 +858,7 @@ function ProductCard({
               currentValue={selectedVariant?.attribute_value || ""}
               variantImagesMap={variantImagesMap}
               getVariantImage={getVariantImage}
+              isRTL={isRTL}
             />
           )}
           {materialVariants.length > 0 && (
@@ -813,6 +869,7 @@ function ProductCard({
               currentValue={selectedVariant?.attribute_value || ""}
               variantImagesMap={variantImagesMap}
               getVariantImage={getVariantImage}
+              isRTL={isRTL}
             />
           )}
           {capacityVariants.length > 0 && (
@@ -823,6 +880,7 @@ function ProductCard({
               currentValue={selectedVariant?.attribute_value || ""}
               variantImagesMap={variantImagesMap}
               getVariantImage={getVariantImage}
+              isRTL={isRTL}
             />
           )}
         </div>
@@ -845,21 +903,16 @@ function ProductCard({
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
-   MAIN COMPONENT
-───────────────────────────────────────────────────────────── */
-// ── Module-level init: storage se synchronously load karo IMMEDIATELY ──────────
-// Yeh module load hote hi chalta hai — component mount se pehle — BFCache pe bhi
+// ── Module-level init ──
 if (typeof window !== "undefined") {
   loadFromStorageSync();
 }
 
 export default function FeaturedProducts() {
   const [activeTab, setActiveTab] = useState("Accessories");
-  // isClient hata diya — synchronous init se kaam chalega, extra render cycle nahi
   const activeTabRef = useRef("Accessories");
+  const { language, isRTLMode } = useLanguage();
 
-  // ── Synchronous initial state — agar cache mein hai toh seedha products ──────
   const [products, setProducts] = useState<FeaturedProduct[]>(() => {
     return MODULE_CACHE["Accessories"]?.products ?? [];
   });
@@ -874,7 +927,6 @@ export default function FeaturedProducts() {
     return MODULE_CACHE["Accessories"]?.variantImagesMap ?? {};
   });
   const [isLoading, setIsLoading] = useState<boolean>(() => {
-    // Agar cache mein data hai toh loading false — seedha products dikhenge
     return !MODULE_CACHE["Accessories"];
   });
   const [initialLoadDone, setInitialLoadDone] = useState(() => {
@@ -899,10 +951,8 @@ export default function FeaturedProducts() {
   const nextRef = useRef<HTMLButtonElement>(null);
   const swiperRef = useRef<SwiperType | null>(null);
 
-  // ── Initial load & prefetch ──────────────────────────────────────────────────
   useEffect(() => {
     if (initialLoadDone) {
-      // Cache hit — already showing products, just prefetch other tabs
       setTimeout(() => {
         ALL_TABS.forEach((tab) => {
           if (!MODULE_CACHE[tab]) ensureTabCached(tab).catch(console.error);
@@ -910,7 +960,6 @@ export default function FeaturedProducts() {
       }, 500);
       return;
     }
-    // Cache miss on first render — fetch now
     ensureTabCached("Accessories").then((data) => {
       if (data) {
         setProducts(data.products);
@@ -925,9 +974,8 @@ export default function FeaturedProducts() {
         if (!MODULE_CACHE[tab]) ensureTabCached(tab).catch(console.error);
       });
     }, 500);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Handle back/forward navigation (popstate + BFCache)
   useEffect(() => {
     const handlePopState = () => {
       const cached = MODULE_CACHE[activeTabRef.current];
@@ -999,35 +1047,22 @@ export default function FeaturedProducts() {
     [activeTab],
   );
 
-  // ─── Supabase Realtime: naya featured product add hone pe auto-refresh ───────
-  // Jab bhi koi product insert/update ho aur is_featured=true ho toh
-  // us tab ka cache clear karke fresh data le aao — koi manual refresh ki zaroorat nahi
   useEffect(() => {
     const channel = supabase
       .channel("fp-featured-products-changes")
       .on(
         "postgres_changes",
-        {
-          event: "*", // INSERT, UPDATE, DELETE sabhi
-          schema: "public",
-          table: "products",
-        },
+        { event: "*", schema: "public", table: "products" },
         async (payload: any) => {
           const record = payload.new || payload.old || {};
           const affectedCategory = record.category;
-
-          // Sirf agar is_featured true ho ya tha (update/delete case)
           const isFeaturedNew = payload.new?.is_featured;
           const isFeaturedOld = payload.old?.is_featured;
 
-          if (!isFeaturedNew && !isFeaturedOld) return; // non-featured product — ignore
+          if (!isFeaturedNew && !isFeaturedOld) return;
 
-          // Agar category ALL_TABS mein hai
           if (affectedCategory && ALL_TABS.includes(affectedCategory)) {
-            // Cache invalidate karo aur fresh data lo
             const freshData = await invalidateAndRefetch(affectedCategory);
-
-            // Agar currently is tab ki data show ho rahi hai toh update karo
             if (activeTabRef.current === affectedCategory) {
               setProducts(freshData.products);
               setVariantsMap(freshData.variantsMap);
@@ -1036,7 +1071,6 @@ export default function FeaturedProducts() {
               setSwiperKey((k) => k + 1);
             }
           } else if (!affectedCategory) {
-            // Category nahi pata — current tab refresh karo
             const freshData = await invalidateAndRefetch(activeTabRef.current);
             setProducts(freshData.products);
             setVariantsMap(freshData.variantsMap);
@@ -1051,7 +1085,7 @@ export default function FeaturedProducts() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (swiperRef.current && products.length > 0) {
@@ -1106,42 +1140,20 @@ export default function FeaturedProducts() {
 
   return (
     <>
-      <section className="fp-section">
+      <section className="fp-section" dir={isRTLMode ? "rtl" : "ltr"}>
         <div className="fp-header">
           <p className="fp-eyebrow">
             <span className="fp-ey-line" />
-            Curated Selection
+            {getFpTranslation("eyebrow", language)}
             <span className="fp-ey-line" />
           </p>
           <h2 className="fp-title">
-            Featured <em>Products</em>
+            {getFpTranslation("title", language)}{" "}
+            <em>{getFpTranslation("titleItalic", language)}</em>
           </h2>
           <p className="fp-subtitle">
-            Handpicked luxury essentials across our finest categories
+            {getFpTranslation("subtitle", language)}
           </p>
-
-          {/* <div
-            style={{
-              width: "100%",
-              marginTop: "1.5rem",
-              display: "flex",
-              justifyContent: "center",
-              overflow: "hidden",
-            }}
-          >
-            <img
-              src="/feat.png"
-              alt="Featured Banner"
-              style={{
-                width: "100%",
-                height: "auto",
-                maxWidth: "100%",
-                objectFit: "contain",
-                display: "block",
-              }}
-              suppressHydrationWarning
-            />
-          </div> */}
 
           <div className="fp-tabs" style={{ marginTop: "2rem" }}>
             {ALL_TABS.map((tab) => (
@@ -1150,7 +1162,11 @@ export default function FeaturedProducts() {
                 className={`fp-tab${activeTab === tab ? " fp-tab--active" : ""}`}
                 onClick={() => handleTabChange(tab)}
               >
-                {tab}
+                {
+                  fpTranslations.tabs[tab as keyof typeof fpTranslations.tabs][
+                    language
+                  ]
+                }
               </button>
             ))}
           </div>
@@ -1165,7 +1181,9 @@ export default function FeaturedProducts() {
                 stroke="currentColor"
                 strokeWidth="1.5"
               >
-                <polyline points="15 18 9 12 15 6" />
+                <polyline
+                  points={isRTLMode ? "9 18 15 12 9 6" : "15 18 9 12 15 6"}
+                />
               </svg>
             </button>
             <button ref={nextRef} className="fp-nav-btn" aria-label="Next">
@@ -1175,20 +1193,22 @@ export default function FeaturedProducts() {
                 stroke="currentColor"
                 strokeWidth="1.5"
               >
-                <polyline points="9 18 15 12 9 6" />
+                <polyline
+                  points={isRTLMode ? "15 18 9 12 15 6" : "9 18 15 12 9 6"}
+                />
               </svg>
             </button>
           </div>
 
           {isLoading ? (
             <div
+              className="fp-skeleton-grid"
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(4, 1fr)",
                 gap: "1px",
                 paddingBottom: "3.5rem",
               }}
-              className="fp-skeleton-grid"
             >
               {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
                 <SkeletonCard key={i} />
@@ -1196,7 +1216,7 @@ export default function FeaturedProducts() {
             </div>
           ) : products.length === 0 ? (
             <div className="fp-empty">
-              <p>No featured products found in this category.</p>
+              <p>{getFpTranslation("emptyTitle", language)}</p>
             </div>
           ) : (
             <Swiper
@@ -1224,6 +1244,7 @@ export default function FeaturedProducts() {
                 1024: { slidesPerView: 4, spaceBetween: 1 },
               }}
               className="fp-swiper"
+              dir={isRTLMode ? "rtl" : "ltr"}
             >
               {products.map((product) => (
                 <SwiperSlide key={product.id}>
@@ -1232,6 +1253,7 @@ export default function FeaturedProducts() {
                     variants={variantsMap[product.id] || []}
                     variantImagesMap={variantImagesMap}
                     onQuickView={handleQuickView}
+                    isRTL={isRTLMode}
                   />
                 </SwiperSlide>
               ))}
@@ -1244,7 +1266,10 @@ export default function FeaturedProducts() {
               className="fp-view-all"
               prefetch={false}
             >
-              <span>View All {activeTabData?.label || activeTab}</span>
+              <span>
+                {getFpTranslation("viewAllPrefix", language)}
+                {activeTabData?.label || activeTab}
+              </span>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -1252,7 +1277,9 @@ export default function FeaturedProducts() {
                 strokeWidth="1.5"
               >
                 <line x1="5" y1="12" x2="19" y2="12" />
-                <polyline points="12 5 19 12 12 19" />
+                <polyline
+                  points={isRTLMode ? "12 5 5 12 12 19" : "12 5 19 12 12 19"}
+                />
               </svg>
             </Link>
           </div>

@@ -1315,3 +1315,53 @@
     grid-template-columns: repeat(1, 1fr);
   }
 }
+
+/* ========== RTL SUPPORT FOR FEATURED PRODUCTS ========== */
+[dir="rtl"] .fp-card-body {
+  text-align: right;
+}
+
+[dir="rtl"] .fp-card-cta svg {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .fp-card:hover .fp-card-cta svg {
+  transform: rotate(180deg) translateX(-5px);
+}
+
+[dir="rtl"] .fp-card-cta {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .fp-card-divider {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+[dir="rtl"] .fp-card:hover .fp-card-divider {
+  margin-left: auto;
+}
+
+[dir="rtl"] .fp-nav-prev {
+  left: auto;
+  right: 0;
+}
+
+[dir="rtl"] .fp-nav-next {
+  right: auto;
+  left: 0;
+}
+
+[dir="rtl"] .fp-nav-prev svg,
+[dir="rtl"] .fp-nav-next svg {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .fp-eyebrow {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .fp-card-label {
+  left: auto;
+  right: 0.9rem;
+}

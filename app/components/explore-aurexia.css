@@ -354,7 +354,9 @@
   background: #daa520;
   margin-bottom: 0.8rem;
   opacity: 0.8;
-  transition: width var(--ea-ease), opacity var(--ea-ease);
+  transition:
+    width var(--ea-ease),
+    opacity var(--ea-ease);
 }
 
 .ea-card:hover .ea-card-divider {
@@ -501,4 +503,74 @@
   .ea-card-overlay-hover {
     transition: none !important;
   }
+}
+
+/* ========== RTL SUPPORT FOR EXPLORE AUREXIA ========== */
+[dir="rtl"] .ea-card-body {
+  text-align: right;
+}
+
+[dir="rtl"] .ea-card-cta svg {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .ea-card:hover .ea-card-cta svg {
+  transform: rotate(180deg) translateX(-5px);
+}
+
+[dir="rtl"] .ea-card-cta {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .ea-card-divider {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+[dir="rtl"] .ea-card:hover .ea-card-divider {
+  margin-left: auto;
+}
+
+[dir="rtl"] .ea-nav-prev {
+  left: auto;
+  right: 0;
+}
+
+[dir="rtl"] .ea-nav-next {
+  right: auto;
+  left: 0;
+}
+
+[dir="rtl"] .ea-nav-prev svg,
+[dir="rtl"] .ea-nav-next svg {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .ea-header-eyebrow {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .ea-card-label {
+  left: auto;
+  right: 0.9rem;
+  transform: rotate(0deg);
+}
+
+[dir="rtl"] .ea-card-tag {
+  right: auto;
+  left: 1rem;
+}
+
+[dir="rtl"] .ea-card-corner--tl {
+  left: auto;
+  right: 12px;
+  border-left: none;
+  border-right: 2px solid #daa520;
+}
+
+[dir="rtl"] .ea-card-corner--br {
+  right: auto;
+  left: 12px;
+  border-right: none;
+  border-left: 2px solid #daa520;
 }

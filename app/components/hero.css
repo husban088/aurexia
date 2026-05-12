@@ -96,7 +96,8 @@
   z-index: 1;
   pointer-events: none;
   /* Strong center-focused dark overlay so text on image is readable */
-  background: radial-gradient(
+  background:
+    radial-gradient(
       ellipse at center,
       rgba(0, 0, 0, 0.15) 0%,
       rgba(0, 0, 0, 0.6) 100%
@@ -132,16 +133,24 @@
 }
 
 .hero-badge {
-  transition: opacity 0.7s ease 0.05s, transform 0.7s ease 0.05s;
+  transition:
+    opacity 0.7s ease 0.05s,
+    transform 0.7s ease 0.05s;
 }
 .hero-heading {
-  transition: opacity 0.8s ease 0.2s, transform 0.8s ease 0.2s;
+  transition:
+    opacity 0.8s ease 0.2s,
+    transform 0.8s ease 0.2s;
 }
 .hero-para {
-  transition: opacity 0.7s ease 0.38s, transform 0.7s ease 0.38s;
+  transition:
+    opacity 0.7s ease 0.38s,
+    transform 0.7s ease 0.38s;
 }
 .hero-btn-wrap {
-  transition: opacity 0.65s ease 0.55s, transform 0.65s ease 0.55s;
+  transition:
+    opacity 0.65s ease 0.55s,
+    transform 0.65s ease 0.55s;
 }
 
 /* Animate in when slide is active */
@@ -248,7 +257,9 @@
   background-position: right center;
   border-radius: 40px;
   text-decoration: none;
-  transition: background-position 0.55s ease, transform 0.35s ease,
+  transition:
+    background-position 0.55s ease,
+    transform 0.35s ease,
     box-shadow 0.35s ease;
 }
 .hero-btn-primary:hover {
@@ -281,7 +292,10 @@
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 40px;
   text-decoration: none;
-  transition: color 0.35s ease, border-color 0.35s ease, background 0.35s ease,
+  transition:
+    color 0.35s ease,
+    border-color 0.35s ease,
+    background 0.35s ease,
     transform 0.35s ease;
 }
 .hero-btn-ghost:hover {
@@ -309,7 +323,10 @@
   background: rgba(255, 255, 255, 0.3);
   opacity: 1;
   margin: 0 !important;
-  transition: width 0.4s ease, background 0.4s ease, border-radius 0.4s ease;
+  transition:
+    width 0.4s ease,
+    background 0.4s ease,
+    border-radius 0.4s ease;
 }
 .hero-section .swiper-pagination-bullet-active {
   width: 32px;
@@ -506,7 +523,10 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease,
+  transition:
+    border-color 0.3s ease,
+    background 0.3s ease,
+    color 0.3s ease,
     transform 0.3s ease;
   backdrop-filter: blur(4px);
 }
@@ -592,5 +612,71 @@
   }
   .hero-counter {
     display: none;
+  }
+}
+
+/* ========== RTL SUPPORT FOR HERO SECTION ========== */
+[dir="rtl"] .hero-section .hero-counter {
+  right: auto;
+  left: 3rem;
+}
+
+[dir="rtl"] .hero-section .hero-counter-line {
+  margin: 0 4px;
+}
+
+[dir="rtl"] .hero-section .hero-scroll-hint {
+  right: auto;
+  left: 3rem;
+}
+
+[dir="rtl"] .hero-section .hero-btn-primary svg {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .hero-section .hero-btn-primary:hover svg {
+  transform: rotate(180deg) translateX(5px);
+}
+
+[dir="rtl"] .hero-nav-prev {
+  left: auto;
+  right: 2rem;
+}
+
+[dir="rtl"] .hero-nav-next {
+  right: auto;
+  left: 2rem;
+}
+
+[dir="rtl"] .hero-nav-prev svg,
+[dir="rtl"] .hero-nav-next svg {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .hero-badge::before,
+[dir="rtl"] .hero-badge::after {
+  transform: scaleX(-1);
+}
+
+@media (max-width: 900px) {
+  [dir="rtl"] .hero-section .hero-counter {
+    left: 1.5rem;
+    right: auto;
+  }
+  [dir="rtl"] .hero-corner-tl {
+    left: auto;
+    right: 1.5rem;
+  }
+  [dir="rtl"] .hero-corner-tr {
+    right: auto;
+    left: 1.5rem;
+  }
+  [dir="rtl"] .hero-corner-bl {
+    left: auto;
+    right: 1.5rem;
+  }
+  [dir="rtl"] .hero-corner-br {
+    right: auto;
+    left: 1.5rem;
   }
 }

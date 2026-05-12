@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useLanguage } from "@/app/context/LanguageContext";
 import "./contact.css";
 
 /* ═══════════════════════════════════════════
@@ -30,9 +31,195 @@ interface Toast {
 }
 
 /* ═══════════════════════════════════════════
-   CONTACT DETAILS — module level (no re-create)
+   TRANSLATIONS
 ═══════════════════════════════════════════ */
-const contactDetails = [
+const contactTranslations = {
+  // Header
+  eyebrow: { en: "Get In Touch", ar: "تواصل معنا", de: "Kontaktieren Sie uns" },
+  heading1: { en: "We're Here", ar: "نحن هنا", de: "Wir sind hier" },
+  heading2: { en: "For", ar: "من أجل", de: "Für" },
+  headingEm: { en: "You", ar: "لك", de: "Sie" },
+  sub: {
+    en: "Whether you need help with an order or have a question, our dedicated team is ready to assist you.",
+    ar: "سواء كنت بحاجة إلى مساعدة بشأن طلب أو لديك سؤال، فريقنا المتخصص جاهز لمساعدتك.",
+    de: "Ob Sie Hilfe bei einer Bestellung benötigen oder eine Frage haben, unser engagiertes Team ist bereit, Ihnen zu helfen.",
+  },
+
+  // Info Cards
+  boutiqueLabel: { en: "Our Boutique", ar: "متجرنا", de: "Unser Boutique" },
+  boutiqueValue: {
+    en: "Adelaide, Australia",
+    ar: "أديلايد، أستراليا",
+    de: "Adelaide, Australien",
+  },
+  whatsappLabel: { en: "WhatsApp", ar: "واتساب", de: "WhatsApp" },
+  whatsappValue: {
+    en: "+49 1578 2101282",
+    ar: "+49 1578 2101282",
+    de: "+49 1578 2101282",
+  },
+  emailLabel: { en: "Email Us", ar: "راسلنا", de: "E-Mail senden" },
+  emailValue: {
+    en: "info@tech4ru.com",
+    ar: "info@tech4ru.com",
+    de: "info@tech4ru.com",
+  },
+  emailSub: {
+    en: "Response within 24 hours",
+    ar: "الرد خلال 24 ساعة",
+    de: "Antwort innerhalb von 24 Stunden",
+  },
+
+  // Social
+  followLabel: {
+    en: "Follow Tech4U",
+    ar: "تابع تيك4يو",
+    de: "Folgen Sie Tech4U",
+  },
+
+  // Map
+  viewMaps: {
+    en: "View on Maps →",
+    ar: "عرض على الخريطة →",
+    de: "Auf Karte anzeigen →",
+  },
+
+  // Form
+  formEyebrow: { en: "Send Message", ar: "أرسل رسالة", de: "Nachricht senden" },
+  formTitle: { en: "Let's", ar: "دعنا", de: "Lass uns" },
+  formTitleEm: { en: "Connect", ar: "نتواصل", de: "verbinden" },
+  formSub: {
+    en: "Every message is read personally by our team.",
+    ar: "كل رسالة يقرأها فريقنا شخصيًا.",
+    de: "Jede Nachricht wird von unserem Team persönlich gelesen.",
+  },
+
+  // Form Labels
+  nameLabel: { en: "Full Name", ar: "الاسم الكامل", de: "Vollständiger Name" },
+  namePlaceholder: {
+    en: "Your name (min. 4 chars)",
+    ar: "اسمك (4 أحرف على الأقل)",
+    de: "Ihr Name (mind. 4 Zeichen)",
+  },
+  nameError: {
+    en: "Full name is required",
+    ar: "الاسم الكامل مطلوب",
+    de: "Vollständiger Name ist erforderlich",
+  },
+  nameErrorMin: {
+    en: "Name must be at least 4 characters",
+    ar: "يجب أن يكون الاسم 4 أحرف على الأقل",
+    de: "Name muss mindestens 4 Zeichen lang sein",
+  },
+
+  emailLabel: {
+    en: "Email Address",
+    ar: "البريد الإلكتروني",
+    de: "E-Mail-Adresse",
+  },
+  emailPlaceholder: {
+    en: "your@email.com",
+    ar: "بريدك@example.com",
+    de: "ihre@email.de",
+  },
+  emailError: {
+    en: "Email address is required",
+    ar: "البريد الإلكتروني مطلوب",
+    de: "E-Mail-Adresse ist erforderlich",
+  },
+  emailErrorInvalid: {
+    en: "Please enter a valid email address",
+    ar: "يرجى إدخال بريد إلكتروني صحيح",
+    de: "Bitte geben Sie eine gültige E-Mail-Adresse ein",
+  },
+
+  subjectLabel: { en: "Subject", ar: "الموضوع", de: "Betreff" },
+  subjectPlaceholder: {
+    en: "How can we help?",
+    ar: "كيف يمكننا مساعدتك؟",
+    de: "Wie können wir helfen?",
+  },
+  subjectError: {
+    en: "Subject is required",
+    ar: "الموضوع مطلوب",
+    de: "Betreff ist erforderlich",
+  },
+
+  messageLabel: { en: "Message", ar: "الرسالة", de: "Nachricht" },
+  messagePlaceholder: {
+    en: "Share your enquiry with us…",
+    ar: "شارك استفسارك معنا...",
+    de: "Teilen Sie Ihre Anfrage mit uns...",
+  },
+  messageError: {
+    en: "Message cannot be empty",
+    ar: "الرسالة لا يمكن أن تكون فارغة",
+    de: "Nachricht darf nicht leer sein",
+  },
+
+  // Submit Button
+  sendBtn: { en: "Send Message", ar: "إرسال الرسالة", de: "Nachricht senden" },
+  sendingBtn: { en: "Sending…", ar: "جاري الإرسال...", de: "Senden…" },
+
+  // Success State
+  successEyebrow: {
+    en: "Message Delivered",
+    ar: "تم إرسال الرسالة",
+    de: "Nachricht zugestellt",
+  },
+  successTitle: { en: "Thank You,", ar: "شكرًا لك،", de: "Danke," },
+  successSub: {
+    en: "We've received your message and will get back to you within 24 hours.",
+    ar: "لقد تلقينا رسالتك وسنرد عليك خلال 24 ساعة.",
+    de: "Wir haben Ihre Nachricht erhalten und werden uns innerhalb von 24 Stunden bei Ihnen melden.",
+  },
+  successBtn: {
+    en: "Send Another Message",
+    ar: "إرسال رسالة أخرى",
+    de: "Weitere Nachricht senden",
+  },
+
+  // Toasts
+  validationErrorTitle: {
+    en: "Validation Error",
+    ar: "خطأ في التحقق",
+    de: "Validierungsfehler",
+  },
+  validationErrorMsg: {
+    en: "Please fix the highlighted fields before sending.",
+    ar: "يرجى إصلاح الحقول المميزة قبل الإرسال.",
+    de: "Bitte korrigieren Sie die markierten Felder vor dem Senden.",
+  },
+  sendFailedTitle: {
+    en: "Send Failed",
+    ar: "فشل الإرسال",
+    de: "Senden fehlgeschlagen",
+  },
+  networkErrorTitle: {
+    en: "Network Error",
+    ar: "خطأ في الشبكة",
+    de: "Netzwerkfehler",
+  },
+  networkErrorMsg: {
+    en: "Unable to connect. Please check your internet and try again.",
+    ar: "غير قادر على الاتصال. يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى.",
+    de: "Verbindung fehlgeschlagen. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.",
+  },
+};
+
+const getContactTranslation = (
+  key: keyof typeof contactTranslations,
+  lang: "en" | "ar" | "de",
+): string => {
+  return (
+    contactTranslations[key]?.[lang] || contactTranslations[key]?.en || key
+  );
+};
+
+/* ═══════════════════════════════════════════
+   CONTACT DETAILS — module level
+═══════════════════════════════════════════ */
+const getContactDetails = (lang: "en" | "ar" | "de") => [
   {
     icon: (
       <svg
@@ -46,8 +233,8 @@ const contactDetails = [
         <circle cx="12" cy="10" r="3" />
       </svg>
     ),
-    label: "Our Boutique",
-    value: "Adelaide, Australia",
+    label: getContactTranslation("boutiqueLabel", lang),
+    value: getContactTranslation("boutiqueValue", lang),
   },
   {
     icon: (
@@ -61,8 +248,8 @@ const contactDetails = [
         <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.03 1.19 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.08 6.08l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
       </svg>
     ),
-    label: "WhatsApp",
-    value: "+49 1578 2101282",
+    label: getContactTranslation("whatsappLabel", lang),
+    value: getContactTranslation("whatsappValue", lang),
   },
   {
     icon: (
@@ -77,15 +264,12 @@ const contactDetails = [
         <polyline points="22,6 12,13 2,6" />
       </svg>
     ),
-    label: "Email Us",
-    value: "info@tech4ru.com",
-    sub: "Response within 24 hours",
+    label: getContactTranslation("emailLabel", lang),
+    value: getContactTranslation("emailValue", lang),
+    sub: getContactTranslation("emailSub", lang),
   },
 ];
 
-/* ═══════════════════════════════════════════
-   SOCIAL LINKS — from footer
-═══════════════════════════════════════════ */
 const socialLinks = [
   {
     name: "Facebook",
@@ -131,24 +315,29 @@ const socialLinks = [
 ];
 
 /* ═══════════════════════════════════════════
-   VALIDATION
+   VALIDATION with translations
 ═══════════════════════════════════════════ */
-function validateField(field: keyof FormFields, value: string): string {
+function validateField(
+  field: keyof FormFields,
+  value: string,
+  lang: "en" | "ar" | "de",
+): string {
   switch (field) {
     case "name":
-      if (!value.trim()) return "Full name is required";
-      if (value.trim().length < 4) return "Name must be at least 4 characters";
+      if (!value.trim()) return getContactTranslation("nameError", lang);
+      if (value.trim().length < 4)
+        return getContactTranslation("nameErrorMin", lang);
       return "";
     case "email":
-      if (!value.trim()) return "Email address is required";
+      if (!value.trim()) return getContactTranslation("emailError", lang);
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()))
-        return "Please enter a valid email address";
+        return getContactTranslation("emailErrorInvalid", lang);
       return "";
     case "subject":
-      if (!value.trim()) return "Subject is required";
+      if (!value.trim()) return getContactTranslation("subjectError", lang);
       return "";
     case "message":
-      if (!value.trim()) return "Message cannot be empty";
+      if (!value.trim()) return getContactTranslation("messageError", lang);
       return "";
     default:
       return "";
@@ -193,6 +382,9 @@ function useToast() {
    MAIN COMPONENT
 ═══════════════════════════════════════════ */
 export default function Contact() {
+  const { language, isRTLMode } = useLanguage();
+  const lang = language;
+
   const [form, setForm] = useState<FormFields>({
     name: "",
     email: "",
@@ -208,20 +400,19 @@ export default function Contact() {
   const [sending, setSending] = useState(false);
 
   const { toasts, show: showToast, dismiss } = useToast();
+  const contactDetails = getContactDetails(lang);
 
-  /* ── Real-time validation on touched fields ── */
   useEffect(() => {
     const newErrors: FieldErrors = {};
     (Object.keys(touched) as (keyof FormFields)[]).forEach((field) => {
       if (touched[field]) {
-        const err = validateField(field, form[field]);
+        const err = validateField(field, form[field], lang);
         if (err) newErrors[field] = err;
       }
     });
     setErrors(newErrors);
-  }, [form, touched]);
+  }, [form, touched, lang]);
 
-  /* ── Field change ── */
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) {
@@ -229,31 +420,27 @@ export default function Contact() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  /* ── Field blur — mark as touched ── */
   function handleBlur(field: keyof FormFields) {
     setFocused(null);
     setTouched((prev) => ({ ...prev, [field]: true }));
   }
 
-  /* ── Submit ── */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    /* Mark all fields touched */
     setTouched({ name: true, email: true, subject: true, message: true });
 
-    /* Validate all */
     const newErrors: FieldErrors = {};
     (Object.keys(form) as (keyof FormFields)[]).forEach((field) => {
-      const err = validateField(field, form[field]);
+      const err = validateField(field, form[field], lang);
       if (err) newErrors[field] = err;
     });
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       showToast(
-        "Validation Error",
-        "Please fix the highlighted fields before sending.",
+        getContactTranslation("validationErrorTitle", lang),
+        getContactTranslation("validationErrorMsg", lang),
         "error",
       );
       return;
@@ -271,26 +458,24 @@ export default function Contact() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        if (data.errors) {
-          setErrors(data.errors);
-        }
+        if (data.errors) setErrors(data.errors);
         showToast(
-          "Send Failed",
+          getContactTranslation("sendFailedTitle", lang),
           data.message || "Something went wrong. Please try again.",
           "error",
         );
       } else {
         showToast(
-          "Message Sent!",
-          "We've received your message and will reply within 24 hours.",
+          getContactTranslation("successEyebrow", lang),
+          getContactTranslation("successSub", lang),
           "success",
         );
         setSubmitted(true);
       }
     } catch {
       showToast(
-        "Network Error",
-        "Unable to connect. Please check your internet and try again.",
+        getContactTranslation("networkErrorTitle", lang),
+        getContactTranslation("networkErrorMsg", lang),
         "error",
       );
     } finally {
@@ -298,7 +483,6 @@ export default function Contact() {
     }
   }
 
-  /* ── Reset form ── */
   function resetForm() {
     setForm({ name: "", email: "", subject: "", message: "" });
     setErrors({});
@@ -306,7 +490,6 @@ export default function Contact() {
     setSubmitted(false);
   }
 
-  /* ── Field CSS class helper ── */
   function fieldClass(field: keyof FormFields) {
     const classes = ["co-field"];
     if (focused === field) classes.push("focused");
@@ -315,15 +498,9 @@ export default function Contact() {
     return classes.join(" ");
   }
 
-  /* ═══════════════════════════════════════════
-     RENDER
-  ═══════════════════════════════════════════ */
   return (
-    <div className="co-root">
-      {/* Grain overlay */}
+    <div className="co-root" dir={isRTLMode ? "rtl" : "ltr"}>
       <div className="co-grain" aria-hidden="true" />
-
-      {/* Background geometry */}
       <div className="co-bg-geo" aria-hidden="true">
         <div className="co-geo-ring co-geo-ring--1" />
         <div className="co-geo-ring co-geo-ring--2" />
@@ -333,34 +510,30 @@ export default function Contact() {
         <div className="co-geo-line co-geo-line--3" />
       </div>
 
-      {/* Corner brackets */}
       <div className="co-corner co-corner--tl" aria-hidden="true" />
       <div className="co-corner co-corner--tr" aria-hidden="true" />
       <div className="co-corner co-corner--bl" aria-hidden="true" />
       <div className="co-corner co-corner--br" aria-hidden="true" />
 
       <div className="co-container">
-        {/* ══ Page Header ══ */}
         <header className="co-header">
           <p className="co-eyebrow">
             <span className="co-ey-line" />
-            <span className="co-ey-line-head">Get In Touch</span>
+            <span className="co-ey-line-head">
+              {getContactTranslation("eyebrow", lang)}
+            </span>
             <span className="co-ey-line" />
           </p>
           <h1 className="co-heading">
-            We&apos;re Here
+            {getContactTranslation("heading1", lang)}
             <br />
-            For <em>You</em>
+            {getContactTranslation("heading2", lang)}{" "}
+            <em>{getContactTranslation("headingEm", lang)}</em>
           </h1>
-          <p className="co-sub">
-            Whether you need help with an order or have a question, our
-            dedicated team is ready to assist you.
-          </p>
+          <p className="co-sub">{getContactTranslation("sub", lang)}</p>
         </header>
 
-        {/* ══ Main Grid ══ */}
         <div className="co-main">
-          {/* ── LEFT: Info Panel ── */}
           <aside className="co-info">
             <div className="co-info-cards">
               {contactDetails.map((item, i) => (
@@ -373,17 +546,16 @@ export default function Contact() {
                   <div>
                     <p className="co-info-label">{item.label}</p>
                     <p className="co-info-value">{item.value}</p>
-                    <p className="co-info-sub">{item.sub}</p>
+                    {item.sub && <p className="co-info-sub">{item.sub}</p>}
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Social Links - Facebook, Instagram, TikTok only */}
             <div className="co-social">
               <p className="co-social-label">
                 <span className="co-ey-line" style={{ width: 14 }} />
-                Follow Tech4U
+                {getContactTranslation("followLabel", lang)}
                 <span className="co-ey-line" style={{ width: 14 }} />
               </p>
               <div className="co-social-icons">
@@ -404,7 +576,6 @@ export default function Contact() {
               </div>
             </div>
 
-            {/* Map Placeholder - Adelaide, Australia */}
             <div
               className="co-map-placeholder"
               role="button"
@@ -417,12 +588,11 @@ export default function Contact() {
                 )
               }
               onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
+                if (e.key === "Enter" || e.key === " ")
                   window.open(
                     "https://maps.google.com?q=Adelaide+Australia",
                     "_blank",
                   );
-                }
               }}
             >
               <div className="co-map-inner">
@@ -436,13 +606,14 @@ export default function Contact() {
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
                   <circle cx="12" cy="10" r="3" />
                 </svg>
-                <p>Adelaide, Australia</p>
-                <span className="co-map-view">View on Maps →</span>
+                <p>{getContactTranslation("boutiqueValue", lang)}</p>
+                <span className="co-map-view">
+                  {getContactTranslation("viewMaps", lang)}
+                </span>
               </div>
             </div>
           </aside>
 
-          {/* ── RIGHT: Contact Form ── */}
           <section className="co-form-section">
             <div className="co-form-card">
               <div
@@ -455,7 +626,6 @@ export default function Contact() {
               />
 
               {submitted ? (
-                /* ── Success State ── */
                 <div className="co-success">
                   <div className="co-success-icon">
                     <svg
@@ -470,15 +640,15 @@ export default function Contact() {
                   </div>
                   <p className="co-success-eyebrow">
                     <span className="co-ey-line" style={{ width: 20 }} />
-                    Message Delivered
+                    {getContactTranslation("successEyebrow", lang)}
                     <span className="co-ey-line" style={{ width: 20 }} />
                   </p>
                   <h2 className="co-success-title">
-                    Thank You, <em>{form.name.split(" ")[0] || "Friend"}</em>
+                    {getContactTranslation("successTitle", lang)}{" "}
+                    <em>{form.name.split(" ")[0] || "Friend"}</em>
                   </h2>
                   <p className="co-success-sub">
-                    We&apos;ve received your message and will get back to you
-                    within 24 hours.
+                    {getContactTranslation("successSub", lang)}
                   </p>
                   <button className="co-success-btn" onClick={resetForm}>
                     <svg
@@ -492,34 +662,31 @@ export default function Contact() {
                       <polyline points="1 4 1 10 7 10" />
                       <path d="M3.51 15a9 9 0 102.13-9.36L1 10" />
                     </svg>
-                    Send Another Message
+                    {getContactTranslation("successBtn", lang)}
                   </button>
                 </div>
               ) : (
                 <>
-                  {/* Form Header */}
                   <div className="co-form-header">
                     <p className="co-eyebrow">
                       <span className="co-ey-line" />
-                      Send Message
+                      {getContactTranslation("formEyebrow", lang)}
                       <span className="co-ey-line" />
                     </p>
                     <h2 className="co-form-title">
-                      Let&apos;s <em>Connect</em>
+                      {getContactTranslation("formTitle", lang)}{" "}
+                      <em>{getContactTranslation("formTitleEm", lang)}</em>
                     </h2>
                     <p className="co-form-sub">
-                      Every message is read personally by our team.
+                      {getContactTranslation("formSub", lang)}
                     </p>
                   </div>
 
-                  {/* ── FORM ── */}
                   <form className="co-form" onSubmit={handleSubmit} noValidate>
-                    {/* Row: Name + Email */}
                     <div className="co-form-row">
-                      {/* Name */}
                       <div className={fieldClass("name")}>
                         <label className="co-label" htmlFor="co-name">
-                          Full Name
+                          {getContactTranslation("nameLabel", lang)}
                         </label>
                         <div className="co-input-wrap">
                           <span className="co-input-icon" aria-hidden="true">
@@ -538,7 +705,10 @@ export default function Contact() {
                             name="name"
                             type="text"
                             className="co-input"
-                            placeholder="Your name (min. 4 chars)"
+                            placeholder={getContactTranslation(
+                              "namePlaceholder",
+                              lang,
+                            )}
                             value={form.name}
                             onChange={handleChange}
                             onFocus={() => setFocused("name")}
@@ -573,10 +743,9 @@ export default function Contact() {
                         )}
                       </div>
 
-                      {/* Email */}
                       <div className={fieldClass("email")}>
                         <label className="co-label" htmlFor="co-email">
-                          Email Address
+                          {getContactTranslation("emailLabel", lang)}
                         </label>
                         <div className="co-input-wrap">
                           <span className="co-input-icon" aria-hidden="true">
@@ -595,7 +764,10 @@ export default function Contact() {
                             name="email"
                             type="email"
                             className="co-input"
-                            placeholder="your@email.com"
+                            placeholder={getContactTranslation(
+                              "emailPlaceholder",
+                              lang,
+                            )}
                             value={form.email}
                             onChange={handleChange}
                             onFocus={() => setFocused("email")}
@@ -631,10 +803,9 @@ export default function Contact() {
                       </div>
                     </div>
 
-                    {/* Subject */}
                     <div className={fieldClass("subject")}>
                       <label className="co-label" htmlFor="co-subject">
-                        Subject
+                        {getContactTranslation("subjectLabel", lang)}
                       </label>
                       <div className="co-input-wrap">
                         <span className="co-input-icon" aria-hidden="true">
@@ -653,7 +824,10 @@ export default function Contact() {
                           name="subject"
                           type="text"
                           className="co-input"
-                          placeholder="How can we help?"
+                          placeholder={getContactTranslation(
+                            "subjectPlaceholder",
+                            lang,
+                          )}
                           value={form.subject}
                           onChange={handleChange}
                           onFocus={() => setFocused("subject")}
@@ -687,12 +861,11 @@ export default function Contact() {
                       )}
                     </div>
 
-                    {/* Message */}
                     <div
                       className={`${fieldClass("message")} co-field--textarea`}
                     >
                       <label className="co-label" htmlFor="co-message">
-                        Message
+                        {getContactTranslation("messageLabel", lang)}
                       </label>
                       <div className="co-input-wrap co-input-wrap--textarea">
                         <span
@@ -712,7 +885,10 @@ export default function Contact() {
                           id="co-message"
                           name="message"
                           className="co-textarea"
-                          placeholder="Share your enquiry with us…"
+                          placeholder={getContactTranslation(
+                            "messagePlaceholder",
+                            lang,
+                          )}
                           value={form.message}
                           onChange={handleChange}
                           onFocus={() => setFocused("message")}
@@ -747,7 +923,6 @@ export default function Contact() {
                       )}
                     </div>
 
-                    {/* Submit Button */}
                     <button
                       type="submit"
                       className="co-submit-btn"
@@ -757,11 +932,11 @@ export default function Contact() {
                       {sending ? (
                         <>
                           <span className="co-spinner" aria-hidden="true" />
-                          Sending…
+                          {getContactTranslation("sendingBtn", lang)}
                         </>
                       ) : (
                         <>
-                          <span>Send Message</span>
+                          <span>{getContactTranslation("sendBtn", lang)}</span>
                           <svg
                             viewBox="0 0 24 24"
                             fill="none"
@@ -786,14 +961,11 @@ export default function Contact() {
         </div>
       </div>
 
-      {/* ══ TOASTS ══ */}
       <div className="co-toast-wrap" aria-live="polite" aria-atomic="false">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`co-toast co-toast--${t.type}${
-              t.exiting ? " co-toast--exit" : ""
-            }`}
+            className={`co-toast co-toast--${t.type}${t.exiting ? " co-toast--exit" : ""}`}
             role="status"
           >
             <div className="co-toast-icon" aria-hidden="true">
