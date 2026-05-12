@@ -1657,7 +1657,7 @@ export default function ProductDetail() {
         </div>
 
         {/* ── TABS SECTION ── */}
-        <div className="pd-tabs-section pd-reveal">
+        <div className="pd-tabs-section">
           <div className="pd-tab-bar">
             {[
               { key: "description", label: "Description" },

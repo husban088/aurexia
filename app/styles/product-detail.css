@@ -993,7 +993,6 @@
       ═══════════════════════════════════════════ */
 .pd-tabs-section {
   margin-top: 4rem;
-  animation: pd-fade-up 0.7s var(--pd-ease) 0.3s both;
 }
 
 .pd-tab-bar {
@@ -1046,7 +1045,8 @@
 
 .pd-tab-panel {
   padding: 2.5rem 0;
-  animation: pd-fade-up 0.4s var(--pd-ease) both;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 @keyframes pd-fade-up {
@@ -1540,6 +1540,12 @@
 .pd-reveal.visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* Tabs section should ALWAYS be visible - never hidden by reveal animation */
+.pd-tabs-section {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
 }
 
 .pd-price {

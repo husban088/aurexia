@@ -112,7 +112,7 @@ const contactTranslations = {
     de: "Name muss mindestens 4 Zeichen lang sein",
   },
 
-  emailLabel: {
+  emailFieldLabel: {
     en: "Email Address",
     ar: "البريد الإلكتروني",
     de: "E-Mail-Adresse",
@@ -745,7 +745,7 @@ export default function Contact() {
 
                       <div className={fieldClass("email")}>
                         <label className="co-label" htmlFor="co-email">
-                          {getContactTranslation("emailLabel", lang)}
+                          {getContactTranslation("emailFieldLabel", lang)}
                         </label>
                         <div className="co-input-wrap">
                           <span className="co-input-icon" aria-hidden="true">
