@@ -13,7 +13,6 @@ import { useCurrency } from "../context/CurrencyContext";
 import ShippingSection from "@/app/checkout/components/ShippingSection";
 import CartSummary from "@/app/checkout/components/CartSummary";
 import PaymentSection from "@/app/checkout/components/PaymentSection";
-import OrderSuccess from "@/app/checkout/components/OrderSuccess";
 
 interface FormData {
   firstName: string;
@@ -221,7 +220,9 @@ function generateOrderNumber(): string {
 // MAIN CHECKOUT COMPONENT
 // ============================================
 export default function Checkout() {
+  // ✅ FIX: useRouter for navigation
   const router = useRouter();
+
   const {
     items,
     loading,
@@ -230,7 +231,6 @@ export default function Checkout() {
     getSubtotal,
     getCartCount,
     initialized,
-    refreshCart,
   } = useCartStore();
 
   const { formatPrice, currency } = useCurrency();
@@ -240,23 +240,13 @@ export default function Checkout() {
   const [cartFetched, setCartFetched] = useState(false);
 
   const [focused, setFocused] = useState<string | null>(null);
-  const [placed, setPlaced] = useState(false);
   const [orderNumber] = useState(() => generateOrderNumber());
-  const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [notifStatus, setNotifStatus] = useState<{
-    email: boolean | null;
-    whatsapp: boolean | null;
-  }>({ email: null, whatsapp: null });
 
   const [showToast, setShowToast] = useState(false);
-
-  const [snapshotItems, setSnapshotItems] = useState<typeof items>([]);
-  const [snapshotSubtotal, setSnapshotSubtotal] = useState(0);
-  const [snapshotCartCount, setSnapshotCartCount] = useState(0);
-
-  const ORDER_SESSION_KEY = "checkout_order_success";
+  // 2705 CRITICAL: Redirect ho raha hai toh checkout page show hi mat karo
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const [checkoutStep, setCheckoutStep] = useState<"shipping" | "payment">(
     "shipping",
@@ -285,34 +275,6 @@ export default function Checkout() {
 
   useEffect(() => {
     setIsMounted(true);
-
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const isStripeReturn = params.get("payment_success") === "true";
-      const savedOrder = sessionStorage.getItem("checkout_order_success");
-
-      if (isStripeReturn && savedOrder) {
-        try {
-          const orderData = JSON.parse(savedOrder);
-          setForm((prev) => ({ ...prev, ...orderData.form }));
-          setPaymentMethod(orderData.paymentMethod || "card");
-          setNotifStatus(
-            orderData.notifStatus || { email: null, whatsapp: null },
-          );
-          if (orderData.snapItems?.length) {
-            setSnapshotItems(orderData.snapItems);
-            setSnapshotSubtotal(orderData.snapSubtotal || 0);
-            setSnapshotCartCount(orderData.snapCount || 0);
-          }
-          setShowToast(true);
-          setTimeout(() => {
-            setPlaced(true);
-            setShowToast(false);
-            window.history.replaceState({}, "", window.location.pathname);
-          }, 1500);
-        } catch {}
-      }
-    }
   }, []);
 
   useEffect(() => {
@@ -386,19 +348,16 @@ export default function Checkout() {
         return undefined;
       case "email":
         if (!value.trim()) return "Email is required";
-        // ✅ Accepts ALL email providers: Gmail, Hotmail, Yahoo, info@, etc.
         if (!/^[^\s@]+@([^\s@]+\.)+[^\s@]{2,}$/.test(value.trim()))
           return "Enter a valid email address";
         return undefined;
       case "phone": {
         if (!value.trim()) return "Phone number is required";
-        // Strip spaces and dashes for digit count
         const digitsOnly = value.replace(/[\s\-\(\)]/g, "");
         const { minDigits, maxDigits, example } = phoneInfo;
         if (digitsOnly.length < minDigits || digitsOnly.length > maxDigits) {
           return `Enter a valid ${phoneInfo.name} number (e.g. ${example})`;
         }
-        // Must be digits only (after stripping spaces/dashes)
         if (!/^\d+$/.test(digitsOnly)) {
           return "Phone number must contain digits only";
         }
@@ -471,163 +430,140 @@ export default function Checkout() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // ✅ FIXED: handlePaymentSuccess — shows success page immediately,
-  // then fires notifications in background and updates notifStatus when done
-  const handlePaymentSuccess = useCallback(async () => {
+  // ✅ FIXED: handlePaymentSuccess — INSTANT redirect, checkout page bypass
+  const handlePaymentSuccess = useCallback(() => {
     const snapItems = [...items];
     const snapSubtotal = getSubtotal();
     const snapCount = getCartCount();
-    setSnapshotItems(snapItems);
-    setSnapshotSubtotal(snapSubtotal);
-    setSnapshotCartCount(snapCount);
 
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem(
-        "checkout_order_success",
-        JSON.stringify({
-          form,
-          paymentMethod,
-          notifStatus: { email: null, whatsapp: null },
-          snapItems,
-          snapSubtotal,
-          snapCount,
-        }),
-      );
-    }
+    // ✅ STEP 1: Sabse pehle sessionStorage mein sab kuch save karo
+    // Yeh ZAROOR pehle hona chahiye — redirect se pehle
+    sessionStorage.setItem("payment_just_completed", "true");
+    sessionStorage.setItem("payment_order_number", orderNumber);
+    sessionStorage.setItem(
+      "order_success_data",
+      JSON.stringify({
+        orderNumber,
+        form,
+        paymentMethod,
+        snapItems,
+        snapSubtotal,
+        snapCount,
+        phoneInfoName: phoneInfo.name,
+        fullPhone,
+        shippingAddress,
+        currencyCode: currency.code,
+      }),
+    );
 
-    // Show toast
+    // ✅ STEP 2: isRedirecting = true — empty cart check bypass ho jaye
+    setIsRedirecting(true);
     setShowToast(true);
 
-    // Show success page after 1.2s
-    setTimeout(() => {
-      setPlaced(true);
-      setShowToast(false);
-      sessionStorage.removeItem("checkout_order_success");
-      clearCart().catch(() => {});
-      localStorage.removeItem(STORAGE_KEY);
-    }, 1200);
+    // ✅ STEP 3: Background tasks fire-and-forget (redirect ko block nahi karein)
+    const orderItems = validItems.map((item) => {
+      const product = item.product ?? {
+        name: item.variant_name || "Product",
+        price: item.variant_price ?? 0,
+      };
+      const ppu = item.pieces_per_unit ?? 1;
+      const pricePerPiece = item.variant_price ?? (product as any).price ?? 0;
+      const imageUrl =
+        item.variant_image ||
+        (product as any).main_images?.[0] ||
+        (product as any).images?.[0] ||
+        null;
+      return {
+        name: (product as any).name,
+        variant: item.variant_name || null,
+        quantity: item.quantity,
+        piecesPerUnit: ppu,
+        price: pricePerPiece * ppu * item.quantity,
+        pricePKR: pricePerPiece * ppu * item.quantity,
+        image: imageUrl,
+      };
+    });
 
-    // ✅ Fire notifications in background — update notifStatus when complete
-    try {
-      const orderItems = validItems.map((item) => {
-        const product = item.product ?? {
-          name: item.variant_name || "Product",
-          price: item.variant_price ?? 0,
-        };
-        const ppu = item.pieces_per_unit ?? 1;
-        const pricePerPiece = item.variant_price ?? (product as any).price ?? 0;
-        // ✅ Image priority: variant_image → main_images[0] → images[0]
-        const imageUrl =
-          item.variant_image ||
-          (product as any).main_images?.[0] ||
-          (product as any).images?.[0] ||
-          null;
-        return {
-          name: (product as any).name,
-          variant: item.variant_name || null,
+    // Fire and forget — await nahi karo
+    fetch("/api/send-order-notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderNumber,
+        email: form.email,
+        phone: fullPhone,
+        name: customerName,
+        items: orderItems,
+        subtotal,
+        shipping,
+        total,
+        shippingAddress,
+        paymentMethod:
+          paymentMethod === "card" ? "Credit/Debit Card (Stripe)" : "PayPal",
+        currency: currency.code,
+      }),
+    }).catch(() => {});
+
+    supabase
+      .from("orders")
+      .insert({
+        order_number: orderNumber,
+        user_id: null,
+        first_name: form.firstName.trim(),
+        last_name: form.lastName.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: fullPhone,
+        address: form.address.trim(),
+        apartment: form.apartment?.trim() || null,
+        city: form.city.trim(),
+        zip: form.zip.trim(),
+        country: phoneInfo.name,
+        subtotal: snapSubtotal,
+        shipping_cost: shipping,
+        total_amount: snapSubtotal + shipping,
+        payment_method: paymentMethod,
+        status: "pending",
+        items: snapItems.map((item) => ({
+          product_id: item.product_id,
+          product_name: item.product?.name ?? item.variant_name ?? "Product",
+          variant_id: item.variant_id ?? null,
+          variant_name: item.variant_name ?? null,
+          variant_image: item.variant_image ?? null,
           quantity: item.quantity,
-          piecesPerUnit: ppu,
-          price: pricePerPiece * ppu * item.quantity,
-          pricePKR: pricePerPiece * ppu * item.quantity,
-          image: imageUrl,
-        };
+          price: item.variant_price ?? (item.product as any)?.price ?? 0,
+          pieces_per_unit: item.pieces_per_unit ?? 1,
+        })),
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.error("⚠️ DB save failed:", error.code, error.message);
+        }
       });
 
-      // ✅ Await notification — update status when done (shows on success page)
-      fetch("/api/send-order-notification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderNumber,
-          email: form.email,
-          phone: fullPhone,
-          name: customerName,
-          items: orderItems,
-          subtotal,
-          shipping,
-          total,
-          shippingAddress,
-          paymentMethod:
-            paymentMethod === "card" ? "Credit/Debit Card (Stripe)" : "PayPal",
-          currency: currency.code,
-        }),
-      })
-        .then((r) => r.json())
-        .then((result) => {
-          // ✅ Update notifStatus — success page will re-render with correct values
-          setNotifStatus({
-            email: result.emailSent ?? false,
-            whatsapp: result.whatsappSent ?? false,
-          });
-        })
-        .catch(() => {
-          setNotifStatus({ email: false, whatsapp: false });
-        });
+    // ✅ STEP 4: Cart clear (background)
+    clearCart().catch(() => {});
+    localStorage.removeItem(STORAGE_KEY);
 
-      // ✅ Save to Supabase — column names match orders table schema exactly
-      supabase
-        .from("orders")
-        .insert({
-          order_number: orderNumber,
-          user_id: null,
-          first_name: form.firstName.trim(),
-          last_name: form.lastName.trim(),
-          email: form.email.trim().toLowerCase(),
-          phone: fullPhone,
-          address: form.address.trim(),
-          apartment: form.apartment?.trim() || null,
-          city: form.city.trim(),
-          zip: form.zip.trim(),
-          country: phoneInfo.name,
-          subtotal: snapSubtotal,
-          shipping_cost: shipping,
-          total_amount: snapSubtotal + shipping,
-          payment_method: paymentMethod,
-          status: "pending",
-          items: snapItems.map((item) => ({
-            product_id: item.product_id,
-            product_name: item.product?.name ?? item.variant_name ?? "Product",
-            variant_id: item.variant_id ?? null,
-            variant_name: item.variant_name ?? null,
-            variant_image: item.variant_image ?? null,
-            quantity: item.quantity,
-            price: item.variant_price ?? (item.product as any)?.price ?? 0,
-            pieces_per_unit: item.pieces_per_unit ?? 1,
-          })),
-        })
-        .then(({ error }) => {
-          if (error) {
-            console.error(
-              "⚠️ DB save failed — code:",
-              error.code,
-              "| msg:",
-              error.message,
-            );
-          } else {
-            console.log("✅ Order saved to Supabase:", orderNumber);
-          }
-        });
-    } catch (err) {
-      console.warn("⚠️ Background tasks error:", err);
-    }
-
-    return () => {};
+    // ✅ STEP 5: INSTANT redirect — koi timeout nahi, seedha order-success
+    // isRedirecting = true hai toh checkout ka empty-cart check nahi chalega
+    window.location.replace("/order-success");
   }, [
-    validItems,
-    orderNumber,
-    form,
-    fullPhone,
-    customerName,
-    subtotal,
-    shipping,
-    total,
-    shippingAddress,
-    paymentMethod,
-    currency.code,
-    clearCart,
     items,
     getSubtotal,
     getCartCount,
+    orderNumber,
+    form,
+    paymentMethod,
+    phoneInfo.name,
+    fullPhone,
+    shippingAddress,
+    currency.code,
+    validItems,
+    subtotal,
+    shipping,
+    total,
+    customerName,
+    clearCart,
   ]);
 
   const handlePaymentError = (error: string) => {
@@ -637,12 +573,23 @@ export default function Checkout() {
   // ============================================
   // LOADING STATE
   // ============================================
+  // ✅ Agar redirect ho raha hai toh sirf spinner dikhao — kuch aur nahi
+  if (isRedirecting) {
+    return (
+      <div className="co-root">
+        <div className="co-grain" aria-hidden="true" />
+        <div className="co-wrap">
+          <div className="co-spinner" style={{ margin: "4rem auto" }} />
+        </div>
+      </div>
+    );
+  }
+
   if (
-    !placed &&
-    (!isMounted ||
-      !isHydrated ||
-      !cartFetched ||
-      (loading && items.length === 0))
+    !isMounted ||
+    !isHydrated ||
+    !cartFetched ||
+    (loading && items.length === 0)
   ) {
     return (
       <div className="co-root">
@@ -655,9 +602,9 @@ export default function Checkout() {
   }
 
   // ============================================
-  // EMPTY CART STATE
+  // EMPTY CART STATE — sirf tab dikhao jab redirect nahi ho raha
   // ============================================
-  if (!loading && items.length === 0 && !placed) {
+  if (!loading && items.length === 0 && !isRedirecting) {
     return (
       <div className="co-root">
         <div className="co-grain" aria-hidden="true" />
@@ -685,41 +632,6 @@ export default function Checkout() {
           </div>
         </div>
       </div>
-    );
-  }
-
-  // ============================================
-  // SUCCESS STATE
-  // ============================================
-  if (placed) {
-    const displayItems = snapshotItems.length > 0 ? snapshotItems : validItems;
-    const displaySubtotal = snapshotSubtotal > 0 ? snapshotSubtotal : subtotal;
-    const displayCartCount =
-      snapshotCartCount > 0 ? snapshotCartCount : cartCount;
-
-    return (
-      <OrderSuccess
-        firstName={form.firstName}
-        lastName={form.lastName}
-        email={form.email}
-        phone={form.phone}
-        address={form.address}
-        apartment={form.apartment}
-        city={form.city}
-        zip={form.zip}
-        country={phoneInfo.name}
-        orderNumber={orderNumber}
-        paymentMethod={paymentMethod}
-        items={displayItems}
-        subtotal={displaySubtotal}
-        shipping={0}
-        total={displaySubtotal}
-        cartCount={displayCartCount}
-        notifStatus={notifStatus}
-        fullPhone={fullPhone}
-        shippingAddress={shippingAddress}
-        formatPrice={formatPrice}
-      />
     );
   }
 

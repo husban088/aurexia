@@ -35,7 +35,9 @@
   overflow-x: hidden;
   opacity: 0;
   transform: translateY(16px);
-  transition: opacity 0.7s ease, transform 0.7s ease;
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s ease;
 }
 
 .os-root--visible {
@@ -204,11 +206,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 0 0 rgba(218, 165, 32, 0.5), var(--os-shadow-gold);
+  box-shadow:
+    0 0 0 0 rgba(218, 165, 32, 0.5),
+    var(--os-shadow-gold);
   transition: box-shadow 0.6s ease;
 }
 .os-check-ring--burst .os-check-inner {
-  box-shadow: 0 0 0 16px rgba(218, 165, 32, 0.07), var(--os-shadow-gold);
+  box-shadow:
+    0 0 0 16px rgba(218, 165, 32, 0.07),
+    var(--os-shadow-gold);
   animation: os-check-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .os-check-icon {
@@ -359,7 +365,9 @@
   padding: 5px 8px;
   cursor: pointer;
   color: var(--os-gold);
-  transition: background 0.2s, transform 0.15s;
+  transition:
+    background 0.2s,
+    transform 0.15s;
   display: flex;
   align-items: center;
 }
@@ -382,7 +390,9 @@
   border-radius: var(--os-radius-sm);
   background: var(--os-white);
   border: 1px solid var(--os-border);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 .os-notif-pill:hover {
   transform: translateX(4px);
@@ -575,10 +585,14 @@
 @keyframes os-tl-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 2px var(--os-gold), 0 0 0 6px rgba(218, 165, 32, 0.2);
+    box-shadow:
+      0 0 0 2px var(--os-gold),
+      0 0 0 6px rgba(218, 165, 32, 0.2);
   }
   50% {
-    box-shadow: 0 0 0 2px var(--os-gold), 0 0 0 10px rgba(218, 165, 32, 0.05);
+    box-shadow:
+      0 0 0 2px var(--os-gold),
+      0 0 0 10px rgba(218, 165, 32, 0.05);
   }
 }
 .os-tl-dot--empty {
@@ -620,7 +634,10 @@
   padding: 14px 28px;
   border-radius: 50px;
   border: 1px solid rgba(218, 165, 32, 0.3);
-  transition: background 0.25s, transform 0.2s, box-shadow 0.25s,
+  transition:
+    background 0.25s,
+    transform 0.2s,
+    box-shadow 0.25s,
     letter-spacing 0.2s;
   width: fit-content;
   position: relative;
@@ -669,7 +686,9 @@
   transition: box-shadow 0.35s;
 }
 .os-summary-card:hover {
-  box-shadow: var(--os-shadow-gold), 0 4px 40px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    var(--os-shadow-gold),
+    0 4px 40px rgba(0, 0, 0, 0.06);
 }
 
 /* Header */
@@ -842,7 +861,9 @@
   letter-spacing: 0.04em;
   font-weight: 500;
   text-align: center;
-  transition: color 0.2s, transform 0.2s;
+  transition:
+    color 0.2s,
+    transform 0.2s;
 }
 .os-perk:hover {
   color: var(--os-gold-dark);

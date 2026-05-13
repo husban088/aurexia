@@ -174,7 +174,7 @@ export default function PayPalPayment({
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentCancelled, setPaymentCancelled] = useState(false);
   const [processingMessage, setProcessingMessage] = useState(
-    "Processing your payment..."
+    "Processing your payment...",
   );
 
   const { currency: detectedCurrency } = useCurrency();
@@ -205,7 +205,7 @@ export default function PayPalPayment({
   // ✅ Minimum amount guard (PayPal requires at least $0.01)
   const safeConvertedAmount = Math.max(
     convertedAmount,
-    ZERO_DECIMAL_CURRENCIES.has(targetCurrency) ? 1 : 0.01
+    ZERO_DECIMAL_CURRENCIES.has(targetCurrency) ? 1 : 0.01,
   );
 
   const paypalLocale = CURRENCY_TO_LOCALE[userCurrencyCode] ?? "en_US";
@@ -267,7 +267,7 @@ export default function PayPalPayment({
     } catch (error) {
       console.error("Failed to create PayPal order:", error);
       onPaymentError(
-        error instanceof Error ? error.message : "Failed to initialize PayPal"
+        error instanceof Error ? error.message : "Failed to initialize PayPal",
       );
       throw error;
     }
@@ -278,8 +278,13 @@ export default function PayPalPayment({
     setIsProcessing(true);
     setProcessingMessage("Payment approved! Completing your order...");
 
-    // ✅ Call onSuccess immediately after PayPal approves — don't wait for API
-    // PayPal approval itself means money is authorized; capture runs in background
+    // ✅ Save to sessionStorage BEFORE calling onSuccess — prevents checkout flash
+    try {
+      sessionStorage.setItem("payment_just_completed", "true");
+      sessionStorage.setItem("payment_order_number", orderNumber);
+    } catch (e) {}
+
+    // ✅ Call onSuccess immediately — redirect to order-success, don't wait for API
     onSuccess();
 
     // Background: try to capture and save order
@@ -306,7 +311,7 @@ export default function PayPalPayment({
     console.error("PayPal error:", err);
     setIsProcessing(false);
     onPaymentError(
-      "PayPal payment failed. Please try again or use a different payment method."
+      "PayPal payment failed. Please try again or use a different payment method.",
     );
   };
 

@@ -52,7 +52,7 @@ export default function StripePayment({
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/checkout?payment_success=true`,
+          return_url: `${window.location.origin}/order-success?stripe_redirect=true`,
         },
         redirect: "if_required",
       });
