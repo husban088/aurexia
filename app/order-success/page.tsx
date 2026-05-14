@@ -822,14 +822,21 @@ export default function OrderSuccessPage() {
         console.log("📊 Notification API response:", result);
 
         if (result.success) {
-          // ✅ Mark as sent — page refresh pe dobara na bheje
-          sessionStorage.setItem(`notif_sent_${orderNumber}`, "true");
+          // Actual results — API se aaye sahi values
+          const emailOk = result.results?.emailSent === true;
+          const whatsappOk = result.results?.whatsappSent === true;
 
-          // ✅ Update UI — "Sending..." → "Sent Successfully"
-          // API fire-and-forget hai — toh dono ko true mark karo
-          setNotifStatus({ email: true, whatsapp: true });
+          setNotifStatus({
+            email: emailOk,
+            whatsapp: customerPhone ? whatsappOk : null,
+          });
+
+          // Sirf tab mark karo jab email gayi ho
+          if (emailOk) {
+            sessionStorage.setItem(`notif_sent_${orderNumber}`, "true");
+          }
         } else {
-          console.error("❌ Notification API error:", result.error);
+          console.error("Notification API error:", result.error);
           setNotifStatus({ email: false, whatsapp: false });
         }
       } catch (err) {
