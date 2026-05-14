@@ -828,7 +828,7 @@ export default function OrderSuccessPage() {
 
           setNotifStatus({
             email: emailOk,
-            whatsapp: customerPhone ? whatsappOk : null,
+            whatsapp: fullPhone ? whatsappOk : null,
           });
 
           // Sirf tab mark karo jab email gayi ho

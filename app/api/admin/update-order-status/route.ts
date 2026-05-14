@@ -341,19 +341,16 @@ export async function POST(req: NextRequest) {
           : Promise.resolve(false),
 
         // Customer email — email.ts ka sendStatusUpdateEmail
-        // Yeh function already perfect hai: text+html dono, anti-spam headers, no emojis
+        // Correct argument order: customerEmail, customerName, orderNumber, status, tracking, courier, url, days
         sendStatusUpdateEmail(
           customerEmail,
-          orderNumber,
           customerName,
+          orderNumber,
           status as "shipped" | "delivered" | "cancelled",
-          {
-            courierName: courierName,
-            courierCountry: courierCountry,
-            trackingNumber: trackingNumber,
-            estimatedDays: estimatedDays,
-            courierTrackingUrl: courierTrackingUrl,
-          },
+          trackingNumber,
+          courierName,
+          courierTrackingUrl,
+          estimatedDays,
         ),
 
         // Owner alert
