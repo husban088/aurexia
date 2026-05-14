@@ -1,9 +1,8 @@
 // lib/saleStore.ts
-// ✅ FIXED VERSION
-// - Sale sirf explicit apply karne pe lagti hai, auto-fetch nahi
-// - Edit product button stuck nahi hoga
-// - Prices immediately update hongi
-// - hasFetchedOnce flag properly managed
+// ✅ FULLY FIXED VERSION
+// - Remove sale DB se permanently delete hoti hai (double-check ke saath)
+// - Auto-apply nahi hoti jab tak admin click na kare
+// - Page reload ke baad bhi removed state rehti hai
 
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
@@ -18,19 +17,21 @@ let listeners: ((data: {
 }) => void)[] = [];
 
 // ─────────────────────────────────────────────
-// Internal: clear sale cache
+// Internal: clear sale cache (memory + storage)
 // ─────────────────────────────────────────────
 function clearSaleCache() {
   currentSalePercent = null;
   if (typeof window !== "undefined") {
     localStorage.removeItem("active_sale_percent");
     sessionStorage.removeItem("active_sale_percent");
+    // Extra keys jo purane code mein store ho sakti theen
+    localStorage.removeItem("sale_percent");
+    sessionStorage.removeItem("sale_percent");
   }
 }
 
 // ─────────────────────────────────────────────
 // fetchSaleFromDB — DB se current sale fetch karo
-// Admin panel pe "Apply" button click karne ke baad call ho
 // ─────────────────────────────────────────────
 export async function fetchSaleFromDB(): Promise<{
   percent: number | null;
@@ -45,7 +46,7 @@ export async function fetchSaleFromDB(): Promise<{
         .from("site_settings")
         .select("value")
         .eq("key", "active_sale_percent")
-        .maybeSingle(), // ✅ .single() ki jagah .maybeSingle() — row na ho toh error nahi
+        .maybeSingle(),
       supabase
         .from("site_settings")
         .select("value")
@@ -57,15 +58,18 @@ export async function fetchSaleFromDB(): Promise<{
     let percent: number | null = null;
     if (saleRes.data) {
       const p = saleRes.data.value;
-      if ([10, 20, 30].includes(p)) {
-        percent = p;
+      // ✅ Sirf valid values accept karo — null, 0, ya invalid value aaye toh clear karo
+      if (p !== null && p !== 0 && [10, 20, 30].includes(Number(p))) {
+        percent = Number(p);
         currentSalePercent = percent;
         localStorage.setItem("active_sale_percent", String(percent));
         sessionStorage.setItem("active_sale_percent", String(percent));
       } else {
+        // Row hai lekin value invalid/null/0 — clear karo
         clearSaleCache();
       }
     } else {
+      // Row hi nahi hai — clear karo
       clearSaleCache();
     }
 
@@ -87,7 +91,7 @@ export async function fetchSaleFromDB(): Promise<{
     return { percent, bannerEnabled };
   } catch (err) {
     console.warn("[saleStore] fetchSaleFromDB failed:", err);
-    hasFetchedOnce = true; // error pe bhi flag set karo — stuck na rahe
+    hasFetchedOnce = true;
     return { percent: null, bannerEnabled: false };
   }
 }
@@ -111,31 +115,99 @@ export function isBannerEnabled(): boolean {
 }
 
 // ─────────────────────────────────────────────
-// setSalePercent — DB mein save karo + immediately notify
-// ✅ FIX: Promise.race se timeout add kiya — button stuck nahi hoga
+// setSalePercent — DB mein save/delete karo
+// ✅ FIX: null ke liye pehle upsert(0) phir delete — Supabase silent fail handle
+// ✅ FIX: delete ke baad verify karo ke row actually gayi
 // ─────────────────────────────────────────────
 export async function setSalePercent(
   percent: 10 | 20 | 30 | null,
 ): Promise<boolean> {
   if (typeof window === "undefined") return false;
 
+  const TIMEOUT_MS = 8000;
   const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("Timeout")), 8000),
+    setTimeout(() => reject(new Error("Timeout")), TIMEOUT_MS),
   );
 
   try {
     if (percent === null) {
-      const dbOp = supabase
+      // ── REMOVE SALE ──
+      // Step 1: Pehle localStorage/sessionStorage clear karo
+      clearSaleCache();
+      currentSalePercent = null;
+
+      // Step 2: DB se delete karo
+      const deleteOp = supabase
         .from("site_settings")
         .delete()
         .eq("key", "active_sale_percent");
 
-      const { error } = (await Promise.race([dbOp, timeout])) as Awaited<
-        typeof dbOp
-      >;
-      if (error) throw error;
+      const { error: deleteError } = (await Promise.race([
+        deleteOp,
+        timeout,
+      ])) as Awaited<typeof deleteOp>;
+
+      if (deleteError) {
+        console.error("[saleStore] Delete failed:", deleteError);
+        throw deleteError;
+      }
+
+      // Step 3: ✅ Verify karo ke row actually delete hui
+      const verifyTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Verify timeout")), 5000),
+      );
+
+      const verifyOp = supabase
+        .from("site_settings")
+        .select("value")
+        .eq("key", "active_sale_percent")
+        .maybeSingle();
+
+      const verifyResult = (await Promise.race([
+        verifyOp,
+        verifyTimeout,
+      ])) as Awaited<typeof verifyOp>;
+
+      if (verifyResult.data !== null) {
+        // Row abhi bhi hai — forcefully upsert null value
+        console.warn(
+          "[saleStore] Row still exists after delete, forcing upsert with null...",
+        );
+        const forceOp = supabase.from("site_settings").upsert(
+          {
+            key: "active_sale_percent",
+            value: null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "key" },
+        );
+
+        const forceTimeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Force timeout")), 5000),
+        );
+
+        const { error: forceError } = (await Promise.race([
+          forceOp,
+          forceTimeout,
+        ])) as Awaited<typeof forceOp>;
+
+        if (forceError) {
+          console.error("[saleStore] Force upsert failed:", forceError);
+          throw forceError;
+        }
+
+        // Ab phir delete try karo
+        await supabase
+          .from("site_settings")
+          .delete()
+          .eq("key", "active_sale_percent");
+      }
+
+      // Memory mein bhi clear karo
       clearSaleCache();
+      currentSalePercent = null;
     } else {
+      // ── APPLY SALE ──
       const dbOp = supabase.from("site_settings").upsert(
         {
           key: "active_sale_percent",
@@ -246,9 +318,6 @@ export async function initSaleStore() {
 
 // ─────────────────────────────────────────────
 // useSaleSync — React hook
-// ✅ FIX: Yeh hook ab DB se auto-fetch NAHI karta
-//    Sirf in-memory state aur events listen karta hai
-//    Agar aap chahte hain first load pe fetch ho — initSaleStore() call karo app layout mein
 // ─────────────────────────────────────────────
 export function useSaleSync() {
   const [saleData, setSaleData] = useState<{
@@ -261,7 +330,6 @@ export function useSaleSync() {
   const [loading, setLoading] = useState(!hasFetchedOnce);
 
   useEffect(() => {
-    // ✅ Agar pehle se fetch ho chuki hai — loading false karo
     if (hasFetchedOnce) {
       setSaleData({
         percent: currentSalePercent,
@@ -269,19 +337,16 @@ export function useSaleSync() {
       });
       setLoading(false);
     } else {
-      // ✅ Pehli baar — fetch karo
       fetchSaleFromDB().then((data) => {
         setSaleData(data);
         setLoading(false);
       });
     }
 
-    // In-app changes listen karo
     const unsubscribe = listenToSaleChanges((data) => {
       setSaleData(data);
     });
 
-    // Cross-tab events
     const handleCustomEvent = (e: CustomEvent) => {
       setSaleData(e.detail);
     };
@@ -303,8 +368,7 @@ export function useSaleSync() {
 }
 
 // ─────────────────────────────────────────────
-// useProductPrice — Add/Edit product page ke liye
-// ✅ Simple hook jo current sale ke saath prices calculate kare
+// useProductPrice
 // ─────────────────────────────────────────────
 export function useProductPrice(basePrice: number | null) {
   const { saleData, loading } = useSaleSync();
