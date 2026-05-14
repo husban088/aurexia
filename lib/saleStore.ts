@@ -5,12 +5,27 @@ import { supabase } from "./supabase";
 
 let currentSalePercent: number | null = null;
 let currentBannerEnabled: boolean = false;
+// Track whether we have fetched from DB at least once
+let hasFetchedOnce: boolean = false;
+
 let listeners: ((data: {
   percent: number | null;
   bannerEnabled: boolean;
 }) => void)[] = [];
 
-// Get current active sale from database
+// ─────────────────────────────────────────────
+// Internal helper: clear all sale cache
+// ─────────────────────────────────────────────
+function clearSaleCache() {
+  currentSalePercent = null;
+  localStorage.removeItem("active_sale_percent");
+  sessionStorage.removeItem("active_sale_percent");
+}
+
+// ─────────────────────────────────────────────
+// Get current active sale from DATABASE (source of truth)
+// Always clears cache if DB says no sale
+// ─────────────────────────────────────────────
 export async function fetchSaleFromDB(): Promise<{
   percent: number | null;
   bannerEnabled: boolean;
@@ -33,14 +48,25 @@ export async function fetchSaleFromDB(): Promise<{
       .eq("key", "sale_banner_enabled")
       .single();
 
+    // ✅ FIX: Always reset percent first, then check if DB has a valid value
+    // This ensures that if DB has no row (saleError), we clear stale cache
     let percent: number | null = null;
+
     if (!saleError && saleData) {
       const p = saleData.value;
       if ([10, 20, 30].includes(p)) {
         percent = p;
         currentSalePercent = percent;
         localStorage.setItem("active_sale_percent", String(percent));
+        sessionStorage.setItem("active_sale_percent", String(percent));
+      } else {
+        // DB has a row but value is invalid — treat as no sale
+        clearSaleCache();
       }
+    } else {
+      // ✅ FIX: DB has no row OR error — ALWAYS clear localStorage/cache
+      // This was the main bug: previously localStorage was NOT cleared here
+      clearSaleCache();
     }
 
     let bannerEnabled: boolean = false;
@@ -48,8 +74,15 @@ export async function fetchSaleFromDB(): Promise<{
       bannerEnabled = bannerData.value === true;
       currentBannerEnabled = bannerEnabled;
       localStorage.setItem("sale_banner_enabled", String(bannerEnabled));
+      sessionStorage.setItem("sale_banner_enabled", String(bannerEnabled));
+    } else {
+      // No banner setting in DB — treat as disabled and clear cache
+      currentBannerEnabled = false;
+      localStorage.setItem("sale_banner_enabled", "false");
+      sessionStorage.setItem("sale_banner_enabled", "false");
     }
 
+    hasFetchedOnce = true;
     return { percent, bannerEnabled };
   } catch (err) {
     console.warn("[saleStore] Failed to fetch from DB:", err);
@@ -57,41 +90,37 @@ export async function fetchSaleFromDB(): Promise<{
   }
 }
 
-// Get current active sale (fast, from cache)
+// ─────────────────────────────────────────────
+// Get sale percent (fast, from cache)
+// NOTE: Always call fetchSaleFromDB() on page load first!
+// getSalePercent() is only for after the first fetch has happened.
+// ─────────────────────────────────────────────
 export function getSalePercent(): number | null {
   if (typeof window === "undefined") return currentSalePercent;
 
-  if (currentSalePercent !== null) return currentSalePercent;
+  // ✅ FIX: If we haven't fetched from DB yet, do NOT trust localStorage.
+  // Return null so components show no discount until DB fetch completes.
+  if (!hasFetchedOnce) return null;
 
-  const cached = localStorage.getItem("active_sale_percent");
-  if (cached) {
-    const num = parseInt(cached, 10);
-    if ([10, 20, 30].includes(num)) {
-      currentSalePercent = num;
-      return num;
-    }
-  }
-
-  return null;
+  // After DB fetch, currentSalePercent is the source of truth
+  return currentSalePercent;
 }
 
+// ─────────────────────────────────────────────
 // Get banner enabled status
+// ─────────────────────────────────────────────
 export function isBannerEnabled(): boolean {
   if (typeof window === "undefined") return currentBannerEnabled;
 
-  if (currentBannerEnabled !== null) return currentBannerEnabled;
+  // ✅ FIX: Same logic — don't trust localStorage before DB fetch
+  if (!hasFetchedOnce) return false;
 
-  const cached = localStorage.getItem("sale_banner_enabled");
-  if (cached) {
-    const enabled = cached === "true";
-    currentBannerEnabled = enabled;
-    return enabled;
-  }
-
-  return false;
+  return currentBannerEnabled;
 }
 
-// Set sale (admin panel se call hoga) - saves to DATABASE
+// ─────────────────────────────────────────────
+// Set sale percent — saves to DATABASE
+// ─────────────────────────────────────────────
 export async function setSalePercent(
   percent: 10 | 20 | 30 | null,
 ): Promise<boolean> {
@@ -99,15 +128,16 @@ export async function setSalePercent(
 
   try {
     if (percent === null) {
-      // Delete the setting
-      await supabase
+      // ✅ Delete the row from DB
+      const { error } = await supabase
         .from("site_settings")
         .delete()
         .eq("key", "active_sale_percent");
 
-      currentSalePercent = null;
-      localStorage.removeItem("active_sale_percent");
-      sessionStorage.removeItem("active_sale_percent");
+      if (error) throw error;
+
+      // ✅ Clear ALL caches
+      clearSaleCache();
     } else {
       // Upsert the setting
       const { error } = await supabase.from("site_settings").upsert(
@@ -126,23 +156,8 @@ export async function setSalePercent(
       sessionStorage.setItem("active_sale_percent", String(percent));
     }
 
-    // Notify all listeners with current banner state
-    listeners.forEach((listener) =>
-      listener({
-        percent: currentSalePercent,
-        bannerEnabled: currentBannerEnabled,
-      }),
-    );
-
-    // Dispatch event for cross-tab communication
-    window.dispatchEvent(
-      new CustomEvent("saleDataChanged", {
-        detail: {
-          percent: currentSalePercent,
-          bannerEnabled: currentBannerEnabled,
-        },
-      }),
-    );
+    // Notify all listeners
+    notifyListeners();
 
     return true;
   } catch (err) {
@@ -151,7 +166,9 @@ export async function setSalePercent(
   }
 }
 
-// Set banner visibility (admin panel se call hoga)
+// ─────────────────────────────────────────────
+// Set banner visibility — saves to DATABASE
+// ─────────────────────────────────────────────
 export async function setBannerEnabled(enabled: boolean): Promise<boolean> {
   if (typeof window === "undefined") return false;
 
@@ -172,22 +189,7 @@ export async function setBannerEnabled(enabled: boolean): Promise<boolean> {
     sessionStorage.setItem("sale_banner_enabled", String(enabled));
 
     // Notify all listeners
-    listeners.forEach((listener) =>
-      listener({
-        percent: currentSalePercent,
-        bannerEnabled: currentBannerEnabled,
-      }),
-    );
-
-    // Dispatch event for cross-tab communication
-    window.dispatchEvent(
-      new CustomEvent("saleDataChanged", {
-        detail: {
-          percent: currentSalePercent,
-          bannerEnabled: currentBannerEnabled,
-        },
-      }),
-    );
+    notifyListeners();
 
     return true;
   } catch (err) {
@@ -196,13 +198,35 @@ export async function setBannerEnabled(enabled: boolean): Promise<boolean> {
   }
 }
 
-// Price pe discount apply karne ka helper
+// ─────────────────────────────────────────────
+// Internal: notify all listeners + dispatch cross-tab event
+// ─────────────────────────────────────────────
+function notifyListeners() {
+  const payload = {
+    percent: currentSalePercent,
+    bannerEnabled: currentBannerEnabled,
+  };
+
+  listeners.forEach((listener) => listener(payload));
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("saleDataChanged", { detail: payload }),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Apply discount to a price
+// ─────────────────────────────────────────────
 export function applyDiscount(price: number, percent: number | null): number {
   if (!percent || percent <= 0) return price;
   return Math.round(price * (1 - percent / 100));
 }
 
-// Listen for sale changes
+// ─────────────────────────────────────────────
+// Listen for sale changes (returns unsubscribe fn)
+// ─────────────────────────────────────────────
 export function listenToSaleChanges(
   callback: (data: { percent: number | null; bannerEnabled: boolean }) => void,
 ) {
@@ -212,33 +236,40 @@ export function listenToSaleChanges(
   };
 }
 
-// Initialize - fetch from DB on app start
+// ─────────────────────────────────────────────
+// Initialize — call once on app start
+// ─────────────────────────────────────────────
 export async function initSaleStore() {
   await fetchSaleFromDB();
 }
 
-// For components that need to sync with DB
+// ─────────────────────────────────────────────
+// useSaleSync — React hook for components
+// Always fetches from DB on mount (never trusts stale localStorage)
+// ─────────────────────────────────────────────
 export function useSaleSync() {
   const [saleData, setSaleData] = useState<{
     percent: number | null;
     bannerEnabled: boolean;
-  }>(() => ({
-    percent: getSalePercent(),
-    bannerEnabled: isBannerEnabled(),
-  }));
+  }>({
+    // ✅ FIX: Start with null/false — don't pre-load from localStorage
+    // This prevents showing stale 10% discount before DB confirms
+    percent: null,
+    bannerEnabled: false,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch from DB on mount
+    // Always fetch fresh from DB on mount
     fetchSaleFromDB().then((data) => {
       setSaleData(data);
       setLoading(false);
     });
 
-    // Listen for changes
+    // Listen for in-app changes (admin panel se)
     const unsubscribe = listenToSaleChanges(setSaleData);
 
-    // Listen for custom event
+    // Listen for cross-tab events
     const handleCustomEvent = (e: CustomEvent) => {
       setSaleData(e.detail);
     };

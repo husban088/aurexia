@@ -7,7 +7,6 @@ import {
   setSalePercent,
   fetchSaleFromDB,
   setBannerEnabled,
-  isBannerEnabled,
 } from "@/lib/saleStore";
 import "./sale-panel.css";
 
@@ -22,42 +21,37 @@ export default function SalePanel() {
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Fetch current sale and banner setting from database
-    Promise.all([fetchSaleFromDB()]).then(([{ percent, bannerEnabled }]) => {
+    // Always fetch fresh from DB on mount
+    fetchSaleFromDB().then(({ percent, bannerEnabled }) => {
       setSelected(percent as 10 | 20 | 30 | null);
       setBannerEnabledState(bannerEnabled);
       setLoading(false);
     });
   }, []);
 
-  // ✅ Handle close - navigate back to panel dashboard
   const handleClose = () => {
     router.push("/panel");
   };
 
-  // ✅ Handle escape key press
+  // Handle escape key
   useEffect(() => {
     const handleEscKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        handleClose();
-      }
+      if (e.key === "Escape") handleClose();
     };
     document.addEventListener("keydown", handleEscKey);
     return () => document.removeEventListener("keydown", handleEscKey);
   }, []);
 
-  // ✅ Handle click outside
+  // Handle click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
         handleClose();
       }
     };
-
     if (!loading) {
       document.addEventListener("mousedown", handleClickOutside);
     }
-
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
@@ -69,9 +63,7 @@ export default function SalePanel() {
     if (success) {
       setSelected(val);
       setSaved(true);
-      setTimeout(() => {
-        setSaved(false);
-      }, 3000);
+      setTimeout(() => setSaved(false), 3000);
     } else {
       alert("Failed to apply sale. Please try again.");
     }
@@ -83,9 +75,8 @@ export default function SalePanel() {
     const success = await setSalePercent(null);
     if (success) {
       setSelected(null);
-      setTimeout(() => {
-        setSaved(false);
-      }, 1000);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
     } else {
       alert("Failed to remove sale. Please try again.");
     }
@@ -98,16 +89,14 @@ export default function SalePanel() {
     if (success) {
       setBannerEnabledState(enabled);
       setSaved(true);
-      setTimeout(() => {
-        setSaved(false);
-      }, 3000);
+      setTimeout(() => setSaved(false), 3000);
     } else {
       alert("Failed to update banner setting. Please try again.");
     }
     setLoading(false);
   }
 
-  if (loading && selected === null && bannerEnabled === null) {
+  if (loading && selected === null && !bannerEnabled) {
     return (
       <div className="sale-panel-loader">
         <div className="loader-spinner"></div>
@@ -119,7 +108,7 @@ export default function SalePanel() {
   return (
     <div className="sale-panel-overlay">
       <div className="sale-panel-container" ref={modalRef}>
-        {/* ✅ Close Button */}
+        {/* Close Button */}
         <button
           className="sale-panel-close-btn"
           onClick={handleClose}
@@ -228,7 +217,7 @@ export default function SalePanel() {
             )}
           </div>
 
-          {/* ✅ Cancel Button */}
+          {/* Cancel Button */}
           <div className="sale-panel-actions">
             <button onClick={handleClose} className="cancel-button">
               ✕ Cancel

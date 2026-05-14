@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import {
-  fetchSaleFromDB,
-  listenToSaleChanges,
-  isBannerEnabled,
-} from "@/lib/saleStore";
+import { fetchSaleFromDB, listenToSaleChanges } from "@/lib/saleStore";
 
 export default function SaleBannerPopup() {
   const [visible, setVisible] = useState(false);
@@ -14,31 +10,42 @@ export default function SaleBannerPopup() {
   const [hasClosed, setHasClosed] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Check sale on mount and listen for changes
+  // Check if user already closed banner in this session (run first)
   useEffect(() => {
-    // Fetch from database on mount
+    const wasClosed = sessionStorage.getItem("sale_banner_closed");
+    if (wasClosed === "true") {
+      setHasClosed(true);
+    }
+  }, []);
+
+  // Fetch from DB on mount and listen for changes
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    // Always fetch fresh from DB — never trust localStorage
     fetchSaleFromDB().then(
       ({ percent: activePercent, bannerEnabled: enabled }) => {
         setPercent(activePercent);
         setBannerEnabled(enabled);
         setLoading(false);
 
-        // Only show if sale exists AND banner is enabled AND user hasn't closed it
-        if (activePercent && enabled && !hasClosed) {
-          const timer = setTimeout(() => setVisible(true), 400);
-          return () => clearTimeout(timer);
+        const wasClosed =
+          sessionStorage.getItem("sale_banner_closed") === "true";
+        if (activePercent && enabled && !wasClosed) {
+          timer = setTimeout(() => setVisible(true), 400);
         }
       },
     );
 
-    // Listen for sale changes across tabs
+    // Listen for real-time changes (admin panel toggle kare toh)
     const unsubscribe = listenToSaleChanges(
       ({ percent: newPercent, bannerEnabled: enabled }) => {
         setPercent(newPercent);
         setBannerEnabled(enabled);
 
-        // Only show if sale exists AND banner is enabled AND user hasn't closed it
-        if (newPercent && enabled && !hasClosed) {
+        const wasClosed =
+          sessionStorage.getItem("sale_banner_closed") === "true";
+        if (newPercent && enabled && !wasClosed) {
           setVisible(true);
         } else {
           setVisible(false);
@@ -46,39 +53,33 @@ export default function SaleBannerPopup() {
       },
     );
 
-    return unsubscribe;
-  }, [hasClosed]);
+    // Cross-tab: custom event
+    const handleCustomEvent = (e: CustomEvent) => {
+      const { percent: newPercent, bannerEnabled: enabled } = e.detail;
+      setPercent(newPercent);
+      setBannerEnabled(enabled);
 
-  // Listen for storage events (cross-tab)
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "active_sale_percent") {
-        const newPercent = e.newValue ? parseInt(e.newValue, 10) : null;
-        setPercent(newPercent);
-        const enabled = isBannerEnabled();
-        setBannerEnabled(enabled);
-
-        if (newPercent && enabled && !hasClosed) {
-          setVisible(true);
-        } else {
-          setVisible(false);
-        }
-      }
-      if (e.key === "sale_banner_enabled") {
-        const enabled = e.newValue === "true";
-        setBannerEnabled(enabled);
-
-        if (percent && enabled && !hasClosed) {
-          setVisible(true);
-        } else {
-          setVisible(false);
-        }
+      const wasClosed = sessionStorage.getItem("sale_banner_closed") === "true";
+      if (newPercent && enabled && !wasClosed) {
+        setVisible(true);
+      } else {
+        setVisible(false);
       }
     };
+    window.addEventListener(
+      "saleDataChanged",
+      handleCustomEvent as EventListener,
+    );
 
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, [hasClosed, percent]);
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+      window.removeEventListener(
+        "saleDataChanged",
+        handleCustomEvent as EventListener,
+      );
+    };
+  }, []);
 
   const handleClose = useCallback(() => {
     setVisible(false);
@@ -86,16 +87,7 @@ export default function SaleBannerPopup() {
     sessionStorage.setItem("sale_banner_closed", "true");
   }, []);
 
-  // Check if user already closed banner in this session
-  useEffect(() => {
-    const wasClosed = sessionStorage.getItem("sale_banner_closed");
-    if (wasClosed === "true") {
-      setHasClosed(true);
-      setVisible(false);
-    }
-  }, []);
-
-  // Don't show while loading, or if no sale, or if banner is disabled
+  // Don't render while loading, or if no sale, or banner disabled, or user closed it
   if (loading) return null;
   if (!percent) return null;
   if (!bannerEnabled) return null;
