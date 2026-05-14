@@ -1376,70 +1376,51 @@ function SimpleModeEditForm({
 
     setIsUpdating(true);
 
-    // 1. Update product
-    const { error: productError } = await supabase
-      .from("products")
-      .update({
-        name: name.trim(),
-        description: description,
-        description_images: descriptionImages,
-        category: tab.category,
-        subcategory: tab.sub,
-        brand: brand.trim() || null,
-        condition,
-        is_featured: isFeatured,
-        is_active: isActive,
-        currency_code: currency.code,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", productId);
+    // ✅ FIX: Poora submit try/catch mein wrap — koi bhi error ho setIsUpdating(false) zaroor chalega
+    try {
+      const pricePKR = getPriceInPKR(priceDisplay);
+      const originalPricePKR = originalPriceDisplay
+        ? getPriceInPKR(originalPriceDisplay)
+        : null;
+      const stockVal = getStockValue();
+      const thresholdVal =
+        stockStatus === "low_stock" ? lowStockThreshold : null;
 
-    if (productError) {
-      onError("Failed to update product: " + productError.message);
-      setIsUpdating(false);
-      return;
-    }
-
-    // 2. Update or create variant
-    let variantId = initialVariant?.id;
-    const pricePKR = getPriceInPKR(priceDisplay);
-    const originalPricePKR = originalPriceDisplay
-      ? getPriceInPKR(originalPriceDisplay)
-      : null;
-    const stockVal = getStockValue();
-    const thresholdVal = stockStatus === "low_stock" ? lowStockThreshold : null;
-
-    if (variantId) {
-      const { error: variantError } = await supabase
-        .from("product_variants")
+      // 1. Update product
+      // ✅ FIX: price aur original_price bhi products table mein save karo
+      //    Taake products listing page pe bhi sahi price dikhe
+      const { error: productError } = await supabase
+        .from("products")
         .update({
+          name: name.trim(),
+          description: description,
+          description_images: descriptionImages,
+          category: tab.category,
+          subcategory: tab.sub,
+          brand: brand.trim() || null,
+          condition,
+          is_featured: isFeatured,
+          is_active: isActive,
+          currency_code: currency.code,
           price: pricePKR,
           original_price: originalPricePKR,
-          description_rich: description,
-          description_images: descriptionImages,
-          description: description ? description.substring(0, 500) : null,
-          stock: stockVal,
-          low_stock_threshold: thresholdVal,
-          currency_code: currency.code,
-          base_price_pkr: pricePKR,
-          base_original_price_pkr: originalPricePKR,
-          is_active: true,
+          updated_at: new Date().toISOString(),
         })
-        .eq("id", variantId);
+        .eq("id", productId);
 
-      if (variantError) {
-        onError("Failed to update variant: " + variantError.message);
+      if (productError) {
+        onError("Failed to update product: " + productError.message);
         setIsUpdating(false);
         return;
       }
-    } else {
-      const { data: newVariant, error: variantError } = await supabase
-        .from("product_variants")
-        .insert([
-          {
-            product_id: productId,
-            attribute_type: "standard",
-            attribute_value: "Standard",
+
+      // 2. Update or create variant
+      let variantId = initialVariant?.id;
+
+      if (variantId) {
+        const { error: variantError } = await supabase
+          .from("product_variants")
+          .update({
             price: pricePKR,
             original_price: originalPricePKR,
             description_rich: description,
@@ -1447,81 +1428,120 @@ function SimpleModeEditForm({
             description: description ? description.substring(0, 500) : null,
             stock: stockVal,
             low_stock_threshold: thresholdVal,
-            is_active: true,
             currency_code: currency.code,
             base_price_pkr: pricePKR,
             base_original_price_pkr: originalPricePKR,
-          },
-        ])
-        .select()
-        .single();
+            is_active: true,
+          })
+          .eq("id", variantId);
 
-      if (variantError) {
-        onError("Failed to create variant: " + variantError.message);
-        setIsUpdating(false);
-        return;
+        if (variantError) {
+          onError("Failed to update variant: " + variantError.message);
+          setIsUpdating(false);
+          return;
+        }
+      } else {
+        const { data: newVariant, error: variantError } = await supabase
+          .from("product_variants")
+          .insert([
+            {
+              product_id: productId,
+              attribute_type: "standard",
+              attribute_value: "Standard",
+              price: pricePKR,
+              original_price: originalPricePKR,
+              description_rich: description,
+              description_images: descriptionImages,
+              description: description ? description.substring(0, 500) : null,
+              stock: stockVal,
+              low_stock_threshold: thresholdVal,
+              is_active: true,
+              currency_code: currency.code,
+              base_price_pkr: pricePKR,
+              base_original_price_pkr: originalPricePKR,
+            },
+          ])
+          .select()
+          .single();
+
+        if (variantError) {
+          onError("Failed to create variant: " + variantError.message);
+          setIsUpdating(false);
+          return;
+        }
+        variantId = newVariant.id;
       }
-      variantId = newVariant.id;
-    }
 
-    // 3. Update images
-    await supabase.from("variant_images").delete().eq("variant_id", variantId);
-    if (images.length > 0) {
-      const { error: imgErr } = await supabase.from("variant_images").insert(
-        images.map((url, idx) => ({
-          variant_id: variantId,
-          image_url: url,
-          display_order: idx,
-        })),
-      );
-      if (imgErr) console.error("Image save error:", imgErr);
-    }
-
-    // 4. Update bulk pricing
-    await supabase
-      .from("bulk_pricing_tiers")
-      .delete()
-      .eq("variant_id", variantId);
-    if (bulkTiers.length > 0) {
-      const validTiers = bulkTiers.filter(
-        (t) => t.min_quantity && t.tier_price,
-      );
-      if (validTiers.length > 0) {
-        await supabase.from("bulk_pricing_tiers").insert(
-          validTiers.map((t) => ({
+      // 3. Update images
+      await supabase
+        .from("variant_images")
+        .delete()
+        .eq("variant_id", variantId);
+      if (images.length > 0) {
+        const { error: imgErr } = await supabase.from("variant_images").insert(
+          images.map((url, idx) => ({
             variant_id: variantId,
-            min_quantity: t.min_quantity,
-            max_quantity: t.max_quantity,
-            tier_price: convertPriceToPKR(t.tier_price, currency),
-            discount_percentage: t.discount_percentage,
-            discount_price: t.discount_price
-              ? convertPriceToPKR(t.discount_price, currency)
-              : null,
-            currency_code: currency.code,
-            base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
-          })),
-        );
-      }
-    }
-
-    // 5. Update FAQs
-    await supabase.from("product_faqs").delete().eq("product_id", productId);
-    if (faqs.length > 0) {
-      const validFaqs = faqs.filter((f) => f.question.trim());
-      if (validFaqs.length > 0) {
-        await supabase.from("product_faqs").insert(
-          validFaqs.map((f, idx) => ({
-            product_id: productId,
-            question: f.question.trim(),
-            answer: f.answer.trim() || null,
+            image_url: url,
             display_order: idx,
           })),
         );
+        if (imgErr) console.error("Image save error:", imgErr);
       }
-    }
 
-    setIsUpdating(false);
-    onSuccess();
+      // 4. Update bulk pricing
+      await supabase
+        .from("bulk_pricing_tiers")
+        .delete()
+        .eq("variant_id", variantId);
+      if (bulkTiers.length > 0) {
+        const validTiers = bulkTiers.filter(
+          (t) => t.min_quantity && t.tier_price,
+        );
+        if (validTiers.length > 0) {
+          await supabase.from("bulk_pricing_tiers").insert(
+            validTiers.map((t) => ({
+              variant_id: variantId,
+              min_quantity: t.min_quantity,
+              max_quantity: t.max_quantity,
+              tier_price: convertPriceToPKR(t.tier_price, currency),
+              discount_percentage: t.discount_percentage,
+              discount_price: t.discount_price
+                ? convertPriceToPKR(t.discount_price, currency)
+                : null,
+              currency_code: currency.code,
+              base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
+            })),
+          );
+        }
+      }
+
+      // 5. Update FAQs
+      await supabase.from("product_faqs").delete().eq("product_id", productId);
+      if (faqs.length > 0) {
+        const validFaqs = faqs.filter((f) => f.question.trim());
+        if (validFaqs.length > 0) {
+          await supabase.from("product_faqs").insert(
+            validFaqs.map((f, idx) => ({
+              product_id: productId,
+              question: f.question.trim(),
+              answer: f.answer.trim() || null,
+              display_order: idx,
+            })),
+          );
+        }
+      }
+
+      setIsUpdating(false);
+      onSuccess();
+    } catch (err) {
+      // ✅ FIX: Koi bhi unexpected error — loading hatao, user ko batao
+      console.error("SimpleMode handleSubmit error:", err);
+      onError(
+        "An unexpected error occurred: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -2051,141 +2071,166 @@ function DetailedModeEditForm({
 
     setIsUpdating(true);
 
-    // 1. Update product
-    const { error: productError } = await supabase
-      .from("products")
-      .update({
-        name: name.trim(),
-        description: description,
-        description_images: descriptionImages,
-        main_images: mainImages,
-        category: tab.category,
-        subcategory: tab.sub,
-        brand: brand.trim() || null,
-        condition,
-        is_featured: isFeatured,
-        is_active: isActive,
-        currency_code: currency.code,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", productId);
+    // ✅ FIX: Poora submit try/catch mein wrap — button kabhi stuck nahi hoga
+    try {
+      // ✅ FIX: products table mein bhi price/original_price save karo
+      //    Lowest variant price ko base price manao
+      const allPrices = allVariants.map((v) => v.price).filter((p) => p > 0);
+      const allOriginalPrices = allVariants
+        .map((v) => v.originalPrice)
+        .filter((p) => p && p > 0);
+      const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
+      const minOriginalPrice =
+        allOriginalPrices.length > 0
+          ? Math.min(...(allOriginalPrices as number[]))
+          : null;
 
-    if (productError) {
-      onError("Failed to update product: " + productError.message);
-      setIsUpdating(false);
-      return;
-    }
+      // 1. Update product
+      const { error: productError } = await supabase
+        .from("products")
+        .update({
+          name: name.trim(),
+          description: description,
+          description_images: descriptionImages,
+          main_images: mainImages,
+          category: tab.category,
+          subcategory: tab.sub,
+          brand: brand.trim() || null,
+          condition,
+          is_featured: isFeatured,
+          is_active: isActive,
+          currency_code: currency.code,
+          price: minPrice,
+          original_price: minOriginalPrice,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", productId);
 
-    // 2. Delete existing variants and their related data
-    const { data: existingVariants } = await supabase
-      .from("product_variants")
-      .select("id")
-      .eq("product_id", productId);
-
-    if (existingVariants && existingVariants.length > 0) {
-      const variantIds = existingVariants.map((v) => v.id);
-      await supabase
-        .from("variant_images")
-        .delete()
-        .in("variant_id", variantIds);
-      await supabase
-        .from("bulk_pricing_tiers")
-        .delete()
-        .in("variant_id", variantIds);
-      await supabase
-        .from("product_variants")
-        .delete()
-        .eq("product_id", productId);
-    }
-
-    // 3. Insert new variants
-    // NOTE: variant.price and variant.bulkPricingTiers.tier_price are ALREADY in PKR
-    // because VariantFormItem's useEffect converts them via getPriceInPKR/convertPriceToPKR
-    // before calling onUpdate. Do NOT convert again to avoid double conversion.
-    for (const variant of allVariants) {
-      const pricePKR = variant.price; // already PKR from VariantFormItem onUpdate
-      const originalPricePKR = variant.originalPrice ?? null; // already PKR
-
-      const { data: variantData, error: variantError } = await supabase
-        .from("product_variants")
-        .insert([
-          {
-            product_id: productId,
-            attribute_type: variant.attributeType,
-            attribute_value: variant.attributeValue,
-            price: pricePKR,
-            original_price: originalPricePKR,
-            description_rich: variant.description || "",
-            description_images: variant.descriptionImages || [],
-            description: variant.description
-              ? variant.description.substring(0, 500)
-              : null,
-            stock: variant.stock,
-            low_stock_threshold: variant.lowStockThreshold,
-            is_active: true,
-            currency_code: currency.code,
-            base_price_pkr: pricePKR,
-            base_original_price_pkr: originalPricePKR,
-          },
-        ])
-        .select()
-        .single();
-
-      if (variantError) {
-        onError("Failed to save variant: " + variantError.message);
+      if (productError) {
+        onError("Failed to update product: " + productError.message);
         setIsUpdating(false);
         return;
       }
 
-      if (variant.images?.length > 0) {
-        await supabase.from("variant_images").insert(
-          variant.images.map((url: string, idx: number) => ({
-            variant_id: variantData.id,
-            image_url: url,
-            display_order: idx,
-          })),
-        );
+      // 2. Delete existing variants and their related data
+      const { data: existingVariants } = await supabase
+        .from("product_variants")
+        .select("id")
+        .eq("product_id", productId);
+
+      if (existingVariants && existingVariants.length > 0) {
+        const variantIds = existingVariants.map((v) => v.id);
+        await supabase
+          .from("variant_images")
+          .delete()
+          .in("variant_id", variantIds);
+        await supabase
+          .from("bulk_pricing_tiers")
+          .delete()
+          .in("variant_id", variantIds);
+        await supabase
+          .from("product_variants")
+          .delete()
+          .eq("product_id", productId);
       }
 
-      if (variant.bulkPricingTiers?.length > 0) {
-        const validTiers = variant.bulkPricingTiers.filter(
-          (t: BulkPricingTier) => t.min_quantity && t.tier_price,
-        );
-        if (validTiers.length > 0) {
-          await supabase.from("bulk_pricing_tiers").insert(
-            validTiers.map((t: BulkPricingTier) => ({
-              variant_id: variantData.id,
-              min_quantity: t.min_quantity,
-              max_quantity: t.max_quantity,
-              tier_price: t.tier_price, // already PKR from VariantFormItem onUpdate
-              discount_percentage: t.discount_percentage,
-              discount_price: t.discount_price ?? null, // already PKR
+      // 3. Insert new variants
+      // NOTE: variant.price and variant.bulkPricingTiers.tier_price are ALREADY in PKR
+      // because VariantFormItem's useEffect converts them via getPriceInPKR/convertPriceToPKR
+      // before calling onUpdate. Do NOT convert again to avoid double conversion.
+      for (const variant of allVariants) {
+        const pricePKR = variant.price; // already PKR from VariantFormItem onUpdate
+        const originalPricePKR = variant.originalPrice ?? null; // already PKR
+
+        const { data: variantData, error: variantError } = await supabase
+          .from("product_variants")
+          .insert([
+            {
+              product_id: productId,
+              attribute_type: variant.attributeType,
+              attribute_value: variant.attributeValue,
+              price: pricePKR,
+              original_price: originalPricePKR,
+              description_rich: variant.description || "",
+              description_images: variant.descriptionImages || [],
+              description: variant.description
+                ? variant.description.substring(0, 500)
+                : null,
+              stock: variant.stock,
+              low_stock_threshold: variant.lowStockThreshold,
+              is_active: true,
               currency_code: currency.code,
-              base_tier_price_pkr: t.tier_price, // already PKR
+              base_price_pkr: pricePKR,
+              base_original_price_pkr: originalPricePKR,
+            },
+          ])
+          .select()
+          .single();
+
+        if (variantError) {
+          onError("Failed to save variant: " + variantError.message);
+          setIsUpdating(false);
+          return;
+        }
+
+        if (variant.images?.length > 0) {
+          await supabase.from("variant_images").insert(
+            variant.images.map((url: string, idx: number) => ({
+              variant_id: variantData.id,
+              image_url: url,
+              display_order: idx,
+            })),
+          );
+        }
+
+        if (variant.bulkPricingTiers?.length > 0) {
+          const validTiers = variant.bulkPricingTiers.filter(
+            (t: BulkPricingTier) => t.min_quantity && t.tier_price,
+          );
+          if (validTiers.length > 0) {
+            await supabase.from("bulk_pricing_tiers").insert(
+              validTiers.map((t: BulkPricingTier) => ({
+                variant_id: variantData.id,
+                min_quantity: t.min_quantity,
+                max_quantity: t.max_quantity,
+                tier_price: t.tier_price, // already PKR from VariantFormItem onUpdate
+                discount_percentage: t.discount_percentage,
+                discount_price: t.discount_price ?? null, // already PKR
+                currency_code: currency.code,
+                base_tier_price_pkr: t.tier_price, // already PKR
+              })),
+            );
+          }
+        }
+      }
+
+      // 4. Update FAQs
+      await supabase.from("product_faqs").delete().eq("product_id", productId);
+      if (faqs.length > 0) {
+        const validFaqs = faqs.filter((f) => f.question.trim());
+        if (validFaqs.length > 0) {
+          await supabase.from("product_faqs").insert(
+            validFaqs.map((f, idx) => ({
+              product_id: productId,
+              question: f.question.trim(),
+              answer: f.answer.trim() || null,
+              display_order: idx,
             })),
           );
         }
       }
-    }
 
-    // 4. Update FAQs
-    await supabase.from("product_faqs").delete().eq("product_id", productId);
-    if (faqs.length > 0) {
-      const validFaqs = faqs.filter((f) => f.question.trim());
-      if (validFaqs.length > 0) {
-        await supabase.from("product_faqs").insert(
-          validFaqs.map((f, idx) => ({
-            product_id: productId,
-            question: f.question.trim(),
-            answer: f.answer.trim() || null,
-            display_order: idx,
-          })),
-        );
-      }
+      setIsUpdating(false);
+      onSuccess();
+    } catch (err) {
+      // ✅ FIX: Koi bhi unexpected error — loading hatao, user ko batao
+      console.error("DetailedMode handleSubmit error:", err);
+      onError(
+        "An unexpected error occurred: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
+      setIsUpdating(false);
     }
-
-    setIsUpdating(false);
-    onSuccess();
   };
 
   return (

@@ -9,7 +9,7 @@ import "./PaymentSection.css";
 import { useCurrency } from "@/app/context/CurrencyContext";
 
 const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
 );
 
 interface FormData {
@@ -36,7 +36,7 @@ interface PaymentSectionProps {
     cvv: string;
   };
   setFormField?: (
-    key: keyof FormData
+    key: keyof FormData,
   ) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   getFieldError?: (field: keyof FormData) => string | undefined;
   handleBlur?: (field: keyof FormData) => void;
@@ -79,7 +79,6 @@ const getStripeCurrency = (currencyCode: string): string => {
 };
 
 // ✅ Single source of truth: PKR → foreign currency rates
-// 1 PKR = X foreign currency units
 const PKR_RATES: Record<string, number> = {
   USD: 0.0036,
   GBP: 0.00284,
@@ -99,7 +98,6 @@ const PKR_RATES: Record<string, number> = {
 
 const ZERO_DECIMAL: Set<string> = new Set(["JPY", "KRW", "IDR", "TWD"]);
 
-// Convert raw PKR amount to target currency amount
 function convertPKR(pkrAmount: number, targetCurrency: string): number {
   const rate = PKR_RATES[targetCurrency] ?? PKR_RATES["USD"];
   const raw = pkrAmount * rate;
@@ -130,18 +128,15 @@ export default function PaymentSection({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isLoadingStripe, setIsLoadingStripe] = useState(false);
 
-  // ✅ Track if success was already called (prevent double-fire)
+  // ✅ Prevent double-fire
   const successCalledRef = useRef(false);
 
-  // ✅ Currency context — only for display/formatting, NOT for conversion math
   const { formatPrice, currency: detectedCurrency } = useCurrency();
 
   const userCurrencyCode = detectedCurrency?.code || "USD";
-  // ✅ Determine Stripe currency based on user's country
   const stripeCurrencyCode =
     userCurrencyCode === "PKR" ? "USD" : userCurrencyCode;
   const stripeCurrency = getStripeCurrency(userCurrencyCode);
-  // ✅ Convert PKR → target currency using our own rate table (single conversion, no double)
   const convertedTotal = convertPKR(totalAmount, stripeCurrencyCode);
 
   const handleMethodChange = (method: "card" | "paypal") => {
@@ -206,11 +201,14 @@ export default function PaymentSection({
     onPaymentError,
   ]);
 
-  // ✅ FIXED: handlePaymentSuccess — calls parent immediately, no blocking state
+  // ✅ KEY FIX: handlePaymentSuccess — FORAN parent call karo, koi await nahi
+  // Notification API ko WAIT mat karo — woh background mein jayegi
   const handlePaymentSuccess = () => {
     if (successCalledRef.current) return;
     successCalledRef.current = true;
-    // Call parent's onPaymentSuccess directly — parent handles toast + success page
+
+    // ✅ INSTANT — parent ka onPaymentSuccess foran call karo
+    // Parent mein router.push('/order-success') hoga — woh foran chalega
     onPaymentSuccess();
   };
 

@@ -1459,10 +1459,13 @@ function SimpleModeForm({
         condition,
         is_featured: isFeatured,
         is_active: isActive,
+        // ✅ FIX: price aur original_price products table mein save karo
         price: pricePKR,
-        stock: getStockValue(),
-        images,
         original_price: originalPricePKR,
+        // ✅ FIX: images field products table mein nahi hota — hataya
+        // images variant_images table mein alag se save hongi
+        currency_code: currentCurrency.code,
+        stock: getStockValue(),
       });
       console.log("✅ Product inserted:", productData.id);
       console.log("📦 Inserting variant...");
@@ -1483,6 +1486,10 @@ function SimpleModeForm({
           low_stock_threshold:
             stockStatus === "low_stock" ? lowStockThreshold : null,
           is_active: true,
+          // ✅ FIX: currency fields add karo
+          currency_code: currentCurrency.code,
+          base_price_pkr: pricePKR,
+          base_original_price_pkr: originalPricePKR,
         },
       );
       console.log("✅ Variant inserted:", variantData.id);
@@ -2023,6 +2030,32 @@ function DetailedModeForm({
       const currentCurrency = currency;
       const currentRate = currency.rate;
 
+      // ✅ FIX: Pehle sab variants ki prices calculate karo
+      // Products table mein minimum price save karni hai
+      const allVariantPricesRaw = allVariants
+        .map((v) => parseFloat(v.priceDisplay))
+        .filter((p) => !isNaN(p) && p > 0);
+      const allOriginalPricesRaw = allVariants
+        .map((v) => parseFloat(v.originalPriceDisplay))
+        .filter((p) => !isNaN(p) && p > 0);
+
+      const minPriceDisplay =
+        allVariantPricesRaw.length > 0 ? Math.min(...allVariantPricesRaw) : 0;
+      const minOriginalPriceDisplay =
+        allOriginalPricesRaw.length > 0 ? Math.min(...allOriginalPricesRaw) : 0;
+
+      // PKR mein convert karo
+      let minPricePKR = minPriceDisplay;
+      let minOriginalPricePKR: number | null =
+        minOriginalPriceDisplay > 0 ? minOriginalPriceDisplay : null;
+      if (currentCurrency.code !== "PKR" && currentRate > 0) {
+        minPricePKR = Number((minPriceDisplay / currentRate).toFixed(2));
+        if (minOriginalPricePKR)
+          minOriginalPricePKR = Number(
+            (minOriginalPriceDisplay / currentRate).toFixed(2),
+          );
+      }
+
       // ✅ Product mein mainImages save ho — yeh poori gallery hai
       console.log("📦 Inserting product...");
       const productData = await dbInsert(supabaseUrl, supabaseKey, "products", {
@@ -2035,6 +2068,10 @@ function DetailedModeForm({
         condition,
         is_featured: isFeatured,
         is_active: isActive,
+        // ✅ FIX: price aur original_price products table mein save karo
+        price: minPricePKR,
+        original_price: minOriginalPricePKR,
+        currency_code: currentCurrency.code,
         // ✅ Main images (variant images + manually added images)
         main_images: mainImages,
       });
@@ -2084,6 +2121,10 @@ function DetailedModeForm({
               stock: variant.stock || 999999,
               low_stock_threshold: variant.lowStockThreshold || null,
               is_active: true,
+              // ✅ FIX: currency fields add karo
+              currency_code: currentCurrency.code,
+              base_price_pkr: pricePKR,
+              base_original_price_pkr: originalPricePKR,
             },
           );
           console.log(`✅ Variant inserted: ${variantData.id}`);

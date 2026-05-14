@@ -1,11 +1,10 @@
 // app/checkout/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cartStore";
-import { supabase } from "@/lib/supabase";
 import "./checkout.css";
 import { useCurrency } from "../context/CurrencyContext";
 
@@ -122,7 +121,6 @@ const currencyToCountry: Record<string, string> = {
   INR: "IN",
 };
 
-// ✅ FIXED: Complete phone info with min/max digits per country
 const currencyToPhone: Record<
   string,
   {
@@ -220,7 +218,6 @@ function generateOrderNumber(): string {
 // MAIN CHECKOUT COMPONENT
 // ============================================
 export default function Checkout() {
-  // ✅ FIX: useRouter for navigation
   const router = useRouter();
 
   const {
@@ -245,7 +242,6 @@ export default function Checkout() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const [showToast, setShowToast] = useState(false);
-  // 2705 CRITICAL: Redirect ho raha hai toh checkout page show hi mat karo
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   const [checkoutStep, setCheckoutStep] = useState<"shipping" | "payment">(
@@ -253,7 +249,9 @@ export default function Checkout() {
   );
   const [paymentMethod, setPaymentMethod] = useState<"card" | "paypal">("card");
 
-  // Get phone info from detected currency
+  // ✅ KEY FIX: Double-fire guard ref
+  const successCalledRef = useRef(false);
+
   const phoneInfo = currencyToPhone[currency.code] || currencyToPhone["USD"];
   const detectedCountryCode = currencyToCountry[currency.code] || "US";
 
@@ -332,7 +330,6 @@ export default function Checkout() {
     return touched[field] ? errors[field as keyof FormErrors] : undefined;
   };
 
-  // ✅ FIXED: Phone validation uses country-specific digit rules
   const validateField = (
     field: keyof FormData,
     value: string,
@@ -430,37 +427,30 @@ export default function Checkout() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // ✅ FIXED: handlePaymentSuccess — INSTANT redirect, checkout page bypass
+  // ============================================
+  // ✅ MAIN FIX — handlePaymentSuccess
+  // ============================================
+  // PEHLE KI PROBLEM:
+  //   save-order ka await + notification ka await → 3-10 sec delay → loading stuck
+  //
+  // AB KA FIX:
+  //   1. Double-fire guard (ref)
+  //   2. sessionStorage mein data save
+  //   3. Toast show
+  //   4. FORAN window.location.replace("/order-success") — koi await nahi
+  //   5. save-order + notification background mein (fire-and-forget, keepalive)
+  // ============================================
   const handlePaymentSuccess = useCallback(() => {
+    // ✅ Double-fire guard — kabhi double na chale
+    if (successCalledRef.current) return;
+    successCalledRef.current = true;
+
+    // ✅ STEP 1: Snapshot lo (cart clear hone se pehle)
     const snapItems = [...items];
     const snapSubtotal = getSubtotal();
     const snapCount = getCartCount();
 
-    // ✅ STEP 1: Sabse pehle sessionStorage mein sab kuch save karo
-    // Yeh ZAROOR pehle hona chahiye — redirect se pehle
-    sessionStorage.setItem("payment_just_completed", "true");
-    sessionStorage.setItem("payment_order_number", orderNumber);
-    sessionStorage.setItem(
-      "order_success_data",
-      JSON.stringify({
-        orderNumber,
-        form,
-        paymentMethod,
-        snapItems,
-        snapSubtotal,
-        snapCount,
-        phoneInfoName: phoneInfo.name,
-        fullPhone,
-        shippingAddress,
-        currencyCode: currency.code,
-      }),
-    );
-
-    // ✅ STEP 2: isRedirecting = true — empty cart check bypass ho jaye
-    setIsRedirecting(true);
-    setShowToast(true);
-
-    // ✅ STEP 3: Background tasks fire-and-forget (redirect ko block nahi karein)
+    // ✅ STEP 2: Order items prepare karo
     const orderItems = validItems.map((item) => {
       const product = item.product ?? {
         name: item.variant_name || "Product",
@@ -474,17 +464,80 @@ export default function Checkout() {
         (product as any).images?.[0] ||
         null;
       return {
+        product_id: item.product_id,
+        product_name: (product as any).name ?? item.variant_name ?? "Product",
+        variant_id: item.variant_id ?? null,
+        variant_name: item.variant_name ?? null,
+        variant_image: item.variant_image ?? null,
+        quantity: item.quantity,
+        price: pricePerPiece * ppu * item.quantity,
+        pieces_per_unit: ppu,
         name: (product as any).name,
         variant: item.variant_name || null,
-        quantity: item.quantity,
         piecesPerUnit: ppu,
-        price: pricePerPiece * ppu * item.quantity,
         pricePKR: pricePerPiece * ppu * item.quantity,
         image: imageUrl,
       };
     });
 
-    // Fire and forget — await nahi karo
+    // ✅ STEP 3: sessionStorage — order-success page ke liye data
+    try {
+      sessionStorage.setItem("payment_just_completed", "true");
+      sessionStorage.setItem("payment_order_number", orderNumber);
+      sessionStorage.setItem(
+        "order_success_data",
+        JSON.stringify({
+          orderNumber,
+          form,
+          paymentMethod,
+          snapItems,
+          snapSubtotal,
+          snapCount,
+          phoneInfoName: phoneInfo.name,
+          fullPhone,
+          shippingAddress,
+          currencyCode: currency.code,
+        }),
+      );
+    } catch {}
+
+    // ✅ STEP 4: UI update — toast dikhao
+    setShowToast(true);
+    setIsRedirecting(true);
+
+    // ✅ STEP 5: FORAN redirect — koi await nahi, koi delay nahi
+    // Yahi asli fix hai — pehle save-order + notification ka await tha
+    window.location.replace("/order-success");
+
+    // ✅ STEP 6: save-order — background fire-and-forget (keepalive = page change ke baad bhi complete hoga)
+    fetch("/api/save-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        order_number: orderNumber,
+        first_name: form.firstName,
+        last_name: form.lastName,
+        email: form.email,
+        phone: fullPhone,
+        address: form.address,
+        apartment: form.apartment || null,
+        city: form.city,
+        zip: form.zip,
+        country: phoneInfo.name,
+        subtotal,
+        shipping_cost: shipping,
+        total_amount: total,
+        payment_method: paymentMethod,
+        status: "pending",
+        currency: currency.code,
+        items: orderItems,
+      }),
+      keepalive: true,
+    }).catch((err) => console.error("save-order background error:", err));
+
+    // ✅ STEP 7: WhatsApp + Email — background fire-and-forget (keepalive)
+    // NOTE: subtotal, shipping, total are always in PKR (DB base currency)
+    // route.ts will convert them to customer's currency before sending
     fetch("/api/send-order-notification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -493,60 +546,26 @@ export default function Checkout() {
         email: form.email,
         phone: fullPhone,
         name: customerName,
+        // orderItems already has pricePKR field set correctly
         items: orderItems,
+        // ✅ These are always PKR — route.ts converts based on currency field below
         subtotal,
         shipping,
         total,
         shippingAddress,
         paymentMethod:
           paymentMethod === "card" ? "Credit/Debit Card (Stripe)" : "PayPal",
+        // ✅ This tells route.ts which currency to convert TO
         currency: currency.code,
       }),
-    }).catch(() => {});
+      keepalive: true,
+    }).catch((err) => console.error("notification background error:", err));
 
-    supabase
-      .from("orders")
-      .insert({
-        order_number: orderNumber,
-        user_id: null,
-        first_name: form.firstName.trim(),
-        last_name: form.lastName.trim(),
-        email: form.email.trim().toLowerCase(),
-        phone: fullPhone,
-        address: form.address.trim(),
-        apartment: form.apartment?.trim() || null,
-        city: form.city.trim(),
-        zip: form.zip.trim(),
-        country: phoneInfo.name,
-        subtotal: snapSubtotal,
-        shipping_cost: shipping,
-        total_amount: snapSubtotal + shipping,
-        payment_method: paymentMethod,
-        status: "pending",
-        items: snapItems.map((item) => ({
-          product_id: item.product_id,
-          product_name: item.product?.name ?? item.variant_name ?? "Product",
-          variant_id: item.variant_id ?? null,
-          variant_name: item.variant_name ?? null,
-          variant_image: item.variant_image ?? null,
-          quantity: item.quantity,
-          price: item.variant_price ?? (item.product as any)?.price ?? 0,
-          pieces_per_unit: item.pieces_per_unit ?? 1,
-        })),
-      })
-      .then(({ error }) => {
-        if (error) {
-          console.error("⚠️ DB save failed:", error.code, error.message);
-        }
-      });
-
-    // ✅ STEP 4: Cart clear (background)
+    // ✅ STEP 8: Cart clear — background
     clearCart().catch(() => {});
-    localStorage.removeItem(STORAGE_KEY);
-
-    // ✅ STEP 5: INSTANT redirect — koi timeout nahi, seedha order-success
-    // isRedirecting = true hai toh checkout ka empty-cart check nahi chalega
-    window.location.replace("/order-success");
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {}
   }, [
     items,
     getSubtotal,
@@ -573,13 +592,31 @@ export default function Checkout() {
   // ============================================
   // LOADING STATE
   // ============================================
-  // ✅ Agar redirect ho raha hai toh sirf spinner dikhao — kuch aur nahi
   if (isRedirecting) {
     return (
       <div className="co-root">
         <div className="co-grain" aria-hidden="true" />
-        <div className="co-wrap">
-          <div className="co-spinner" style={{ margin: "4rem auto" }} />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "60vh",
+            gap: "1.5rem",
+          }}
+        >
+          <div className="co-spinner" style={{ margin: "0 auto" }} />
+          <p
+            style={{
+              color: "#daa520",
+              fontWeight: 600,
+              fontSize: "1.1rem",
+              letterSpacing: "0.02em",
+            }}
+          >
+            ✅ Payment Successful! Redirecting...
+          </p>
         </div>
       </div>
     );
@@ -602,7 +639,7 @@ export default function Checkout() {
   }
 
   // ============================================
-  // EMPTY CART STATE — sirf tab dikhao jab redirect nahi ho raha
+  // EMPTY CART STATE
   // ============================================
   if (!loading && items.length === 0 && !isRedirecting) {
     return (
