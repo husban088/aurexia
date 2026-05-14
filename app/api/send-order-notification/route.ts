@@ -20,7 +20,6 @@ const PKR_EXCHANGE_RATES: Record<string, number> = {
   AED: 0.013168, // 1 PKR = 0.013168 AED  (1 AED ≈ 76 PKR)
   SAR: 0.013443, // 1 PKR = 0.013443 SAR  (1 SAR ≈ 74 PKR)
   INR: 0.2987, // 1 PKR = 0.2987 INR    (1 INR ≈ 3.35 PKR)
-  CAD: 0.00488,
 };
 
 // Currency symbol map
