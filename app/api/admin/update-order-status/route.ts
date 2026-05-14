@@ -1,598 +1,353 @@
-// ✅ FILE PATH: app/api/admin/update-order-status/route.ts
-// ✅ FULLY FIXED — Direct Inbox Delivery (Yahoo, Hotmail, Gmail, info)
-// ✅ Anti-spam headers added (List-Unsubscribe, Message-ID, X-Entity-Ref-ID)
-// ✅ Brevo API — PRIMARY
-// ✅ Gmail SMTP — FALLBACK
-// ✅ WasenderAPI — WhatsApp notifications
-// ✅ Shipped, Delivered, Cancelled — all working
+// app/api/admin/update-order-status/route.ts
+// ✅ COMPLETE — Shipped / Delivered / Cancelled
+// WhatsApp (WaSender) + Email (Resend) dono jayenge
+// Customer ko bhi, Owner ke saare emails ko bhi
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
 
-// ─── Phone Formatter ──────────────────────────────────────────────────────────
-function formatPhone(phone: string): string {
-  if (!phone) return "";
-  let clean = phone.trim().replace(/[\s\-\(\)\.]/g, "");
-  if (clean.startsWith("+")) return "+" + clean.slice(1).replace(/\D/g, "");
-  if (clean.startsWith("0") && clean.length === 11 && clean[1] === "3")
-    return "+92" + clean.slice(1).replace(/\D/g, "");
-  if (clean.startsWith("07") && clean.length === 11)
-    return "+44" + clean.slice(1).replace(/\D/g, "");
-  if (clean.startsWith("04") && clean.length === 10)
-    return "+61" + clean.slice(1).replace(/\D/g, "");
-  return "+" + clean.replace(/\D/g, "");
-}
-
-// ─── Supabase ─────────────────────────────────────────────────────────────────
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+// ─── Supabase Client ──────────────────────────────────────────────────────────
+function getClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { persistSession: false } },
-  );
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  return createClient(url, key, { auth: { persistSession: false } });
 }
 
-// ─── Unique Message ID generator ─────────────────────────────────────────────
-function generateMessageId(orderNumber: string): string {
-  const ts = Date.now();
-  const rand = Math.random().toString(36).slice(2, 8);
-  return `<order-${orderNumber}-${ts}-${rand}@tech4ru.com>`;
-}
-
-// ─── WhatsApp via WasenderAPI ─────────────────────────────────────────────────
-async function sendWA(to: string, message: string): Promise<boolean> {
-  const apiKey = process.env.WASENDER_API_KEY;
+// ─── Resend Email Helper ──────────────────────────────────────────────────────
+async function sendResendEmail(
+  to: string | string[],
+  subject: string,
+  html: string,
+): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    console.warn("⚠️ WASENDER_API_KEY missing");
+    console.warn("⚠️ RESEND_API_KEY missing");
     return false;
   }
-  const toFormatted = formatPhone(to);
-  if (!toFormatted || toFormatted.length < 8) {
-    console.warn("⚠️ Invalid phone:", to, "→", toFormatted);
-    return false;
-  }
-  console.log(`📱 WhatsApp → ${toFormatted}`);
+
   try {
-    const res = await fetch("https://www.wasenderapi.com/api/send-message", {
+    const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ to: toFormatted, text: message }),
-    });
-    const r = await res.json();
-    if (res.ok && r.success) {
-      console.log(`✅ WhatsApp sent → ${toFormatted}`);
-      return true;
-    }
-    console.error(`❌ WhatsApp error:`, JSON.stringify(r));
-    return false;
-  } catch (e: any) {
-    console.error(`❌ WhatsApp exception:`, e.message);
-    return false;
-  }
-}
-
-// ─── Email via Brevo API (PRIMARY) ────────────────────────────────────────────
-// ✅ Anti-spam headers included: List-Unsubscribe, Message-ID, Precedence
-// ✅ These are REQUIRED for Yahoo, Hotmail, info emails to go to inbox
-async function sendEmailViaBrevo(
-  to: string,
-  subject: string,
-  html: string,
-  text: string,
-  orderNumber: string,
-): Promise<{ sent: boolean; error?: string }> {
-  const apiKey = process.env.BREVO_API_KEY;
-  if (!apiKey) return { sent: false, error: "BREVO_API_KEY not set" };
-
-  const fromEmail = process.env.BREVO_FROM_EMAIL || "orders@tech4ru.com";
-  const fromName = process.env.BREVO_FROM_NAME || "Tech4U";
-  const messageId = generateMessageId(orderNumber);
-  const unsubEmail = `mailto:orders@tech4ru.com?subject=unsubscribe-${orderNumber}`;
-
-  console.log(`📧 [Brevo] Sending → ${to}`);
-
-  try {
-    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "api-key": apiKey,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
       body: JSON.stringify({
-        sender: { name: fromName, email: fromEmail },
-        to: [{ email: to }],
-        subject: subject,
-        htmlContent: html,
-        textContent: text,
-        replyTo: { email: fromEmail, name: fromName },
-
-        // ✅ CRITICAL: These headers prevent spam classification
-        headers: {
-          // Unique message ID — prevents duplicate detection
-          "Message-ID": messageId,
-
-          // Tells mail servers this is transactional (NOT bulk/marketing)
-          // This is the #1 fix for Yahoo & Hotmail inbox delivery
-          "X-Mailer": "Tech4U-OrderSystem/1.0",
-          Precedence: "transactional",
-
-          // List-Unsubscribe — REQUIRED by Yahoo/Microsoft for inbox delivery
-          // Without this, Yahoo/Hotmail treats email as spam
-          "List-Unsubscribe": `<${unsubEmail}>`,
-          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-
-          // Unique entity ID — prevents Hotmail dedup filter
-          "X-Entity-Ref-ID": messageId,
-
-          // Category tag — tells Brevo this is transactional
-          "X-SES-MESSAGE-TAGS": "type=transactional",
-        },
-
-        // ✅ Brevo category — MUST be "transactionalEmail" not marketing
-        // This uses your verified sender domain's DKIM automatically
-        tags: ["order-notification", "transactional"],
+        from: "Tech4U Orders <orders@tech4ru.com>",
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        html,
       }),
     });
 
-    const data = await res.json();
-
-    if (res.ok && data.messageId) {
-      console.log(`✅ [Brevo] Sent! MessageID: ${data.messageId} → ${to}`);
-      return { sent: true };
+    const result = await response.json();
+    if (response.ok && result.id) {
+      console.log(`✅ Email sent! ID: ${result.id}`);
+      return true;
+    } else {
+      console.error("❌ Resend error:", JSON.stringify(result));
+      return false;
     }
-
-    const errMsg = data?.message || JSON.stringify(data);
-    console.error(`❌ [Brevo] Failed: ${errMsg}`);
-    return { sent: false, error: `Brevo: ${errMsg}` };
-  } catch (e: any) {
-    console.error(`❌ [Brevo] Exception:`, e.message);
-    return { sent: false, error: e.message };
+  } catch (err) {
+    console.error("❌ Resend fetch error:", err);
+    return false;
   }
 }
 
-// ─── Email via Gmail SMTP (FALLBACK) ─────────────────────────────────────────
-async function sendEmailViaSmtp(
-  to: string,
-  subject: string,
-  html: string,
-  text: string,
-): Promise<{ sent: boolean; error?: string }> {
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  if (!smtpUser || !smtpPass)
-    return { sent: false, error: "SMTP_USER or SMTP_PASS missing" };
+// ─── EMAIL TEMPLATES ──────────────────────────────────────────────────────────
 
-  console.log(`📧 [SMTP Fallback] Sending → ${to}`);
-  try {
-    const nodemailer = await import("nodemailer");
-    const transporter = nodemailer.default.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: { user: smtpUser, pass: smtpPass },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 30000,
-      greetingTimeout: 15000,
-      socketTimeout: 35000,
-    } as any);
-
-    try {
-      await transporter.verify();
-    } catch (ve: any) {
-      return { sent: false, error: `SMTP verify failed: ${ve.message}` };
-    }
-
-    const fromEmail = process.env.SMTP_FROM_EMAIL || smtpUser;
-    const fromName = process.env.SMTP_FROM_NAME || "Tech4U";
-
-    const info = await transporter.sendMail({
-      from: `"${fromName}" <${fromEmail}>`,
-      to,
-      replyTo: fromEmail,
-      subject,
-      html,
-      text,
-    });
-
-    console.log(`✅ [SMTP] Sent → ${to} | ID: ${info.messageId}`);
-    return { sent: true };
-  } catch (e: any) {
-    console.error(`❌ [SMTP] Failed (${to}): ${e.message}`);
-    return { sent: false, error: e.message };
-  }
-}
-
-// ─── Smart Email Sender ───────────────────────────────────────────────────────
-async function sendEmail(
-  to: string,
-  subject: string,
-  html: string,
-  text: string,
+// ✅ SHIPPED EMAIL — Customer ko
+function shippedEmailHTML(
+  customerName: string,
   orderNumber: string,
-): Promise<{ sent: boolean; error?: string }> {
-  if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim())) {
-    return { sent: false, error: `Invalid email: "${to}"` };
-  }
-  const toClean = to.trim().toLowerCase();
-
-  // Brevo primary (with all anti-spam headers)
-  const brevoResult = await sendEmailViaBrevo(
-    toClean,
-    subject,
-    html,
-    text,
-    orderNumber,
-  );
-  if (brevoResult.sent) return brevoResult;
-
-  // Gmail SMTP fallback
-  console.warn("⚠️ Brevo failed, trying Gmail SMTP fallback...");
-  return sendEmailViaSmtp(toClean, subject, html, text);
-}
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-type OrderStatus = "shipped" | "delivered" | "cancelled";
-interface ShippingInfo {
-  courierName?: string;
-  courierCountry?: string;
-  estimatedDays?: string;
-  trackingNumber?: string;
-  courierTrackingUrl?: string;
-}
-
-// ─── WhatsApp Message Builder ─────────────────────────────────────────────────
-function buildWAMessage(
-  status: OrderStatus,
-  name: string,
-  orderNumber: string,
-  shipping?: ShippingInfo,
+  courierName: string,
+  courierCountry: string,
+  trackingNumber: string,
+  estimatedDays: string,
+  courierTrackingUrl: string,
 ): string {
-  if (status === "shipped") {
-    let trackingSection = "";
-    if (shipping?.trackingNumber) {
-      trackingSection = `\n\n📦 *Tracking Number:* ${shipping.trackingNumber}`;
-      if (shipping?.courierTrackingUrl)
-        trackingSection += `\n🔗 *Track Your Parcel:*\n${shipping.courierTrackingUrl}`;
-    }
-    return `🚚 *Order Shipped — Tech4U*
-
-Hello *${name}*! Your order is on the way! 🎉
-
-Order *#${orderNumber}* has been shipped!
-
-🏢 Courier: ${shipping?.courierName || "Our delivery partner"}
-🌍 Ship To: ${shipping?.courierCountry || ""}
-⏱ Est. Delivery: ${shipping?.estimatedDays || "2-5 business days"}${trackingSection}
-
-Questions? Contact us:
-📧 orders@tech4ru.com
-🌐 tech4ru.com
-
-Thank you for choosing Tech4U!`;
-  }
-
-  if (status === "delivered") {
-    return `✅ *Order Delivered — Tech4U*
-
-Hello *${name}*! 🎉
-
-Order *#${orderNumber}* has been DELIVERED!
-
-We hope you love your purchase!
-
-Please leave us a review at:
-🌐 tech4ru.com
-
-Questions? 📧 orders@tech4ru.com
-
-Thank you for choosing Tech4U!`;
-  }
-
-  return `Order Cancelled — Tech4U
-
-Hello ${name},
-
-Order #${orderNumber} has been cancelled.
-We apologize for the inconvenience.
-
-If you have any questions:
-📧 orders@tech4ru.com
-🌐 tech4ru.com
-
-We hope to serve you again.
-— Tech4U Team`;
-}
-
-// ─── Email Subject Builder ─────────────────────────────────────────────────────
-// ✅ IMPORTANT: Subject lines are clean, no special symbols
-// Symbols in subject (✅❌🚚) can trigger Yahoo/Hotmail spam filters
-function getEmailSubject(status: OrderStatus, orderNumber: string): string {
-  const subjects: Record<OrderStatus, string> = {
-    shipped: `Your Tech4U order #${orderNumber} has been shipped`,
-    delivered: `Your Tech4U order #${orderNumber} has been delivered`,
-    cancelled: `Your Tech4U order #${orderNumber} - Cancellation Confirmation`,
-  };
-  return subjects[status];
-}
-
-// ─── Email Text Builder (plain text version — REQUIRED for inbox delivery) ───
-// ✅ Plain text version is CRITICAL — emails without plain text = spam flag
-function buildEmailText(
-  status: OrderStatus,
-  name: string,
-  orderNumber: string,
-  shipping?: ShippingInfo,
-): string {
-  if (status === "shipped") {
-    let tracking = "";
-    if (shipping?.trackingNumber)
-      tracking = `\nTracking Number: ${shipping.trackingNumber}`;
-    if (shipping?.courierTrackingUrl)
-      tracking += `\nTrack online: ${shipping.courierTrackingUrl}`;
-    return `Your Tech4U Order Has Been Shipped
-
-Hello ${name},
-
-Your order #${orderNumber} has been shipped and is on its way!
-
-Courier: ${shipping?.courierName || "Our delivery partner"}
-Shipping to: ${shipping?.courierCountry || ""}
-Estimated Delivery: ${shipping?.estimatedDays || "2-5 business days"}${tracking}
-
-If you have any questions, contact us at:
-Email: orders@tech4ru.com
-Website: https://tech4ru.com
-
-Thank you for shopping with Tech4U.
-
----
-Tech4U | orders@tech4ru.com | https://tech4ru.com
-To unsubscribe: mailto:orders@tech4ru.com?subject=unsubscribe-${orderNumber}`;
-  }
-
-  if (status === "delivered") {
-    return `Your Tech4U Order Has Been Delivered
-
-Hello ${name},
-
-Great news! Your order #${orderNumber} has been successfully delivered.
-
-We hope you enjoy your purchase!
-
-Questions? Contact us:
-Email: orders@tech4ru.com
-Website: https://tech4ru.com
-
-Thank you for choosing Tech4U.
-
----
-Tech4U | orders@tech4ru.com | https://tech4ru.com
-To unsubscribe: mailto:orders@tech4ru.com?subject=unsubscribe-${orderNumber}`;
-  }
-
-  return `Tech4U Order Cancellation
-
-Hello ${name},
-
-Your order #${orderNumber} has been cancelled.
-We apologize for the inconvenience.
-
-Questions? Contact us:
-Email: orders@tech4ru.com
-Website: https://tech4ru.com
-
-We hope to serve you again.
-Tech4U Team
-
----
-Tech4U | orders@tech4ru.com | https://tech4ru.com
-To unsubscribe: mailto:orders@tech4ru.com?subject=unsubscribe-${orderNumber}`;
-}
-
-// ─── Email HTML Builder ────────────────────────────────────────────────────────
-// ✅ Table-based layout (best inbox compatibility)
-// ✅ Physical address in footer (required by CAN-SPAM / inbox rules)
-// ✅ Unsubscribe link (required by Yahoo/Hotmail)
-// ✅ No image-only content, no excessive links, no spammy words
-function buildEmailHtml(
-  status: OrderStatus,
-  name: string,
-  orderNumber: string,
-  shipping?: ShippingInfo,
-): string {
-  let trackingRows = "";
-  if (status === "shipped") {
-    if (shipping?.courierName)
-      trackingRows += `<tr><td style="padding:10px 16px;font-size:13px;color:#555555;border-bottom:1px solid #eeeeee;">Courier</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#111111;text-align:right;border-bottom:1px solid #eeeeee;">${shipping.courierName}</td></tr>`;
-    if (shipping?.courierCountry)
-      trackingRows += `<tr><td style="padding:10px 16px;font-size:13px;color:#555555;border-bottom:1px solid #eeeeee;">Shipping To</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#111111;text-align:right;border-bottom:1px solid #eeeeee;">${shipping.courierCountry}</td></tr>`;
-    if (shipping?.estimatedDays)
-      trackingRows += `<tr><td style="padding:10px 16px;font-size:13px;color:#555555;border-bottom:1px solid #eeeeee;">Estimated Delivery</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#b8860b;text-align:right;border-bottom:1px solid #eeeeee;">${shipping.estimatedDays}</td></tr>`;
-    if (shipping?.trackingNumber)
-      trackingRows += `<tr><td style="padding:10px 16px;font-size:13px;color:#555555;border-bottom:1px solid #eeeeee;">Tracking Number</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#111111;text-align:right;border-bottom:1px solid #eeeeee;font-family:Courier New,monospace;">${shipping.trackingNumber}</td></tr>`;
-    if (shipping?.courierTrackingUrl)
-      trackingRows += `<tr><td style="padding:10px 16px;font-size:13px;color:#555555;">Track Online</td><td style="padding:10px 16px;font-size:13px;text-align:right;"><a href="${shipping.courierTrackingUrl}" style="color:#b8860b;font-weight:600;text-decoration:none;" target="_blank">Track Your Parcel</a></td></tr>`;
-  }
-
-  const configs: Record<
-    OrderStatus,
-    { label: string; color: string; bg: string; heading: string; body: string }
-  > = {
-    shipped: {
-      label: "Order Shipped",
-      color: "#1565c0",
-      bg: "#e3f2fd",
-      heading: "Your order is on its way",
-      body: `Hello ${name},<br><br>Your order <strong>#${orderNumber}</strong> has been shipped and is heading your way. Please find your shipping details below.<br><br>Thank you for shopping with Tech4U.`,
-    },
-    delivered: {
-      label: "Order Delivered",
-      color: "#2e7d32",
-      bg: "#e8f5e9",
-      heading: "Your order has been delivered",
-      body: `Hello ${name},<br><br>Your order <strong>#${orderNumber}</strong> has been successfully delivered. We hope you enjoy your purchase!<br><br>If you have any questions, please contact us at <a href="mailto:orders@tech4ru.com" style="color:#b8860b;">orders@tech4ru.com</a>.<br><br>Thank you for choosing Tech4U.`,
-    },
-    cancelled: {
-      label: "Order Cancelled",
-      color: "#c62828",
-      bg: "#ffebee",
-      heading: "Your order has been cancelled",
-      body: `Hello ${name},<br><br>Your order <strong>#${orderNumber}</strong> has been cancelled. We apologize for the inconvenience.<br><br>For questions or assistance, please contact us at <a href="mailto:orders@tech4ru.com" style="color:#b8860b;">orders@tech4ru.com</a>.<br><br>We hope to serve you again.<br>The Tech4U Team`,
-    },
-  };
-
-  const c = configs[status];
-
-  const trackButton =
-    status === "shipped" && shipping?.courierTrackingUrl
-      ? `<tr>
-          <td style="padding:0 32px 28px;text-align:center;">
-            <a href="${shipping.courierTrackingUrl}" target="_blank"
-              style="display:inline-block;background-color:#daa520;color:#1a1a1a;font-size:14px;font-weight:700;padding:12px 28px;border-radius:6px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;">
-              Track My Order
-            </a>
-          </td>
-        </tr>`
-      : "";
-
   return `<!DOCTYPE html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  <meta name="format-detection" content="telephone=no">
-  <title>${c.label} - Tech4U Order #${orderNumber}</title>
-</head>
-<body style="margin:0;padding:0;background-color:#f4f4f4;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
 
-<!-- Preview text (hidden — shows in inbox preview) -->
-<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#f4f4f4;">
-  ${c.label}: Your Tech4U order #${orderNumber}. ${
-    status === "shipped"
-      ? `Shipped via ${shipping?.courierName || "courier"}. Est. delivery: ${shipping?.estimatedDays || "2-5 business days"}.`
-      : status === "delivered"
-        ? "Your order has arrived! We hope you love it."
-        : "We apologize for the inconvenience. Contact us for help."
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%);padding:32px;text-align:center;">
+    <h1 style="color:#daa520;margin:0;font-size:26px;letter-spacing:2px;">TECH4U</h1>
+    <p style="color:#aaa;margin:6px 0 0;font-size:13px;">tech4ru.com</p>
+  </div>
+
+  <!-- Shipped Banner -->
+  <div style="background:#eff6ff;padding:28px 32px;text-align:center;border-bottom:2px solid rgba(59,130,246,0.2);">
+    <div style="font-size:48px;margin-bottom:10px;">🚚</div>
+    <h2 style="color:#1e40af;margin:0;font-size:22px;">Your Order is On Its Way!</h2>
+    <p style="color:#1d4ed8;margin:8px 0 0;font-size:15px;">Hello <strong>${customerName}</strong>! Your order has been shipped.</p>
+  </div>
+
+  <!-- Order Info -->
+  <div style="padding:28px 32px;border-bottom:1px solid #f0f0f0;">
+    <table style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="padding:8px 0;color:#888;font-size:14px;width:45%;">Order Number</td>
+        <td style="padding:8px 0;color:#1a1a1a;font-weight:700;font-size:15px;">${orderNumber}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0;color:#888;font-size:14px;">Courier</td>
+        <td style="padding:8px 0;color:#1a1a1a;font-weight:600;font-size:14px;">🏢 ${courierName} (${courierCountry})</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0;color:#888;font-size:14px;">Tracking Number</td>
+        <td style="padding:8px 0;color:#1a1a1a;font-weight:700;font-family:monospace;font-size:15px;">📦 ${trackingNumber}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0;color:#888;font-size:14px;">Estimated Delivery</td>
+        <td style="padding:8px 0;color:#d97706;font-weight:600;font-size:14px;">⏱ ${estimatedDays}</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Track Button -->
+  ${
+    courierTrackingUrl
+      ? `<div style="padding:24px 32px;text-align:center;border-bottom:1px solid #f0f0f0;">
+    <a href="${courierTrackingUrl}" 
+       style="display:inline-block;background:linear-gradient(135deg,#1d4ed8,#1e40af);color:#fff;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:0.5px;">
+      🔗 Track My Order →
+    </a>
+    <p style="color:#888;font-size:12px;margin:10px 0 0;">Click above to track your parcel on ${courierName}'s website</p>
+  </div>`
+      : ""
   }
-  &nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+
+  <!-- Footer -->
+  <div style="background:#1a1a1a;padding:24px 32px;text-align:center;">
+    <p style="color:#daa520;margin:0 0 6px;font-size:14px;font-weight:600;">Questions? We're here!</p>
+    <p style="color:#888;margin:0;font-size:13px;">📧 info@tech4ru.com &nbsp;|&nbsp; 🌐 tech4ru.com</p>
+  </div>
 </div>
-
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4;">
-  <tr>
-    <td align="center" style="padding:24px 12px;">
-
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
-
-        <!-- HEADER -->
-        <tr>
-          <td style="background-color:#1a1a1a;padding:28px 32px;text-align:center;border-radius:10px 10px 0 0;">
-            <p style="margin:0;color:#daa520;font-size:22px;font-weight:800;letter-spacing:4px;font-family:Arial,Helvetica,sans-serif;">TECH4U</p>
-            <p style="margin:6px 0 0;color:rgba(255,255,255,0.5);font-size:11px;letter-spacing:2px;text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;">Order Notification</p>
-          </td>
-        </tr>
-
-        <!-- MAIN CONTENT -->
-        <tr>
-          <td style="background-color:#ffffff;padding:32px 32px 0;">
-
-            <!-- Status badge -->
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 16px;">
-              <tr>
-                <td style="background-color:${c.bg};border-radius:20px;padding:8px 20px;">
-                  <span style="font-size:14px;font-weight:700;color:${c.color};font-family:Arial,Helvetica,sans-serif;">${c.label}</span>
-                </td>
-              </tr>
-            </table>
-
-            <p style="margin:0 0 16px;font-size:20px;font-weight:700;color:#111111;text-align:center;font-family:Arial,Helvetica,sans-serif;">${c.heading}</p>
-            <p style="margin:0 0 24px;font-size:14px;color:#444444;line-height:1.8;font-family:Arial,Helvetica,sans-serif;">${c.body}</p>
-
-          </td>
-        </tr>
-
-        <!-- ORDER DETAILS TABLE -->
-        <tr>
-          <td style="background-color:#ffffff;padding:0 32px 24px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;">
-              <tr>
-                <td style="padding:10px 16px;font-size:13px;color:#555555;background:#f9f9f9;border-bottom:1px solid #eeeeee;font-family:Arial,Helvetica,sans-serif;">Order Number</td>
-                <td style="padding:10px 16px;font-size:13px;font-weight:700;color:#111111;text-align:right;background:#f9f9f9;border-bottom:1px solid #eeeeee;font-family:Arial,Helvetica,sans-serif;">#${orderNumber}</td>
-              </tr>
-              <tr>
-                <td style="padding:10px 16px;font-size:13px;color:#555555;border-bottom:1px solid #eeeeee;font-family:Arial,Helvetica,sans-serif;">Status</td>
-                <td style="padding:10px 16px;font-size:13px;font-weight:700;color:${c.color};text-align:right;border-bottom:1px solid #eeeeee;font-family:Arial,Helvetica,sans-serif;">${c.label}</td>
-              </tr>
-              ${trackingRows}
-            </table>
-          </td>
-        </tr>
-
-        <!-- TRACK BUTTON -->
-        ${trackButton}
-
-        <!-- DIVIDER -->
-        <tr>
-          <td style="background-color:#ffffff;padding:0 32px;">
-            <hr style="border:none;border-top:1px solid #eeeeee;margin:0;">
-          </td>
-        </tr>
-
-        <!-- CONTACT -->
-        <tr>
-          <td style="background-color:#ffffff;padding:20px 32px;text-align:center;">
-            <p style="margin:0;font-size:13px;color:#666666;font-family:Arial,Helvetica,sans-serif;">
-              Questions? Contact us at
-              <a href="mailto:orders@tech4ru.com" style="color:#b8860b;text-decoration:none;">orders@tech4ru.com</a>
-              or visit
-              <a href="https://tech4ru.com" style="color:#b8860b;text-decoration:none;">tech4ru.com</a>
-            </p>
-          </td>
-        </tr>
-
-        <!-- FOOTER -->
-        <tr>
-          <td style="background-color:#1a1a1a;padding:20px 32px;text-align:center;border-radius:0 0 10px 10px;">
-            <p style="margin:0 0 4px;color:#daa520;font-size:13px;font-weight:700;letter-spacing:2px;font-family:Arial,Helvetica,sans-serif;">TECH4U</p>
-            <p style="margin:0 0 10px;color:rgba(255,255,255,0.4);font-size:11px;font-family:Arial,Helvetica,sans-serif;">
-              orders@tech4ru.com &nbsp;|&nbsp; tech4ru.com
-            </p>
-            <!--
-              ✅ Physical address in footer = required by CAN-SPAM law
-              ✅ Without this, Yahoo & Hotmail may mark as spam
-            -->
-            <p style="margin:0 0 8px;font-size:10px;color:rgba(255,255,255,0.3);font-family:Arial,Helvetica,sans-serif;">
-              Tech4U &bull; Pakistan &bull; orders@tech4ru.com
-            </p>
-            <p style="margin:0;font-size:10px;color:rgba(255,255,255,0.25);font-family:Arial,Helvetica,sans-serif;">
-              This is a transactional email about your order at Tech4U. &nbsp;
-              <a href="mailto:orders@tech4ru.com?subject=unsubscribe-${orderNumber}" style="color:rgba(255,255,255,0.3);text-decoration:underline;">Unsubscribe</a>
-            </p>
-          </td>
-        </tr>
-
-      </table>
-    </td>
-  </tr>
-</table>
 </body>
 </html>`;
 }
 
+// ✅ DELIVERED EMAIL — Customer ko
+function deliveredEmailHTML(customerName: string, orderNumber: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+  <div style="background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%);padding:32px;text-align:center;">
+    <h1 style="color:#daa520;margin:0;font-size:26px;letter-spacing:2px;">TECH4U</h1>
+    <p style="color:#aaa;margin:6px 0 0;font-size:13px;">tech4ru.com</p>
+  </div>
+
+  <div style="background:#f0fdf4;padding:32px;text-align:center;border-bottom:2px solid rgba(34,197,94,0.2);">
+    <div style="font-size:52px;margin-bottom:10px;">🎉</div>
+    <h2 style="color:#166534;margin:0;font-size:22px;">Order Delivered Successfully!</h2>
+    <p style="color:#15803d;margin:10px 0 0;font-size:15px;">Hello <strong>${customerName}</strong>! Your order <strong>${orderNumber}</strong> has been delivered.</p>
+  </div>
+
+  <div style="padding:32px;text-align:center;">
+    <p style="color:#555;font-size:15px;line-height:1.7;margin:0 0 20px;">We hope you love your purchase! 🛍️<br>Please leave us a review — it helps us a lot.</p>
+    <a href="https://tech4ru.com" 
+       style="display:inline-block;background:linear-gradient(135deg,#daa520,#b8860b);color:#1a1a1a;padding:13px 30px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;">
+      Shop More at Tech4U →
+    </a>
+  </div>
+
+  <div style="background:#1a1a1a;padding:24px 32px;text-align:center;">
+    <p style="color:#daa520;margin:0 0 6px;font-size:14px;font-weight:600;">Thank you for choosing Tech4U! ✨</p>
+    <p style="color:#888;margin:0;font-size:13px;">📧 info@tech4ru.com &nbsp;|&nbsp; 🌐 tech4ru.com</p>
+  </div>
+</div>
+</body>
+</html>`;
+}
+
+// ✅ CANCELLED EMAIL — Customer ko
+function cancelledEmailHTML(customerName: string, orderNumber: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+  <div style="background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%);padding:32px;text-align:center;">
+    <h1 style="color:#daa520;margin:0;font-size:26px;letter-spacing:2px;">TECH4U</h1>
+    <p style="color:#aaa;margin:6px 0 0;font-size:13px;">tech4ru.com</p>
+  </div>
+
+  <div style="background:#fef2f2;padding:32px;text-align:center;border-bottom:2px solid rgba(239,68,68,0.2);">
+    <div style="font-size:48px;margin-bottom:10px;">❌</div>
+    <h2 style="color:#991b1b;margin:0;font-size:22px;">Order Cancelled</h2>
+    <p style="color:#b91c1c;margin:10px 0 0;font-size:15px;">Hello <strong>${customerName}</strong>, your order <strong>${orderNumber}</strong> has been cancelled.</p>
+  </div>
+
+  <div style="padding:32px;text-align:center;">
+    <p style="color:#555;font-size:15px;line-height:1.7;margin:0 0 8px;">If you have any questions or need help, please contact us.</p>
+    <p style="color:#555;font-size:14px;margin:0 0 24px;">If this was a mistake or you'd like to re-order, we're happy to help!</p>
+    <a href="mailto:info@tech4ru.com" 
+       style="display:inline-block;background:#1a1a1a;color:#daa520;padding:13px 30px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;">
+      Contact Us →
+    </a>
+  </div>
+
+  <div style="background:#1a1a1a;padding:24px 32px;text-align:center;">
+    <p style="color:#888;margin:0;font-size:13px;">📧 info@tech4ru.com &nbsp;|&nbsp; 🌐 tech4ru.com</p>
+  </div>
+</div>
+</body>
+</html>`;
+}
+
+// ✅ OWNER ALERT EMAIL — Owner ke saare emails ko
+function ownerAlertEmailHTML(
+  status: string,
+  orderNumber: string,
+  customerName: string,
+  customerEmail: string,
+  customerPhone: string,
+  extraInfo?: string,
+): string {
+  const statusEmoji =
+    status === "shipped" ? "🚚" : status === "delivered" ? "✅" : "❌";
+  const statusColor =
+    status === "shipped"
+      ? "#1d4ed8"
+      : status === "delivered"
+        ? "#15803d"
+        : "#991b1b";
+  const statusBg =
+    status === "shipped"
+      ? "#eff6ff"
+      : status === "delivered"
+        ? "#f0fdf4"
+        : "#fef2f2";
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+  <div style="background:${statusBg};padding:24px 32px;border-bottom:2px solid ${statusColor}20;">
+    <h2 style="color:${statusColor};margin:0;font-size:20px;">${statusEmoji} Order ${status.toUpperCase()} — Admin Alert</h2>
+    <p style="color:#666;margin:6px 0 0;font-size:13px;">Tech4U Admin — ${new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" })} PKT</p>
+  </div>
+
+  <div style="padding:28px 32px;">
+    <table style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="padding:8px 0;color:#888;font-size:14px;width:40%;">Order Number</td>
+        <td style="padding:8px 0;color:#1a1a1a;font-weight:700;">${orderNumber}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0;color:#888;font-size:14px;">Customer</td>
+        <td style="padding:8px 0;color:#1a1a1a;font-weight:600;">${customerName}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0;color:#888;font-size:14px;">Email</td>
+        <td style="padding:8px 0;"><a href="mailto:${customerEmail}" style="color:#2563eb;">${customerEmail}</a></td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0;color:#888;font-size:14px;">Phone</td>
+        <td style="padding:8px 0;"><a href="https://wa.me/${customerPhone.replace(/\D/g, "")}" style="color:#16a34a;font-weight:600;">📱 ${customerPhone}</a></td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0;color:#888;font-size:14px;">New Status</td>
+        <td style="padding:8px 0;color:${statusColor};font-weight:700;font-size:15px;">${statusEmoji} ${status.toUpperCase()}</td>
+      </tr>
+      ${
+        extraInfo
+          ? `<tr>
+        <td style="padding:8px 0;color:#888;font-size:14px;">Shipping Info</td>
+        <td style="padding:8px 0;color:#1a1a1a;font-size:13px;">${extraInfo}</td>
+      </tr>`
+          : ""
+      }
+    </table>
+  </div>
+
+  <div style="background:#1a1a1a;padding:20px 32px;text-align:center;">
+    <p style="color:#888;margin:0;font-size:12px;">Tech4U Admin Panel — tech4ru.com</p>
+  </div>
+</div>
+</body>
+</html>`;
+}
+
+// ─── WHATSAPP MESSAGES ────────────────────────────────────────────────────────
+
+function shippedWhatsAppMsg(
+  name: string,
+  orderNumber: string,
+  courierName: string,
+  trackingNumber: string,
+  estimatedDays: string,
+  trackingUrl: string,
+): string {
+  return `🚚 *Your Order is Shipped — Tech4U*
+
+Hello *${name}*! Great news! 🎉
+
+━━━━━━━━━━━━━━━━━
+📦 *Order:* ${orderNumber}
+🏢 *Courier:* ${courierName}
+📦 *Tracking No:* ${trackingNumber}
+⏱ *Estimated Delivery:* ${estimatedDays}
+━━━━━━━━━━━━━━━━━
+
+${trackingUrl ? `🔗 *Track your parcel:*\n${trackingUrl}` : ""}
+
+Your order is on its way! We'll update you when it's delivered.
+
+For any questions:
+📧 info@tech4ru.com
+🌐 tech4ru.com
+
+Thank you for choosing Tech4U! ✨`;
+}
+
+function deliveredWhatsAppMsg(name: string, orderNumber: string): string {
+  return `✅ *Order Delivered — Tech4U* 🎉
+
+Hello *${name}*! 
+
+Your order *${orderNumber}* has been successfully delivered! 📦
+
+We hope you love your purchase! 🛍️
+
+If you need anything:
+📧 info@tech4ru.com
+🌐 tech4ru.com
+
+Thank you for shopping with Tech4U! ⭐`;
+}
+
+function cancelledWhatsAppMsg(name: string, orderNumber: string): string {
+  return `❌ *Order Cancelled — Tech4U*
+
+Hello *${name}*,
+
+Your order *${orderNumber}* has been cancelled.
+
+If you have any questions or need help:
+📧 info@tech4ru.com
+🌐 tech4ru.com
+
+We hope to serve you again soon. 🙏`;
+}
+
 // ─── MAIN POST HANDLER ────────────────────────────────────────────────────────
+
 export async function POST(req: NextRequest) {
   try {
-    let body: any;
-    try {
-      body = await req.json();
-    } catch {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-    }
+    const body = await req.json();
 
     const {
       orderId,
@@ -601,55 +356,44 @@ export async function POST(req: NextRequest) {
       customerPhone,
       customerName,
       orderNumber,
+      // Shipped ke liye extra fields
       courierName,
       courierCountry,
       estimatedDays,
       trackingNumber,
       courierTrackingUrl,
-    } = body ?? {};
+    } = body;
 
-    if (!orderId || !status)
+    // ── Validate ──
+    if (
+      !orderId ||
+      !status ||
+      !customerEmail ||
+      !customerName ||
+      !orderNumber
+    ) {
       return NextResponse.json(
-        { error: "orderId and status are required" },
+        { error: "Missing required fields" },
         { status: 400 },
       );
+    }
 
-    const validStatuses: OrderStatus[] = ["shipped", "delivered", "cancelled"];
-    if (!validStatuses.includes(status))
+    const validStatuses = ["shipped", "delivered", "cancelled"];
+    if (!validStatuses.includes(status)) {
       return NextResponse.json(
-        { error: `Invalid status. Allowed: ${validStatuses.join(", ")}` },
+        { error: `Invalid status. Must be: ${validStatuses.join(", ")}` },
         { status: 400 },
       );
+    }
 
-    const typedStatus = status as OrderStatus;
-    const displayName = (customerName || "Valued Customer").trim();
-    const displayOrderNum = orderNumber || orderId;
-    const shippingInfo: ShippingInfo = {
-      courierName,
-      courierCountry,
-      estimatedDays,
-      trackingNumber,
-      courierTrackingUrl,
-    };
-
-    console.log("=".repeat(50));
-    console.log(`🔄 ${typedStatus.toUpperCase()} — Order #${displayOrderNum}`);
-    console.log(
-      `👤 ${displayName} | 📧 ${customerEmail || "NONE"} | 📱 ${customerPhone || "NONE"}`,
-    );
-    if (typedStatus === "shipped")
-      console.log(
-        `🚚 ${courierName} → ${courierCountry} | ETA: ${estimatedDays} | Tracking: ${trackingNumber}`,
-      );
-    console.log("=".repeat(50));
-
-    // ── Step 1: Supabase update ──
-    const supabase = getSupabase();
+    // ── Step 1: Supabase DB update ──
+    const supabase = getClient();
     const updatePayload: Record<string, any> = {
-      status: typedStatus,
+      status,
       updated_at: new Date().toISOString(),
     };
-    if (typedStatus === "shipped") {
+
+    if (status === "shipped") {
       if (courierName) updatePayload.courier_name = courierName;
       if (courierCountry) updatePayload.courier_country = courierCountry;
       if (estimatedDays) updatePayload.estimated_days = estimatedDays;
@@ -665,70 +409,127 @@ export async function POST(req: NextRequest) {
       .eq("id", orderId);
 
     if (dbError) {
-      console.error("❌ Supabase failed:", dbError.message);
+      console.error("❌ DB update failed:", dbError.message);
       return NextResponse.json({ error: dbError.message }, { status: 500 });
     }
-    console.log("✅ Supabase updated");
 
-    // ── Step 2: WhatsApp ──
-    let whatsappSent = false;
-    if (customerPhone) {
-      whatsappSent = await sendWA(
-        customerPhone,
-        buildWAMessage(typedStatus, displayName, displayOrderNum, shippingInfo),
-      );
-    } else console.warn("⚠️ No phone — WhatsApp skipped");
+    console.log(`✅ DB updated: Order ${orderNumber} → ${status}`);
 
-    // ── Step 3: Email (Brevo + Gmail fallback) ──
-    let emailSent = false;
-    let emailError: string | undefined;
-    if (customerEmail) {
-      const htmlContent = buildEmailHtml(
-        typedStatus,
-        displayName,
-        displayOrderNum,
-        shippingInfo,
-      );
-      const textContent = buildEmailText(
-        typedStatus,
-        displayName,
-        displayOrderNum,
-        shippingInfo,
-      );
-      const subject = getEmailSubject(typedStatus, displayOrderNum);
+    // ── Step 2: Owner emails list ──
+    const ownerEmails = (
+      process.env.OWNER_EMAILS ||
+      process.env.OWNER_EMAIL ||
+      "tech4ruu@gmail.com"
+    )
+      .split(",")
+      .map((e) => e.trim())
+      .filter(Boolean);
 
-      const result = await sendEmail(
+    // ── Step 3: Build messages based on status ──
+    let whatsappMsg = "";
+    let customerEmailSubject = "";
+    let customerEmailHTML = "";
+    let ownerEmailSubject = "";
+    let ownerEmailHTML = "";
+
+    if (status === "shipped") {
+      const cn = courierName || "Courier";
+      const tn = trackingNumber || "N/A";
+      const ed = estimatedDays || "3–5 business days";
+      const tu = courierTrackingUrl || "";
+
+      whatsappMsg = shippedWhatsAppMsg(
+        customerName,
+        orderNumber,
+        cn,
+        tn,
+        ed,
+        tu,
+      );
+      customerEmailSubject = `🚚 Your Order ${orderNumber} Has Been Shipped — Tech4U`;
+      customerEmailHTML = shippedEmailHTML(
+        customerName,
+        orderNumber,
+        cn,
+        courierCountry || "",
+        tn,
+        ed,
+        tu,
+      );
+      ownerEmailSubject = `🚚 Order ${orderNumber} Marked as Shipped`;
+      ownerEmailHTML = ownerAlertEmailHTML(
+        status,
+        orderNumber,
+        customerName,
         customerEmail,
-        subject,
-        htmlContent,
-        textContent,
-        displayOrderNum,
+        customerPhone || "",
+        `${cn} | Tracking: ${tn} | Est: ${ed}`,
       );
-      emailSent = result.sent;
-      emailError = result.error;
-    } else {
-      console.warn("⚠️ No email — Email skipped");
-      emailError = "No customer email provided";
+    } else if (status === "delivered") {
+      whatsappMsg = deliveredWhatsAppMsg(customerName, orderNumber);
+      customerEmailSubject = `✅ Your Order ${orderNumber} Has Been Delivered — Tech4U`;
+      customerEmailHTML = deliveredEmailHTML(customerName, orderNumber);
+      ownerEmailSubject = `✅ Order ${orderNumber} Delivered`;
+      ownerEmailHTML = ownerAlertEmailHTML(
+        status,
+        orderNumber,
+        customerName,
+        customerEmail,
+        customerPhone || "",
+      );
+    } else if (status === "cancelled") {
+      whatsappMsg = cancelledWhatsAppMsg(customerName, orderNumber);
+      customerEmailSubject = `❌ Your Order ${orderNumber} Has Been Cancelled — Tech4U`;
+      customerEmailHTML = cancelledEmailHTML(customerName, orderNumber);
+      ownerEmailSubject = `❌ Order ${orderNumber} Cancelled`;
+      ownerEmailHTML = ownerAlertEmailHTML(
+        status,
+        orderNumber,
+        customerName,
+        customerEmail,
+        customerPhone || "",
+      );
     }
 
-    console.log(
-      `📊 WhatsApp: ${whatsappSent ? "✅ SENT" : "❌ FAILED"} | Email: ${emailSent ? "✅ SENT" : `❌ FAILED — ${emailError}`}`,
-    );
+    // ── Step 4: Send all notifications in parallel ──
+    const [whatsappResult, customerEmailResult, ownerEmailResult] =
+      await Promise.allSettled([
+        // WhatsApp → Customer
+        customerPhone
+          ? sendWhatsAppMessage(customerPhone, whatsappMsg)
+          : Promise.resolve(false),
+
+        // Email → Customer
+        sendResendEmail(customerEmail, customerEmailSubject, customerEmailHTML),
+
+        // Email → Owner (saare emails)
+        sendResendEmail(ownerEmails, ownerEmailSubject, ownerEmailHTML),
+      ]);
+
+    const whatsappSent =
+      whatsappResult.status === "fulfilled" && whatsappResult.value === true;
+    const customerEmailSent =
+      customerEmailResult.status === "fulfilled" &&
+      customerEmailResult.value === true;
+    const ownerEmailSent =
+      ownerEmailResult.status === "fulfilled" &&
+      ownerEmailResult.value === true;
+
+    console.log(`📊 Notifications for ${orderNumber} (${status}):`, {
+      whatsapp: whatsappSent ? "✅" : "❌",
+      customerEmail: customerEmailSent ? "✅" : "❌",
+      ownerEmail: ownerEmailSent ? "✅" : "❌",
+    });
 
     return NextResponse.json({
       success: true,
-      status: typedStatus,
+      status,
       whatsappSent,
-      emailSent,
-      ...(emailSent
-        ? {}
-        : { emailError: emailError || "Email sending failed" }),
+      emailSent: customerEmailSent, // page.tsx yeh expect karta hai
+      ownerEmailSent,
     });
   } catch (err: any) {
-    console.error("❌ Exception:", err);
-    return NextResponse.json(
-      { error: err?.message || "Internal server error" },
-      { status: 500 },
-    );
+    console.error("❌ update-order-status error:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

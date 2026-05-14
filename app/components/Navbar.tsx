@@ -134,12 +134,6 @@ const categorySubcategories: Record<string, { name: string; href: string }[]> =
     ],
   };
 
-// Currency to language mapping
-const CURRENCY_TO_LANGUAGE: Record<string, SupportedLanguage | null> = {
-  EUR: "de",
-  AED: null,
-};
-
 export default function Navbar({
   onMenuOpen,
   onSearchOpen,
@@ -147,6 +141,9 @@ export default function Navbar({
 }: NavbarProps) {
   const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [navVisible, setNavVisible] = useState(true);
+  const lastScrollY = useRef(0);
+  const scrollTicking = useRef(false);
   const [user, setUser] = useState<any>(undefined);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [currencyOpen, setCurrencyOpen] = useState(false);
@@ -182,7 +179,25 @@ export default function Navbar({
   useEffect(() => {
     setMounted(true);
     setCurrentPath(window.location.pathname);
-    const handleScroll = () => setScrolled(window.scrollY > 20);
+    const handleScroll = () => {
+      if (scrollTicking.current) return;
+      scrollTicking.current = true;
+      requestAnimationFrame(() => {
+        const currentY = window.scrollY;
+        setScrolled(currentY > 20);
+        if (currentY <= 10) {
+          setNavVisible(true);
+        } else if (currentY > lastScrollY.current) {
+          // Scrolling DOWN — hide navbar
+          setNavVisible(false);
+        } else {
+          // Scrolling UP — show navbar
+          setNavVisible(true);
+        }
+        lastScrollY.current = currentY;
+        scrollTicking.current = false;
+      });
+    };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -233,19 +248,22 @@ export default function Navbar({
     setCurrency(cur);
     setCurrencyOpen(false);
 
-    const langAction = CURRENCY_TO_LANGUAGE[cur.code];
-
     if (cur.code === "EUR") {
-      setLanguage("de");
+      // EUR selected → switch to German language, hide language dropdown
+      window.dispatchEvent(
+        new CustomEvent("force-language-dropdown", {
+          detail: { country: "DE" },
+        }),
+      );
     } else if (cur.code === "AED") {
-      if (language === "de") setLanguage("en");
+      // AED selected → show UAE language dropdown (English/Arabic)
       window.dispatchEvent(
         new CustomEvent("force-language-dropdown", {
           detail: { country: "AE" },
         }),
       );
     } else {
-      if (language === "de" || language === "ar") setLanguage("en");
+      // Any other currency → English, hide language dropdown
       window.dispatchEvent(
         new CustomEvent("force-language-dropdown", {
           detail: { country: "OTHER" },
@@ -309,7 +327,7 @@ export default function Navbar({
 
   return (
     <nav
-      className={`navbar${scrolled ? " scrolled" : ""}`}
+      className={`navbar${scrolled ? " scrolled" : ""}${navVisible ? "" : " navbar-hidden"}`}
       dir={isRTLMode ? "rtl" : "ltr"}
     >
       <div className="navbar-container">

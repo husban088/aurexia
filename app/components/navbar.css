@@ -44,13 +44,13 @@
          se zyada hona chahiye. Yahi sahi architecture hai.
          ───────────────────────────────────────────────────────────── */
 
-/* Main Navbar — z-index: 100 */
+/* Main Navbar — inside sticky wrapper */
 .navbar {
-  position: fixed;
+  position: relative;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: 1;
   background: var(--nav-bg);
   border-bottom: 1px solid var(--nav-border);
   backdrop-filter: blur(0px);
@@ -982,4 +982,45 @@ button,
 [dir="rtl"] .currency-option:hover {
   padding-left: 16px;
   padding-right: 22px;
+}
+
+/* ========== NAVBAR STICKY WRAPPER ========== */
+/* Wraps AnnouncementBar + Navbar together */
+/* Scrolls up together, scrolls down together */
+.navbar-sticky-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  will-change: transform;
+}
+
+.navbar-announcement-wrapper {
+  width: 100%;
+}
+
+/* ========== NAVBAR HIDE ON SCROLL DOWN ========== */
+/* AnnouncementBar jaisi same logic — scroll down = hide, scroll up = show */
+
+.navbar {
+  transition:
+    background var(--transition),
+    box-shadow var(--transition),
+    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.25s ease;
+}
+
+/* Scroll down → navbar slide up aur hide */
+.navbar.navbar-hidden {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Scroll up → navbar wapis show */
+.navbar:not(.navbar-hidden) {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
 }

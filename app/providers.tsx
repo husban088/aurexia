@@ -3,9 +3,10 @@
 
 import { usePathname } from "next/navigation";
 import { useCartStore } from "@/lib/cartStore";
-import { useCouponStore } from "@/lib/couponStore"; // ✅ Import coupon store
+import { useCouponStore } from "@/lib/couponStore";
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
+import AnnouncementBar from "./components/AnnouncementBar";
 import SearchSidebar from "./components/SearchSidebar";
 import CartSidebar from "./components/CartSidebar";
 import WhatsAppWidget from "./components/WhatsAppWidget";
@@ -18,35 +19,53 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  // Dynamic height of sticky wrapper (AnnouncementBar + Navbar)
+  const [stickyHeight, setStickyHeight] = useState(0);
   const pathname = usePathname();
   const { fetchCart, setOnCartOpen } = useCartStore();
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Mark client-side after hydration
   useEffect(() => {
     setIsClient(true);
-    setHydrated(true);
   }, []);
 
-  // Initialize sale store on app start (for ALL users)
   useEffect(() => {
     initSaleStore();
   }, []);
 
-  // ✅ Initialize coupon settings on app start
   useEffect(() => {
     const { fetchCouponSettings } = useCouponStore.getState();
     fetchCouponSettings();
   }, []);
 
-  // Derive panel state - safe after client mount
-  const isPanelPage = isClient && (pathname?.startsWith("/panel") ?? false);
+  // ── Measure sticky wrapper height dynamically ────────────────────────────
+  // AnnouncementBar hide/show hone pe height change hoti hai
+  // ResizeObserver se track karo taake content kabhi overlap na ho
+  useEffect(() => {
+    if (!isClient) return;
 
-  // Check if on home page
+    const measure = () => {
+      if (wrapperRef.current) {
+        setStickyHeight(wrapperRef.current.offsetHeight);
+      }
+    };
+
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    if (wrapperRef.current) observer.observe(wrapperRef.current);
+    window.addEventListener("resize", measure, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [isClient]);
+
+  const isPanelPage = isClient && (pathname?.startsWith("/panel") ?? false);
   const isHomePage = isClient && pathname === "/";
 
-  // Cart init — run once on client mount
   const cartInitialized = useRef(false);
   useEffect(() => {
     if (!isClient) return;
@@ -54,40 +73,39 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     cartInitialized.current = true;
     setOnCartOpen(() => setCartOpen(true));
     const { initialized } = useCartStore.getState();
-    if (!initialized) {
-      fetchCart();
-    }
+    if (!initialized) fetchCart();
   }, [isClient, setOnCartOpen, fetchCart]);
 
-  // During SSR, render minimal structure to prevent hydration mismatch
   if (!isClient) {
-    return (
-      <div className="flex flex-col flex-1" style={{ paddingTop: "0px" }}>
-        {children}
-      </div>
-    );
+    return <div className="flex flex-col flex-1">{children}</div>;
   }
 
   return (
     <>
-      {/* ✅ Sale Banner - Only on home page, visible to ALL users */}
       {isHomePage && <SaleBannerPopup />}
 
       {!isPanelPage && (
-        <Navbar
-          onMenuOpen={() => setSidebarOpen(true)}
-          onSearchOpen={() => setSearchOpen(true)}
-          onCartOpen={() => setCartOpen(true)}
-        />
+        // ✅ Fixed sticky wrapper — AnnouncementBar oopar, Navbar neeche
+        // AnnouncementBar scroll down pe slide-up ho jaata hai
+        // Navbar hamesha visible rehta hai
+        <div ref={wrapperRef} className="navbar-sticky-wrapper">
+          <AnnouncementBar />
+          <Navbar
+            onMenuOpen={() => setSidebarOpen(true)}
+            onSearchOpen={() => setSearchOpen(true)}
+            onCartOpen={() => setCartOpen(true)}
+          />
+        </div>
       )}
 
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <SearchSidebar isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
       <CartSidebar isOpen={cartOpen} onClose={() => setCartOpen(false)} />
 
+      {/* ✅ paddingTop = sticky wrapper ki exact height — content kabhi overlap nahi hoga */}
       <div
-        style={{ paddingTop: isPanelPage ? "0px" : "76px" }}
         className="flex flex-col flex-1"
+        style={{ paddingTop: isPanelPage ? 0 : stickyHeight }}
         suppressHydrationWarning
       >
         {children}

@@ -47,23 +47,29 @@ export default function LanguageDropdown({
   const currentLang = availableLanguages.find((l) => l.code === language);
 
   return (
-    <div ref={dropdownRef} className={`language-dropdown-wrapper ${className}`}>
+    <div
+      ref={dropdownRef}
+      className={`lang-wrapper ${className}`}
+      style={{ position: "relative" }}
+    >
       <button
         onClick={() => setIsOpen((prev) => !prev)}
         className="lang-trigger"
         aria-label={t.common.selectLanguage}
         aria-expanded={isOpen}
+        aria-haspopup="listbox"
       >
         <span className="lang-flag">{LANG_FLAGS[language]}</span>
         <span className="lang-name">
           {currentLang?.nativeName || "English"}
         </span>
         <svg
-          className={`lang-chevron ${isOpen ? "open" : ""}`}
+          className={`lang-chevron${isOpen ? " open" : ""}`}
           width="12"
           height="12"
           viewBox="0 0 12 12"
           fill="none"
+          aria-hidden="true"
         >
           <path
             d="M2 4L6 8L10 4"
@@ -76,50 +82,64 @@ export default function LanguageDropdown({
       </button>
 
       {isOpen && (
-        <div className="lang-menu" role="listbox">
-          {availableLanguages.map((lang) => (
-            <button
-              key={lang.code}
-              role="option"
-              aria-selected={language === lang.code}
-              className={`lang-option ${language === lang.code ? "active" : ""}`}
-              onClick={() => {
-                setLanguage(lang.code as SupportedLanguage);
-                setIsOpen(false);
-              }}
-            >
-              <span className="lang-flag">{LANG_FLAGS[lang.code]}</span>
-              <div className="lang-texts">
-                <span className="lang-native">{lang.nativeName}</span>
-                <span className="lang-english">{lang.name}</span>
-              </div>
-              {language === lang.code && (
-                <svg
-                  className="lang-check"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 14 14"
-                  fill="none"
-                >
-                  <path
-                    d="M2 7L5.5 10.5L12 3.5"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-            </button>
-          ))}
+        <div
+          className="lang-menu"
+          role="listbox"
+          aria-label={t.common.selectLanguage}
+          /* Menu opens left-aligned in RTL, right-aligned in LTR */
+          style={{
+            position: "absolute",
+            top: "calc(100% + 10px)",
+            ...(isRTLMode ? { left: 0 } : { right: 0 }),
+            minWidth: "200px",
+            zIndex: 9999,
+          }}
+        >
+          {availableLanguages.map((lang) => {
+            const isActive = language === lang.code;
+            return (
+              <button
+                key={lang.code}
+                role="option"
+                aria-selected={isActive}
+                className={`lang-option${isActive ? " active" : ""}`}
+                onClick={() => {
+                  setLanguage(lang.code as SupportedLanguage);
+                  setIsOpen(false);
+                }}
+                /* Each option direction matches the language it represents */
+                dir={lang.code === "ar" ? "rtl" : "ltr"}
+              >
+                <span className="lang-flag">{LANG_FLAGS[lang.code]}</span>
+                <div className="lang-texts">
+                  <span className="lang-native">{lang.nativeName}</span>
+                  <span className="lang-english">{lang.name}</span>
+                </div>
+                {isActive && (
+                  <svg
+                    className="lang-check"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M2 7L5.5 10.5L12 3.5"
+                      stroke="#daa520"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
 
       <style jsx>{`
-        .language-dropdown-wrapper {
-          position: relative;
-        }
-
         .lang-trigger {
           display: flex;
           align-items: center;
@@ -132,8 +152,11 @@ export default function LanguageDropdown({
           font-family: inherit;
           font-size: 13px;
           font-weight: 500;
+          color: inherit;
           transition: all 0.2s ease;
           white-space: nowrap;
+          /* Direction for the trigger always follows page direction */
+          direction: inherit;
         }
 
         .lang-trigger:hover {
@@ -145,6 +168,7 @@ export default function LanguageDropdown({
         .lang-flag {
           font-size: 16px;
           line-height: 1;
+          flex-shrink: 0;
         }
 
         .lang-name {
@@ -155,6 +179,9 @@ export default function LanguageDropdown({
         .lang-chevron {
           transition: transform 0.2s ease;
           opacity: 0.6;
+          flex-shrink: 0;
+          /* Chevron should not flip in RTL — it's a down arrow */
+          margin-inline-start: 2px;
         }
 
         .lang-chevron.open {
@@ -162,23 +189,18 @@ export default function LanguageDropdown({
         }
 
         .lang-menu {
-          position: absolute;
-          top: calc(100% + 12px);
-          ${isRTLMode ? "left: 0;" : "right: 0;"}
-          background: white;
+          background: #fff;
           border: 1px solid rgba(218, 165, 32, 0.2);
           border-radius: 12px;
           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
           overflow: hidden;
-          z-index: 1000;
-          min-width: 200px;
-          animation: fadeIn 0.15s ease;
+          animation: langFadeIn 0.15s ease;
         }
 
-        @keyframes fadeIn {
+        @keyframes langFadeIn {
           from {
             opacity: 0;
-            transform: translateY(-8px);
+            transform: translateY(-6px);
           }
           to {
             opacity: 1;
@@ -195,8 +217,9 @@ export default function LanguageDropdown({
           background: transparent;
           border: none;
           cursor: pointer;
-          text-align: ${isRTLMode ? "right" : "left"};
+          font-family: inherit;
           transition: background 0.15s ease;
+          /* Direction set per-button via dir attribute above */
         }
 
         .lang-option:hover {
@@ -210,16 +233,10 @@ export default function LanguageDropdown({
         .lang-texts {
           display: flex;
           flex-direction: column;
-          align-items: flex-start;
           flex: 1;
+          /* Text aligns to start of writing direction */
+          text-align: start;
         }
-
-        ${isRTLMode &&
-        `
-          .lang-texts {
-            align-items: flex-end;
-          }
-        `}
 
         .lang-native {
           font-size: 13px;
@@ -233,16 +250,15 @@ export default function LanguageDropdown({
         }
 
         .lang-check {
-          color: #daa520;
           flex-shrink: 0;
+          margin-inline-start: auto;
         }
 
-        /* Mobile adjustments */
+        /* Mobile: hide text label, show only flag */
         @media (max-width: 768px) {
           .lang-name {
             display: none;
           }
-
           .lang-trigger {
             padding: 6px 10px;
           }

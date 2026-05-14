@@ -36,10 +36,32 @@ interface LanguageContextValue {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 const STORAGE_KEY = "preferredLanguage";
+const COUNTRY_CACHE_KEY = "detectedCountryCache";
+const COUNTRY_CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
-// Detect country from server or client APIs
+// ── Apply language to DOM immediately (dir + lang + body class) ──────────────
+function applyLangToDOM(lang: SupportedLanguage) {
+  if (typeof document === "undefined") return;
+  const rtl = isRTL(lang);
+  document.documentElement.lang = lang;
+  document.documentElement.dir = rtl ? "rtl" : "ltr";
+  document.body.dir = rtl ? "rtl" : "ltr";
+  document.body.classList.toggle("rtl", rtl);
+  document.body.classList.toggle("ltr", !rtl);
+}
+
+// ── Country detection with session cache ────────────────────────────────────
 async function detectCountry(): Promise<string | null> {
-  // 1. Try server route first (uses Cloudflare/Vercel headers — fastest)
+  try {
+    const cached = sessionStorage.getItem(COUNTRY_CACHE_KEY);
+    if (cached) {
+      const { country, time } = JSON.parse(cached);
+      if (Date.now() - time < COUNTRY_CACHE_TTL && country?.length === 2) {
+        return country;
+      }
+    }
+  } catch {}
+
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 1500);
@@ -50,11 +72,13 @@ async function detectCountry(): Promise<string | null> {
     clearTimeout(t);
     if (res.ok) {
       const data = await res.json();
-      if (data.success && data.country?.length === 2) return data.country;
+      if (data.success && data.country?.length === 2) {
+        cacheCountry(data.country);
+        return data.country;
+      }
     }
   } catch {}
 
-  // 2. Race multiple free IP APIs in parallel
   const apis: { url: string; parse: (d: any) => string }[] = [
     { url: "https://api.country.is/", parse: (d) => d.country },
     { url: "https://ipapi.co/json/", parse: (d) => d.country_code },
@@ -67,11 +91,11 @@ async function detectCountry(): Promise<string | null> {
     try {
       const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
       clearTimeout(t);
-      if (!res.ok) throw new Error("bad response");
+      if (!res.ok) throw new Error("bad");
       const data = await res.json();
       const code = parse(data);
       if (typeof code === "string" && code.length === 2) return code;
-      throw new Error("invalid code");
+      throw new Error("invalid");
     } catch {
       clearTimeout(t);
       throw new Error("failed");
@@ -79,97 +103,105 @@ async function detectCountry(): Promise<string | null> {
   });
 
   try {
-    return await Promise.any(promises);
+    const country = await Promise.any(promises);
+    cacheCountry(country);
+    return country;
   } catch {}
 
   return null;
 }
 
+function cacheCountry(country: string) {
+  try {
+    sessionStorage.setItem(
+      COUNTRY_CACHE_KEY,
+      JSON.stringify({ country, time: Date.now() }),
+    );
+  } catch {}
+}
+
+// ── Provider ─────────────────────────────────────────────────────────────────
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  // ✅ Default to "en" immediately — no blank screen
   const [language, setLanguageState] = useState<SupportedLanguage>("en");
   const [detectedCountry, setDetectedCountry] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [availableLangs, setAvailableLangs] = useState<AvailableLanguage[]>([]);
 
-  const applyLanguageToDOM = useCallback((lang: SupportedLanguage) => {
-    if (typeof document === "undefined") return;
-    const rtl = isRTL(lang);
-    document.documentElement.lang = lang;
-    document.documentElement.dir = rtl ? "rtl" : "ltr";
+  const applyLanguage = useCallback((lang: SupportedLanguage) => {
+    setLanguageState(lang);
+    applyLangToDOM(lang);
   }, []);
 
   const setLanguage = useCallback(
     (lang: SupportedLanguage) => {
-      setLanguageState(lang);
-      applyLanguageToDOM(lang);
+      applyLanguage(lang);
       try {
         localStorage.setItem(STORAGE_KEY, lang);
       } catch {}
     },
-    [applyLanguageToDOM],
+    [applyLanguage],
   );
 
   useEffect(() => {
     let cancelled = false;
 
     async function init() {
-      // ─── Step 1: Apply saved preference immediately (before network) ───
       let savedLang: SupportedLanguage | null = null;
       try {
         const stored = localStorage.getItem(STORAGE_KEY) as SupportedLanguage;
-        if (stored && ["en", "ar", "de"].includes(stored)) {
+        if (
+          stored &&
+          (["en", "ar", "de"] as SupportedLanguage[]).includes(stored)
+        ) {
           savedLang = stored;
-          // Apply saved language right away — no waiting for country detection
-          setLanguageState(stored);
-          applyLanguageToDOM(stored);
         }
       } catch {}
 
-      // ─── Step 2: Detect country in background ─────────────────────────
       const countryCode = await detectCountry();
       if (cancelled) return;
-
       setDetectedCountry(countryCode);
 
-      // ─── Step 3: Apply country-based language rules ────────────────────
       if (countryCode === "DE") {
-        // Germany → auto German, no dropdown
+        // GERMANY: Always German, NO dropdown shown ever
         setShowDropdown(false);
         setAvailableLangs([]);
-        // Only auto-apply German if user has no saved preference
-        if (!savedLang || savedLang === "de") {
-          setLanguageState("de");
-          applyLanguageToDOM("de");
+        // Only override if user never explicitly chose a different language
+        if (!savedLang || savedLang === "de" || savedLang === "en") {
+          applyLanguage("de");
           try {
             localStorage.setItem(STORAGE_KEY, "de");
           } catch {}
         } else {
-          // Respect saved English preference even in Germany
-          setLanguageState(savedLang);
-          applyLanguageToDOM(savedLang);
+          applyLanguage(savedLang);
         }
       } else if (
         countryCode &&
         SHOW_LANGUAGE_DROPDOWN_COUNTRIES.includes(countryCode)
       ) {
-        // UAE → show dropdown with English + Arabic
+        // UAE: Show English + Arabic dropdown
         setShowDropdown(true);
         setAvailableLangs(UAE_DROPDOWN_LANGUAGES);
-        // If saved lang is valid for UAE (en or ar), use it; else default English
-        if (savedLang && (savedLang === "en" || savedLang === "ar")) {
-          setLanguageState(savedLang);
-          applyLanguageToDOM(savedLang);
+        if (savedLang === "ar" || savedLang === "en") {
+          applyLanguage(savedLang);
         } else {
-          setLanguageState("en");
-          applyLanguageToDOM("en");
+          applyLanguage("en");
+          try {
+            localStorage.setItem(STORAGE_KEY, "en");
+          } catch {}
         }
       } else {
-        // All other countries → English only, no dropdown
+        // All other countries: English only, no dropdown
         setShowDropdown(false);
         setAvailableLangs([]);
-        setLanguageState("en");
-        applyLanguageToDOM("en");
+        // If they had Arabic or German saved from a previous visit, reset
+        if (savedLang === "ar") {
+          applyLanguage("en");
+          try {
+            localStorage.removeItem(STORAGE_KEY);
+          } catch {}
+        } else {
+          applyLanguage("en");
+        }
       }
     }
 
@@ -177,28 +209,36 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [applyLanguageToDOM]);
+  }, [applyLanguage]);
 
-  // ✅ Listen for currency-triggered language/dropdown changes from Navbar
+  // Currency-triggered country override from Navbar
   useEffect(() => {
     const handler = (e: Event) => {
       const country = (e as CustomEvent).detail?.country as string;
       if (country === "AE") {
-        // AED selected → show UAE language dropdown
         setShowDropdown(true);
         setAvailableLangs(UAE_DROPDOWN_LANGUAGES);
         setDetectedCountry("AE");
-      } else if (country === "OTHER") {
-        // Other currency selected → hide dropdown, go English
+        setLanguageState((prev) => {
+          const valid: SupportedLanguage =
+            prev === "en" || prev === "ar" ? prev : "en";
+          applyLangToDOM(valid);
+          return valid;
+        });
+      } else if (country === "DE") {
         setShowDropdown(false);
         setAvailableLangs([]);
+        applyLanguage("de");
+      } else if (country === "OTHER") {
+        setShowDropdown(false);
+        setAvailableLangs([]);
+        applyLanguage("en");
       }
     };
     window.addEventListener("force-language-dropdown", handler);
     return () => window.removeEventListener("force-language-dropdown", handler);
-  }, []);
+  }, [applyLanguage]);
 
-  // ✅ No isInitialized guard — children always render immediately
   const value: LanguageContextValue = {
     language,
     setLanguage,

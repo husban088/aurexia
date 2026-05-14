@@ -279,3 +279,105 @@ a {
 .font-mono {
   font-family: monospace;
 }
+
+/* ============================================================
+   RTL (Arabic / UAE) — Global Direction Support
+   Applied when body has class="rtl" (set by LanguageContext)
+   ============================================================ */
+
+/* When Arabic is active: flip text alignment and flex direction for all major containers */
+body.rtl,
+[dir="rtl"] {
+  text-align: right;
+}
+
+/* Flex rows: reverse order so start = right */
+body.rtl .flex,
+[dir="rtl"] .flex {
+  /* Only reverse if the element is actually a row; column layouts should stay */
+}
+
+/* Navigation links in RTL */
+body.rtl .nav-links,
+[dir="rtl"] .nav-links {
+  flex-direction: row-reverse;
+}
+
+body.rtl .navbar-left,
+[dir="rtl"] .navbar-left {
+  order: 3;
+}
+body.rtl .navbar-center,
+[dir="rtl"] .navbar-center {
+  order: 2;
+}
+body.rtl .navbar-right,
+[dir="rtl"] .navbar-right {
+  order: 1;
+}
+
+/* Dropdowns in RTL open from the right */
+body.rtl .dropdown-menu,
+[dir="rtl"] .dropdown-menu {
+  right: auto;
+  left: 0;
+  text-align: right;
+}
+
+/* Inputs and form fields */
+body.rtl input,
+body.rtl textarea,
+body.rtl select,
+[dir="rtl"] input,
+[dir="rtl"] textarea,
+[dir="rtl"] select {
+  text-align: right;
+  direction: rtl;
+}
+
+/* Prevent double-flipping icons/images */
+body.rtl img,
+body.rtl svg,
+[dir="rtl"] img,
+[dir="rtl"] svg {
+  /* don't flip icons automatically — only flip explicitly if needed */
+}
+
+/* Cart sidebar, sidebars: slide from left in RTL */
+body.rtl .sidebar,
+body.rtl .cart-sidebar,
+[dir="rtl"] .sidebar,
+[dir="rtl"] .cart-sidebar {
+  left: 0;
+  right: auto;
+}
+
+/* General margin/padding logical properties support fallback */
+body.rtl .ml-auto,
+[dir="rtl"] .ml-auto {
+  margin-left: unset;
+  margin-right: auto;
+}
+body.rtl .mr-auto,
+[dir="rtl"] .mr-auto {
+  margin-right: unset;
+  margin-left: auto;
+}
+
+/* Footer links RTL */
+body.rtl .footer,
+[dir="rtl"] .footer {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Card text */
+body.rtl .product-card,
+body.rtl .fp-card-name,
+body.rtl .fp-card-price,
+[dir="rtl"] .product-card,
+[dir="rtl"] .fp-card-name,
+[dir="rtl"] .fp-card-price {
+  text-align: right;
+  direction: rtl;
+}
