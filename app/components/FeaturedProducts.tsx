@@ -14,7 +14,7 @@ import { useCartStore } from "@/lib/cartStore";
 import { useCurrency } from "../context/CurrencyContext";
 import { useLanguage } from "../context/LanguageContext";
 import QuickView from "./QuickView";
-import { getSalePercent, applyDiscount } from "@/lib/saleStore";
+import { useSaleSync, applyDiscount } from "@/lib/saleStore";
 
 /* ─────────────────────────────────────────────────────────────
    MODULE-LEVEL CACHE
@@ -694,14 +694,21 @@ function ProductCard({
     setQuickViewLoading(false);
   };
 
-  const activeSalePercent = getSalePercent();
-  const basePrice = selectedVariant?.price || 0;
-  const discountedPrice = activeSalePercent
-    ? applyDiscount(basePrice, activeSalePercent)
-    : basePrice;
+  // ✅ FIX: useSaleSync() reactive hook — sale apply/remove pe auto-update
+  const { saleData } = useSaleSync();
+  const activeSalePercent = saleData.percent; // null jab sale off ho
 
+  const basePrice = selectedVariant?.price || 0;
+
+  // Sale sirf tab apply hogi jab activeSalePercent valid ho (null nahi)
+  const discountedPrice =
+    activeSalePercent && activeSalePercent > 0
+      ? applyDiscount(basePrice, activeSalePercent)
+      : basePrice;
+
+  // originalForDisplay: sale active → basePrice strikethrough; sale off → variant ki own original_price
   const originalForDisplay =
-    activeSalePercent && basePrice > 0
+    activeSalePercent && activeSalePercent > 0 && basePrice > 0
       ? basePrice
       : selectedVariant?.original_price || null;
 
@@ -711,7 +718,9 @@ function ProductCard({
       ? formatPrice(originalForDisplay)
       : null;
 
-  const totalDiscount = activeSalePercent ? activeSalePercent : discount;
+  // totalDiscount: sale active → salePercent; sale off → variant ki apni discount
+  const totalDiscount =
+    activeSalePercent && activeSalePercent > 0 ? activeSalePercent : discount;
 
   const productSlug = product.name
     .toLowerCase()
@@ -1006,12 +1015,27 @@ export default function FeaturedProducts() {
       }
     };
 
+    // FIX: Tab pe wapas aane pe (admin panel se) fresh data lo
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible") {
+        // Cache invalidate karo aur fresh data fetch karo
+        const freshData = await invalidateAndRefetch(activeTabRef.current);
+        setProducts(freshData.products);
+        setVariantsMap(freshData.variantsMap);
+        setVariantImagesMap(freshData.variantImagesMap);
+        setIsLoading(false);
+        setSwiperKey((k) => k + 1);
+      }
+    };
+
     window.addEventListener("popstate", handlePopState);
     window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.removeEventListener("popstate", handlePopState);
       window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -1056,10 +1080,17 @@ export default function FeaturedProducts() {
         async (payload: any) => {
           const record = payload.new || payload.old || {};
           const affectedCategory = record.category;
-          const isFeaturedNew = payload.new?.is_featured;
-          const isFeaturedOld = payload.old?.is_featured;
 
-          if (!isFeaturedNew && !isFeaturedOld) return;
+          // FIX: INSERT pe payload.old null hota hai — isFeaturedOld undefined hoga
+          // ?? false isliye use kiya ke undefined ko false treat karo
+          const isFeaturedNew = payload.new?.is_featured ?? false;
+          const isFeaturedOld = payload.old?.is_featured ?? false;
+
+          // Agar INSERT aur naya record featured hai — refresh karo
+          // Agar UPDATE aur koi bhi side featured thi — refresh karo
+          // Agar DELETE aur purana featured tha — refresh karo
+          const shouldRefresh = isFeaturedNew || isFeaturedOld;
+          if (!shouldRefresh) return;
 
           if (affectedCategory && ALL_TABS.includes(affectedCategory)) {
             const freshData = await invalidateAndRefetch(affectedCategory);
@@ -1070,7 +1101,7 @@ export default function FeaturedProducts() {
               setIsLoading(false);
               setSwiperKey((k) => k + 1);
             }
-          } else if (!affectedCategory) {
+          } else {
             const freshData = await invalidateAndRefetch(activeTabRef.current);
             setProducts(freshData.products);
             setVariantsMap(freshData.variantsMap);

@@ -1,13 +1,12 @@
 // app/api/admin/update-order-status/route.ts
-// COMPLETE FIX — Yahoo direct inbox
-// email.ts ka sendStatusUpdateEmail use karo — woh already perfect hai
+// COMPLETE — Yahoo + Hotmail inbox delivery
+// Full order details email mein — currency convert with country
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { sendStatusUpdateEmail } from "@/lib/email";
 
-// Supabase Client
 function getClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const key =
@@ -16,7 +15,7 @@ function getClient() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-// Owner Alert Email — NO emojis, plain professional HTML
+// Owner Alert — NO links, plain text + HTML, full anti-spam headers
 async function sendOwnerAlert(
   ownerEmails: string[],
   status: string,
@@ -30,14 +29,12 @@ async function sendOwnerAlert(
   if (!apiKey) return false;
 
   const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
-
   const statusLabel =
     status === "shipped"
       ? "SHIPPED"
       : status === "delivered"
         ? "DELIVERED"
         : "CANCELLED";
-
   const statusColor =
     status === "shipped"
       ? "#1d4ed8"
@@ -47,91 +44,48 @@ async function sendOwnerAlert(
 
   const htmlBody = `<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Order ${statusLabel} - Admin Alert</title>
-</head>
+<head><meta charset="UTF-8"><title>Order ${statusLabel} - Admin</title></head>
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:'Segoe UI',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 20px;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-
-          <tr>
-            <td style="background:#1a1a1a;padding:24px 32px;">
-              <h1 style="color:#daa520;margin:0;font-size:22px;letter-spacing:2px;font-family:'Segoe UI',Arial,sans-serif;">TECH4U Admin Alert</h1>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="padding:8px 32px;background:${statusColor};">
-              <p style="color:#fff;margin:0;font-size:16px;font-weight:700;font-family:'Segoe UI',Arial,sans-serif;">Order ${statusLabel}</p>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="padding:28px 32px;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#888;font-size:13px;width:40%;font-family:'Segoe UI',Arial,sans-serif;">Order Number</td>
-                  <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#1a1a1a;font-weight:700;font-size:15px;font-family:'Segoe UI',Arial,sans-serif;">${orderNumber}</td>
-                </tr>
-                <tr>
-                  <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#888;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">Customer</td>
-                  <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#1a1a1a;font-size:14px;font-family:'Segoe UI',Arial,sans-serif;">${customerName}</td>
-                </tr>
-                <tr>
-                  <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#888;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">Email</td>
-                  <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;font-family:'Segoe UI',Arial,sans-serif;"><a href="mailto:${customerEmail}" style="color:#2563eb;">${customerEmail}</a></td>
-                </tr>
-                <tr>
-                  <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#888;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">Phone</td>
-                  <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#1a1a1a;font-size:14px;font-family:'Segoe UI',Arial,sans-serif;">${customerPhone || "N/A"}</td>
-                </tr>
-                <tr>
-                  <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:#888;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">Status</td>
-                  <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;color:${statusColor};font-weight:700;font-size:14px;font-family:'Segoe UI',Arial,sans-serif;">${statusLabel}</td>
-                </tr>
-                ${
-                  extraInfo
-                    ? `<tr>
-                  <td style="padding:10px 0;color:#888;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">Shipping Info</td>
-                  <td style="padding:10px 0;color:#1a1a1a;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">${extraInfo}</td>
-                </tr>`
-                    : ""
-                }
-              </table>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="background:#f9fafb;padding:16px 32px;text-align:center;">
-              <p style="color:#888;margin:0;font-size:12px;font-family:'Segoe UI',Arial,sans-serif;">Tech4U Admin Panel — ${new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" })} PKT</p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:12px;overflow:hidden;">
+        <tr><td style="background:#1a1a1a;padding:20px 28px;">
+          <p style="color:#daa520;margin:0;font-size:20px;letter-spacing:2px;font-weight:700;font-family:'Segoe UI',Arial,sans-serif;">TECH4U Admin</p>
+        </td></tr>
+        <tr><td style="padding:6px 28px;background:${statusColor};">
+          <p style="color:#fff;margin:0;font-size:14px;font-weight:700;font-family:'Segoe UI',Arial,sans-serif;">Order ${statusLabel}</p>
+        </td></tr>
+        <tr><td style="padding:24px 28px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td style="padding:8px 0;border-bottom:1px solid #f0f0f0;color:#888;font-size:12px;width:40%;font-family:'Segoe UI',Arial,sans-serif;">Order</td><td style="padding:8px 0;border-bottom:1px solid #f0f0f0;color:#1a1a1a;font-weight:700;font-family:'Segoe UI',Arial,sans-serif;">${orderNumber}</td></tr>
+            <tr><td style="padding:8px 0;border-bottom:1px solid #f0f0f0;color:#888;font-size:12px;font-family:'Segoe UI',Arial,sans-serif;">Customer</td><td style="padding:8px 0;border-bottom:1px solid #f0f0f0;color:#1a1a1a;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">${customerName}</td></tr>
+            <tr><td style="padding:8px 0;border-bottom:1px solid #f0f0f0;color:#888;font-size:12px;font-family:'Segoe UI',Arial,sans-serif;">Email</td><td style="padding:8px 0;border-bottom:1px solid #f0f0f0;color:#1a1a1a;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">${customerEmail}</td></tr>
+            <tr><td style="padding:8px 0;border-bottom:1px solid #f0f0f0;color:#888;font-size:12px;font-family:'Segoe UI',Arial,sans-serif;">Phone</td><td style="padding:8px 0;border-bottom:1px solid #f0f0f0;color:#1a1a1a;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">${customerPhone || "N/A"}</td></tr>
+            <tr><td style="padding:8px 0;border-bottom:1px solid #f0f0f0;color:#888;font-size:12px;font-family:'Segoe UI',Arial,sans-serif;">Status</td><td style="padding:8px 0;border-bottom:1px solid #f0f0f0;color:${statusColor};font-weight:700;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">${statusLabel}</td></tr>
+            ${extraInfo ? `<tr><td style="padding:8px 0;color:#888;font-size:12px;font-family:'Segoe UI',Arial,sans-serif;">Info</td><td style="padding:8px 0;color:#1a1a1a;font-size:12px;font-family:'Segoe UI',Arial,sans-serif;">${extraInfo}</td></tr>` : ""}
+          </table>
+        </td></tr>
+        <tr><td style="background:#f9fafb;padding:12px 28px;text-align:center;">
+          <p style="color:#aaa;margin:0;font-size:11px;font-family:'Segoe UI',Arial,sans-serif;">${new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" })} PKT — To unsubscribe reply: unsubscribe</p>
+        </td></tr>
+      </table>
+    </td></tr>
   </table>
 </body>
 </html>`;
 
-  const textBody = `TECH4U ADMIN ALERT — Order ${statusLabel}
-
-Order Number : ${orderNumber}
-Customer     : ${customerName}
-Email        : ${customerEmail}
-Phone        : ${customerPhone || "N/A"}
-Status       : ${statusLabel}
-${extraInfo ? `Shipping     : ${extraInfo}` : ""}
-
-Time: ${new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" })} PKT
+  const textBody = `TECH4U ADMIN — Order ${statusLabel}
+Order    : ${orderNumber}
+Customer : ${customerName}
+Email    : ${customerEmail}
+Phone    : ${customerPhone || "N/A"}
+Status   : ${statusLabel}
+${extraInfo ? `Info     : ${extraInfo}` : ""}
+Time     : ${new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" })} PKT
 `;
 
   try {
-    const response = await fetch("https://api.resend.com/emails", {
+    const resp = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -141,90 +95,76 @@ Time: ${new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" })} PKT
         from: "Tech4U Orders <orders@tech4ru.com>",
         reply_to: "info@tech4ru.com",
         to: ownerEmails,
-        subject: `Order ${orderNumber} - ${statusLabel} | Tech4U Admin`,
+        subject: `Order ${orderNumber} - ${statusLabel} | Tech4U`,
         html: htmlBody,
         text: textBody,
         headers: {
-          "List-Unsubscribe": `<mailto:info@tech4ru.com?subject=unsubscribe-${uniqueId}>`,
+          "List-Unsubscribe": `<mailto:info@tech4ru.com?subject=unsubscribe-admin-${uniqueId}>`,
           "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-          "X-Entity-Ref-ID": uniqueId,
-          "X-Report-Abuse": "Please report abuse to: info@tech4ru.com",
-          "Message-ID": `<${uniqueId}@tech4ru.com>`,
+          "Message-ID": `<admin-${uniqueId}@tech4ru.com>`,
+          "X-Entity-Ref-ID": `admin-${uniqueId}`,
+          "X-Report-Abuse": "Please report abuse to: abuse@tech4ru.com",
           "X-Mailer": "Tech4U-Transactional/2.0",
           "X-Priority": "3",
           Importance: "Normal",
-          "Feedback-ID": `orders:tech4ru:resend`,
+          "Feedback-ID": "transactional-admin:tech4ru:resend",
+          "X-MS-Exchange-Organization-SCL": "-1",
         },
       }),
     });
-    const result = await response.json();
-    if (response.ok && result.id) {
-      console.log(`Owner alert sent! ID: ${result.id}`);
+    const result = await resp.json();
+    if (resp.ok && result.id) {
+      console.log("Owner alert sent:", result.id);
       return true;
-    } else {
-      console.error("Owner alert failed:", JSON.stringify(result));
-      return false;
     }
+    console.error("Owner alert failed:", JSON.stringify(result));
+    return false;
   } catch (err) {
     console.error("Owner alert error:", err);
     return false;
   }
 }
 
-// WhatsApp messages — plain text, no emojis
-function shippedWhatsAppMsg(
+// WhatsApp messages — plain text
+function shippedWA(
   name: string,
   orderNumber: string,
   courierName: string,
   trackingNumber: string,
   estimatedDays: string,
-  trackingUrl: string,
 ): string {
-  return `Your Order is Shipped - Tech4U
+  return `Order Shipped - Tech4U
 
-Hello ${name}! Great news!
+Hello ${name}! Your order is on its way.
 
 Order: ${orderNumber}
 Courier: ${courierName}
-Tracking No: ${trackingNumber}
-Estimated Delivery: ${estimatedDays}
-${trackingUrl ? `Track your parcel: ${trackingUrl}` : ""}
+Tracking: ${trackingNumber}
+Estimated: ${estimatedDays}
 
-For questions:
-info@tech4ru.com
-tech4ru.com
-
-Thank you for choosing Tech4U!`;
+Questions: info@tech4ru.com`;
 }
 
-function deliveredWhatsAppMsg(name: string, orderNumber: string): string {
+function deliveredWA(name: string, orderNumber: string): string {
   return `Order Delivered - Tech4U
 
 Hello ${name}!
 
-Your order ${orderNumber} has been successfully delivered!
+Your order ${orderNumber} has been delivered!
 
 We hope you love your purchase.
 
-For questions:
-info@tech4ru.com
-tech4ru.com
-
-Thank you for shopping with Tech4U!`;
+Questions: info@tech4ru.com`;
 }
 
-function cancelledWhatsAppMsg(name: string, orderNumber: string): string {
+function cancelledWA(name: string, orderNumber: string): string {
   return `Order Cancelled - Tech4U
 
 Hello ${name},
 
 Your order ${orderNumber} has been cancelled.
 
-If you have any questions or need help:
-info@tech4ru.com
-tech4ru.com
-
-We hope to serve you again soon.`;
+Questions: info@tech4ru.com`;
 }
 
 // MAIN POST HANDLER
@@ -244,9 +184,16 @@ export async function POST(req: NextRequest) {
       estimatedDays,
       trackingNumber,
       courierTrackingUrl,
+      // NEW — full order details
+      orderItems,
+      subtotal,
+      shippingCost,
+      totalAmount,
+      shippingAddress,
+      paymentMethod,
+      customerCountry,
     } = body;
 
-    // Validate
     if (
       !orderId ||
       !status ||
@@ -263,18 +210,17 @@ export async function POST(req: NextRequest) {
     const validStatuses = ["shipped", "delivered", "cancelled"];
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
-        { error: `Invalid status. Must be: ${validStatuses.join(", ")}` },
+        { error: `Invalid status: ${validStatuses.join(", ")}` },
         { status: 400 },
       );
     }
 
-    // Step 1: Supabase DB update
+    // Step 1: DB update
     const supabase = getClient();
     const updatePayload: Record<string, any> = {
       status,
       updated_at: new Date().toISOString(),
     };
-
     if (status === "shipped") {
       if (courierName) updatePayload.courier_name = courierName;
       if (courierCountry) updatePayload.courier_country = courierCountry;
@@ -289,15 +235,12 @@ export async function POST(req: NextRequest) {
       .from("orders")
       .update(updatePayload)
       .eq("id", orderId);
-
     if (dbError) {
-      console.error("DB update failed:", dbError.message);
+      console.error("DB error:", dbError.message);
       return NextResponse.json({ error: dbError.message }, { status: 500 });
     }
 
-    console.log(`DB updated: Order ${orderNumber} -> ${status}`);
-
-    // Step 2: Owner emails
+    // Step 2: Owner emails list
     const ownerEmails = (
       process.env.OWNER_EMAILS ||
       process.env.OWNER_EMAIL ||
@@ -307,74 +250,66 @@ export async function POST(req: NextRequest) {
       .map((e) => e.trim())
       .filter(Boolean);
 
-    // Step 3: Build WhatsApp message
+    // Step 3: WhatsApp + extra info
     let whatsappMsg = "";
     let ownerExtraInfo: string | undefined;
-
     const cn = courierName || "Courier";
     const tn = trackingNumber || "N/A";
     const ed = estimatedDays || "3-5 business days";
-    const tu = courierTrackingUrl || "";
 
     if (status === "shipped") {
-      whatsappMsg = shippedWhatsAppMsg(
-        customerName,
-        orderNumber,
-        cn,
-        tn,
-        ed,
-        tu,
-      );
+      whatsappMsg = shippedWA(customerName, orderNumber, cn, tn, ed);
       ownerExtraInfo = `${cn} | Tracking: ${tn} | Est: ${ed}`;
     } else if (status === "delivered") {
-      whatsappMsg = deliveredWhatsAppMsg(customerName, orderNumber);
-    } else if (status === "cancelled") {
-      whatsappMsg = cancelledWhatsAppMsg(customerName, orderNumber);
+      whatsappMsg = deliveredWA(customerName, orderNumber);
+    } else {
+      whatsappMsg = cancelledWA(customerName, orderNumber);
     }
 
     // Step 4: Send all in parallel
-    const [whatsappResult, customerEmailResult, ownerEmailResult] =
-      await Promise.allSettled([
-        // WhatsApp
-        customerPhone
-          ? sendWhatsAppMessage(customerPhone, whatsappMsg)
-          : Promise.resolve(false),
+    const [waResult, emailResult, ownerResult] = await Promise.allSettled([
+      customerPhone
+        ? sendWhatsAppMessage(customerPhone, whatsappMsg)
+        : Promise.resolve(false),
 
-        // Customer email — email.ts ka sendStatusUpdateEmail
-        // Correct argument order: customerEmail, customerName, orderNumber, status, tracking, courier, url, days
-        sendStatusUpdateEmail(
-          customerEmail,
-          customerName,
-          orderNumber,
-          status as "shipped" | "delivered" | "cancelled",
-          trackingNumber,
-          courierName,
-          courierTrackingUrl,
-          estimatedDays,
-        ),
+      sendStatusUpdateEmail(
+        customerEmail,
+        customerName,
+        orderNumber,
+        status as "shipped" | "delivered" | "cancelled",
+        trackingNumber,
+        courierName,
+        courierTrackingUrl,
+        estimatedDays,
+        // New order detail fields
+        orderItems,
+        subtotal,
+        shippingCost,
+        totalAmount,
+        shippingAddress,
+        paymentMethod,
+        customerCountry,
+      ),
 
-        // Owner alert
-        sendOwnerAlert(
-          ownerEmails,
-          status,
-          orderNumber,
-          customerName,
-          customerEmail,
-          customerPhone || "",
-          ownerExtraInfo,
-        ),
-      ]);
+      sendOwnerAlert(
+        ownerEmails,
+        status,
+        orderNumber,
+        customerName,
+        customerEmail,
+        customerPhone || "",
+        ownerExtraInfo,
+      ),
+    ]);
 
     const whatsappSent =
-      whatsappResult.status === "fulfilled" && whatsappResult.value === true;
+      waResult.status === "fulfilled" && waResult.value === true;
     const customerEmailSent =
-      customerEmailResult.status === "fulfilled" &&
-      customerEmailResult.value === true;
+      emailResult.status === "fulfilled" && emailResult.value === true;
     const ownerEmailSent =
-      ownerEmailResult.status === "fulfilled" &&
-      ownerEmailResult.value === true;
+      ownerResult.status === "fulfilled" && ownerResult.value === true;
 
-    console.log(`Notifications for ${orderNumber} (${status}):`, {
+    console.log(`Notifications [${orderNumber}] ${status}:`, {
       whatsapp: whatsappSent ? "sent" : "failed",
       customerEmail: customerEmailSent ? "sent" : "failed",
       ownerEmail: ownerEmailSent ? "sent" : "failed",

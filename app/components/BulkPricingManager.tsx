@@ -60,7 +60,7 @@ export function BulkPricingManager({
   // Calculate total price in CURRENT CURRENCY based on discount percentage
   const calculateTotalPrice = (
     qty: number,
-    discountPercent: number
+    discountPercent: number,
   ): number => {
     const originalTotal = unitPrice * qty;
     const discountedTotal = originalTotal * (1 - discountPercent / 100);
@@ -89,7 +89,7 @@ export function BulkPricingManager({
 
     // Check for overlapping ranges
     const overlapping = tiers.some(
-      (t) => !(newTierMax < t.min_quantity || newTierMin > t.max_quantity)
+      (t) => !(newTierMax < t.min_quantity || newTierMin > t.max_quantity),
     );
 
     if (overlapping) {
@@ -100,7 +100,7 @@ export function BulkPricingManager({
     // Calculate total price in CURRENT CURRENCY
     const totalPriceInDisplay = calculateTotalPrice(
       newTierMin,
-      newTierDiscount
+      newTierDiscount,
     );
 
     // Convert to PKR for storage
@@ -118,7 +118,7 @@ export function BulkPricingManager({
     };
 
     const updatedTiers = [...tiers, newTier].sort(
-      (a, b) => a.min_quantity - b.min_quantity
+      (a, b) => a.min_quantity - b.min_quantity,
     );
     onTiersChange(updatedTiers);
 
@@ -171,7 +171,7 @@ export function BulkPricingManager({
 
       // Check if tier already exists
       const exists = tiers.some(
-        (t) => !(preset.max < t.min_quantity || preset.min > t.max_quantity)
+        (t) => !(preset.max < t.min_quantity || preset.min > t.max_quantity),
       );
 
       if (!exists) {
@@ -189,7 +189,7 @@ export function BulkPricingManager({
     }
 
     const updatedTiers = [...tiers, ...newTiers].sort(
-      (a, b) => a.min_quantity - b.min_quantity
+      (a, b) => a.min_quantity - b.min_quantity,
     );
     onTiersChange(updatedTiers);
   };
@@ -303,7 +303,7 @@ export function BulkPricingManager({
                           onChange={(e) =>
                             updateTierDiscount(
                               idx,
-                              parseFloat(e.target.value) || 0
+                              parseFloat(e.target.value) || 0,
                             )
                           }
                           min="0"
@@ -412,13 +412,13 @@ export function BulkPricingManager({
               <span className="ap-bulk-preview-price">
                 Total:{" "}
                 {formatSmallPrice(
-                  calculateTotalPrice(newTierMin, newTierDiscount)
+                  calculateTotalPrice(newTierMin, newTierDiscount),
                 )}
               </span>
               <span className="ap-bulk-preview-saving">
                 Per piece:{" "}
                 {formatSmallPrice(
-                  calculateTotalPrice(newTierMin, newTierDiscount) / newTierMin
+                  calculateTotalPrice(newTierMin, newTierDiscount) / newTierMin,
                 )}
               </span>
             </div>
@@ -444,7 +444,7 @@ export function BulkPricingManager({
               onClick={() => {
                 const totalDisplay = calculateTotalPrice(
                   preset.qty,
-                  preset.discount
+                  preset.discount,
                 );
                 const totalPKR = convertToPKR(totalDisplay);
 
@@ -453,7 +453,7 @@ export function BulkPricingManager({
                     (t.min_quantity <= preset.qty &&
                       t.max_quantity >= preset.qty) ||
                     (t.min_quantity <= preset.maxQty &&
-                      t.max_quantity >= preset.maxQty)
+                      t.max_quantity >= preset.maxQty),
                 );
 
                 if (!exists) {
@@ -468,7 +468,7 @@ export function BulkPricingManager({
                     display_currency: currencyCode,
                   };
                   const updatedTiers = [...tiers, newTier].sort(
-                    (a, b) => a.min_quantity - b.min_quantity
+                    (a, b) => a.min_quantity - b.min_quantity,
                   );
                   onTiersChange(updatedTiers);
                 } else {

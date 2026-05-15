@@ -1007,31 +1007,69 @@ export default function ProductDetail() {
   const currentPrice = getCurrentPrice();
   const currentPerPiecePrice = getPerPiecePrice();
 
-  // Original price: agar sale active hai toh variant ka actual price dikhao as original
-  // warna existing original_price use karo
+  // ── Original price display — same logic as QuickView ──
+  // unitPrice = single piece ka actual price (sale se pehle)
   const rawVariantPrice = selectedVariant?.price || product?.price || 0;
-  const currentOriginalPrice =
-    activeSalePercent && rawVariantPrice > 0
-      ? rawVariantPrice
-      : (selectedVariant as any)?.original_price ||
-        (product as any)?.original_price ||
-        0;
+  const singlePieceOriginal =
+    (selectedVariant as any)?.original_price ||
+    (product as any)?.original_price ||
+    0;
 
-  // Discount: agar sale active hai toh activeSalePercent use karo
-  const discount = activeSalePercent
-    ? activeSalePercent
-    : currentOriginalPrice > currentPerPiecePrice
-      ? Math.round(
-          ((currentOriginalPrice - currentPerPiecePrice) /
-            currentOriginalPrice) *
-            100,
-        )
-      : 0;
+  // getOriginalPriceDisplay: QuickView se 1:1 match
+  const getOriginalPriceDisplay = (): number => {
+    if (selectedTier) {
+      // Tier selected: cut price = single piece price × quantity
+      // (jo customer akele pieces kharidta toh itna lagta)
+      const unitPrice = activeSalePercent
+        ? applyDiscount(rawVariantPrice, activeSalePercent)
+        : rawVariantPrice;
+      const totalOriginal = unitPrice * selectedTier.min_quantity;
+      if (totalOriginal > selectedTier.tier_price) return totalOriginal;
+      return 0;
+    }
+    // No tier: sale active hai toh variant actual price as original
+    if (activeSalePercent && rawVariantPrice > 0) return rawVariantPrice;
+    return singlePieceOriginal;
+  };
 
-  const savings =
-    currentOriginalPrice > currentPerPiecePrice
+  const currentOriginalPrice = getOriginalPriceDisplay();
+
+  // Discount percentage — per-piece comparison (QuickView style)
+  const getDiscountPercentage = (): number => {
+    if (selectedTier) {
+      // Per-piece saving vs single-unit price
+      const unitPrice = activeSalePercent
+        ? applyDiscount(rawVariantPrice, activeSalePercent)
+        : rawVariantPrice;
+      const perPiece = selectedTier.tier_price / selectedTier.min_quantity;
+      if (unitPrice > perPiece)
+        return Math.round(((unitPrice - perPiece) / unitPrice) * 100);
+      return 0;
+    }
+    if (activeSalePercent) return activeSalePercent;
+    if (singlePieceOriginal > currentPerPiecePrice)
+      return Math.round(
+        ((singlePieceOriginal - currentPerPiecePrice) / singlePieceOriginal) *
+          100,
+      );
+    return 0;
+  };
+
+  const discount = getDiscountPercentage();
+
+  // savings: per-piece saving (for "You save X" display)
+  const savings = (() => {
+    if (selectedTier) {
+      const unitPrice = activeSalePercent
+        ? applyDiscount(rawVariantPrice, activeSalePercent)
+        : rawVariantPrice;
+      const perPiece = selectedTier.tier_price / selectedTier.min_quantity;
+      return Math.max(0, unitPrice - perPiece);
+    }
+    return currentOriginalPrice > currentPerPiecePrice
       ? currentOriginalPrice - currentPerPiecePrice
       : 0;
+  })();
   const currentStock = selectedVariant?.stock || product?.stock || 0;
   const stockClass =
     currentStock === 0 ? "out" : currentStock < 5 ? "low" : "in";
@@ -1456,7 +1494,7 @@ export default function ProductDetail() {
             <div className="pd-price-block">
               <div className="pd-price-row">
                 <span className="pd-price">{formatPrice(currentPrice)}</span>
-                {currentOriginalPrice > currentPerPiecePrice && (
+                {currentOriginalPrice > 0 && currentOriginalPrice > currentPrice && (
                   <span className="pd-price-original">
                     {formatPrice(currentOriginalPrice)}
                   </span>
@@ -1468,9 +1506,14 @@ export default function ProductDetail() {
               {selectedTier && (
                 <p className="pd-per-piece-info">
                   Per piece: {formatPrice(currentPerPiecePrice)}
+                  {savings > 0 && (
+                    <span style={{ marginLeft: "0.5rem", color: "#22c55e", fontSize: "0.78em" }}>
+                      (Save {formatPrice(savings)}/pc)
+                    </span>
+                  )}
                 </p>
               )}
-              {savings > 0 && (
+              {!selectedTier && savings > 0 && (
                 <p className="pd-savings">✦ You save {formatPrice(savings)}</p>
               )}
             </div>
@@ -1525,7 +1568,12 @@ export default function ProductDetail() {
               <BulkPricingSelector
                 tiers={bulkTiers}
                 unitPrice={
-                  selectedVariant?.price || (product as any).price || 0
+                  activeSalePercent
+                    ? applyDiscount(
+                        selectedVariant?.price || (product as any).price || 0,
+                        activeSalePercent,
+                      )
+                    : selectedVariant?.price || (product as any).price || 0
                 }
                 onSelect={setSelectedTier}
                 selectedTier={selectedTier}

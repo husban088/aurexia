@@ -21,12 +21,23 @@ async function sendResendEmail(
   to: string | string[],
   subject: string,
   html: string,
+  text?: string,
 ): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn("⚠️ RESEND_API_KEY missing");
     return false;
   }
+
+  // Plain text fallback — HTML-only emails = spam flag on Yahoo/Hotmail
+  const plainText =
+    text ||
+    html
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
 
   try {
     const response = await fetch("https://api.resend.com/emails", {
@@ -37,9 +48,24 @@ async function sendResendEmail(
       },
       body: JSON.stringify({
         from: "Tech4U Orders <orders@tech4ru.com>",
+        reply_to: "info@tech4ru.com",
         to: Array.isArray(to) ? to : [to],
         subject,
         html,
+        text: plainText,
+        // ✅ Anti-spam headers — Yahoo + Hotmail + Outlook + Gmail
+        headers: {
+          "List-Unsubscribe": `<mailto:info@tech4ru.com?subject=unsubscribe-orders-${uniqueId}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          "Message-ID": `<orders-${uniqueId}@tech4ru.com>`,
+          "X-Entity-Ref-ID": `orders-${uniqueId}`,
+          "X-Report-Abuse": "Please report abuse to: abuse@tech4ru.com",
+          "X-Mailer": "Tech4U-Transactional/2.0",
+          "X-Priority": "3",
+          Importance: "Normal",
+          "Feedback-ID": "transactional-orders:tech4ru:resend",
+          "X-MS-Exchange-Organization-SCL": "-1",
+        },
       }),
     });
 

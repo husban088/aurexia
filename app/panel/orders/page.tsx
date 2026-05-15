@@ -1594,6 +1594,15 @@ export default function OrdersPage() {
 
     try {
       if (["delivered", "cancelled"].includes(newStatus) && currentOrder) {
+        // Build full shipping address string
+        const addressParts = [
+          currentOrder.address,
+          currentOrder.apartment,
+          `${currentOrder.city}${currentOrder.zip ? ", " + currentOrder.zip : ""}`,
+          currentOrder.country,
+        ].filter(Boolean);
+        const fullAddress = addressParts.join(", ");
+
         const res = await fetch("/api/admin/update-order-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1605,6 +1614,14 @@ export default function OrdersPage() {
             customerName:
               `${currentOrder.first_name} ${currentOrder.last_name}`.trim(),
             orderNumber: currentOrder.order_number,
+            // Full order details for email
+            orderItems: currentOrder.items,
+            subtotal: currentOrder.subtotal,
+            shippingCost: currentOrder.shipping_cost,
+            totalAmount: currentOrder.total_amount,
+            shippingAddress: fullAddress,
+            paymentMethod: currentOrder.payment_method,
+            customerCountry: currentOrder.country,
           }),
         });
 
