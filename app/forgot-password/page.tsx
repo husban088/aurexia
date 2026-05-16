@@ -1,13 +1,111 @@
+// app/forgot-password/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/app/context/LanguageContext";
 import "./forgot-password.css";
 import { clearAuthStorage } from "@/lib/auth";
 
+const fpTranslations = {
+  brandEyebrow: {
+    en: "Account Recovery",
+    ar: "استعادة الحساب",
+    de: "Konto Wiederherstellen",
+  },
+  brandTitle: { en: "Tech4U", ar: "تيك4يو", de: "Tech4U" },
+  brandTagline1: { en: "Secure your", ar: "تأمين", de: "Sichern Sie" },
+  brandTagline2: { en: "luxury", ar: "وصولك", de: "Ihren" },
+  brandTaglineEm: { en: "access.", ar: "الفاخر.", de: "Luxuszugang." },
+  brandNote: {
+    en: "Enter your registered email and we'll send you a secure link to reset your password instantly.",
+    ar: "أدخل بريدك الإلكتروني المسجل وسنرسل لك رابطًا آمنًا لإعادة تعيين كلمة المرور الخاصة بك فورًا.",
+    de: "Geben Sie Ihre registrierte E-Mail-Adresse ein und wir senden Ihnen sofort einen sicheren Link zum Zurücksetzen Ihres Passworts.",
+  },
+
+  formEyebrow: {
+    en: "Forgot Password",
+    ar: "نسيت كلمة المرور",
+    de: "Passwort vergessen",
+  },
+  formTitle: { en: "Forgot", ar: "نسيت", de: "Passwort" },
+  formTitleEm: { en: "Password?", ar: "كلمة المرور؟", de: "vergessen?" },
+  formSub: {
+    en: "We'll send a reset link to your email",
+    ar: "سنرسل رابط إعادة تعيين إلى بريدك الإلكتروني",
+    de: "Wir senden Ihnen einen Link zum Zurücksetzen an Ihre E-Mail",
+  },
+
+  emailLabel: {
+    en: "Email Address",
+    ar: "البريد الإلكتروني",
+    de: "E-Mail-Adresse",
+  },
+  emailPlaceholder: {
+    en: "your@email.com",
+    ar: "بريدك@example.com",
+    de: "ihre@email.de",
+  },
+
+  sendLink: {
+    en: "Send Reset Link",
+    ar: "إرسال رابط إعادة التعيين",
+    de: "Link zum Zurücksetzen senden",
+  },
+  sending: { en: "Sending...", ar: "جاري الإرسال...", de: "Sende..." },
+
+  orText: { en: "or", ar: "أو", de: "oder" },
+  switchText: {
+    en: "Remember your password?",
+    ar: "هل تذكر كلمة المرور؟",
+    de: "Passwort erinnert?",
+  },
+  switchLink: { en: "Sign in", ar: "تسجيل الدخول", de: "Anmelden" },
+
+  successTitle: { en: "Check your", ar: "تفقد", de: "Überprüfen Sie" },
+  successTitleEm: { en: "inbox", ar: "بريدك الوارد", de: "Ihren Posteingang" },
+  successDesc: {
+    en: "We've sent a password reset link to",
+    ar: "لقد أرسلنا رابط إعادة تعيين كلمة المرور إلى",
+    de: "Wir haben einen Link zum Zurücksetzen des Passworts gesendet an",
+  },
+  successNote: {
+    en: "Open the email and click the link to set a new password. The link expires in 1 hour.",
+    ar: "افتح البريد الإلكتروني وانقر على الرابط لتعيين كلمة مرور جديدة. تنتهي صلاحية الرابط بعد ساعة واحدة.",
+    de: "Öffnen Sie die E-Mail und klicken Sie auf den Link, um ein neues Passwort festzulegen. Der Link läuft in 1 Stunde ab.",
+  },
+  backToSignin: {
+    en: "Back to Sign In",
+    ar: "العودة إلى تسجيل الدخول",
+    de: "Zurück zur Anmeldung",
+  },
+
+  errorDefault: {
+    en: "Something went wrong",
+    ar: "حدث خطأ ما",
+    de: "Etwas ist schief gelaufen",
+  },
+};
+
+const getFpTranslation = (
+  key: keyof typeof fpTranslations,
+  lang: "en" | "ar" | "de",
+  subKey?: string,
+): string => {
+  if (subKey && fpTranslations[key] && (fpTranslations[key] as any)[subKey]) {
+    return (fpTranslations[key] as any)[subKey][lang];
+  }
+  if (fpTranslations[key] && (fpTranslations[key] as any)[lang]) {
+    return (fpTranslations[key] as any)[lang];
+  }
+  return (fpTranslations[key] as any)?.en || key;
+};
+
 export default function ForgotPassword() {
+  const { language, isRTLMode } = useLanguage();
+  const lang = language;
+
   const [email, setEmail] = useState("");
   const [focused, setFocused] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -15,7 +113,6 @@ export default function ForgotPassword() {
   const [sent, setSent] = useState(false);
   const [redirectUrl, setRedirectUrl] = useState("");
 
-  // Ye fix hai: window ko client-side pe access karo
   useEffect(() => {
     setRedirectUrl(`${window.location.origin}/reset-password`);
   }, []);
@@ -26,16 +123,14 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      // Clear any existing session before sending reset email
       clearAuthStorage();
       await supabase.auth.signOut();
 
-      // Ab redirectUrl use karo jo useEffect mein set hua
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email.trim(),
         {
           redirectTo: redirectUrl || `${window.location.origin}/reset-password`,
-        }
+        },
       );
 
       if (resetError) {
@@ -46,14 +141,14 @@ export default function ForgotPassword() {
 
       setSent(true);
     } catch (err: any) {
-      setError(err.message || "Something went wrong");
+      setError(err.message || getFpTranslation("errorDefault", lang));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fp-root">
+    <div className="fp-root" dir={isRTLMode ? "rtl" : "ltr"}>
       <div className="fp-grain" aria-hidden="true" />
       <div className="fp-bg-lines" aria-hidden="true">
         <span />
@@ -68,34 +163,26 @@ export default function ForgotPassword() {
       <div className="fp-corner fp-corner--br" aria-hidden="true" />
 
       <div className="fp-card">
-        {/* Left brand */}
+        {/* LEFT: Brand Panel */}
         <div className="fp-brand">
           <div className="fp-brand-inner">
-            <div className="fp-brand-logo">
-              <Image
-                src="/logo.png"
-                alt="Aurexia"
-                width={52}
-                height={52}
-                className="fp-logo-img"
-                priority
-              />
-            </div>
             <p className="fp-brand-eyebrow">
               <span className="fp-ey-line" />
-              Password Reset
+              {getFpTranslation("brandEyebrow", lang)}
               <span className="fp-ey-line" />
             </p>
-            <h1 className="fp-brand-title">Aurexia</h1>
+            <h1 className="fp-brand-title">
+              {getFpTranslation("brandTitle", lang)}
+            </h1>
             <p className="fp-brand-tagline">
-              Secure your
+              {getFpTranslation("brandTagline1", lang)}
               <br />
-              <em>luxury access.</em>
+              {getFpTranslation("brandTagline2", lang)}{" "}
+              <em>{getFpTranslation("brandTaglineEm", lang)}</em>
             </p>
             <div className="fp-brand-divider" aria-hidden="true" />
             <p className="fp-brand-note">
-              Enter your registered email and we'll send you a secure link to
-              reset your password instantly.
+              {getFpTranslation("brandNote", lang)}
             </p>
             <div className="fp-ring" aria-hidden="true">
               <div className="fp-ring-inner" />
@@ -103,7 +190,7 @@ export default function ForgotPassword() {
           </div>
         </div>
 
-        {/* Right form */}
+        {/* RIGHT: Form Panel */}
         <div className="fp-form-panel">
           <div className="fp-form-wrap">
             {!sent ? (
@@ -111,14 +198,15 @@ export default function ForgotPassword() {
                 <div className="fp-form-header">
                   <p className="fp-form-eyebrow">
                     <span className="fp-ey-line" />
-                    Account Recovery
+                    {getFpTranslation("formEyebrow", lang)}
                     <span className="fp-ey-line" />
                   </p>
                   <h2 className="fp-form-title">
-                    Forgot <em>Password?</em>
+                    {getFpTranslation("formTitle", lang)}{" "}
+                    <em>{getFpTranslation("formTitleEm", lang)}</em>
                   </h2>
                   <p className="fp-form-sub">
-                    We'll send a reset link to your email
+                    {getFpTranslation("formSub", lang)}
                   </p>
                 </div>
 
@@ -142,12 +230,10 @@ export default function ForgotPassword() {
                   )}
 
                   <div
-                    className={`fp-field${focused ? " fp-field--focused" : ""}${
-                      email ? " fp-field--filled" : ""
-                    }`}
+                    className={`fp-field${focused ? " fp-field--focused" : ""}${email ? " fp-field--filled" : ""}`}
                   >
                     <label className="fp-label" htmlFor="fp-email">
-                      Email Address
+                      {getFpTranslation("emailLabel", lang)}
                     </label>
                     <div className="fp-input-wrap">
                       <span className="fp-input-icon" aria-hidden="true">
@@ -165,7 +251,7 @@ export default function ForgotPassword() {
                         id="fp-email"
                         type="email"
                         className="fp-input"
-                        placeholder="your@email.com"
+                        placeholder={getFpTranslation("emailPlaceholder", lang)}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         onFocus={() => setFocused(true)}
@@ -186,7 +272,7 @@ export default function ForgotPassword() {
                       <span className="fp-spinner" />
                     ) : (
                       <>
-                        <span>Send Reset Link</span>
+                        <span>{getFpTranslation("sendLink", lang)}</span>
                         <svg
                           viewBox="0 0 24 24"
                           fill="none"
@@ -206,14 +292,16 @@ export default function ForgotPassword() {
 
                 <div className="fp-or" aria-hidden="true">
                   <span className="fp-or-line" />
-                  <span className="fp-or-text">or</span>
+                  <span className="fp-or-text">
+                    {getFpTranslation("orText", lang)}
+                  </span>
                   <span className="fp-or-line" />
                 </div>
 
                 <p className="fp-switch">
-                  Remember your password?{" "}
+                  {getFpTranslation("switchText", lang)}{" "}
                   <Link href="/signin" className="fp-switch-link">
-                    Sign in
+                    {getFpTranslation("switchLink", lang)}
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -244,22 +332,21 @@ export default function ForgotPassword() {
                     <polyline points="22,6 12,13 2,6" />
                   </svg>
                 </div>
-                <div className="fp-success-ring" aria-hidden="true" />
                 <p className="fp-success-eyebrow">
                   <span className="fp-ey-line" />
                   Email Sent
                   <span className="fp-ey-line" />
                 </p>
                 <h2 className="fp-success-title">
-                  Check your <em>inbox</em>
+                  {getFpTranslation("successTitle", lang)}{" "}
+                  <em>{getFpTranslation("successTitleEm", lang)}</em>
                 </h2>
                 <p className="fp-success-desc">
-                  We've sent a password reset link to
+                  {getFpTranslation("successDesc", lang)}
                 </p>
                 <p className="fp-success-email">{email}</p>
                 <p className="fp-success-note">
-                  Open the email and click the link to set a new password. The
-                  link expires in 1 hour.
+                  {getFpTranslation("successNote", lang)}
                 </p>
                 <Link href="/signin" className="fp-back-btn">
                   <svg
@@ -274,7 +361,7 @@ export default function ForgotPassword() {
                       strokeLinejoin="round"
                     />
                   </svg>
-                  Back to Sign In
+                  {getFpTranslation("backToSignin", lang)}
                 </Link>
               </div>
             )}

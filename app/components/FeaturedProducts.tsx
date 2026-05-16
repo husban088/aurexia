@@ -17,19 +17,8 @@ import QuickView from "./QuickView";
 import { useSaleSync, applyDiscount } from "@/lib/saleStore";
 
 /* ─────────────────────────────────────────────────────────────
-   MODULE-LEVEL CACHE
+   TYPES
 ───────────────────────────────────────────────────────────── */
-interface CachedData {
-  products: FeaturedProduct[];
-  variantsMap: Record<string, ProductVariant[]>;
-  variantImagesMap: VariantImagesMap;
-  fetchedAt?: number;
-}
-
-const MODULE_CACHE: Record<string, CachedData> = {};
-const FETCH_IN_FLIGHT: Record<string, Promise<CachedData>> = {};
-
-/* ── Types ── */
 interface QuickViewProduct {
   id: string;
   name: string;
@@ -80,41 +69,34 @@ interface VariantImagesMap {
   [variantId: string]: string[];
 }
 
-/* ── Translations for Featured Products Section ── */
+interface CachedData {
+  products: FeaturedProduct[];
+  variantsMap: Record<string, ProductVariant[]>;
+  variantImagesMap: VariantImagesMap;
+  fetchedAt?: number;
+}
+
+/* ── Translations ── */
 const fpTranslations = {
   eyebrow: {
     en: "Curated Selection",
     ar: "مجموعة منسقة",
     de: "Kurierte Auswahl",
   },
-  title: {
-    en: "Featured",
-    ar: "المميزة",
-    de: "Ausgewählte",
-  },
-  titleItalic: {
-    en: "Products",
-    ar: "المنتجات",
-    de: "Produkte",
-  },
+  title: { en: "Featured", ar: "المميزة", de: "Ausgewählte" },
+  titleItalic: { en: "Products", ar: "المنتجات", de: "Produkte" },
   subtitle: {
     en: "Handpicked luxury essentials across our finest categories",
     ar: "أساسيات فاخرة منتقاة عبر أفضل الفئات",
     de: "Handverlesene Luxus-Essentials aus unseren besten Kategorien",
   },
-  viewAllPrefix: {
-    en: "View All ",
-    ar: "عرض الكل ",
-    de: "Alle anzeigen ",
-  },
-  // Tab labels
+  viewAllPrefix: { en: "View All ", ar: "عرض الكل ", de: "Alle anzeigen " },
   tabs: {
     Accessories: { en: "Accessories", ar: "الإكسسوارات", de: "Zubehör" },
     Watches: { en: "Watches", ar: "الساعات", de: "Uhren" },
     Automotive: { en: "Automotive", ar: "السيارات", de: "Automobil" },
     "Home Decor": { en: "Home Decor", ar: "ديكور المنزل", de: "Wohnkultur" },
   },
-  // Empty state
   emptyTitle: {
     en: "No featured products found",
     ar: "لا توجد منتجات مميزة",
@@ -156,7 +138,7 @@ const getStockStatus = (
 };
 
 /* ── Fetch function ── */
-async function fetchFeaturedTabDataFast(tab: string): Promise<CachedData> {
+async function fetchFeaturedTabData(tab: string): Promise<CachedData> {
   const { data: productsData, error } = await supabase
     .from("products")
     .select("*, product_variants(*, variant_images(*))")
@@ -166,12 +148,14 @@ async function fetchFeaturedTabDataFast(tab: string): Promise<CachedData> {
     .order("created_at", { ascending: false });
 
   if (error || !productsData || productsData.length === 0) {
-    return {
+    const empty: CachedData = {
       products: [],
       variantsMap: {},
       variantImagesMap: {},
       fetchedAt: Date.now(),
     };
+    tabCache[tab] = empty;
+    return empty;
   }
 
   const formattedProducts: FeaturedProduct[] = productsData.map(
@@ -220,102 +204,20 @@ async function fetchFeaturedTabDataFast(tab: string): Promise<CachedData> {
     });
   });
 
-  const result = {
+  const result: CachedData = {
     products: formattedProducts,
     variantsMap: variantsByProduct,
     variantImagesMap,
     fetchedAt: Date.now(),
   };
-
-  MODULE_CACHE[tab] = result;
-  saveToStorage(tab, result);
+  tabCache[tab] = result;
   return result;
 }
 
 const ALL_TABS = ["Accessories", "Watches", "Automotive", "Home Decor"];
 
-async function ensureTabCached(tab: string): Promise<CachedData> {
-  if (MODULE_CACHE[tab]) return MODULE_CACHE[tab];
-
-  const inFlight = FETCH_IN_FLIGHT[tab];
-  if (inFlight) return await inFlight;
-
-  const promise = fetchFeaturedTabDataFast(tab).then((data) => {
-    delete FETCH_IN_FLIGHT[tab];
-    return data;
-  });
-
-  FETCH_IN_FLIGHT[tab] = promise;
-  return await promise;
-}
-
-async function invalidateAndRefetch(tab: string): Promise<CachedData> {
-  delete MODULE_CACHE[tab];
-  delete FETCH_IN_FLIGHT[tab];
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (raw) {
-      const s = JSON.parse(raw);
-      delete s[tab];
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
-    }
-  } catch (_) {}
-  try {
-    const raw = localStorage.getItem(LOCAL_KEY);
-    if (raw) {
-      const s = JSON.parse(raw);
-      delete s[tab];
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(s));
-    }
-  } catch (_) {}
-  return await ensureTabCached(tab);
-}
-const SESSION_KEY = "fp_cache_v3";
-const LOCAL_KEY = "fp_cache_local_v3";
-
-function saveToStorage(tab: string, data: CachedData) {
-  if (typeof window === "undefined") return;
-
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    const existing = raw ? JSON.parse(raw) : {};
-    existing[tab] = data;
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(existing));
-  } catch (_) {}
-
-  try {
-    const raw = localStorage.getItem(LOCAL_KEY);
-    const existing = raw ? JSON.parse(raw) : {};
-    existing[tab] = { data, ts: Date.now() };
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(existing));
-  } catch (_) {}
-}
-
-function loadFromStorageSync(): void {
-  if (typeof window === "undefined") return;
-
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      Object.entries(parsed).forEach(([tab, data]) => {
-        if (!MODULE_CACHE[tab]) MODULE_CACHE[tab] = data as CachedData;
-      });
-      return;
-    }
-  } catch (_) {}
-
-  try {
-    const raw = localStorage.getItem(LOCAL_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    Object.entries(parsed).forEach(([tab, entry]: [string, any]) => {
-      if (entry?.data && Date.now() - (entry.ts || 0) < 86400000) {
-        if (!MODULE_CACHE[tab]) MODULE_CACHE[tab] = entry.data;
-      }
-    });
-  } catch (_) {}
-}
+// ── Module-level in-memory cache — survives React re-mounts, back/forward nav ──
+const tabCache: Record<string, CachedData> = {};
 
 /* ─────────────────────────────────────────────────────────────
    STAR COMPONENTS
@@ -344,9 +246,7 @@ function StarDisplay({ rating, size = 11 }: { rating: number; size?: number }) {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
-   SKELETON CARD
-───────────────────────────────────────────────────────────── */
+/* ── SKELETON ── */
 function SkeletonCard() {
   return (
     <div className="fp-card fp-card--skeleton">
@@ -364,9 +264,6 @@ function SkeletonCard() {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
-   LOADING SPINNER
-───────────────────────────────────────────────────────────── */
 function LoadingSpinner({ size = 18 }: { size?: number }) {
   return (
     <div
@@ -384,9 +281,7 @@ function LoadingSpinner({ size = 18 }: { size?: number }) {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
-   VARIANT THUMBNAILS with RTL support
-───────────────────────────────────────────────────────────── */
+/* ── VARIANT THUMBNAILS ── */
 function VariantThumbnails({
   variants,
   type,
@@ -448,8 +343,6 @@ function VariantThumbnails({
         {displayVariants.map((variant) => {
           const variantImage = getVariantImage(variant.id);
           const isActive = currentValue === variant.attribute_value;
-          const labelText = variant.attribute_value;
-
           return (
             <button
               key={variant.id}
@@ -476,7 +369,9 @@ function VariantThumbnails({
                   </span>
                 </div>
               )}
-              <span className="fp-variant-thumb-label">{labelText}</span>
+              <span className="fp-variant-thumb-label">
+                {variant.attribute_value}
+              </span>
             </button>
           );
         })}
@@ -488,9 +383,7 @@ function VariantThumbnails({
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
-   PRODUCT CARD with RTL
-───────────────────────────────────────────────────────────── */
+/* ── PRODUCT CARD ── */
 function ProductCard({
   product,
   variants,
@@ -541,6 +434,7 @@ function ProductCard({
       : null,
   );
 
+  // Real-time rating updates
   useEffect(() => {
     const channel = supabase
       .channel(`fp-rating-${product.id}`)
@@ -586,7 +480,6 @@ function ProductCard({
       variantImagesMap[variantId]?.[0] || null,
     [variantImagesMap],
   );
-
   const getVariantImages = useCallback(
     (variantId: string): string[] => variantImagesMap[variantId] || [],
     [variantImagesMap],
@@ -597,9 +490,6 @@ function ProductCard({
     setCurrentImages(getVariantImages(variant.id));
     setIsHovered(false);
   };
-
-  const handleMouseEnter = () => setIsHovered(true);
-  const handleMouseLeave = () => setIsHovered(false);
 
   const displayImage = currentImages[0] ?? null;
 
@@ -694,31 +584,22 @@ function ProductCard({
     setQuickViewLoading(false);
   };
 
-  // ✅ FIX: useSaleSync() reactive hook — sale apply/remove pe auto-update
   const { saleData } = useSaleSync();
-  const activeSalePercent = saleData.percent; // null jab sale off ho
-
+  const activeSalePercent = saleData?.percent;
   const basePrice = selectedVariant?.price || 0;
-
-  // Sale sirf tab apply hogi jab activeSalePercent valid ho (null nahi)
   const discountedPrice =
     activeSalePercent && activeSalePercent > 0
       ? applyDiscount(basePrice, activeSalePercent)
       : basePrice;
-
-  // originalForDisplay: sale active → basePrice strikethrough; sale off → variant ki own original_price
   const originalForDisplay =
     activeSalePercent && activeSalePercent > 0 && basePrice > 0
       ? basePrice
       : selectedVariant?.original_price || null;
-
   const displaySalePrice = formatPrice(discountedPrice);
   const displayOriginalPrice =
     originalForDisplay && originalForDisplay > discountedPrice
       ? formatPrice(originalForDisplay)
       : null;
-
-  // totalDiscount: sale active → salePercent; sale off → variant ki apni discount
   const totalDiscount =
     activeSalePercent && activeSalePercent > 0 ? activeSalePercent : discount;
 
@@ -729,7 +610,6 @@ function ProductCard({
     .replace(/[\s_]+/g, "-")
     .replace(/-+/g, "-")
     .substring(0, 60);
-
   const productHref = `/product/${productSlug}--${product.id}`;
 
   return (
@@ -741,8 +621,8 @@ function ProductCard({
     >
       <div
         className="fp-card-img"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         {displayImage ? (
           <img
@@ -833,7 +713,6 @@ function ProductCard({
             <span className="fp-card-discount">-{totalDiscount}%</span>
           )}
         </div>
-
         <div className="fp-card-rating">
           {liveRating !== null &&
             liveReviewCount !== null &&
@@ -846,7 +725,6 @@ function ProductCard({
               </>
             )}
         </div>
-
         <div className="fp-card-variants-wrapper">
           {colorVariants.length > 0 && (
             <VariantThumbnails
@@ -912,35 +790,28 @@ function ProductCard({
   );
 }
 
-// ── Module-level init ──
-if (typeof window !== "undefined") {
-  loadFromStorageSync();
-}
-
+/* ─────────────────────────────────────────────────────────────
+   MAIN FEATURED PRODUCTS COMPONENT - FIXED
+───────────────────────────────────────────────────────────── */
 export default function FeaturedProducts() {
   const [activeTab, setActiveTab] = useState("Accessories");
   const activeTabRef = useRef("Accessories");
   const { language, isRTLMode } = useLanguage();
 
-  const [products, setProducts] = useState<FeaturedProduct[]>(() => {
-    return MODULE_CACHE["Accessories"]?.products ?? [];
-  });
+  // Init from cache immediately — no loading flash if already cached
+  const [products, setProducts] = useState<FeaturedProduct[]>(
+    () => tabCache["Accessories"]?.products || [],
+  );
   const [variantsMap, setVariantsMap] = useState<
     Record<string, ProductVariant[]>
-  >(() => {
-    return MODULE_CACHE["Accessories"]?.variantsMap ?? {};
-  });
+  >(() => tabCache["Accessories"]?.variantsMap || {});
   const [variantImagesMap, setVariantImagesMap] = useState<
     Record<string, string[]>
-  >(() => {
-    return MODULE_CACHE["Accessories"]?.variantImagesMap ?? {};
-  });
-  const [isLoading, setIsLoading] = useState<boolean>(() => {
-    return !MODULE_CACHE["Accessories"];
-  });
-  const [initialLoadDone, setInitialLoadDone] = useState(() => {
-    return !!MODULE_CACHE["Accessories"];
-  });
+  >(() => tabCache["Accessories"]?.variantImagesMap || {});
+  // If already cached, start with isLoading false
+  const [isLoading, setIsLoading] = useState(
+    () => !tabCache["Accessories"]?.products?.length,
+  );
 
   const [quickViewProduct, setQuickViewProduct] =
     useState<QuickViewProduct | null>(null);
@@ -955,122 +826,99 @@ export default function FeaturedProducts() {
   const [quickViewOpen, setQuickViewOpen] = useState(false);
 
   const [swiperKey, setSwiperKey] = useState(0);
-
   const prevRef = useRef<HTMLButtonElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
   const swiperRef = useRef<SwiperType | null>(null);
 
-  useEffect(() => {
-    if (initialLoadDone) {
-      setTimeout(() => {
-        ALL_TABS.forEach((tab) => {
-          if (!MODULE_CACHE[tab]) ensureTabCached(tab).catch(console.error);
-        });
-      }, 500);
-      return;
-    }
-    ensureTabCached("Accessories").then((data) => {
-      if (data) {
-        setProducts(data.products);
-        setVariantsMap(data.variantsMap);
-        setVariantImagesMap(data.variantImagesMap);
+  // Load products for a tab — shows cached data instantly, then refreshes in background
+  const loadProductsForTab = useCallback(
+    async (tab: string, forceRefresh = false) => {
+      // If we have cached data, show it immediately (no loading state)
+      if (tabCache[tab] && !forceRefresh) {
+        const cached = tabCache[tab];
+        setProducts(cached.products);
+        setVariantsMap(cached.variantsMap);
+        setVariantImagesMap(cached.variantImagesMap);
         setIsLoading(false);
-        setInitialLoadDone(true);
+        setSwiperKey((prev) => prev + 1);
+        return cached;
       }
-    });
-    setTimeout(() => {
+
+      // No cache or forced refresh — show loading
+      if (!tabCache[tab]) setIsLoading(true);
+      try {
+        const data = await fetchFeaturedTabData(tab);
+        // Only update if still on the same tab
+        if (activeTabRef.current === tab) {
+          setProducts(data.products);
+          setVariantsMap(data.variantsMap);
+          setVariantImagesMap(data.variantImagesMap);
+          setSwiperKey((prev) => prev + 1);
+        }
+        return data;
+      } catch (error) {
+        console.error(`Error loading products for tab ${tab}:`, error);
+        return null;
+      } finally {
+        if (activeTabRef.current === tab) setIsLoading(false);
+      }
+    },
+    [],
+  );
+
+  // Initial load — skip fetch if already showing cached data
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadInitial = async () => {
+      // If already populated from cache initializer, just do a silent background refresh
+      const alreadyCached = !!tabCache["Accessories"]?.products?.length;
+      if (!alreadyCached) setIsLoading(true);
+
+      try {
+        const data = await fetchFeaturedTabData("Accessories");
+        if (isMounted) {
+          setProducts(data.products);
+          setVariantsMap(data.variantsMap);
+          setVariantImagesMap(data.variantImagesMap);
+          setSwiperKey((prev) => prev + 1);
+        }
+      } catch (error) {
+        console.error("Error loading initial products:", error);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    loadInitial();
+
+    // Prefetch other tabs in background after 800ms
+    const prefetchTimer = setTimeout(() => {
       ALL_TABS.forEach((tab) => {
-        if (!MODULE_CACHE[tab]) ensureTabCached(tab).catch(console.error);
+        if (tab !== "Accessories" && !tabCache[tab]) {
+          fetchFeaturedTabData(tab).catch(console.error);
+        }
       });
-    }, 500);
-  }, []);
-
-  useEffect(() => {
-    const handlePopState = () => {
-      const cached = MODULE_CACHE[activeTabRef.current];
-      if (cached) {
-        setProducts(cached.products);
-        setVariantsMap(cached.variantsMap);
-        setVariantImagesMap(cached.variantImagesMap);
-        setIsLoading(false);
-        setSwiperKey((k) => k + 1);
-        setTimeout(() => {
-          swiperRef.current?.update();
-          swiperRef.current?.slideTo(0, 0);
-        }, 50);
-      }
-    };
-
-    const handlePageShow = (e: PageTransitionEvent) => {
-      const cached = MODULE_CACHE[activeTabRef.current];
-      if (cached) {
-        setProducts(cached.products);
-        setVariantsMap(cached.variantsMap);
-        setVariantImagesMap(cached.variantImagesMap);
-        setIsLoading(false);
-        setTimeout(() => {
-          swiperRef.current?.update();
-          swiperRef.current?.slideTo(0, 0);
-        }, 50);
-      }
-    };
-
-    // FIX: Tab pe wapas aane pe (admin panel se) fresh data lo
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === "visible") {
-        // Cache invalidate karo aur fresh data fetch karo
-        const freshData = await invalidateAndRefetch(activeTabRef.current);
-        setProducts(freshData.products);
-        setVariantsMap(freshData.variantsMap);
-        setVariantImagesMap(freshData.variantImagesMap);
-        setIsLoading(false);
-        setSwiperKey((k) => k + 1);
-      }
-    };
-
-    window.addEventListener("popstate", handlePopState);
-    window.addEventListener("pageshow", handlePageShow);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    }, 800);
 
     return () => {
-      window.removeEventListener("popstate", handlePopState);
-      window.removeEventListener("pageshow", handlePageShow);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      isMounted = false;
+      clearTimeout(prefetchTimer);
     };
   }, []);
 
+  // Handle tab change
   const handleTabChange = useCallback(
     async (tab: string) => {
       if (tab === activeTab) return;
-
       setActiveTab(tab);
       activeTabRef.current = tab;
-
-      const cached = MODULE_CACHE[tab];
-      if (cached) {
-        setProducts(cached.products);
-        setVariantsMap(cached.variantsMap);
-        setVariantImagesMap(cached.variantImagesMap);
-        setIsLoading(false);
-        setSwiperKey((k) => k + 1);
-        return;
-      }
-
-      setIsLoading(true);
-      setProducts([]);
-
-      const data = await ensureTabCached(tab);
-      if (data) {
-        setProducts(data.products);
-        setVariantsMap(data.variantsMap);
-        setVariantImagesMap(data.variantImagesMap);
-        setIsLoading(false);
-        setSwiperKey((k) => k + 1);
-      }
+      await loadProductsForTab(tab);
     },
-    [activeTab],
+    [activeTab, loadProductsForTab],
   );
 
+  // Real-time updates for featured products
   useEffect(() => {
     const channel = supabase
       .channel("fp-featured-products-changes")
@@ -1080,34 +928,18 @@ export default function FeaturedProducts() {
         async (payload: any) => {
           const record = payload.new || payload.old || {};
           const affectedCategory = record.category;
-
-          // FIX: INSERT pe payload.old null hota hai — isFeaturedOld undefined hoga
-          // ?? false isliye use kiya ke undefined ko false treat karo
           const isFeaturedNew = payload.new?.is_featured ?? false;
           const isFeaturedOld = payload.old?.is_featured ?? false;
-
-          // Agar INSERT aur naya record featured hai — refresh karo
-          // Agar UPDATE aur koi bhi side featured thi — refresh karo
-          // Agar DELETE aur purana featured tha — refresh karo
           const shouldRefresh = isFeaturedNew || isFeaturedOld;
+
           if (!shouldRefresh) return;
 
           if (affectedCategory && ALL_TABS.includes(affectedCategory)) {
-            const freshData = await invalidateAndRefetch(affectedCategory);
             if (activeTabRef.current === affectedCategory) {
-              setProducts(freshData.products);
-              setVariantsMap(freshData.variantsMap);
-              setVariantImagesMap(freshData.variantImagesMap);
-              setIsLoading(false);
-              setSwiperKey((k) => k + 1);
+              await loadProductsForTab(affectedCategory, true);
             }
-          } else {
-            const freshData = await invalidateAndRefetch(activeTabRef.current);
-            setProducts(freshData.products);
-            setVariantsMap(freshData.variantsMap);
-            setVariantImagesMap(freshData.variantImagesMap);
-            setIsLoading(false);
-            setSwiperKey((k) => k + 1);
+          } else if (activeTabRef.current) {
+            await loadProductsForTab(activeTabRef.current, true);
           }
         },
       )
@@ -1116,8 +948,44 @@ export default function FeaturedProducts() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [loadProductsForTab]);
 
+  // Handle visibility change (user returns to tab)
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible") {
+        await loadProductsForTab(activeTabRef.current, true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [loadProductsForTab]);
+
+  // Handle page show (back/forward navigation — bfcache)
+  useEffect(() => {
+    const handlePageShow = async (e: PageTransitionEvent) => {
+      const tab = activeTabRef.current;
+      // Show cached data instantly if available
+      if (tabCache[tab]) {
+        const cached = tabCache[tab];
+        setProducts(cached.products);
+        setVariantsMap(cached.variantsMap);
+        setVariantImagesMap(cached.variantImagesMap);
+        setIsLoading(false);
+        setSwiperKey((prev) => prev + 1);
+      }
+      // Then refresh from network in background
+      await loadProductsForTab(tab, true);
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, [loadProductsForTab]);
+
+  // Update swiper when products change
   useEffect(() => {
     if (swiperRef.current && products.length > 0) {
       setTimeout(() => {

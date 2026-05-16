@@ -20,11 +20,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  // Dynamic height of sticky wrapper (AnnouncementBar + Navbar)
   const [stickyHeight, setStickyHeight] = useState(0);
   const pathname = usePathname();
   const { fetchCart, setOnCartOpen } = useCartStore();
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const cartInitialized = useRef(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -39,9 +39,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     fetchCouponSettings();
   }, []);
 
-  // ── Measure sticky wrapper height dynamically ────────────────────────────
-  // AnnouncementBar hide/show hone pe height change hoti hai
-  // ResizeObserver se track karo taake content kabhi overlap na ho
+  // Measure sticky navbar height — only AFTER client mounts
   useEffect(() => {
     if (!isClient) return;
 
@@ -51,22 +49,24 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       }
     };
 
+    // Measure immediately and after a tiny paint frame
     measure();
+    const raf = requestAnimationFrame(measure);
 
     const observer = new ResizeObserver(measure);
     if (wrapperRef.current) observer.observe(wrapperRef.current);
     window.addEventListener("resize", measure, { passive: true });
 
     return () => {
+      cancelAnimationFrame(raf);
       observer.disconnect();
       window.removeEventListener("resize", measure);
     };
   }, [isClient]);
 
-  const isPanelPage = isClient && (pathname?.startsWith("/panel") ?? false);
-  const isHomePage = isClient && pathname === "/";
+  const isPanelPage = pathname?.startsWith("/panel") ?? false;
+  const isHomePage = pathname === "/";
 
-  const cartInitialized = useRef(false);
   useEffect(() => {
     if (!isClient) return;
     if (cartInitialized.current) return;
@@ -76,18 +76,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     if (!initialized) fetchCart();
   }, [isClient, setOnCartOpen, fetchCart]);
 
-  if (!isClient) {
-    return <div className="flex flex-col flex-1">{children}</div>;
-  }
-
   return (
     <>
-      {isHomePage && <SaleBannerPopup />}
+      {isClient && isHomePage && <SaleBannerPopup />}
 
       {!isPanelPage && (
-        // ✅ Fixed sticky wrapper — AnnouncementBar oopar, Navbar neeche
-        // AnnouncementBar scroll down pe slide-up ho jaata hai
-        // Navbar hamesha visible rehta hai
         <div ref={wrapperRef} className="navbar-sticky-wrapper">
           <AnnouncementBar />
           <Navbar
@@ -98,15 +91,34 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <SearchSidebar isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
-      <CartSidebar isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+      {isClient && (
+        <>
+          <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+          <SearchSidebar
+            isOpen={searchOpen}
+            onClose={() => setSearchOpen(false)}
+          />
+          <CartSidebar isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+        </>
+      )}
 
-      {/* ✅ paddingTop = sticky wrapper ki exact height — content kabhi overlap nahi hoga */}
+      {/*
+        KEY FIX: paddingTop CSS variable use karo.
+        Jab tak client mount nahi hota, navbar ka estimated height CSS var se aata hai.
+        Isse page TOP se render hoga, footer neeche rahega, koi layout shift nahi.
+      */}
       <div
         className="flex flex-col flex-1"
-        style={{ paddingTop: isPanelPage ? 0 : stickyHeight }}
-        suppressHydrationWarning
+        style={
+          isPanelPage
+            ? undefined
+            : {
+                paddingTop:
+                  stickyHeight > 0
+                    ? stickyHeight
+                    : "var(--navbar-height, 64px)",
+              }
+        }
       >
         {children}
       </div>
@@ -114,7 +126,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       {!isPanelPage && (
         <>
           <Footer />
-          <WhatsAppWidget />
+          {isClient && <WhatsAppWidget />}
         </>
       )}
     </>

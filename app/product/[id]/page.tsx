@@ -1494,11 +1494,12 @@ export default function ProductDetail() {
             <div className="pd-price-block">
               <div className="pd-price-row">
                 <span className="pd-price">{formatPrice(currentPrice)}</span>
-                {currentOriginalPrice > 0 && currentOriginalPrice > currentPrice && (
-                  <span className="pd-price-original">
-                    {formatPrice(currentOriginalPrice)}
-                  </span>
-                )}
+                {currentOriginalPrice > 0 &&
+                  currentOriginalPrice > currentPrice && (
+                    <span className="pd-price-original">
+                      {formatPrice(currentOriginalPrice)}
+                    </span>
+                  )}
                 {discount > 0 && (
                   <span className="pd-discount-pill">−{discount}% OFF</span>
                 )}
@@ -1507,7 +1508,13 @@ export default function ProductDetail() {
                 <p className="pd-per-piece-info">
                   Per piece: {formatPrice(currentPerPiecePrice)}
                   {savings > 0 && (
-                    <span style={{ marginLeft: "0.5rem", color: "#22c55e", fontSize: "0.78em" }}>
+                    <span
+                      style={{
+                        marginLeft: "0.5rem",
+                        color: "#22c55e",
+                        fontSize: "0.78em",
+                      }}
+                    >
                       (Save {formatPrice(savings)}/pc)
                     </span>
                   )}

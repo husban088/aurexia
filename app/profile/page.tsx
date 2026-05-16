@@ -1,3 +1,5 @@
+// app/profile/page.tsx (Replace with this)
+
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -16,33 +18,26 @@ type ProfileData = {
 };
 
 const profileTranslations = {
-  // Aside
   member: { en: "Member", ar: "عضو", de: "Mitglied" },
   status: { en: "Status", ar: "الحالة", de: "Status" },
   active: { en: "Active", ar: "نشط", de: "Aktiv" },
   joined: { en: "Joined", ar: "انضم", de: "Beigetreten" },
   updated: { en: "Updated", ar: "تم التحديث", de: "Aktualisiert" },
   signOut: { en: "Sign Out", ar: "تسجيل الخروج", de: "Abmelden" },
-
-  // Main Header
   yourAccount: { en: "Your Account", ar: "حسابك", de: "Ihr Konto" },
   myProfile: { en: "My", ar: "ملفي", de: "Mein" },
   profileEm: { en: "Profile", ar: "الشخصي", de: "Profil" },
   manageInfo: {
-    en: "Manage your personal information and security settings",
-    ar: "إدارة معلوماتك الشخصية وإعدادات الأمان",
-    de: "Verwalten Sie Ihre persönlichen Daten und Sicherheitseinstellungen",
+    en: "Manage your personal information",
+    ar: "إدارة معلوماتك الشخصية",
+    de: "Verwalten Sie Ihre persönlichen Daten",
   },
-
-  // Tabs
   profileInfo: {
     en: "Profile Info",
     ar: "معلومات الملف",
     de: "Profilinformationen",
   },
   security: { en: "Security", ar: "الأمان", de: "Sicherheit" },
-
-  // Form Labels
   username: { en: "Username", ar: "اسم المستخدم", de: "Benutzername" },
   usernamePlaceholder: {
     en: "your_username",
@@ -56,8 +51,6 @@ const profileTranslations = {
   },
   memberSince: { en: "Member Since", ar: "عضو منذ", de: "Mitglied seit" },
   userId: { en: "User ID", ar: "معرف المستخدم", de: "Benutzer-ID" },
-
-  // Password
   newPassword: {
     en: "New Password",
     ar: "كلمة المرور الجديدة",
@@ -69,8 +62,6 @@ const profileTranslations = {
     de: "Neues Passwort bestätigen",
   },
   passwordPlaceholder: { en: "••••••••", ar: "••••••••", de: "••••••••" },
-
-  // Buttons
   saveChanges: {
     en: "Save Changes",
     ar: "حفظ التغييرات",
@@ -81,20 +72,16 @@ const profileTranslations = {
     ar: "تحديث كلمة المرور",
     de: "Passwort aktualisieren",
   },
-
-  // Info texts
   emailNote: {
     en: "Email address cannot be changed. Only username is editable.",
-    ar: "لا يمكن تغيير عنوان البريد الإلكتروني. فقط اسم المستخدم قابل للتعديل.",
-    de: "E-Mail-Adresse kann nicht geändert werden. Nur der Benutzername ist bearbeitbar.",
+    ar: "لا يمكن تغيير البريد الإلكتروني. فقط اسم المستخدم قابل للتعديل.",
+    de: "E-Mail-Adresse kann nicht geändert werden.",
   },
   passwordNote: {
     en: "Password must be at least 6 characters long.",
     ar: "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.",
-    de: "Das Passwort muss mindestens 6 Zeichen lang sein.",
+    de: "Passwort muss mindestens 6 Zeichen lang sein.",
   },
-
-  // Alerts
   usernameEmpty: {
     en: "Username cannot be empty.",
     ar: "اسم المستخدم لا يمكن أن يكون فارغًا.",
@@ -111,14 +98,14 @@ const profileTranslations = {
     de: "Profil erfolgreich aktualisiert!",
   },
   updateFailed: {
-    en: "Failed to update profile. Please try again.",
-    ar: "فشل تحديث الملف الشخصي. يرجى المحاولة مرة أخرى.",
-    de: "Profilaktualisierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    en: "Failed to update profile.",
+    ar: "فشل تحديث الملف الشخصي.",
+    de: "Profilaktualisierung fehlgeschlagen.",
   },
   passwordShort: {
-    en: "New password must be at least 6 characters.",
-    ar: "يجب أن تتكون كلمة المرور الجديدة من 6 أحرف على الأقل.",
-    de: "Das neue Passwort muss mindestens 6 Zeichen lang sein.",
+    en: "Password must be at least 6 characters.",
+    ar: "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.",
+    de: "Passwort muss mindestens 6 Zeichen lang sein.",
   },
   passwordMismatch: {
     en: "Passwords do not match.",
@@ -146,189 +133,101 @@ const getProfileTranslation = (
   );
 };
 
-// ─── MODULE-LEVEL CACHE ───────────────────────────────────────────────────────
-let _cachedProfile: ProfileData | null = null;
-let _fetchPromise: Promise<ProfileData | null> | null = null;
-
-const PF_LOCAL_KEY = "pf_profile_cache_v1";
-
-function saveProfileToStorage(data: ProfileData) {
-  try {
-    localStorage.setItem(
-      PF_LOCAL_KEY,
-      JSON.stringify({ data, ts: Date.now() }),
-    );
-  } catch (_) {}
-}
-
-function loadProfileFromStorage(): ProfileData | null {
-  if (_cachedProfile) return _cachedProfile;
-  try {
-    const raw = localStorage.getItem(PF_LOCAL_KEY);
-    if (!raw) return null;
-    const entry = JSON.parse(raw);
-    if (entry?.data && Date.now() - (entry.ts || 0) < 3600000) {
-      _cachedProfile = entry.data;
-      return entry.data;
-    }
-  } catch (_) {}
-  return null;
-}
-
-if (typeof window !== "undefined") {
-  loadProfileFromStorage();
-}
-
-async function getProfile(): Promise<ProfileData | null> {
-  if (_cachedProfile) return _cachedProfile;
-
-  const fromStorage = loadProfileFromStorage();
-  if (fromStorage) return fromStorage;
-
-  if (_fetchPromise) return _fetchPromise;
-
-  _fetchPromise = (async () => {
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        _fetchPromise = null;
-        return null;
-      }
-
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError || !profileData) {
-        const { data: newProfile, error: insertError } = await supabase
-          .from("profiles")
-          .insert({
-            id: user.id,
-            username:
-              user.user_metadata?.username ||
-              user.email?.split("@")[0] ||
-              "user",
-            email: user.email || "",
-          })
-          .select()
-          .single();
-
-        const result: ProfileData =
-          insertError || !newProfile
-            ? {
-                id: user.id,
-                username:
-                  user.user_metadata?.username ||
-                  user.email?.split("@")[0] ||
-                  "user",
-                email: user.email || "",
-                created_at: user.created_at,
-                updated_at: user.updated_at || user.created_at,
-              }
-            : newProfile;
-
-        _cachedProfile = result;
-        saveProfileToStorage(result);
-        _fetchPromise = null;
-        return result;
-      }
-
-      _cachedProfile = profileData;
-      saveProfileToStorage(profileData);
-      _fetchPromise = null;
-      return profileData;
-    } catch {
-      _fetchPromise = null;
-      return null;
-    }
-  })();
-
-  return _fetchPromise;
-}
-
-function clearProfileCache() {
-  _cachedProfile = null;
-  _fetchPromise = null;
-  try {
-    localStorage.removeItem(PF_LOCAL_KEY);
-  } catch (_) {}
-}
-
 export default function ProfilePage() {
   const router = useRouter();
   const { language, isRTLMode } = useLanguage();
   const lang = language;
 
-  const [profile, setProfile] = useState<ProfileData | null>(
-    () => _cachedProfile ?? loadProfileFromStorage(),
-  );
-  const [loading, setLoading] = useState(
-    () => !(_cachedProfile ?? loadProfileFromStorage()),
-  );
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"info" | "security">("info");
-
-  const [username, setUsername] = useState(
-    () => (_cachedProfile ?? loadProfileFromStorage())?.username ?? "",
-  );
-  const [focused, setFocused] = useState<string | null>(null);
+  const [username, setUsername] = useState("");
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState<{
     type: "error" | "success";
     msg: string;
   } | null>(null);
-
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [passLoading, setPassLoading] = useState(false);
 
-  const applyProfile = useCallback((data: ProfileData) => {
-    setProfile(data);
-    setUsername(data.username);
-    setLoading(false);
-  }, []);
-
+  // Load profile on mount
   useEffect(() => {
-    let active = true;
+    let isMounted = true;
 
-    const instant = _cachedProfile ?? loadProfileFromStorage();
-    if (instant) applyProfile(instant);
+    async function loadProfile() {
+      setLoading(true);
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+        if (userError || !user) {
+          router.replace("/signin?redirectTo=/profile");
+          return;
+        }
 
-    getProfile().then((result) => {
-      if (!active) return;
-      if (!result) {
-        if (!instant) router.replace("/signin?redirectTo=/profile");
-        return;
+        let { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError || !profileData) {
+          const { data: newProfile, error: insertError } = await supabase
+            .from("profiles")
+            .insert({
+              id: user.id,
+              username:
+                user.user_metadata?.username ||
+                user.email?.split("@")[0] ||
+                "user",
+              email: user.email || "",
+            })
+            .select()
+            .single();
+
+          if (insertError || !newProfile) {
+            profileData = {
+              id: user.id,
+              username:
+                user.user_metadata?.username ||
+                user.email?.split("@")[0] ||
+                "user",
+              email: user.email || "",
+              created_at: user.created_at || new Date().toISOString(),
+              updated_at:
+                user.updated_at || user.created_at || new Date().toISOString(),
+            };
+          } else {
+            profileData = newProfile;
+          }
+        }
+
+        if (isMounted) {
+          setProfile(profileData);
+          setUsername(profileData.username);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (isMounted) setLoading(false);
       }
-      applyProfile(result);
-    });
+    }
 
-    const handlePageShow = (_e: PageTransitionEvent) => {
-      const cached = _cachedProfile ?? loadProfileFromStorage();
-      if (cached) applyProfile(cached);
+    loadProfile();
+
+    // Handle online/offline
+    const handleOnline = () => {
+      if (!profile) loadProfile();
     };
-
-    const handlePopState = () => {
-      const cached = _cachedProfile ?? loadProfileFromStorage();
-      if (cached) applyProfile(cached);
-    };
-
-    window.addEventListener("pageshow", handlePageShow);
-    window.addEventListener("popstate", handlePopState);
-
+    window.addEventListener("online", handleOnline);
     return () => {
-      active = false;
-      window.removeEventListener("pageshow", handlePageShow);
-      window.removeEventListener("popstate", handlePopState);
+      isMounted = false;
+      window.removeEventListener("online", handleOnline);
     };
-  }, [router, applyProfile]);
+  }, [router]);
 
   const getInitials = (name: string) =>
     name?.slice(0, 2)?.toUpperCase() || "??";
@@ -337,11 +236,7 @@ export default function ProfilePage() {
     try {
       return new Date(dateStr).toLocaleDateString(
         lang === "ar" ? "ar-AE" : lang === "de" ? "de-DE" : "en-US",
-        {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        },
+        { year: "numeric", month: "long", day: "numeric" },
       );
     } catch {
       return "—";
@@ -389,9 +284,6 @@ export default function ProfilePage() {
         .single();
 
       if (error) throw error;
-
-      _cachedProfile = updated;
-      saveProfileToStorage(updated);
       setProfile(updated);
       setUsername(updated.username);
       setAlert({
@@ -452,7 +344,6 @@ export default function ProfilePage() {
   };
 
   const handleSignOut = async () => {
-    clearProfileCache();
     await signOutUser();
     window.location.href = "/signin";
   };
@@ -473,21 +364,9 @@ export default function ProfilePage() {
   return (
     <div className="pf-root" dir={isRTLMode ? "rtl" : "ltr"}>
       <div className="pf-grain" aria-hidden="true" />
-      <div className="pf-bg-lines" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-        <span />
-      </div>
-      <div className="pf-corner pf-corner--tl" aria-hidden="true" />
-      <div className="pf-corner pf-corner--tr" aria-hidden="true" />
-      <div className="pf-corner pf-corner--bl" aria-hidden="true" />
-      <div className="pf-corner pf-corner--br" aria-hidden="true" />
-
       <div className="pf-container">
         <aside className="pf-aside">
           <div className="pf-avatar-wrap">
-            <div className="pf-avatar-glow" aria-hidden="true" />
             <div className="pf-avatar-ring">
               <div className="pf-avatar">
                 <span className="pf-avatar-initials">
@@ -631,10 +510,8 @@ export default function ProfilePage() {
           {activeTab === "info" && (
             <form className="pf-form" onSubmit={handleSaveProfile} noValidate>
               <div className="pf-form-grid">
-                <div
-                  className={`pf-field${focused === "un" ? " pf-field--focused" : ""}${username ? " pf-field--filled" : ""}`}
-                >
-                  <label className="pf-label" htmlFor="pf-username">
+                <div className="pf-field">
+                  <label className="pf-label">
                     {getProfileTranslation("username", lang)}
                   </label>
                   <div className="pf-input-wrap">
@@ -650,13 +527,10 @@ export default function ProfilePage() {
                       </svg>
                     </span>
                     <input
-                      id="pf-username"
                       type="text"
                       className="pf-input"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      onFocus={() => setFocused("un")}
-                      onBlur={() => setFocused(null)}
                       placeholder={getProfileTranslation(
                         "usernamePlaceholder",
                         lang,
@@ -664,11 +538,9 @@ export default function ProfilePage() {
                       autoComplete="username"
                     />
                   </div>
-                  <div className="pf-field-line" aria-hidden="true" />
                 </div>
-
-                <div className="pf-field pf-field--filled">
-                  <label className="pf-label" htmlFor="pf-email">
+                <div className="pf-field">
+                  <label className="pf-label">
                     {getProfileTranslation("emailAddress", lang)}
                   </label>
                   <div className="pf-input-wrap">
@@ -684,18 +556,15 @@ export default function ProfilePage() {
                       </svg>
                     </span>
                     <input
-                      id="pf-email"
                       type="email"
                       className="pf-input"
                       value={profile.email}
                       readOnly
-                      style={{ opacity: 0.7, cursor: "not-allowed" }}
+                      style={{ opacity: 0.7 }}
                     />
                   </div>
-                  <div className="pf-field-line" aria-hidden="true" />
                 </div>
-
-                <div className="pf-field pf-field--filled">
+                <div className="pf-field">
                   <label className="pf-label">
                     {getProfileTranslation("memberSince", lang)}
                   </label>
@@ -718,45 +587,11 @@ export default function ProfilePage() {
                       className="pf-input"
                       value={formatDate(profile.created_at)}
                       readOnly
-                      style={{ opacity: 0.7, cursor: "not-allowed" }}
+                      style={{ opacity: 0.7 }}
                     />
                   </div>
-                  <div className="pf-field-line" aria-hidden="true" />
-                </div>
-
-                <div className="pf-field pf-field--filled">
-                  <label className="pf-label">
-                    {getProfileTranslation("userId", lang)}
-                  </label>
-                  <div className="pf-input-wrap">
-                    <span className="pf-input-icon" aria-hidden="true">
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                      >
-                        <rect x="2" y="7" width="20" height="14" rx="2" />
-                        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
-                      </svg>
-                    </span>
-                    <input
-                      type="text"
-                      className="pf-input"
-                      value={profile.id.slice(0, 8) + "••••••••"}
-                      readOnly
-                      style={{
-                        opacity: 0.5,
-                        cursor: "not-allowed",
-                        fontFamily: "monospace",
-                        fontSize: "0.75rem",
-                      }}
-                    />
-                  </div>
-                  <div className="pf-field-line" aria-hidden="true" />
                 </div>
               </div>
-
               <p className="pf-form-info">
                 <svg
                   viewBox="0 0 24 24"
@@ -772,13 +607,12 @@ export default function ProfilePage() {
                 </svg>
                 {getProfileTranslation("emailNote", lang)}
               </p>
-
               <button type="submit" className="pf-save-btn" disabled={saving}>
                 {saving ? (
                   <span className="pf-spinner" />
                 ) : (
                   <>
-                    <span>{getProfileTranslation("saveChanges", lang)}</span>
+                    {getProfileTranslation("saveChanges", lang)}
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -804,10 +638,8 @@ export default function ProfilePage() {
               noValidate
             >
               <div className="pf-form-grid pf-form-grid--single">
-                <div
-                  className={`pf-field${focused === "np" ? " pf-field--focused" : ""}${newPass ? " pf-field--filled" : ""}`}
-                >
-                  <label className="pf-label" htmlFor="pf-new-pass">
+                <div className="pf-field">
+                  <label className="pf-label">
                     {getProfileTranslation("newPassword", lang)}
                   </label>
                   <div className="pf-input-wrap">
@@ -823,7 +655,6 @@ export default function ProfilePage() {
                       </svg>
                     </span>
                     <input
-                      id="pf-new-pass"
                       type={showNew ? "text" : "password"}
                       className="pf-input"
                       placeholder={getProfileTranslation(
@@ -832,8 +663,6 @@ export default function ProfilePage() {
                       )}
                       value={newPass}
                       onChange={(e) => setNewPass(e.target.value)}
-                      onFocus={() => setFocused("np")}
-                      onBlur={() => setFocused(null)}
                       minLength={6}
                     />
                     <button
@@ -862,13 +691,9 @@ export default function ProfilePage() {
                       </svg>
                     </button>
                   </div>
-                  <div className="pf-field-line" aria-hidden="true" />
                 </div>
-
-                <div
-                  className={`pf-field${focused === "cp" ? " pf-field--focused" : ""}${confirmPass ? " pf-field--filled" : ""}`}
-                >
-                  <label className="pf-label" htmlFor="pf-confirm-pass">
+                <div className="pf-field">
+                  <label className="pf-label">
                     {getProfileTranslation("confirmPassword", lang)}
                   </label>
                   <div className="pf-input-wrap">
@@ -884,7 +709,6 @@ export default function ProfilePage() {
                       </svg>
                     </span>
                     <input
-                      id="pf-confirm-pass"
                       type={showConfirm ? "text" : "password"}
                       className="pf-input"
                       placeholder={getProfileTranslation(
@@ -893,8 +717,6 @@ export default function ProfilePage() {
                       )}
                       value={confirmPass}
                       onChange={(e) => setConfirmPass(e.target.value)}
-                      onFocus={() => setFocused("cp")}
-                      onBlur={() => setFocused(null)}
                       minLength={6}
                     />
                     <button
@@ -923,10 +745,8 @@ export default function ProfilePage() {
                       </svg>
                     </button>
                   </div>
-                  <div className="pf-field-line" aria-hidden="true" />
                 </div>
               </div>
-
               <p className="pf-form-info">
                 <svg
                   viewBox="0 0 24 24"
@@ -942,7 +762,6 @@ export default function ProfilePage() {
                 </svg>
                 {getProfileTranslation("passwordNote", lang)}
               </p>
-
               <button
                 type="submit"
                 className="pf-save-btn"
@@ -952,7 +771,7 @@ export default function ProfilePage() {
                   <span className="pf-spinner" />
                 ) : (
                   <>
-                    <span>{getProfileTranslation("updatePassword", lang)}</span>
+                    {getProfileTranslation("updatePassword", lang)}
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"

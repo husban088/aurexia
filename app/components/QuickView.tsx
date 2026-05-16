@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useCartStore } from "@/lib/cartStore";
 import { supabase } from "@/lib/supabase";
 import "./QuickView.css";
 import { useCurrency } from "../context/CurrencyContext";
+import ProductGallery from "./ProductGallery";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -69,7 +71,7 @@ interface QuickViewProps {
 
 const getStockStatus = (
   stock: number,
-  threshold?: number | null
+  threshold?: number | null,
 ): "in_stock" | "out_of_stock" | "low_stock" => {
   if (stock === 0) return "out_of_stock";
   if (stock >= 999999) return "in_stock";
@@ -79,7 +81,7 @@ const getStockStatus = (
 
 const getStockLabel = (
   status: "in_stock" | "out_of_stock" | "low_stock",
-  stock: number
+  stock: number,
 ) => {
   if (status === "out_of_stock") return "Out of Stock";
   if (status === "low_stock") return `Only ${stock} left`;
@@ -90,11 +92,6 @@ const getStockClass = (status: "in_stock" | "out_of_stock" | "low_stock") => {
   if (status === "out_of_stock") return "out";
   if (status === "low_stock") return "low";
   return "in";
-};
-
-// Helper to render HTML content safely
-const createMarkup = (html: string) => {
-  return { __html: html };
 };
 
 // ── Star Rating Component ─────────────────────────────────────────────────────
@@ -123,74 +120,6 @@ function QVStarDisplay({
   );
 }
 
-// ── Description Modal Component for QuickView ─────────────────────────────────
-
-function QVDescriptionModal({
-  isOpen,
-  onClose,
-  description,
-  images,
-  productName,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  description: string;
-  images: string[];
-  productName: string;
-}) {
-  if (!isOpen) return null;
-
-  return (
-    <div className="qv-desc-modal-overlay" onClick={onClose}>
-      <div className="qv-desc-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="qv-desc-modal-close" onClick={onClose}>
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-
-        <div className="qv-desc-modal-header">
-          <div className="qv-desc-modal-eyebrow">
-            <span className="qv-desc-ey-line" />
-            Product Description
-            <span className="qv-desc-ey-line" />
-          </div>
-          <h3 className="qv-desc-modal-title">{productName}</h3>
-        </div>
-
-        <div className="qv-desc-modal-body">
-          {/* Description Images */}
-          {images && images.length > 0 && (
-            <div className="qv-desc-modal-images">
-              {images.map((img, idx) => (
-                <img
-                  key={idx}
-                  src={img}
-                  alt={`${productName} description ${idx + 1}`}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Rich Text Description */}
-          {description && (
-            <div
-              className="qv-desc-modal-content"
-              dangerouslySetInnerHTML={createMarkup(description)}
-            />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function QuickView({
@@ -202,65 +131,29 @@ export default function QuickView({
   variantImagesMap = {},
 }: QuickViewProps) {
   const modalRef = useRef<HTMLDivElement>(null);
-  const infoRef = useRef<HTMLDivElement>(null);
   const { addToCart } = useCartStore();
   const { formatPrice } = useCurrency();
 
-  // ── Local state ──────────────────────────────────────────────────────────────
+  // State
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
-    null
+    null,
   );
   const [currentImages, setCurrentImages] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>([]);
   const [selectedTier, setSelectedTier] = useState<BulkPricingTier | null>(
-    null
+    null,
   );
   const [loadingTiers, setLoadingTiers] = useState(false);
   const [liveRating, setLiveRating] = useState<number | undefined>(
-    product?.rating
+    product?.rating,
   );
   const [liveReviewCount, setLiveReviewCount] = useState<number | undefined>(
-    product?.reviews_count
+    product?.reviews_count,
   );
+  const [qty, setQty] = useState(1);
 
-  // ── Description Modal State ──────────────────────────────────────────────────
-  const [isDescModalOpen, setIsDescModalOpen] = useState(false);
-
-  // Get current description (from variant or product)
-  const getCurrentDescription = (): string => {
-    if (selectedVariant?.description_rich) {
-      return selectedVariant.description_rich;
-    }
-    if (selectedVariant?.description) {
-      return selectedVariant.description;
-    }
-    if (product?.description_rich) {
-      return product.description_rich;
-    }
-    if (product?.description) {
-      return product.description;
-    }
-    return "";
-  };
-
-  const getCurrentDescriptionImages = (): string[] => {
-    if (
-      selectedVariant?.description_images &&
-      selectedVariant.description_images.length > 0
-    ) {
-      return selectedVariant.description_images;
-    }
-    if (product?.description_images && product.description_images.length > 0) {
-      return product.description_images;
-    }
-    return [];
-  };
-
-  const currentDescription = getCurrentDescription();
-  const currentDescriptionImages = getCurrentDescriptionImages();
-
-  // ── Set initial variant when product/variants change ─────────────────────────
+  // Set initial variant when product/variants change
   useEffect(() => {
     if (!isOpen) return;
     if (propSelectedVariant) {
@@ -272,9 +165,10 @@ export default function QuickView({
     }
     setSelectedTier(null);
     setCurrentImageIndex(0);
+    setQty(1);
   }, [isOpen, product?.id, propSelectedVariant, variants]);
 
-  // ── Update images when selected variant changes ───────────────────────────────
+  // Update images when selected variant changes
   useEffect(() => {
     if (selectedVariant && variantImagesMap[selectedVariant.id]?.length > 0) {
       setCurrentImages(variantImagesMap[selectedVariant.id]);
@@ -288,7 +182,7 @@ export default function QuickView({
     }
   }, [selectedVariant, variantImagesMap, product?.images]);
 
-  // ── Fetch bulk pricing tiers when variant changes ─────────────────────────────
+  // Fetch bulk pricing tiers
   useEffect(() => {
     let cancelled = false;
 
@@ -319,7 +213,6 @@ export default function QuickView({
         if (!cancelled) {
           console.error("Error fetching bulk tiers:", err);
           setBulkTiers([]);
-          setSelectedTier(null);
         }
       } finally {
         if (!cancelled) setLoadingTiers(false);
@@ -332,7 +225,7 @@ export default function QuickView({
     };
   }, [selectedVariant?.id]);
 
-  // ── Sync live rating ──────────────────────────────────────────────────────────
+  // Sync live rating
   useEffect(() => {
     setLiveRating(product?.rating);
     setLiveReviewCount(product?.reviews_count);
@@ -353,16 +246,35 @@ export default function QuickView({
       });
   }, [isOpen, product?.id]);
 
-  // ── Body scroll lock ──────────────────────────────────────────────────────────
+  // ── BODY SCROLL LOCK ──
   useEffect(() => {
-    if (isOpen) document.body.style.overflow = "hidden";
-    else document.body.style.overflow = "";
+    if (isOpen) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = "100%";
+      document.body.style.overflow = "hidden";
+    } else {
+      // Restore scroll position
+      const scrollY = document.body.style.top;
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      document.body.style.overflow = "";
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || "0", 10) * -1);
+      }
+    }
     return () => {
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
       document.body.style.overflow = "";
     };
   }, [isOpen]);
 
-  // ── Escape key ────────────────────────────────────────────────────────────────
+  // Escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) onClose();
@@ -371,25 +283,26 @@ export default function QuickView({
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
 
-  // ── Outside click ─────────────────────────────────────────────────────────────
+  // Outside click
   const handleOutsideClick = useCallback(
     (e: React.MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(e.target as Node))
+      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
         onClose();
+      }
     },
-    [onClose]
+    [onClose],
   );
 
-  // ── Helper: get variant thumbnail image ───────────────────────────────────────
+  // Helper: get variant thumbnail image
   const getVariantImage = useCallback(
     (variantId: string): string | null => {
       const images = variantImagesMap[variantId];
       return images && images.length > 0 ? images[0] : null;
     },
-    [variantImagesMap]
+    [variantImagesMap],
   );
 
-  // ── Tier label ────────────────────────────────────────────────────────────────
+  // Tier label
   const getTierLabel = (tier: BulkPricingTier): string => {
     if (tier.min_quantity === tier.max_quantity) {
       return `${tier.min_quantity} Piece${tier.min_quantity > 1 ? "s" : ""}`;
@@ -397,7 +310,7 @@ export default function QuickView({
     return `${tier.min_quantity} – ${tier.max_quantity} Pieces`;
   };
 
-  // ── Savings per piece vs single unit price ────────────────────────────────────
+  // Savings per piece
   const getTierSavingsPerPc = (tier: BulkPricingTier): number => {
     const unitPrice = selectedVariant?.price ?? product?.price ?? 0;
     const perPiece = tier.tier_price / tier.min_quantity;
@@ -406,17 +319,18 @@ export default function QuickView({
 
   if (!isOpen || !product) return null;
 
-  // ── Price calculations ────────────────────────────────────────────────────────
-
+  // Price calculations
   const getCurrentPrice = (): number => {
     if (selectedTier) return selectedTier.tier_price;
-    return selectedVariant?.price ?? product.price;
+    if (selectedVariant) return selectedVariant.price;
+    return product.price;
   };
 
   const getPerPiecePrice = (): number => {
     if (selectedTier)
       return selectedTier.tier_price / selectedTier.min_quantity;
-    return selectedVariant?.price ?? product.price;
+    if (selectedVariant) return selectedVariant.price;
+    return product.price;
   };
 
   const getDiscountPercentage = (): number => {
@@ -464,28 +378,20 @@ export default function QuickView({
     variantsByType[v.attribute_type].push(v);
   });
 
-  // ── Add to Cart handler ───────────────────────────────────────────────────────
+  // Add to Cart handler
   const handleAddToCart = () => {
     if (!product) return;
-
     if (stockStatus === "out_of_stock") {
       alert("This product is out of stock");
       return;
     }
 
-    const piecesToAdd = selectedTier ? selectedTier.min_quantity : 1;
-
-    if (stockStatus === "low_stock") {
-      if (currentStock <= 0) {
-        alert("This product is out of stock");
-        return;
-      }
-      if (piecesToAdd > currentStock) {
-        alert(
-          `Only ${currentStock} item${currentStock > 1 ? "s" : ""} in stock.`
-        );
-        return;
-      }
+    const piecesToAdd = selectedTier ? selectedTier.min_quantity : qty;
+    if (stockStatus === "low_stock" && piecesToAdd > currentStock) {
+      alert(
+        `Only ${currentStock} item${currentStock > 1 ? "s" : ""} in stock.`,
+      );
+      return;
     }
 
     let perPiecePrice: number;
@@ -519,7 +425,12 @@ export default function QuickView({
       updated_at: new Date().toISOString(),
     };
 
-    addToCart(productToAdd, selectedVariant ?? null, 1, piecesPerUnit);
+    addToCart(
+      productToAdd,
+      selectedVariant ?? null,
+      piecesToAdd,
+      piecesPerUnit,
+    );
     onClose();
   };
 
@@ -532,12 +443,21 @@ export default function QuickView({
     if (selectedTier) {
       return `Add to Cart (${selectedTier.min_quantity} pcs)`;
     }
-    return "Add to Cart (1 pc)";
+    return `Add to Cart (${qty} pc${qty > 1 ? "s" : ""})`;
   };
 
-  const hasDescription = currentDescription && currentDescription.length > 0;
+  // Product slug for details page
+  const productSlug = product.name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .substring(0, 60);
 
-  return (
+  const productDetailsUrl = `/product/${productSlug}--${product.id}`;
+
+  return createPortal(
     <>
       <div className="qv-overlay" onClick={handleOutsideClick}>
         <div className="qv-modal" ref={modalRef}>
@@ -559,52 +479,20 @@ export default function QuickView({
           <div className="qv-corner qv-corner-br" />
 
           <div className="qv-grid">
-            {/* Gallery */}
+            {/* Gallery Section — uses same ProductGallery as product details page */}
             <div className="qv-gallery">
-              <div className="qv-main-img">
-                {currentImages[currentImageIndex] ? (
-                  <img
-                    src={currentImages[currentImageIndex]}
-                    alt={product.name}
-                  />
-                ) : (
-                  <div className="qv-img-placeholder">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1"
-                    >
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <polyline points="21 15 16 10 5 21" />
-                    </svg>
-                  </div>
-                )}
-                {discount > 0 && (
-                  <div className="qv-discount-badge">-{discount}%</div>
-                )}
-              </div>
-
-              {currentImages.length > 1 && (
-                <div className="qv-thumbs">
-                  {currentImages.slice(0, 4).map((img, idx) => (
-                    <button
-                      key={idx}
-                      className={`qv-thumb${
-                        currentImageIndex === idx ? " active" : ""
-                      }`}
-                      onClick={() => setCurrentImageIndex(idx)}
-                    >
-                      <img src={img} alt={`${product.name} ${idx + 1}`} />
-                    </button>
-                  ))}
-                </div>
+              {discount > 0 && (
+                <div className="qv-discount-badge-top">-{discount}%</div>
               )}
+              <ProductGallery
+                images={currentImages}
+                productName={product.name}
+                mainImages={product.images || []}
+              />
             </div>
 
-            {/* Info Panel */}
-            <div className="qv-info" ref={infoRef}>
+            {/* Info Panel - Scrollable */}
+            <div className="qv-info">
               <div className="qv-eyebrow">
                 <span className="qv-ey-line" />
                 {product.subcategory || product.category}
@@ -616,34 +504,13 @@ export default function QuickView({
               <h2 className="qv-title">{product.name}</h2>
 
               {liveRating != null && liveReviewCount && liveReviewCount > 0 && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                    marginTop: "-0.25rem",
-                    marginBottom: "0.25rem",
-                  }}
-                >
+                <div className="qv-rating-row">
                   <QVStarDisplay rating={liveRating} size={13} />
-                  <span
-                    style={{
-                      fontFamily: "var(--fp-sans, 'Josefin Sans', sans-serif)",
-                      fontSize: "0.65rem",
-                      fontWeight: 500,
-                      color: "#daa520",
-                    }}
-                  >
+                  <span className="qv-rating-value">
                     {liveRating.toFixed(1)}
                   </span>
-                  <span
-                    style={{
-                      fontFamily: "var(--fp-sans, 'Josefin Sans', sans-serif)",
-                      fontSize: "0.6rem",
-                      color: "#888",
-                    }}
-                  >
-                    ({liveReviewCount})
+                  <span className="qv-rating-count">
+                    ({liveReviewCount} reviews)
                   </span>
                 </div>
               )}
@@ -689,7 +556,7 @@ export default function QuickView({
                         const thumbImg = getVariantImage(variant.id);
                         const vStock = getStockStatus(
                           variant.stock,
-                          variant.low_stock_threshold
+                          variant.low_stock_threshold,
                         );
                         const isDisabled = vStock === "out_of_stock";
                         const isActive = selectedVariant?.id === variant.id;
@@ -697,13 +564,12 @@ export default function QuickView({
                         return (
                           <button
                             key={variant.id}
-                            className={`qv-attr-tag${
-                              isActive ? " active" : ""
-                            }${isDisabled ? " disabled-variant" : ""}`}
+                            className={`qv-attr-tag${isActive ? " active" : ""}${isDisabled ? " disabled-variant" : ""}`}
                             onClick={() => {
                               if (isDisabled) return;
                               setSelectedVariant(variant);
                               setSelectedTier(null);
+                              setQty(1);
                             }}
                             disabled={isDisabled}
                             title={
@@ -740,7 +606,6 @@ export default function QuickView({
                       <button
                         className="qv-tier-clear"
                         onClick={() => setSelectedTier(null)}
-                        title="Back to single piece"
                       >
                         <svg
                           viewBox="0 0 24 24"
@@ -763,9 +628,7 @@ export default function QuickView({
                   ) : (
                     <div className="qv-bulk-tiers">
                       {bulkTiers.map((tier, index) => {
-                        const isSelected =
-                          selectedTier?.id === tier.id &&
-                          selectedTier?.min_quantity === tier.min_quantity;
+                        const isSelected = selectedTier?.id === tier.id;
                         const perPiece = tier.tier_price / tier.min_quantity;
                         const unitPrice =
                           selectedVariant?.price ?? product.price;
@@ -777,12 +640,10 @@ export default function QuickView({
                         return (
                           <button
                             key={tier.id ?? `tier-${index}`}
-                            className={`qv-bulk-tier${
-                              isSelected ? " active" : ""
-                            }${isBestValue ? " best-value" : ""}`}
-                            onClick={() => {
-                              setSelectedTier(isSelected ? null : tier);
-                            }}
+                            className={`qv-bulk-tier${isSelected ? " active" : ""}${isBestValue ? " best-value" : ""}`}
+                            onClick={() =>
+                              setSelectedTier(isSelected ? null : tier)
+                            }
                           >
                             <div className="qv-bulk-tier-qty">
                               {getTierLabel(tier)}
@@ -801,7 +662,7 @@ export default function QuickView({
                                 Save {formatPrice(saving)}/pc
                               </div>
                             )}
-                            {tier.discount_percentage != null &&
+                            {tier.discount_percentage &&
                               tier.discount_percentage > 0 && (
                                 <div className="qv-bulk-tier-discount">
                                   {tier.discount_percentage}% OFF
@@ -837,81 +698,57 @@ export default function QuickView({
                   <span className="qv-qty-total">
                     Total: {formatPrice(selectedTier.tier_price)}
                   </span>
-                  <button
-                    className="qv-qty-clear"
-                    onClick={() => setSelectedTier(null)}
-                    title="Back to single piece"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      width="12"
-                      height="12"
-                    >
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
                 </div>
               )}
 
-              {/* ✅ DESCRIPTION SECTION - Click to open modal with full rich text */}
-              {/* <div className="qv-desc-section">
-                <div
-                  className="qv-desc-header"
-                  onClick={() => hasDescription && setIsDescModalOpen(true)}
-                  style={{ cursor: hasDescription ? "pointer" : "default" }}
-                >
-                  <div className="qv-desc-icon">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
+              {/* Quantity Selector (only when no bulk tier selected) */}
+              {!selectedTier && (
+                <div className="qv-qty-row">
+                  <span className="qv-qty-label">Qty</span>
+                  <div className="qv-qty-ctrl">
+                    <button
+                      className="qv-qty-btn"
+                      onClick={() => setQty((q) => Math.max(1, q - 1))}
+                      disabled={qty <= 1}
                     >
-                      <path d="M4 6h16M4 12h16M4 18h16" />
-                      <path d="M8 6v12" />
-                      <path d="M16 6v12" />
-                    </svg>
-                  </div>
-                  <div className="qv-desc-label">
-                    Product Description
-                    {hasDescription && (
-                      <span>Click to view full details →</span>
-                    )}
-                  </div>
-                  {hasDescription && (
-                    <div className="qv-desc-toggle">
                       <svg
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="2"
                       >
-                        <polyline points="6 9 12 15 18 9" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
                       </svg>
-                    </div>
-                  )}
-                </div>
-
-                {hasDescription && (
-                  <div className="qv-desc-preview">
-                    {currentDescription.length > 120
-                      ? currentDescription
-                          .replace(/<[^>]*>/g, "")
-                          .substring(0, 120) + "..."
-                      : currentDescription.replace(/<[^>]*>/g, "")}
+                    </button>
+                    <span className="qv-qty-val">{qty}</span>
+                    <button
+                      className="qv-qty-btn"
+                      onClick={() =>
+                        setQty((q) => Math.min(currentStock, q + 1))
+                      }
+                      disabled={qty >= currentStock || currentStock === 0}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    </button>
                   </div>
-                )}
-              </div> */}
+                </div>
+              )}
 
+              {/* Stock Status */}
               <div className="qv-stock">
                 <span className={`qv-stock-dot ${stockClass}`} />
                 {stockLabel}
               </div>
 
+              {/* Features */}
               <div className="qv-features">
                 <div className="qv-feature">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -931,14 +768,9 @@ export default function QuickView({
                   </svg>
                   Easy Returns
                 </div>
-                <div className="qv-feature">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <rect x="1" y="4" width="22" height="16" rx="2" />
-                  </svg>
-                  COD Available
-                </div>
               </div>
 
+              {/* Actions */}
               <div className="qv-actions">
                 <button
                   className="qv-add-cart"
@@ -961,8 +793,9 @@ export default function QuickView({
                 </button>
               </div>
 
+              {/* View Details Link */}
               <Link
-                href={`/product/${product.id}`}
+                href={productDetailsUrl}
                 className="qv-view-details"
                 onClick={onClose}
               >
@@ -975,314 +808,7 @@ export default function QuickView({
           </div>
         </div>
       </div>
-
-      {/* Description Modal */}
-      <QVDescriptionModal
-        isOpen={isDescModalOpen}
-        onClose={() => setIsDescModalOpen(false)}
-        description={currentDescription}
-        images={currentDescriptionImages}
-        productName={
-          product.name +
-          (selectedVariant && selectedVariant.attribute_type !== "standard"
-            ? ` (${selectedVariant.attribute_value})`
-            : "")
-        }
-      />
-
-      <style jsx>{`
-        .qv-modal {
-          overflow: hidden;
-        }
-        .qv-grid {
-          height: 85vh;
-          max-height: 85vh;
-          overflow: hidden;
-        }
-        .qv-gallery {
-          overflow-y: auto;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(218, 165, 32, 0.3) transparent;
-        }
-        .qv-gallery::-webkit-scrollbar {
-          width: 4px;
-        }
-        .qv-gallery::-webkit-scrollbar-thumb {
-          background: rgba(218, 165, 32, 0.3);
-          border-radius: 4px;
-        }
-        .qv-thumb.active {
-          border-color: #daa520;
-        }
-        .qv-info {
-          overflow-y: auto;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(218, 165, 32, 0.3) transparent;
-        }
-        .qv-info::-webkit-scrollbar {
-          width: 4px;
-        }
-        .qv-info::-webkit-scrollbar-thumb {
-          background: rgba(218, 165, 32, 0.3);
-          border-radius: 4px;
-        }
-        .qv-attr-tag.disabled-variant {
-          opacity: 0.45;
-          cursor: not-allowed;
-        }
-        .qv-variant-oos {
-          font-size: 0.5rem;
-          font-weight: 700;
-          color: #dc2626;
-          background: rgba(220, 38, 38, 0.08);
-          padding: 0.1rem 0.3rem;
-          border-radius: 4px;
-          margin-left: 2px;
-        }
-
-        /* Description Section Styles */
-        .qv-desc-section {
-          margin-top: 0.75rem;
-          margin-bottom: 0.5rem;
-          border-top: 1px solid rgba(218, 165, 32, 0.15);
-          padding-top: 0.75rem;
-        }
-        .qv-desc-header {
-          display: flex;
-          align-items: center;
-          gap: 0.6rem;
-          padding: 0.5rem 0;
-          transition: all 0.2s ease;
-        }
-        .qv-desc-header:hover {
-          gap: 0.8rem;
-        }
-        .qv-desc-icon {
-          width: 28px;
-          height: 28px;
-          background: rgba(218, 165, 32, 0.08);
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-        .qv-desc-icon svg {
-          width: 14px;
-          height: 14px;
-          color: #daa520;
-        }
-        .qv-desc-label {
-          flex: 1;
-          font-family: "Josefin Sans", sans-serif;
-          font-size: 0.7rem;
-          font-weight: 600;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          color: #1a1a1a;
-        }
-        .qv-desc-label span {
-          display: block;
-          font-size: 0.55rem;
-          font-weight: 400;
-          letter-spacing: 0.05em;
-          text-transform: none;
-          color: #daa520;
-          margin-top: 0.15rem;
-        }
-        .qv-desc-toggle svg {
-          width: 14px;
-          height: 14px;
-          color: #daa520;
-        }
-        .qv-desc-preview {
-          font-family: "Josefin Sans", sans-serif;
-          font-size: 0.7rem;
-          line-height: 1.5;
-          color: #666;
-          margin-top: 0.25rem;
-          padding-left: 2.5rem;
-          border-left: 2px solid rgba(218, 165, 32, 0.3);
-        }
-
-        /* Description Modal Styles */
-        .qv-desc-modal-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.9);
-          backdrop-filter: blur(8px);
-          z-index: 10001;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          animation: qvDescFadeIn 0.3s ease;
-        }
-        @keyframes qvDescFadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-        .qv-desc-modal {
-          position: relative;
-          width: 90%;
-          max-width: 800px;
-          max-height: 85vh;
-          background: white;
-          border-radius: 24px;
-          overflow: hidden;
-          animation: qvDescSlideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-        @keyframes qvDescSlideUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .qv-desc-modal-close {
-          position: absolute;
-          top: 16px;
-          right: 16px;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: rgba(0, 0, 0, 0.05);
-          border: none;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 10;
-          transition: all 0.3s ease;
-        }
-        .qv-desc-modal-close svg {
-          width: 20px;
-          height: 20px;
-          color: #666;
-        }
-        .qv-desc-modal-close:hover {
-          background: rgba(218, 165, 32, 0.15);
-          transform: rotate(90deg);
-        }
-        .qv-desc-modal-close:hover svg {
-          color: #daa520;
-        }
-        .qv-desc-modal-header {
-          padding: 1.5rem 2rem;
-          border-bottom: 1px solid rgba(218, 165, 32, 0.15);
-          background: #faf8f5;
-        }
-        .qv-desc-modal-eyebrow {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-family: "Josefin Sans", sans-serif;
-          font-size: 0.55rem;
-          font-weight: 600;
-          letter-spacing: 0.3em;
-          text-transform: uppercase;
-          color: #daa520;
-          margin-bottom: 0.5rem;
-        }
-        .qv-desc-ey-line {
-          width: 30px;
-          height: 1px;
-          background: #daa520;
-        }
-        .qv-desc-modal-title {
-          font-family: "Cormorant Garamond", serif;
-          font-size: 1.8rem;
-          font-weight: 500;
-          color: #1a1a1a;
-          margin: 0;
-        }
-        .qv-desc-modal-body {
-          padding: 2rem;
-          overflow-y: auto;
-          max-height: calc(85vh - 120px);
-        }
-        .qv-desc-modal-images {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 1rem;
-          margin-bottom: 1.5rem;
-        }
-        .qv-desc-modal-images img {
-          max-width: 100%;
-          max-height: 200px;
-          border-radius: 12px;
-          border: 1px solid rgba(218, 165, 32, 0.2);
-        }
-        .qv-desc-modal-content {
-          font-family: "Josefin Sans", sans-serif;
-          font-size: 0.85rem;
-          line-height: 1.7;
-          color: #444;
-        }
-        .qv-desc-modal-content p {
-          margin-bottom: 1rem;
-        }
-        .qv-desc-modal-content img {
-          max-width: 100%;
-          border-radius: 12px;
-          margin: 1rem 0;
-        }
-        .qv-desc-modal-content ul,
-        .qv-desc-modal-content ol {
-          margin: 0.5rem 0 1rem 1.5rem;
-        }
-        .qv-desc-modal-content li {
-          margin-bottom: 0.25rem;
-        }
-        .qv-desc-modal-content h1,
-        .qv-desc-modal-content h2,
-        .qv-desc-modal-content h3 {
-          font-family: "Cormorant Garamond", serif;
-          margin: 1rem 0 0.5rem;
-          color: #1a1a1a;
-        }
-
-        @media (max-width: 768px) {
-          .qv-grid {
-            height: auto;
-            max-height: 90vh;
-            overflow-y: auto;
-            grid-template-columns: 1fr;
-          }
-          .qv-gallery,
-          .qv-info {
-            overflow: visible;
-          }
-          .qv-desc-modal-title {
-            font-size: 1.3rem;
-          }
-          .qv-desc-modal-body {
-            padding: 1.2rem;
-          }
-        }
-        @media (max-width: 500px) {
-          .qv-bulk-tier {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-          .qv-bulk-tier-price {
-            align-self: flex-end;
-          }
-          .qv-selected-qty {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-          .qv-qty-total {
-            margin-left: 0;
-          }
-        }
-      `}</style>
-    </>
+    </>,
+    document.body,
   );
 }

@@ -68,7 +68,7 @@ interface ProductGridProps {
   onQuickView?: (productId: string) => void;
 }
 
-// ─── Translations for Product Grid ──────────────────────────────────────────
+// ─── Translations ──────────────────────────────────────────────────────────
 const pgTranslations = {
   filters: { en: "Filters", ar: "تصفية", de: "Filter" },
   newest: { en: "Newest First", ar: "الأحدث أولاً", de: "Neueste zuerst" },
@@ -121,137 +121,6 @@ const getPgTranslation = (
 ): string => {
   return pgTranslations[key]?.[lang] || pgTranslations[key]?.en || key;
 };
-
-// ─── MODULE-LEVEL CACHE ──────────────────────────────────────────────────────
-const MODULE_CACHE: Record<string, ExtendedProduct[]> = {};
-const FETCH_IN_FLIGHT: Record<string, Promise<ExtendedProduct[]>> = {};
-
-const PG_SESSION_KEY = "pg_cache_v1";
-const PG_LOCAL_KEY = "pg_cache_local_v1";
-
-function savePgToStorage(key: string, data: ExtendedProduct[]) {
-  try {
-    const raw = sessionStorage.getItem(PG_SESSION_KEY);
-    const store: Record<string, any> = raw ? JSON.parse(raw) : {};
-    store[key] = data;
-    const keys = Object.keys(store);
-    if (keys.length > 10) delete store[keys[0]];
-    sessionStorage.setItem(PG_SESSION_KEY, JSON.stringify(store));
-  } catch (_) {}
-  try {
-    const raw = localStorage.getItem(PG_LOCAL_KEY);
-    const store: Record<string, any> = raw ? JSON.parse(raw) : {};
-    store[key] = { data, ts: Date.now() };
-    const keys = Object.keys(store);
-    if (keys.length > 10) delete store[keys[0]];
-    localStorage.setItem(PG_LOCAL_KEY, JSON.stringify(store));
-  } catch (_) {}
-}
-
-function loadPgFromStorage(): void {
-  try {
-    const raw = sessionStorage.getItem(PG_SESSION_KEY);
-    if (raw) {
-      const store: Record<string, any> = JSON.parse(raw);
-      Object.entries(store).forEach(([k, v]) => {
-        if (!MODULE_CACHE[k] && Array.isArray(v)) MODULE_CACHE[k] = v;
-      });
-    }
-  } catch (_) {}
-  try {
-    const raw = localStorage.getItem(PG_LOCAL_KEY);
-    if (raw) {
-      const store: Record<string, any> = JSON.parse(raw);
-      Object.entries(store).forEach(([k, entry]: [string, any]) => {
-        if (
-          !MODULE_CACHE[k] &&
-          entry?.data &&
-          Array.isArray(entry.data) &&
-          Date.now() - (entry.ts || 0) < 86400000
-        ) {
-          MODULE_CACHE[k] = entry.data;
-        }
-      });
-    }
-  } catch (_) {}
-}
-
-if (typeof window !== "undefined") {
-  loadPgFromStorage();
-}
-
-function cacheKey(
-  category: string,
-  subcategory?: string,
-  limit?: number,
-  featured?: boolean,
-) {
-  return `${category}|${subcategory ?? ""}|${limit ?? ""}|${featured ? "1" : "0"}`;
-}
-
-const ALL_CATEGORIES = ["Accessories", "Watches", "Automotive", "Home Decor"];
-const ALL_SUBCATEGORIES: Record<string, string[]> = {
-  Accessories: [
-    "Chargers",
-    "Cables",
-    "Phone Holders",
-    "Tech Gadgets",
-    "Smart Accessories",
-  ],
-  Watches: ["Men Watches", "Women Watches", "Smart Watches", "Luxury Watches"],
-  Automotive: [
-    "Car Accessories",
-    "Car Cleaning Tools",
-    "Phone Holders",
-    "Interior Accessories",
-  ],
-  "Home Decor": [
-    "Wall Decor",
-    "Lighting",
-    "Kitchen Essentials",
-    "Storage Organizers",
-  ],
-};
-
-function prefetchAllProductGridData() {
-  ALL_CATEGORIES.forEach((category) => {
-    ensureCategoryCached(category, undefined, undefined, false);
-    ensureCategoryCached(category, undefined, undefined, true);
-    const subcats = ALL_SUBCATEGORIES[category] || [];
-    subcats.forEach((subcat) => {
-      ensureCategoryCached(category, subcat, undefined, false);
-    });
-  });
-}
-
-async function ensureCategoryCached(
-  category: string,
-  subcategory?: string,
-  limit?: number,
-  featured?: boolean,
-): Promise<ExtendedProduct[]> {
-  const key = cacheKey(category, subcategory, limit, featured);
-
-  if (!MODULE_CACHE[key]) loadPgFromStorage();
-  if (MODULE_CACHE[key]) return MODULE_CACHE[key];
-
-  const inFlight = FETCH_IN_FLIGHT[key];
-  if (inFlight) return await inFlight;
-
-  const promise = fetchProductsWithVariants(
-    category,
-    subcategory,
-    limit,
-    featured,
-  );
-  FETCH_IN_FLIGHT[key] = promise;
-
-  const data = await promise;
-  MODULE_CACHE[key] = data;
-  savePgToStorage(key, data);
-  delete FETCH_IN_FLIGHT[key];
-  return data;
-}
 
 const truncateProductName = (name: string, maxLength: number = 45): string => {
   if (name.length <= maxLength) return name;
@@ -677,9 +546,6 @@ function ProductCardComponent({
     setIsHovered(false);
   };
 
-  const handleMouseEnter = () => setIsHovered(true);
-  const handleMouseLeave = () => setIsHovered(false);
-
   const displayImage = currentImages.length > 0 ? currentImages[0] : null;
 
   const discount =
@@ -799,25 +665,26 @@ function ProductCardComponent({
     if (onQuickView) onQuickView(productData.id);
   };
 
+  const slug = productData.name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .substring(0, 60);
+  const productHref = `/product/${slug}--${productData.id}`;
+
   return (
-    <div
-      onClick={() => {
-        const slug = productData.name
-          .toLowerCase()
-          .trim()
-          .replace(/[^\w\s-]/g, "")
-          .replace(/[\s_]+/g, "-")
-          .replace(/-+/g, "-")
-          .substring(0, 60);
-        router.push(`/product/${slug}--${productData.id}`);
-      }}
+    <Link
+      href={productHref}
+      prefetch={true}
       className="pg-card"
-      style={{ cursor: "pointer" }}
+      style={{ cursor: "pointer", textDecoration: "none", display: "block" }}
     >
       <div
         className="pg-card-img"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         {displayImage ? (
           <img
@@ -959,15 +826,28 @@ function ProductCardComponent({
           className={`pg-card-stock ${isOutOfStock ? "out" : isLowStock ? "low" : "in"}`}
         >
           {isOutOfStock
-            ? getPgTranslation("outOfStock", isRTL ? "ar" : isRTL ? "ar" : "en")
+            ? getPgTranslation("outOfStock", isRTL ? "ar" : "en")
             : isLowStock
-              ? `${getPgTranslation("lowStock", isRTL ? "ar" : isRTL ? "ar" : "en")} ${currentStock} ${getPgTranslation("left", isRTL ? "ar" : isRTL ? "ar" : "en")}`
-              : getPgTranslation("inStock", isRTL ? "ar" : isRTL ? "ar" : "en")}
+              ? `${getPgTranslation("lowStock", isRTL ? "ar" : "en")} ${currentStock} ${getPgTranslation("left", isRTL ? "ar" : "en")}`
+              : getPgTranslation("inStock", isRTL ? "ar" : "en")}
         </div>
       </div>
       <div className="pg-card-line" />
-    </div>
+    </Link>
   );
+}
+
+// ─── Module-level product cache — instant display on back/forward nav ────────
+const pgCache: Record<string, { data: ExtendedProduct[]; fetchedAt: number }> =
+  {};
+
+function getPgCacheKey(
+  category: string,
+  subcategory?: string,
+  limit?: number,
+  featured?: boolean,
+) {
+  return `${category}|${subcategory ?? ""}|${limit ?? ""}|${featured ? "1" : "0"}`;
 }
 
 // ─── Main ProductGrid Component ───────────────────────────────────────────────
@@ -978,23 +858,19 @@ export default function ProductGrid({
   featured = false,
   onQuickView,
 }: ProductGridProps) {
-  const key = cacheKey(category, subcategory, limit, featured);
   const { language, isRTLMode } = useLanguage();
+  const cacheKey = getPgCacheKey(category, subcategory, limit, featured);
 
-  const [products, setProducts] = useState<ExtendedProduct[]>(() => {
-    if (MODULE_CACHE[key]) return MODULE_CACHE[key];
-    loadPgFromStorage();
-    return MODULE_CACHE[key] ?? [];
-  });
-  const [loading, setLoading] = useState<boolean>(() => {
-    if (MODULE_CACHE[key]) return false;
-    loadPgFromStorage();
-    return !MODULE_CACHE[key];
-  });
-
+  const [products, setProducts] = useState<ExtendedProduct[]>(
+    () => pgCache[cacheKey]?.data || [],
+  );
+  const [loading, setLoading] = useState(
+    () => !pgCache[cacheKey]?.data?.length,
+  );
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
-  const [columns, setColumns] = useState(4);
+  // Use null on server to avoid hydration mismatch — set real value after mount
+  const [columns, setColumns] = useState<number | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState({
     category: "All",
@@ -1007,83 +883,131 @@ export default function ProductGrid({
   const { formatPrice } = useCurrency();
   const { addToCart } = useCartStore();
 
+  // Set columns after mount to avoid SSR/client hydration mismatch
   useEffect(() => {
-    setTimeout(() => {
-      prefetchAllProductGridData();
-    }, 100);
+    setColumns(4);
   }, []);
 
+  // Load products on mount and when dependencies change
   useEffect(() => {
     let isMounted = true;
+    const key = getPgCacheKey(category, subcategory, limit, featured);
 
-    function applyFromCache() {
-      loadPgFromStorage();
-      const cached = MODULE_CACHE[key];
-      if (cached && cached.length > 0) {
-        if (isMounted) {
-          setProducts(cached);
-          setLoading(false);
-        }
-        return true;
-      }
-      return false;
-    }
-
-    async function loadData() {
-      if (applyFromCache()) return;
-      const inFlightPromise = FETCH_IN_FLIGHT[key];
-      if (inFlightPromise) {
-        const data = await inFlightPromise;
-        if (isMounted) {
-          setProducts(data);
-          setLoading(false);
-        }
-        return;
-      }
-      setLoading(true);
+    const loadProducts = async (silent = false) => {
+      if (!silent) setLoading(true);
       try {
-        const data = await ensureCategoryCached(
+        const data = await fetchProductsWithVariants(
           category,
           subcategory,
           limit,
           featured,
         );
         if (isMounted) {
+          pgCache[key] = { data, fetchedAt: Date.now() };
           setProducts(data);
-          setLoading(false);
         }
-      } catch (err) {
-        console.error("Error loading products:", err);
+      } catch (error) {
+        console.error("Error loading products:", error);
+      } finally {
         if (isMounted) setLoading(false);
       }
+    };
+
+    // If already cached, show instantly then silently refresh in background
+    if (pgCache[key]?.data?.length) {
+      setProducts(pgCache[key].data);
+      setLoading(false);
+      loadProducts(true); // silent background refresh
+    } else {
+      loadProducts(false);
     }
-
-    loadData();
-
-    const handlePageShow = (e: PageTransitionEvent) => {
-      if (e.persisted || !MODULE_CACHE[key]) {
-        loadPgFromStorage();
-        applyFromCache();
-      }
-    };
-    const handlePopState = () => {
-      applyFromCache();
-    };
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") applyFromCache();
-    };
-
-    window.addEventListener("pageshow", handlePageShow);
-    window.addEventListener("popstate", handlePopState);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       isMounted = false;
-      window.removeEventListener("pageshow", handlePageShow);
-      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [category, subcategory, limit, featured]);
+
+  // Real-time updates for product changes
+  useEffect(() => {
+    const key = getPgCacheKey(category, subcategory, limit, featured);
+    const refresh = async () => {
+      const data = await fetchProductsWithVariants(
+        category,
+        subcategory,
+        limit,
+        featured,
+      );
+      pgCache[key] = { data, fetchedAt: Date.now() };
+      setProducts(data);
+    };
+
+    const channel = supabase
+      .channel("pg-products-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "products" },
+        refresh,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "product_variants" },
+        refresh,
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [category, subcategory, limit, featured]);
+
+  // Handle page visibility change (tab switch back)
+  useEffect(() => {
+    const key = getPgCacheKey(category, subcategory, limit, featured);
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible") {
+        // Show cached instantly
+        if (pgCache[key]) setProducts(pgCache[key].data);
+        // Refresh from network silently
+        const data = await fetchProductsWithVariants(
+          category,
+          subcategory,
+          limit,
+          featured,
+        );
+        pgCache[key] = { data, fetchedAt: Date.now() };
+        setProducts(data);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [key, category, subcategory, limit, featured]);
+  }, [category, subcategory, limit, featured]);
+
+  // Handle back/forward navigation (bfcache pageshow)
+  useEffect(() => {
+    const key = getPgCacheKey(category, subcategory, limit, featured);
+    const handlePageShow = async (e: PageTransitionEvent) => {
+      // Show cached data immediately
+      if (pgCache[key]) {
+        setProducts(pgCache[key].data);
+        setLoading(false);
+      }
+      // Then silently refresh
+      const data = await fetchProductsWithVariants(
+        category,
+        subcategory,
+        limit,
+        featured,
+      );
+      pgCache[key] = { data, fetchedAt: Date.now() };
+      setProducts(data);
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, [category, subcategory, limit, featured]);
 
   const getFilterOptions = useMemo(() => {
     const categoriesSet = new Set<string>();
@@ -1342,7 +1266,7 @@ export default function ProductGrid({
                   </svg>
                 </button>
                 <button
-                  className={`per-row-btn ${columns === 4 ? "active" : ""}`}
+                  className={`per-row-btn ${columns === 4 || columns === null ? "active" : ""}`}
                   onClick={() => setColumns(4)}
                   data-tooltip="4 columns"
                 >
@@ -1398,8 +1322,9 @@ export default function ProductGrid({
         </>
       )}
       <div
-        className={`pg-grid pg-grid--cols-${columns}`}
+        className={`pg-grid${columns ? ` pg-grid--cols-${columns}` : " pg-grid--cols-4"}`}
         dir={isRTLMode ? "rtl" : "ltr"}
+        suppressHydrationWarning
       >
         {filteredAndSorted.map((product) => (
           <ProductCardComponent

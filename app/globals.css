@@ -12,6 +12,16 @@
     "Poppins", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
     sans-serif;
   --font-cormorant: "Cormorant Garamond", serif;
+
+  /*
+    ✅ KEY FIX: Navbar ka estimated height yahan define karo.
+    Jab JS load nahi hua hota, providers.tsx yeh value use karta hai paddingTop ke liye.
+    Isse page HAMESHA top se start hoga — koi layout shift nahi, footer pehle nahi dikhega.
+
+    Apni actual navbar height yahan set karo (AnnouncementBar + Navbar mila ke).
+    Agar AnnouncementBar ~40px + Navbar ~64px = ~104px total hai toh yahi rakho.
+  */
+  --navbar-height: 104px;
 }
 
 @theme inline {
@@ -41,10 +51,29 @@ html {
 }
 
 /* ============================================================
+   ✅ PAGE FADE-IN — No loader needed, no delay, no layout shift
+   Page smoothly appears from top instantly
+   ============================================================ */
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-fade-in {
+  animation: pageFadeIn 0.35s ease-out forwards;
+}
+
+/* ============================================================
    POPPINS FONT - MAIN FONT FOR ENTIRE PROJECT
    ============================================================ */
 
-/* Set Poppins as default font for everything */
 body,
 h1,
 h2,
@@ -80,7 +109,6 @@ label,
   font-family: var(--font-poppins);
 }
 
-/* Override for specific elements that need different fonts */
 code,
 pre,
 kbd,
@@ -89,7 +117,6 @@ samp,
   font-family: monospace;
 }
 
-/* For headings - Poppins with proper weight */
 h1,
 .h1,
 .page-title,
@@ -114,7 +141,6 @@ h3,
   font-weight: 600;
 }
 
-/* Button text */
 button,
 .btn,
 .cta-button {
@@ -123,7 +149,6 @@ button,
   letter-spacing: 0.03em;
 }
 
-/* Navbar links */
 .nav-links a,
 .navbar a,
 .menu-item {
@@ -132,7 +157,6 @@ button,
   letter-spacing: 0.05em;
 }
 
-/* Product names */
 .product-name,
 .product-title,
 .fp-card-name,
@@ -141,7 +165,6 @@ button,
   font-weight: 600;
 }
 
-/* Prices */
 .price,
 .product-price,
 .fp-card-price,
@@ -150,7 +173,6 @@ button,
   font-weight: 700;
 }
 
-/* Form labels and inputs */
 label,
 input,
 textarea,
@@ -158,7 +180,6 @@ select {
   font-family: var(--font-poppins);
 }
 
-/* Small text, meta info */
 .small-text,
 .meta,
 .eyebrow,
@@ -169,14 +190,12 @@ select {
   letter-spacing: 0.05em;
 }
 
-/* Footer text */
 .footer-text,
 .copyright {
   font-family: var(--font-poppins);
   font-weight: 400;
 }
 
-/* Remove italic from all elements - Poppins supports italic but we'll remove if needed */
 i,
 em,
 cite,
@@ -199,7 +218,6 @@ body {
   overflow-x: hidden !important;
 }
 
-/* Remove default button styles */
 button {
   outline: none;
 }
@@ -209,7 +227,6 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
-/* Remove default list styles */
 ul,
 ol {
   list-style: none;
@@ -225,7 +242,6 @@ a {
    ADDITIONAL HELPER CLASSES
    ============================================================ */
 
-/* Poppins font variations */
 .font-poppins {
   font-family: "Poppins", sans-serif;
 }
@@ -270,34 +286,23 @@ a {
   font-weight: 900;
 }
 
-/* Fallback fonts */
 .font-cormorant {
   font-family: "Cormorant Garamond", serif;
 }
 
-/* Monospace fallback */
 .font-mono {
   font-family: monospace;
 }
 
 /* ============================================================
-   RTL (Arabic / UAE) — Global Direction Support
-   Applied when body has class="rtl" (set by LanguageContext)
+   RTL (Arabic / UAE)
    ============================================================ */
 
-/* When Arabic is active: flip text alignment and flex direction for all major containers */
 body.rtl,
 [dir="rtl"] {
   text-align: right;
 }
 
-/* Flex rows: reverse order so start = right */
-body.rtl .flex,
-[dir="rtl"] .flex {
-  /* Only reverse if the element is actually a row; column layouts should stay */
-}
-
-/* Navigation links in RTL */
 body.rtl .nav-links,
 [dir="rtl"] .nav-links {
   flex-direction: row-reverse;
@@ -316,7 +321,6 @@ body.rtl .navbar-right,
   order: 1;
 }
 
-/* Dropdowns in RTL open from the right */
 body.rtl .dropdown-menu,
 [dir="rtl"] .dropdown-menu {
   right: auto;
@@ -324,7 +328,6 @@ body.rtl .dropdown-menu,
   text-align: right;
 }
 
-/* Inputs and form fields */
 body.rtl input,
 body.rtl textarea,
 body.rtl select,
@@ -335,15 +338,6 @@ body.rtl select,
   direction: rtl;
 }
 
-/* Prevent double-flipping icons/images */
-body.rtl img,
-body.rtl svg,
-[dir="rtl"] img,
-[dir="rtl"] svg {
-  /* don't flip icons automatically — only flip explicitly if needed */
-}
-
-/* Cart sidebar, sidebars: slide from left in RTL */
 body.rtl .sidebar,
 body.rtl .cart-sidebar,
 [dir="rtl"] .sidebar,
@@ -352,7 +346,6 @@ body.rtl .cart-sidebar,
   right: auto;
 }
 
-/* General margin/padding logical properties support fallback */
 body.rtl .ml-auto,
 [dir="rtl"] .ml-auto {
   margin-left: unset;
@@ -364,14 +357,12 @@ body.rtl .mr-auto,
   margin-left: auto;
 }
 
-/* Footer links RTL */
 body.rtl .footer,
 [dir="rtl"] .footer {
   direction: rtl;
   text-align: right;
 }
 
-/* Card text */
 body.rtl .product-card,
 body.rtl .fp-card-name,
 body.rtl .fp-card-price,

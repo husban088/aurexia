@@ -1,14 +1,150 @@
+// app/reset-password/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/app/context/LanguageContext";
 import "./reset-password.css";
 
+const rpTranslations = {
+  brandEyebrow: {
+    en: "New Password",
+    ar: "كلمة مرور جديدة",
+    de: "Neues Passwort",
+  },
+  brandTitle: { en: "Tech4U", ar: "تيك4يو", de: "Tech4U" },
+  brandTagline1: { en: "Secure your", ar: "تأمين", de: "Sichern Sie" },
+  brandTagline2: { en: "luxury", ar: "وصولك", de: "Ihren" },
+  brandTaglineEm: { en: "access.", ar: "الفاخر.", de: "Luxuszugang." },
+  brandNote: {
+    en: "Choose a strong password to keep your Tech4U account safe and secure.",
+    ar: "اختر كلمة مرور قوية للحفاظ على أمان حسابك في تيك4يو.",
+    de: "Wählen Sie ein starkes Passwort, um Ihr Tech4U-Konto sicher zu halten.",
+  },
+
+  formEyebrow: {
+    en: "Set New Password",
+    ar: "تعيين كلمة مرور جديدة",
+    de: "Neues Passwort festlegen",
+  },
+  formTitle: { en: "Reset", ar: "إعادة تعيين", de: "Passwort" },
+  formTitleEm: { en: "Password", ar: "كلمة المرور", de: "zurücksetzen" },
+  formSub: {
+    en: "Enter and confirm your new password below",
+    ar: "أدخل وأكد كلمة المرور الجديدة أدناه",
+    de: "Geben Sie unten Ihr neues Passwort ein und bestätigen Sie es",
+  },
+
+  newPasswordLabel: {
+    en: "New Password",
+    ar: "كلمة المرور الجديدة",
+    de: "Neues Passwort",
+  },
+  confirmPasswordLabel: {
+    en: "Confirm Password",
+    ar: "تأكيد كلمة المرور",
+    de: "Passwort bestätigen",
+  },
+  passwordPlaceholder: {
+    en: "Min. 6 characters",
+    ar: "6 أحرف على الأقل",
+    de: "Mind. 6 Zeichen",
+  },
+  confirmPlaceholder: {
+    en: "Repeat your password",
+    ar: "كرر كلمة المرور",
+    de: "Passwort wiederholen",
+  },
+
+  resetButton: {
+    en: "Reset Password",
+    ar: "إعادة تعيين كلمة المرور",
+    de: "Passwort zurücksetzen",
+  },
+  resetting: {
+    en: "Resetting...",
+    ar: "جاري إعادة التعيين...",
+    de: "Zurücksetzen...",
+  },
+
+  switchText: {
+    en: "Remember your password?",
+    ar: "هل تذكر كلمة المرور؟",
+    de: "Passwort erinnert?",
+  },
+  switchLink: { en: "Sign in", ar: "تسجيل الدخول", de: "Anmelden" },
+
+  waitingTitle: {
+    en: "Verifying reset link...",
+    ar: "جاري التحقق من رابط إعادة التعيين...",
+    de: "Link wird überprüft...",
+  },
+  waitingSub: {
+    en: "Please wait while we verify your password reset link.",
+    ar: "يرجى الانتظار أثناء التحقق من رابط إعادة تعيين كلمة المرور الخاصة بك.",
+    de: "Bitte warten Sie, während wir Ihren Link zum Zurücksetzen des Passworts überprüfen.",
+  },
+  waitingNote: {
+    en: "If nothing happens, your link may have expired.",
+    ar: "إذا لم يحدث شيء، فقد يكون رابطك قد انتهت صلاحيته.",
+    de: "Wenn nichts passiert, ist Ihr Link möglicherweise abgelaufen.",
+  },
+  requestNew: {
+    en: "Request a new one",
+    ar: "اطلب رابطًا جديدًا",
+    de: "Neuen anfordern",
+  },
+
+  successTitle: { en: "Password", ar: "تم", de: "Passwort" },
+  successTitleEm: { en: "Reset!", ar: "إعادة التعيين!", de: "zurückgesetzt!" },
+  successDesc: {
+    en: "Your password has been updated successfully. Redirecting you to sign in...",
+    ar: "تم تحديث كلمة المرور الخاصة بك بنجاح. جاري إعادة توجيهك إلى تسجيل الدخول...",
+    de: "Ihr Passwort wurde erfolgreich aktualisiert. Sie werden zur Anmeldung weitergeleitet...",
+  },
+
+  signInNow: {
+    en: "Sign In Now",
+    ar: "تسجيل الدخول الآن",
+    de: "Jetzt anmelden",
+  },
+
+  errorShort: {
+    en: "Password must be at least 6 characters.",
+    ar: "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.",
+    de: "Das Passwort muss mindestens 6 Zeichen lang sein.",
+  },
+  errorMismatch: {
+    en: "Passwords do not match. Please try again.",
+    ar: "كلمات المرور غير متطابقة. يرجى المحاولة مرة أخرى.",
+    de: "Passwörter stimmen nicht überein. Bitte versuchen Sie es erneut.",
+  },
+  errorDefault: {
+    en: "Failed to reset password. Please try again.",
+    ar: "فشل إعادة تعيين كلمة المرور. يرجى المحاولة مرة أخرى.",
+    de: "Passwort zurücksetzen fehlgeschlagen. Bitte versuchen Sie es erneut.",
+  },
+};
+
+const getRpTranslation = (
+  key: keyof typeof rpTranslations,
+  lang: "en" | "ar" | "de",
+  subKey?: string,
+): string => {
+  if (subKey && rpTranslations[key] && (rpTranslations[key] as any)[subKey]) {
+    return (rpTranslations[key] as any)[subKey][lang];
+  }
+  if (rpTranslations[key] && (rpTranslations[key] as any)[lang]) {
+    return (rpTranslations[key] as any)[lang];
+  }
+  return (rpTranslations[key] as any)?.en || key;
+};
+
 export default function ResetPassword() {
-  const router = useRouter();
+  const { language, isRTLMode } = useLanguage();
+  const lang = language;
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -20,24 +156,16 @@ export default function ResetPassword() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    // ✅ FIX: Handle the recovery session from the email link
-    // Supabase sends the user to this page with a hash fragment containing the tokens
-    // onAuthStateChange fires PASSWORD_RECOVERY event when the link is valid
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("[ResetPassword] Auth event:", event);
-
       if (event === "PASSWORD_RECOVERY") {
-        // ✅ Session is now active, user can set new password
         setReady(true);
       } else if (event === "SIGNED_IN" && session) {
-        // Some Supabase versions fire SIGNED_IN instead
         setReady(true);
       }
     });
 
-    // Also check if we already have a session (user refreshed the page)
     const checkExistingSession = async () => {
       const {
         data: { session },
@@ -56,43 +184,35 @@ export default function ResetPassword() {
     setError(null);
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+      setError(getRpTranslation("errorShort", lang));
       return;
     }
     if (password !== confirmPassword) {
-      setError("Passwords do not match. Please try again.");
+      setError(getRpTranslation("errorMismatch", lang));
       return;
     }
 
     setLoading(true);
 
-    // ✅ FIX: Update the password using the active session
-    const { error: updateError } = await supabase.auth.updateUser({
-      password,
-    });
+    const { error: updateError } = await supabase.auth.updateUser({ password });
 
     if (updateError) {
-      setError(
-        updateError.message || "Failed to reset password. Please try again."
-      );
+      setError(updateError.message || getRpTranslation("errorDefault", lang));
       setLoading(false);
       return;
     }
 
-    // ✅ FIX: Sign out after password reset so user signs in fresh
     await supabase.auth.signOut({ scope: "local" });
-
     setDone(true);
     setLoading(false);
 
-    // Redirect to signin after 2 seconds with success param
     setTimeout(() => {
-      router.push("/signin?reset=success");
+      window.location.href = "/signin?reset=success";
     }, 2000);
   };
 
   return (
-    <div className="rp-root">
+    <div className="rp-root" dir={isRTLMode ? "rtl" : "ltr"}>
       <div className="rp-grain" aria-hidden="true" />
       <div className="rp-bg-lines" aria-hidden="true">
         <span />
@@ -107,34 +227,26 @@ export default function ResetPassword() {
       <div className="rp-corner rp-corner--br" aria-hidden="true" />
 
       <div className="rp-card">
-        {/* Left brand */}
+        {/* LEFT: Brand Panel */}
         <div className="rp-brand">
           <div className="rp-brand-inner">
-            <div className="rp-brand-logo">
-              <Image
-                src="/logo.png"
-                alt="Aurexia"
-                width={52}
-                height={52}
-                className="rp-logo-img"
-                priority
-              />
-            </div>
             <p className="rp-brand-eyebrow">
               <span className="rp-ey-line" />
-              New Password
+              {getRpTranslation("brandEyebrow", lang)}
               <span className="rp-ey-line" />
             </p>
-            <h1 className="rp-brand-title">Aurexia</h1>
+            <h1 className="rp-brand-title">
+              {getRpTranslation("brandTitle", lang)}
+            </h1>
             <p className="rp-brand-tagline">
-              Secure your
+              {getRpTranslation("brandTagline1", lang)}
               <br />
-              <em>luxury access.</em>
+              {getRpTranslation("brandTagline2", lang)}{" "}
+              <em>{getRpTranslation("brandTaglineEm", lang)}</em>
             </p>
             <div className="rp-brand-divider" aria-hidden="true" />
             <p className="rp-brand-note">
-              Choose a strong password to keep your Aurexia account safe and
-              secure.
+              {getRpTranslation("brandNote", lang)}
             </p>
             <div className="rp-ring" aria-hidden="true">
               <div className="rp-ring-inner" />
@@ -142,11 +254,10 @@ export default function ResetPassword() {
           </div>
         </div>
 
-        {/* Right form */}
+        {/* RIGHT: Form Panel */}
         <div className="rp-form-panel">
           <div className="rp-form-wrap">
             {done ? (
-              /* Success state */
               <div className="rp-success">
                 <div className="rp-success-icon">
                   <svg
@@ -158,18 +269,17 @@ export default function ResetPassword() {
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
-                <div className="rp-success-ring" aria-hidden="true" />
                 <p className="rp-success-eyebrow">
                   <span className="rp-ey-line" />
                   Success
                   <span className="rp-ey-line" />
                 </p>
                 <h2 className="rp-success-title">
-                  Password <em>Reset!</em>
+                  {getRpTranslation("successTitle", lang)}{" "}
+                  <em>{getRpTranslation("successTitleEm", lang)}</em>
                 </h2>
                 <p className="rp-success-desc">
-                  Your password has been updated successfully. Redirecting you
-                  to sign in…
+                  {getRpTranslation("successDesc", lang)}
                 </p>
                 <Link href="/signin" className="rp-back-btn">
                   <svg
@@ -184,40 +294,41 @@ export default function ResetPassword() {
                       strokeLinejoin="round"
                     />
                   </svg>
-                  Sign In Now
+                  {getRpTranslation("signInNow", lang)}
                 </Link>
               </div>
             ) : !ready ? (
-              /* Waiting for recovery link */
               <div className="rp-waiting">
                 <div className="rp-spinner-wrap">
                   <span className="rp-spinner-large" />
                 </div>
-                <p className="rp-waiting-title">Verifying reset link…</p>
+                <p className="rp-waiting-title">
+                  {getRpTranslation("waitingTitle", lang)}
+                </p>
                 <p className="rp-waiting-sub">
-                  Please wait while we verify your password reset link.
+                  {getRpTranslation("waitingSub", lang)}
                 </p>
                 <p className="rp-waiting-note">
-                  If nothing happens, your link may have expired.{" "}
+                  {getRpTranslation("waitingNote", lang)}{" "}
                   <Link href="/forgot-password" className="rp-link">
-                    Request a new one.
+                    {getRpTranslation("requestNew", lang)}
                   </Link>
                 </p>
               </div>
             ) : (
-              /* Reset form */
               <>
                 <div className="rp-form-header">
                   <p className="rp-form-eyebrow">
                     <span className="rp-ey-line" />
-                    Set New Password
+                    {getRpTranslation("formEyebrow", lang)}
                     <span className="rp-ey-line" />
                   </p>
                   <h2 className="rp-form-title">
-                    Reset <em>Password</em>
+                    {getRpTranslation("formTitle", lang)}{" "}
+                    <em>{getRpTranslation("formTitleEm", lang)}</em>
                   </h2>
                   <p className="rp-form-sub">
-                    Enter and confirm your new password below
+                    {getRpTranslation("formSub", lang)}
                   </p>
                 </div>
 
@@ -240,14 +351,11 @@ export default function ResetPassword() {
                     </div>
                   )}
 
-                  {/* New Password */}
                   <div
-                    className={`rp-field${
-                      focused === "pw" ? " rp-field--focused" : ""
-                    }${password ? " rp-field--filled" : ""}`}
+                    className={`rp-field${focused === "pw" ? " rp-field--focused" : ""}${password ? " rp-field--filled" : ""}`}
                   >
                     <label className="rp-label" htmlFor="rp-password">
-                      New Password
+                      {getRpTranslation("newPasswordLabel", lang)}
                     </label>
                     <div className="rp-input-wrap">
                       <span className="rp-input-icon" aria-hidden="true">
@@ -265,7 +373,10 @@ export default function ResetPassword() {
                         id="rp-password"
                         type={showPass ? "text" : "password"}
                         className="rp-input"
-                        placeholder="Min. 6 characters"
+                        placeholder={getRpTranslation(
+                          "passwordPlaceholder",
+                          lang,
+                        )}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         onFocus={() => setFocused("pw")}
@@ -278,9 +389,6 @@ export default function ResetPassword() {
                         type="button"
                         className="rp-eye-btn"
                         onClick={() => setShowPass(!showPass)}
-                        aria-label={
-                          showPass ? "Hide password" : "Show password"
-                        }
                       >
                         {showPass ? (
                           <svg
@@ -309,14 +417,11 @@ export default function ResetPassword() {
                     <div className="rp-field-line" aria-hidden="true" />
                   </div>
 
-                  {/* Confirm Password */}
                   <div
-                    className={`rp-field${
-                      focused === "cp" ? " rp-field--focused" : ""
-                    }${confirmPassword ? " rp-field--filled" : ""}`}
+                    className={`rp-field${focused === "cp" ? " rp-field--focused" : ""}${confirmPassword ? " rp-field--filled" : ""}`}
                   >
                     <label className="rp-label" htmlFor="rp-confirm">
-                      Confirm Password
+                      {getRpTranslation("confirmPasswordLabel", lang)}
                     </label>
                     <div className="rp-input-wrap">
                       <span className="rp-input-icon" aria-hidden="true">
@@ -333,7 +438,10 @@ export default function ResetPassword() {
                         id="rp-confirm"
                         type={showConfirm ? "text" : "password"}
                         className="rp-input"
-                        placeholder="Repeat your password"
+                        placeholder={getRpTranslation(
+                          "confirmPlaceholder",
+                          lang,
+                        )}
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         onFocus={() => setFocused("cp")}
@@ -345,9 +453,6 @@ export default function ResetPassword() {
                         type="button"
                         className="rp-eye-btn"
                         onClick={() => setShowConfirm(!showConfirm)}
-                        aria-label={
-                          showConfirm ? "Hide password" : "Show password"
-                        }
                       >
                         {showConfirm ? (
                           <svg
@@ -385,7 +490,7 @@ export default function ResetPassword() {
                       <span className="rp-spinner" />
                     ) : (
                       <>
-                        <span>Reset Password</span>
+                        <span>{getRpTranslation("resetButton", lang)}</span>
                         <svg
                           viewBox="0 0 24 24"
                           fill="none"
@@ -404,9 +509,9 @@ export default function ResetPassword() {
                 </form>
 
                 <p className="rp-switch">
-                  Remember your password?{" "}
+                  {getRpTranslation("switchText", lang)}{" "}
                   <Link href="/signin" className="rp-switch-link">
-                    Sign in
+                    {getRpTranslation("switchLink", lang)}
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"

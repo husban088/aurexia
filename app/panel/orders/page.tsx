@@ -78,6 +78,7 @@ const COURIER_CONFIG: Record<
       { id: "call_courier", name: "Call Courier", days: "1–2 business days" },
       { id: "m&p", name: "M&P Courier", days: "2–4 business days" },
       { id: "swyft", name: "Swyft Logistics", days: "1–3 business days" },
+      { id: "others", name: "Others (Custom)", days: "—" },
     ],
   },
   "United Kingdom": {
@@ -91,6 +92,7 @@ const COURIER_CONFIG: Record<
       { id: "yodel", name: "Yodel", days: "2–4 business days" },
       { id: "ups_uk", name: "UPS UK", days: "1–3 business days" },
       { id: "fedex_uk", name: "FedEx UK", days: "1–2 business days" },
+      { id: "others", name: "Others (Custom)", days: "—" },
     ],
   },
   Australia: {
@@ -111,6 +113,7 @@ const COURIER_CONFIG: Record<
         days: "3–6 business days",
       },
       { id: "dhl_aus", name: "DHL Australia", days: "2–4 business days" },
+      { id: "others", name: "Others (Custom)", days: "—" },
     ],
   },
   "United States": {
@@ -122,6 +125,7 @@ const COURIER_CONFIG: Record<
       { id: "fedex_us", name: "FedEx", days: "1–5 business days" },
       { id: "amazon_us", name: "Amazon Logistics", days: "1–3 business days" },
       { id: "ontrac", name: "OnTrac", days: "1–3 business days" },
+      { id: "others", name: "Others (Custom)", days: "—" },
     ],
   },
   "United Arab Emirates": {
@@ -132,6 +136,7 @@ const COURIER_CONFIG: Record<
       { id: "dhl_uae", name: "DHL UAE", days: "1–2 business days" },
       { id: "fetchr", name: "Fetchr", days: "1–3 business days" },
       { id: "smsa_uae", name: "SMSA Express", days: "1–3 business days" },
+      { id: "others", name: "Others (Custom)", days: "—" },
     ],
   },
   Canada: {
@@ -142,6 +147,7 @@ const COURIER_CONFIG: Record<
       { id: "purolator", name: "Purolator", days: "1–5 business days" },
       { id: "ups_ca", name: "UPS Canada", days: "1–5 business days" },
       { id: "fedex_ca", name: "FedEx Canada", days: "1–5 business days" },
+      { id: "others", name: "Others (Custom)", days: "—" },
     ],
   },
 };
@@ -215,6 +221,7 @@ const OTHER_COURIERS = [
   { id: "fedex", name: "FedEx", days: "2–5 business days" },
   { id: "ups", name: "UPS", days: "3–7 business days" },
   { id: "aramex", name: "Aramex", days: "3–6 business days" },
+  { id: "others", name: "Others (Custom)", days: "—" },
 ];
 
 function getCouriersForCountry(country: string) {
@@ -448,6 +455,7 @@ function ShippingModal({
   const [courierTrackingUrl, setCourierTrackingUrl] = useState("");
   const [customEstimate, setCustomEstimate] = useState("");
   const [urlManuallyEdited, setUrlManuallyEdited] = useState(false);
+  const [customCourierName, setCustomCourierName] = useState("");
 
   // Order ke country se default set karo
   useEffect(() => {
@@ -464,8 +472,14 @@ function ShippingModal({
   const countryData = selectedCountry ? COURIER_CONFIG[selectedCountry] : null;
   const couriers = countryData ? countryData.couriers : OTHER_COURIERS;
 
+  const isOthers = selectedCourier === "others";
   const selectedCourierObj = couriers.find((c) => c.id === selectedCourier);
-  const estimatedDays = customEstimate || selectedCourierObj?.days || "";
+  // When "others", use customCourierName; else use the matched courier name
+  const effectiveCourierName = isOthers
+    ? customCourierName.trim()
+    : selectedCourierObj?.name || "";
+  const estimatedDays =
+    customEstimate || (isOthers ? "" : selectedCourierObj?.days) || "";
 
   // Auto-generate tracking URL when courier or tracking number changes
   useEffect(() => {
@@ -479,7 +493,11 @@ function ShippingModal({
   }, [selectedCourier, trackingNumber, urlManuallyEdited]);
 
   const canConfirm =
-    selectedCountry && selectedCourier && trackingNumber.trim() && !loading;
+    selectedCountry &&
+    selectedCourier &&
+    trackingNumber.trim() &&
+    (!isOthers || customCourierName.trim()) &&
+    !loading;
 
   return (
     <div
@@ -491,9 +509,10 @@ function ShippingModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "20px",
+        padding: "12px",
         backdropFilter: "blur(4px)",
         WebkitBackdropFilter: "blur(4px)",
+        overflowY: "auto",
       }}
       onClick={onClose}
     >
@@ -502,13 +521,15 @@ function ShippingModal({
           background: "#1a1a1a",
           border: "1px solid rgba(218,165,32,0.25)",
           borderRadius: "20px",
-          padding: "clamp(20px, 5vw, 32px)",
-          maxWidth: "480px",
+          padding: "clamp(16px, 5vw, 32px)",
+          maxWidth: "520px",
           width: "100%",
-          maxHeight: "90vh",
+          maxHeight: "calc(100dvh - 24px)",
           overflowY: "auto",
           boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
           position: "relative",
+          margin: "auto",
+          boxSizing: "border-box",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -517,8 +538,8 @@ function ShippingModal({
           onClick={onClose}
           style={{
             position: "absolute",
-            top: "16px",
-            right: "16px",
+            top: "14px",
+            right: "14px",
             background: "rgba(255,255,255,0.06)",
             border: "1px solid rgba(255,255,255,0.1)",
             borderRadius: "50%",
@@ -531,6 +552,8 @@ function ShippingModal({
             color: "#888",
             padding: 0,
             lineHeight: 1,
+            flexShrink: 0,
+            zIndex: 10,
           }}
         >
           <svg
@@ -547,14 +570,20 @@ function ShippingModal({
         </button>
 
         {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: "24px" }}>
-          <div style={{ fontSize: "2rem", marginBottom: "8px" }}>🚚</div>
+        <div
+          style={{
+            textAlign: "center",
+            marginBottom: "20px",
+            paddingRight: "28px",
+          }}
+        >
+          <div style={{ fontSize: "1.8rem", marginBottom: "6px" }}>🚚</div>
           <h2
             style={{
               color: "#daa520",
               fontFamily: "var(--ords-serif)",
               margin: 0,
-              fontSize: "1.3rem",
+              fontSize: "clamp(1rem, 4vw, 1.3rem)",
             }}
           >
             Mark as Shipped
@@ -563,8 +592,8 @@ function ShippingModal({
             style={{
               color: "#888",
               fontFamily: "var(--ords-sans)",
-              fontSize: "0.75rem",
-              margin: "6px 0 0",
+              fontSize: "clamp(0.65rem, 2.5vw, 0.75rem)",
+              margin: "5px 0 0",
             }}
           >
             Order #{order.order_number} · {order.first_name} {order.last_name}
@@ -573,27 +602,30 @@ function ShippingModal({
             style={{
               color: "#666",
               fontFamily: "var(--ords-sans)",
-              fontSize: "0.7rem",
+              fontSize: "clamp(0.6rem, 2vw, 0.7rem)",
               margin: "3px 0 0",
             }}
           >
-            📍 {order.address}, {order.city}, {order.country}
+            📍 {order.city}, {order.country}
           </p>
         </div>
 
         {/* Step 1: Country */}
-        <div style={{ marginBottom: "20px" }}>
+        <div style={{ marginBottom: "18px" }}>
           <label style={labelStyle}>📦 Step 1: Delivery Country</label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "7px" }}>
             {Object.entries(COURIER_CONFIG).map(([key, val]) => (
               <button
                 key={key}
                 onClick={() => {
                   setSelectedCountry(key);
                   setSelectedCourier("");
+                  setCustomCourierName("");
+                  setCustomEstimate("");
+                  setUrlManuallyEdited(false);
                 }}
                 style={{
-                  padding: "8px 14px",
+                  padding: "7px 12px",
                   borderRadius: "40px",
                   border: `1px solid ${selectedCountry === key ? "#daa520" : "rgba(255,255,255,0.1)"}`,
                   background:
@@ -602,10 +634,11 @@ function ShippingModal({
                       : "rgba(255,255,255,0.04)",
                   color: selectedCountry === key ? "#daa520" : "#999",
                   fontFamily: "var(--ords-sans)",
-                  fontSize: "0.72rem",
+                  fontSize: "clamp(0.62rem, 2.5vw, 0.72rem)",
                   fontWeight: selectedCountry === key ? 700 : 400,
                   cursor: "pointer",
                   transition: "all 0.15s",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {val.flag} {val.label}
@@ -616,80 +649,200 @@ function ShippingModal({
 
         {/* Step 2: Courier */}
         {selectedCountry && (
-          <div style={{ marginBottom: "20px" }}>
+          <div style={{ marginBottom: "18px" }}>
             <label style={labelStyle}>
               🏢 Step 2: Courier Company ({countryData?.flag} {selectedCountry})
             </label>
             <div
-              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              style={{ display: "flex", flexDirection: "column", gap: "7px" }}
             >
-              {couriers.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => {
-                    setSelectedCourier(c.id);
-                    setCustomEstimate("");
-                    setUrlManuallyEdited(false);
-                  }}
-                  style={{
-                    padding: "10px 16px",
-                    borderRadius: "12px",
-                    border: `1px solid ${selectedCourier === c.id ? "#daa520" : "rgba(255,255,255,0.08)"}`,
-                    background:
-                      selectedCourier === c.id
-                        ? "rgba(218,165,32,0.12)"
+              {couriers.map((c) => {
+                const isActive = selectedCourier === c.id;
+                const isOthersBtn = c.id === "others";
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setSelectedCourier(c.id);
+                      setCustomEstimate("");
+                      setUrlManuallyEdited(false);
+                      if (!isOthersBtn) setCustomCourierName("");
+                    }}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: "12px",
+                      border: `1px solid ${isActive ? (isOthersBtn ? "#9ca3af" : "#daa520") : "rgba(255,255,255,0.08)"}`,
+                      background: isActive
+                        ? isOthersBtn
+                          ? "rgba(156,163,175,0.1)"
+                          : "rgba(218,165,32,0.12)"
                         : "rgba(255,255,255,0.03)",
-                    color: selectedCourier === c.id ? "#daa520" : "#ccc",
-                    fontFamily: "var(--ords-sans)",
-                    fontSize: "0.78rem",
-                    fontWeight: selectedCourier === c.id ? 600 : 400,
-                    cursor: "pointer",
-                    textAlign: "left",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    transition: "all 0.15s",
+                      color: isActive
+                        ? isOthersBtn
+                          ? "#d1d5db"
+                          : "#daa520"
+                        : "#ccc",
+                      fontFamily: "var(--ords-sans)",
+                      fontSize: "clamp(0.7rem, 2.5vw, 0.78rem)",
+                      fontWeight: isActive ? 600 : 400,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      {isOthersBtn && <span>✏️</span>}
+                      {c.name}
+                    </span>
+                    {!isOthersBtn && (
+                      <span
+                        style={{
+                          fontSize: "0.63rem",
+                          opacity: 0.7,
+                          flexShrink: 0,
+                          marginLeft: "8px",
+                        }}
+                      >
+                        ⏱ {c.days}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Others custom input — shows instantly below list when "others" selected */}
+            {isOthers && (
+              <div
+                style={{
+                  marginTop: "10px",
+                  padding: "14px",
+                  background: "rgba(156,163,175,0.06)",
+                  border: "1px solid rgba(156,163,175,0.2)",
+                  borderRadius: "12px",
+                }}
+              >
+                <label
+                  style={{
+                    ...labelStyle,
+                    color: "#d1d5db",
+                    marginBottom: "8px",
                   }}
                 >
-                  <span>{c.name}</span>
-                  <span style={{ fontSize: "0.65rem", opacity: 0.7 }}>
-                    ⏱ {c.days}
-                  </span>
-                </button>
-              ))}
-            </div>
+                  ✏️ Enter Courier Company Name
+                </label>
+                <input
+                  type="text"
+                  value={customCourierName}
+                  onChange={(e) => setCustomCourierName(e.target.value)}
+                  placeholder="e.g. Daewoo Express, J&T, Sonic Logistics..."
+                  autoFocus
+                  style={{
+                    ...inputStyle,
+                    border: customCourierName.trim()
+                      ? "1px solid rgba(156,163,175,0.5)"
+                      : "1px solid rgba(239,68,68,0.4)",
+                  }}
+                />
+                {customCourierName.trim() && (
+                  <div
+                    style={{
+                      marginTop: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "8px 12px",
+                      background: "rgba(156,163,175,0.1)",
+                      borderRadius: "8px",
+                      border: "1px solid rgba(156,163,175,0.2)",
+                    }}
+                  >
+                    <span style={{ fontSize: "1rem" }}>🚚</span>
+                    <span
+                      style={{
+                        color: "#d1d5db",
+                        fontFamily: "var(--ords-sans)",
+                        fontSize: "0.82rem",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {customCourierName.trim()}
+                    </span>
+                    <span
+                      style={{
+                        marginLeft: "auto",
+                        fontSize: "0.65rem",
+                        color: "#6b7280",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      Custom courier
+                    </span>
+                  </div>
+                )}
+                {!customCourierName.trim() && (
+                  <p
+                    style={{
+                      color: "#ef4444",
+                      fontSize: "0.65rem",
+                      fontFamily: "var(--ords-sans)",
+                      margin: "5px 0 0",
+                    }}
+                  >
+                    ⚠️ Courier name required to continue
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Estimated Delivery (auto-filled, editable) */}
+        {/* Estimated Delivery */}
         {selectedCourier && (
-          <div style={{ marginBottom: "20px" }}>
+          <div style={{ marginBottom: "18px" }}>
             <label style={labelStyle}>
-              ⏱ Estimated Delivery (auto-filled — edit if needed)
+              ⏱ Estimated Delivery
+              {!isOthers && " (auto-filled — edit if needed)"}
             </label>
             <input
               type="text"
-              value={customEstimate || selectedCourierObj?.days || ""}
+              value={
+                customEstimate ||
+                (isOthers ? "" : selectedCourierObj?.days || "")
+              }
               onChange={(e) => setCustomEstimate(e.target.value)}
-              placeholder="e.g. 2–3 business days"
+              placeholder={
+                isOthers ? "e.g. 2–3 business days" : "e.g. 2–3 business days"
+              }
               style={inputStyle}
             />
-            <p
-              style={{
-                color: "#666",
-                fontSize: "0.65rem",
-                fontFamily: "var(--ords-sans)",
-                margin: "4px 0 0",
-              }}
-            >
-              ✅ Auto-set from courier — change karo agar zaroorat ho
-            </p>
+            {!isOthers && (
+              <p
+                style={{
+                  color: "#666",
+                  fontSize: "0.65rem",
+                  fontFamily: "var(--ords-sans)",
+                  margin: "4px 0 0",
+                }}
+              >
+                ✅ Auto-set from courier — change karo agar zaroorat ho
+              </p>
+            )}
           </div>
         )}
 
-        {/* Step 3: Tracking Number (required) */}
-        {selectedCourier && (
-          <div style={{ marginBottom: "20px" }}>
+        {/* Step 3: Tracking Number */}
+        {selectedCourier && (!isOthers || customCourierName.trim()) && (
+          <div style={{ marginBottom: "18px" }}>
             <label style={labelStyle}>
               📦 Step 3: Tracking Number{" "}
               <span style={{ color: "#ef4444" }}>*</span>
@@ -714,11 +867,12 @@ function ShippingModal({
           </div>
         )}
 
-        {/* Step 4: Courier Tracking Website (optional) */}
-        {selectedCourier && (
-          <div style={{ marginBottom: "24px" }}>
+        {/* Step 4: Courier Tracking URL */}
+        {selectedCourier && (!isOthers || customCourierName.trim()) && (
+          <div style={{ marginBottom: "20px" }}>
             <label style={labelStyle}>
-              🔗 Step 4: Courier Tracking Link (auto-generated)
+              🔗 Step 4: Courier Tracking Link
+              {!isOthers && " (auto-generated)"}
             </label>
             <input
               type="url"
@@ -727,7 +881,11 @@ function ShippingModal({
                 setCourierTrackingUrl(e.target.value);
                 setUrlManuallyEdited(true);
               }}
-              placeholder="Auto-fills when you select courier + tracking number"
+              placeholder={
+                isOthers
+                  ? "https://yourcourier.com/track?id=..."
+                  : "Auto-fills when you select courier + tracking number"
+              }
               style={inputStyle}
             />
             <p
@@ -738,21 +896,22 @@ function ShippingModal({
                 margin: "4px 0 0",
               }}
             >
-              ✅ Auto-generate hota hai — customer is link se direct apna parcel
-              track kar sakta hai
+              {isOthers
+                ? "Optional — customer is link se parcel track kar sakta hai"
+                : "✅ Auto-generate hota hai — customer is link se direct apna parcel track kar sakta hai"}
             </p>
           </div>
         )}
 
-        {/* Preview */}
-        {selectedCourier && (
+        {/* Preview / Shipping Summary */}
+        {selectedCourier && effectiveCourierName && (
           <div
             style={{
               background: "rgba(218,165,32,0.06)",
               border: "1px solid rgba(218,165,32,0.2)",
               borderRadius: "12px",
               padding: "14px 16px",
-              marginBottom: "20px",
+              marginBottom: "18px",
             }}
           >
             <p
@@ -772,7 +931,7 @@ function ShippingModal({
               style={{
                 color: "#ccc",
                 fontFamily: "var(--ords-sans)",
-                fontSize: "0.75rem",
+                fontSize: "clamp(0.7rem, 2.5vw, 0.75rem)",
                 lineHeight: 1.8,
               }}
             >
@@ -783,13 +942,27 @@ function ShippingModal({
               <div>
                 🏢 Courier:{" "}
                 <strong style={{ color: "#fff" }}>
-                  {selectedCourierObj?.name}
+                  {effectiveCourierName}
+                  {isOthers && (
+                    <span
+                      style={{
+                        color: "#9ca3af",
+                        fontWeight: 400,
+                        fontSize: "0.65rem",
+                        marginLeft: "6px",
+                      }}
+                    >
+                      (Custom)
+                    </span>
+                  )}
                 </strong>
               </div>
-              <div>
-                ⏱ Estimated:{" "}
-                <strong style={{ color: "#fff" }}>{estimatedDays}</strong>
-              </div>
+              {estimatedDays && (
+                <div>
+                  ⏱ Estimated:{" "}
+                  <strong style={{ color: "#fff" }}>{estimatedDays}</strong>
+                </div>
+              )}
               {trackingNumber && (
                 <div>
                   📦 Tracking:{" "}
@@ -797,9 +970,9 @@ function ShippingModal({
                 </div>
               )}
               {courierTrackingUrl && (
-                <div>
+                <div style={{ wordBreak: "break-all" }}>
                   🔗 Track URL:{" "}
-                  <strong style={{ color: "#5b9bd5", fontSize: "0.68rem" }}>
+                  <strong style={{ color: "#5b9bd5", fontSize: "0.66rem" }}>
                     {courierTrackingUrl}
                   </strong>
                 </div>
@@ -821,8 +994,9 @@ function ShippingModal({
               background: "transparent",
               color: "#888",
               fontFamily: "var(--ords-sans)",
-              fontSize: "0.8rem",
+              fontSize: "clamp(0.72rem, 2.5vw, 0.8rem)",
               cursor: "pointer",
+              whiteSpace: "nowrap",
             }}
           >
             Cancel
@@ -832,8 +1006,8 @@ function ShippingModal({
               if (!canConfirm) return;
               onConfirm({
                 courierCountry: selectedCountry,
-                courierName: selectedCourierObj!.name,
-                courierKey: selectedCourier,
+                courierName: effectiveCourierName,
+                courierKey: isOthers ? "others" : selectedCourier,
                 estimatedDays: estimatedDays,
                 trackingNumber: trackingNumber,
                 courierTrackingUrl: courierTrackingUrl,
@@ -850,7 +1024,7 @@ function ShippingModal({
                 : "rgba(255,255,255,0.08)",
               color: canConfirm ? "#1a1a1a" : "#555",
               fontFamily: "var(--ords-sans)",
-              fontSize: "clamp(0.7rem, 2.5vw, 0.82rem)",
+              fontSize: "clamp(0.68rem, 2.5vw, 0.82rem)",
               fontWeight: 700,
               cursor: canConfirm ? "pointer" : "not-allowed",
               transition: "all 0.2s",

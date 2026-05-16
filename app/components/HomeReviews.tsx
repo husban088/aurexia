@@ -17,44 +17,9 @@ interface HomeReview {
   product_name?: string;
 }
 
-// ── Persistent cache — localStorage + memory, page reload pe bhi instant ────────
-const HR_LS_KEY = "hr_reviews_v1";
-const HR_LS_TTL = 10 * 60 * 1000; // 10 minutes
-
-// Memory cache — BFCache + SPA navigation ke liye
-let HR_MEM: HomeReview[] | null = null;
-
-// localStorage se synchronously load karo — module load hote hi
-function hrLoadFromStorage(): HomeReview[] | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(HR_LS_KEY);
-    if (!raw) return null;
-    const { data, ts } = JSON.parse(raw);
-    if (Date.now() - ts > HR_LS_TTL) {
-      localStorage.removeItem(HR_LS_KEY);
-      return null;
-    }
-    return data as HomeReview[];
-  } catch {
-    return null;
-  }
-}
-
-function hrSaveToStorage(reviews: HomeReview[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(
-      HR_LS_KEY,
-      JSON.stringify({ data: reviews, ts: Date.now() }),
-    );
-  } catch {}
-}
-
-// Module load pe seedha storage se lo — component mount se pehle ready
-if (typeof window !== "undefined" && HR_MEM === null) {
-  HR_MEM = hrLoadFromStorage();
-}
+// ── Simple memory cache only (no localStorage to avoid hydration issues) ──
+let cachedReviews: HomeReview[] | null = null;
+let fetchPromise: Promise<HomeReview[]> | null = null;
 
 // ── Stars Component ─────────────────────────────────────────────────────
 function StarDisplay({ rating }: { rating: number }) {
@@ -81,13 +46,8 @@ function ReviewCard({ review }: { review: HomeReview }) {
 
   return (
     <div className="hr-card">
-      {/* Gold shimmer effect on hover */}
       <div className="hr-card-shimmer" />
-
-      {/* Decorative quote mark */}
       <div className="hr-card-quote">&ldquo;</div>
-
-      {/* Avatar / Image - Round, premium */}
       <div className="hr-card-avatar-wrap">
         {firstImage ? (
           <img
@@ -100,7 +60,6 @@ function ReviewCard({ review }: { review: HomeReview }) {
         ) : (
           <div className="hr-card-avatar-fallback">{initial}</div>
         )}
-        {/* Verified badge on avatar */}
         <div className="hr-card-badge">
           <svg
             viewBox="0 0 24 24"
@@ -112,20 +71,10 @@ function ReviewCard({ review }: { review: HomeReview }) {
           </svg>
         </div>
       </div>
-
-      {/* Name */}
       <h4 className="hr-card-name">{review.name}</h4>
-
-      {/* Stars */}
       <StarDisplay rating={review.rating} />
-
-      {/* Title */}
       <h3 className="hr-card-title">&ldquo;{review.title}&rdquo;</h3>
-
-      {/* Description / Body */}
       <p className="hr-card-body">{review.body}</p>
-
-      {/* Product tag */}
       {review.product_name && (
         <div className="hr-card-product">
           <svg
@@ -140,14 +89,12 @@ function ReviewCard({ review }: { review: HomeReview }) {
           {review.product_name}
         </div>
       )}
-
-      {/* Bottom animated gold line */}
       <div className="hr-card-bottom-line" />
     </div>
   );
 }
 
-// ── Skeleton Card Component - for loading state ──
+// ── Skeleton Card Component ──
 function SkeletonCard() {
   return (
     <div className="hr-skeleton-card">
@@ -161,24 +108,20 @@ function SkeletonCard() {
   );
 }
 
-// ── Main Component ─────────────────────────────────────────────────────
+// ── Main Component ──
 export default function HomeReviews() {
-  // Synchronous init — memory/localStorage cache se, page reload pe bhi instant
-  const [reviews, setReviews] = useState<HomeReview[]>(() => HR_MEM ?? []);
-  const [loading, setLoading] = useState<boolean>(() => HR_MEM === null);
-
-  // How many cards visible at once (responsive)
+  const [reviews, setReviews] = useState<HomeReview[]>(
+    () => cachedReviews ?? [],
+  );
+  const [loading, setLoading] = useState(() => cachedReviews === null);
   const [visibleCount, setVisibleCount] = useState(3);
   const [offset, setOffset] = useState(0);
   const [animDir, setAnimDir] = useState<"idle" | "left" | "right">("idle");
-
-  // Drag / swipe
   const dragStart = useRef<number | null>(null);
   const touchStart = useRef<number | null>(null);
   const isDragging = useRef(false);
-
-  // Autoplay timer
   const autoTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef = useRef(true);
 
   // Responsive: update visible count
   useEffect(() => {
@@ -194,8 +137,26 @@ export default function HomeReviews() {
 
   // Fetch reviews from Supabase
   useEffect(() => {
-    // Cache hit — already showing data from memory/localStorage
-    if (HR_MEM !== null) return;
+    mountedRef.current = true;
+
+    // If already cached in memory, skip fetch
+    if (cachedReviews !== null) {
+      setReviews(cachedReviews);
+      setLoading(false);
+      return;
+    }
+
+    // If fetch already in progress, don't start another
+    if (fetchPromise) {
+      fetchPromise.then((data) => {
+        if (mountedRef.current) {
+          cachedReviews = data;
+          setReviews(data);
+          setLoading(false);
+        }
+      });
+      return;
+    }
 
     async function fetchAll() {
       try {
@@ -207,7 +168,7 @@ export default function HomeReviews() {
           .limit(20);
 
         if (error || !reviewData) {
-          setLoading(false);
+          if (mountedRef.current) setLoading(false);
           return;
         }
 
@@ -227,17 +188,51 @@ export default function HomeReviews() {
           product_name: productMap[r.product_id] || "Our Product",
         }));
 
-        // Memory + localStorage dono mein save — reload pe bhi instant
-        HR_MEM = formatted;
-        hrSaveToStorage(formatted);
-        setReviews(formatted);
+        cachedReviews = formatted;
+        if (mountedRef.current) {
+          setReviews(formatted);
+          setLoading(false);
+        }
       } catch (err) {
         console.error("HomeReviews fetch:", err);
-      } finally {
-        setLoading(false);
+        if (mountedRef.current) setLoading(false);
       }
     }
-    fetchAll();
+
+    fetchPromise = fetchAll();
+    fetchPromise.then(() => {
+      fetchPromise = null;
+    });
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // Handle online/offline - refresh when connection returns
+  useEffect(() => {
+    const handleOnline = () => {
+      if (cachedReviews === null && mountedRef.current) {
+        setLoading(true);
+        fetchPromise = null;
+        const fetchFresh = async () => {
+          const { data: reviewData } = await supabase
+            .from("product_reviews")
+            .select("*")
+            .gte("rating", 4)
+            .order("created_at", { ascending: false })
+            .limit(20);
+          if (reviewData && reviewData.length > 0 && mountedRef.current) {
+            cachedReviews = reviewData as HomeReview[];
+            setReviews(cachedReviews);
+            setLoading(false);
+          }
+        };
+        fetchFresh();
+      }
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
   }, []);
 
   const totalSlides = reviews.length;
@@ -284,8 +279,10 @@ export default function HomeReviews() {
   // Autoplay
   const startAutoplay = useCallback(() => {
     if (autoTimer.current) clearInterval(autoTimer.current);
-    autoTimer.current = setInterval(() => next(), 5000);
-  }, [next]);
+    if (totalSlides > visibleCount) {
+      autoTimer.current = setInterval(() => next(), 5000);
+    }
+  }, [next, totalSlides, visibleCount]);
 
   const stopAutoplay = useCallback(() => {
     if (autoTimer.current) clearInterval(autoTimer.current);
@@ -303,8 +300,12 @@ export default function HomeReviews() {
     stopAutoplay();
   };
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (dragStart.current === null) return;
-    if (Math.abs(e.clientX - dragStart.current) > 8) isDragging.current = true;
+    if (
+      dragStart.current !== null &&
+      Math.abs(e.clientX - dragStart.current) > 8
+    ) {
+      isDragging.current = true;
+    }
   };
   const handleMouseUp = (e: React.MouseEvent) => {
     if (dragStart.current === null) return;
@@ -336,8 +337,9 @@ export default function HomeReviews() {
   };
 
   const visibleReviews = reviews.slice(offset, offset + visibleCount);
+  const showNav = totalSlides > visibleCount;
 
-  // Show loading skeleton — sirf pehli baar jab cache empty ho
+  // Loading skeleton
   if (loading) {
     return (
       <section className="hr-section">
@@ -367,17 +369,13 @@ export default function HomeReviews() {
   const avgRating = (
     reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
   ).toFixed(1);
-  const showNav = totalSlides > visibleCount;
 
   return (
     <section className="hr-section">
-      {/* Animated background orbs */}
       <div className="hr-bg-orb hr-bg-orb--1" />
       <div className="hr-bg-orb hr-bg-orb--2" />
       <div className="hr-bg-orb hr-bg-orb--3" />
       <div className="hr-bg-grid" />
-
-      {/* Floating sparkle dots */}
       <div className="hr-sparkle hr-sparkle--1" />
       <div className="hr-sparkle hr-sparkle--2" />
       <div className="hr-sparkle hr-sparkle--3" />
@@ -386,7 +384,6 @@ export default function HomeReviews() {
       <div className="hr-sparkle hr-sparkle--6" />
 
       <div className="hr-content">
-        {/* Header */}
         <div className="hr-header">
           <p className="hr-eyebrow">
             <span className="hr-eye-line" />
@@ -401,7 +398,6 @@ export default function HomeReviews() {
           </p>
         </div>
 
-        {/* Stats Section */}
         <div className="hr-stats">
           <div className="hr-stat">
             <span className="hr-stat-num">{reviews.length}+</span>
@@ -419,7 +415,6 @@ export default function HomeReviews() {
           </div>
         </div>
 
-        {/* Slider Stage */}
         <div
           className="hr-stage-wrap"
           onMouseDown={handleMouseDown}
@@ -473,7 +468,6 @@ export default function HomeReviews() {
           )}
         </div>
 
-        {/* Dot Indicators */}
         {showNav && (
           <div className="hr-dots">
             {Array.from({ length: Math.ceil(totalSlides / visibleCount) }).map(
