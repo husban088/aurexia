@@ -1,17 +1,17 @@
 // app/api/send-order-notification/route.ts
-// ✅ WhatsApp: sendOrderWhatsApp — same as update-order-status confirmed pattern
+// ✅ FIXED: buildConfirmedWhatsApp + sendWhatsAppMessage — exactly same as update-order-status
 // ✅ Currency by customer country
 // ✅ Items + total in every WhatsApp message
-// ✅ Confirmed msg jate hi place order hote — checkout se
+// ✅ Confirmed msg checkout pe place order hote hi jata hai
 
 import { NextRequest, NextResponse } from "next/server";
 import {
   sendOrderConfirmationEmail,
   sendOwnerOrderAlert,
 } from "@/lib/email-smtp";
-import { sendOrderWhatsApp } from "@/lib/whatsapp";
+import { sendWhatsAppMessage, buildConfirmedWhatsApp } from "@/lib/whatsapp";
 
-// ── Currency helpers ──────────────────────────────────────────────────────────
+// ── Currency helpers (exactly same as update-order-status) ────────────────────
 const PKR_RATES: Record<
   string,
   { symbol: string; rate: number; code: string }
@@ -81,7 +81,6 @@ export async function POST(req: NextRequest) {
       total,
       shippingAddress,
       paymentMethod,
-      currency,
       customerCountry,
     } = body;
 
@@ -104,7 +103,7 @@ export async function POST(req: NextRequest) {
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD)
       console.error("❌ GMAIL credentials missing!");
 
-    // ── Currency ──────────────────────────────────────────────────────────────
+    // ── Currency — exactly same as update-order-status ────────────────────────
     const country = customerCountry || "Pakistan";
     const currencyCfg = getCurrencyForCountry(country);
     const isPKR = currencyCfg.code === "PKR";
@@ -137,42 +136,38 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    // ── Items for WhatsApp ────────────────────────────────────────────────────
-    // ✅ price = per-unit PKR — sendOrderWhatsApp andar multiply karta hai
+    // ── Items for WhatsApp (same shape as update-order-status waItems) ────────
     const waItems = items.map((item: any) => ({
       name: item.name ?? item.product_name ?? "Product",
       variant: item.variant ?? item.variant_name ?? null,
       quantity: item.quantity ?? 1,
       price: item.price ?? 0,
       piecesPerUnit: item.piecesPerUnit ?? item.pieces_per_unit ?? 1,
-      image: item.image ?? item.variant_image ?? item.product_image ?? null,
-      variant_image: item.variant_image ?? null,
-      product_image: item.product_image ?? null,
     }));
 
     let customerEmailSent = false;
     let ownerEmailSent = false;
     let whatsappSent = false;
 
-    // ── 1. WhatsApp — awaited directly (Vercel Node runtime) ─────────────────
-    // ✅ sendOrderWhatsApp = same function, same confirmed msg as update-order-status
-    // ✅ Image + text — paid WasenderAPI plan
+    // ── 1. WhatsApp — EXACT SAME as update-order-status "confirmed" ───────────
+    // buildConfirmedWhatsApp → sendWhatsAppMessage (same pattern)
     if (customerPhone) {
       try {
-        whatsappSent = await sendOrderWhatsApp(
-          customerPhone,
-          orderNumber,
+        const whatsappMsg = buildConfirmedWhatsApp(
           name,
-          totalAmountNum, // ✅ total PKR
-          waItems, // ✅ per-unit price
-          formattedTotal, // ✅ formatted display
-          formattedItems, // ✅ for reference
-          country, // ✅ "Australia", "United Kingdom" etc.
+          orderNumber,
+          formattedTotal,
+          currencyNote,
+          waItems,
+          country,
         );
+
+        whatsappSent = await sendWhatsAppMessage(customerPhone, whatsappMsg);
+
         console.log(
           whatsappSent
             ? `✅ WhatsApp sent → ${customerPhone}`
-            : `❌ WhatsApp failed → ${customerPhone} | WasenderAPI: https://wasenderapi.com/dashboard`,
+            : `❌ WhatsApp failed → ${customerPhone}`,
         );
       } catch (err: any) {
         console.error("❌ WhatsApp EXCEPTION:", err?.message || err);
