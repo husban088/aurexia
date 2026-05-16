@@ -530,8 +530,10 @@ export default function Checkout() {
       keepalive: true,
     }).catch((err) => console.error("save-order background error:", err));
 
-    // ✅ STEP 7: WhatsApp + Email — background fire-and-forget (keepalive)
-    // ✅ FIX: customerCountry add kiya — WhatsApp currency conversion ke liye ZAROORI hai
+    // ✅ STEP 7: WhatsApp + Email — keepalive HATAYA (Vercel pe silent fail hota tha)
+    // ✅ FIX: keepalive: true REMOVED — WasenderAPI slow hai (~2-3s), Vercel function
+    //         keepalive ke saath request ko "best effort" pe chhod deta hai aur
+    //         WhatsApp silently fail hota tha. Ab normal fetch hai — properly await hoga.
     fetch("/api/send-order-notification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -552,7 +554,7 @@ export default function Checkout() {
         // ✅ FIX: customerCountry — WhatsApp currency detection ke liye (pehle MISSING tha!)
         customerCountry: phoneInfo.name,
       }),
-      keepalive: true,
+      // ✅ keepalive REMOVED — causes silent WhatsApp failure on Vercel
     }).catch((err) => console.error("notification background error:", err));
 
     // ✅ STEP 8: Cart clear — background
