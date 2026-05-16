@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { useCurrency } from "@/app/context/CurrencyContext";
 import "./OrderSuccess.css";
 
+// ── Owner email — sirf is email se login hone pe notification section dikhe ──
+const OWNER_EMAIL = "info@tech4ru.com";
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface CartItem {
@@ -74,10 +77,15 @@ interface OrderSuccessProps {
   shipping: number;
   total: number;
   cartCount: number;
-  notifStatus: { email: boolean | null; whatsapp: boolean | null };
+  notifStatus: {
+    email: boolean | null;
+    whatsapp: boolean | null;
+    sending: boolean;
+  };
   fullPhone: string;
   shippingAddress: string;
   formatPrice: (price: number) => string;
+  isOwner: boolean;
 }
 
 function OrderSuccessUI({
@@ -99,6 +107,7 @@ function OrderSuccessUI({
   notifStatus,
   fullPhone,
   formatPrice,
+  isOwner,
 }: OrderSuccessProps) {
   const [visible, setVisible] = useState(false);
   const [checkAnim, setCheckAnim] = useState(false);
@@ -209,12 +218,10 @@ function OrderSuccessUI({
     };
   }, []);
 
-  // ✅ Notification status display
-  const renderNotifStatus = (
-    sent: boolean | null,
-    type: "email" | "whatsapp",
-  ) => {
-    if (sent === null) {
+  // ✅ FIXED: Notification status — "Sent Successfully" jab msg gaya ho
+  const renderNotifStatus = (sent: boolean | null) => {
+    // Agar abhi bhi sending ho rahi hai
+    if (notifStatus.sending || sent === null) {
       return (
         <span
           style={{
@@ -256,6 +263,7 @@ function OrderSuccessUI({
         </span>
       );
     }
+    // sent === false
     return (
       <span
         style={{
@@ -266,7 +274,7 @@ function OrderSuccessUI({
           fontSize: "13px",
         }}
       >
-        ⚠️ Not delivered
+        ⚠️ Failed to send
       </span>
     );
   };
@@ -321,52 +329,93 @@ function OrderSuccessUI({
             successfully.
           </p>
 
-          {/* Notification Status */}
-          <div
-            style={{
-              background: "#f9f9f9",
-              border: "1px solid #eee",
-              borderRadius: "12px",
-              padding: "16px 20px",
-              marginBottom: "24px",
-            }}
-          >
-            <p
-              style={{
-                margin: "0 0 12px",
-                fontWeight: 600,
-                fontSize: "14px",
-                color: "#333",
-              }}
-            >
-              📬 Notifications Sent To:
-            </p>
+          {/* ✅ OWNER-ONLY: Notification section — sirf info@tech4ru.com ko dikhe */}
+          {isOwner && (
             <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "8px",
+                background: "#f9f9f9",
+                border: "1px solid #eee",
+                borderRadius: "12px",
+                padding: "16px 20px",
+                marginBottom: "24px",
               }}
             >
-              <span style={{ fontSize: "13px", color: "#555" }}>
-                📧 Email: <strong>{email}</strong>
-              </span>
-              {renderNotifStatus(notifStatus.email, "email")}
+              <p
+                style={{
+                  margin: "0 0 4px",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  color: "#daa520",
+                  letterSpacing: "0.03em",
+                }}
+              >
+                🔐 Owner View
+              </p>
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  fontWeight: 600,
+                  fontSize: "14px",
+                  color: "#333",
+                }}
+              >
+                📬 Notifications Sent:
+              </p>
+
+              {/* Email status */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "8px",
+                }}
+              >
+                <span style={{ fontSize: "13px", color: "#555" }}>
+                  📧 Email:{" "}
+                  <strong
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "12px",
+                      color: "#333",
+                    }}
+                  >
+                    {email}
+                  </strong>
+                </span>
+                {renderNotifStatus(notifStatus.email)}
+              </div>
+
+              {/* WhatsApp status */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span style={{ fontSize: "13px", color: "#555" }}>
+                  💬 WhatsApp:{" "}
+                  <strong
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "12px",
+                      color: "#333",
+                    }}
+                  >
+                    {fullPhone || "—"}
+                  </strong>
+                </span>
+                {fullPhone ? (
+                  renderNotifStatus(notifStatus.whatsapp)
+                ) : (
+                  <span style={{ fontSize: "12px", color: "#aaa" }}>
+                    No phone
+                  </span>
+                )}
+              </div>
             </div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <span style={{ fontSize: "13px", color: "#555" }}>
-                💬 WhatsApp: <strong>{fullPhone}</strong>
-              </span>
-              {renderNotifStatus(notifStatus.whatsapp, "whatsapp")}
-            </div>
-          </div>
+          )}
 
           {/* Order Details Card */}
           <div className="os-details-card">
@@ -720,12 +769,14 @@ export default function OrderSuccessPage() {
 
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [ready, setReady] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
 
-  // ✅ FIX: notifStatus mutable state — API call ke baad update hoga
+  // ✅ FIXED: sending flag added — jab tak API response nahi aata "Sending..." dikhe
   const [notifStatus, setNotifStatus] = useState<{
     email: boolean | null;
     whatsapp: boolean | null;
-  }>({ email: null, whatsapp: null });
+    sending: boolean;
+  }>({ email: null, whatsapp: null, sending: true });
 
   // ── Step 1: Load order data from sessionStorage ──────────────────────────────
   useEffect(() => {
@@ -740,13 +791,17 @@ export default function OrderSuccessPage() {
       const data: OrderData = JSON.parse(raw);
       setOrderData(data);
       setReady(true);
+
+      // ✅ Owner check — customer ka email info@tech4ru.com hai toh owner hai
+      // (Owner apna hi order test karta hai ya manually place karta hai)
+      const customerEmail = data.form.email?.toLowerCase().trim();
+      setIsOwner(customerEmail === OWNER_EMAIL.toLowerCase());
     } catch {
       router.replace("/");
     }
   }, [router]);
 
   // ── Step 2: Send notifications once order data is ready ──────────────────────
-  // ✅ KEY FIX: Yeh useEffect pehle nahi tha — isliye koi notification nahi jaati thi
   useEffect(() => {
     if (!orderData) return;
 
@@ -756,7 +811,7 @@ export default function OrderSuccessPage() {
     );
     if (alreadySent) {
       // Already sent — show success without re-sending
-      setNotifStatus({ email: true, whatsapp: true });
+      setNotifStatus({ email: true, whatsapp: true, sending: false });
       return;
     }
 
@@ -769,6 +824,7 @@ export default function OrderSuccessPage() {
       shippingAddress,
       paymentMethod,
       currencyCode,
+      phoneInfoName,
     } = orderData;
 
     // ── Build items array for API ──────────────────────────────────────────────
@@ -776,7 +832,6 @@ export default function OrderSuccessPage() {
       const ppu = item.pieces_per_unit ?? 1;
       const pricePerPiece =
         item.variant_price ?? (item.product as any)?.price ?? 0;
-      // pricePKR — original PKR value, route.ts will convert to target currency
       const pricePKR = pricePerPiece * ppu;
 
       return {
@@ -786,8 +841,8 @@ export default function OrderSuccessPage() {
             ? item.variant_name
             : null,
         quantity: item.quantity,
-        price: pricePKR, // PKR price
-        pricePKR: pricePKR, // ✅ Explicit PKR field for currency conversion
+        price: pricePKR,
+        pricePKR: pricePKR,
         piecesPerUnit: ppu,
         image: item.variant_image ?? (item.product as any)?.images?.[0] ?? null,
       };
@@ -815,6 +870,7 @@ export default function OrderSuccessPage() {
             shippingAddress,
             paymentMethod,
             currency: currencyCode || "PKR",
+            customerCountry: phoneInfoName || "Pakistan",
           }),
         });
 
@@ -822,31 +878,31 @@ export default function OrderSuccessPage() {
         console.log("📊 Notification API response:", result);
 
         if (result.success) {
-          // Actual results — API se aaye sahi values
           const emailOk = result.results?.emailSent === true;
           const whatsappOk = result.results?.whatsappSent === true;
 
+          // ✅ sending: false — ab status show hoga correctly
           setNotifStatus({
             email: emailOk,
             whatsapp: fullPhone ? whatsappOk : null,
+            sending: false,
           });
 
-          // Sirf tab mark karo jab email gayi ho
           if (emailOk) {
             sessionStorage.setItem(`notif_sent_${orderNumber}`, "true");
           }
         } else {
           console.error("Notification API error:", result.error);
-          setNotifStatus({ email: false, whatsapp: false });
+          setNotifStatus({ email: false, whatsapp: false, sending: false });
         }
       } catch (err) {
         console.error("❌ Notification fetch error:", err);
-        setNotifStatus({ email: false, whatsapp: false });
+        setNotifStatus({ email: false, whatsapp: false, sending: false });
       }
     };
 
     sendNotifications();
-  }, [orderData]); // ✅ orderData ready hone ke baad hi chalega
+  }, [orderData]);
 
   // ── Loading spinner ──────────────────────────────────────────────────────────
   if (!ready || !orderData) {
@@ -898,6 +954,7 @@ export default function OrderSuccessPage() {
       fullPhone={orderData.fullPhone}
       shippingAddress={orderData.shippingAddress}
       formatPrice={formatPrice}
+      isOwner={isOwner}
     />
   );
 }
