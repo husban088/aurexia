@@ -23,7 +23,7 @@ interface ProductReviewsProps {
 
 // ── Simple memory cache only (no localStorage to avoid hydration issues) ──
 const reviewCache: Record<string, Review[]> = {};
-let activeFetches: Record<string, Promise<Review[]>> = {};
+let activeFetches: Record<string, Promise<Review[]> | undefined> = {};
 
 // ── Stars Component ──
 function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {

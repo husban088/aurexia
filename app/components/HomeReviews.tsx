@@ -19,7 +19,7 @@ interface HomeReview {
 
 // ── Simple memory cache only (no localStorage to avoid hydration issues) ──
 let cachedReviews: HomeReview[] | null = null;
-let fetchPromise: Promise<HomeReview[]> | null = null;
+let fetchPromise: Promise<void> | null = null;
 
 // ── Stars Component ─────────────────────────────────────────────────────
 function StarDisplay({ rating }: { rating: number }) {
@@ -148,10 +148,9 @@ export default function HomeReviews() {
 
     // If fetch already in progress, don't start another
     if (fetchPromise) {
-      fetchPromise.then((data) => {
-        if (mountedRef.current) {
-          cachedReviews = data;
-          setReviews(data);
+      fetchPromise.then(() => {
+        if (mountedRef.current && cachedReviews !== null) {
+          setReviews(cachedReviews);
           setLoading(false);
         }
       });

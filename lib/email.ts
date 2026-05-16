@@ -77,7 +77,7 @@ async function sendEmail(
     const { data, error } = await resend.emails.send({
       from: FROM,
       to: toArray,
-      reply_to: REPLY_TO,
+      replyTo: REPLY_TO,
       subject,
       html,
       text,
