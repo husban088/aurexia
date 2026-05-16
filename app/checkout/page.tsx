@@ -430,16 +430,6 @@ export default function Checkout() {
   // ============================================
   // ✅ MAIN FIX — handlePaymentSuccess
   // ============================================
-  // PEHLE KI PROBLEM:
-  //   save-order ka await + notification ka await → 3-10 sec delay → loading stuck
-  //
-  // AB KA FIX:
-  //   1. Double-fire guard (ref)
-  //   2. sessionStorage mein data save
-  //   3. Toast show
-  //   4. FORAN window.location.replace("/order-success") — koi await nahi
-  //   5. save-order + notification background mein (fire-and-forget, keepalive)
-  // ============================================
   const handlePaymentSuccess = useCallback(() => {
     // ✅ Double-fire guard — kabhi double na chale
     if (successCalledRef.current) return;
@@ -451,6 +441,8 @@ export default function Checkout() {
     const snapCount = getCartCount();
 
     // ✅ STEP 2: Order items prepare karo
+    // ✅ FIX: price = per-unit PKR price (NOT multiplied by quantity)
+    //         pricePKR = total line price (price * ppu * qty) — email ke liye
     const orderItems = validItems.map((item) => {
       const product = item.product ?? {
         name: item.variant_name || "Product",
@@ -458,6 +450,8 @@ export default function Checkout() {
       };
       const ppu = item.pieces_per_unit ?? 1;
       const pricePerPiece = item.variant_price ?? (product as any).price ?? 0;
+      const pricePerUnit = pricePerPiece * ppu; // 1 unit ki price (ppu pieces)
+      const lineTotalPKR = pricePerUnit * item.quantity; // total for this line
       const imageUrl =
         item.variant_image ||
         (product as any).main_images?.[0] ||
@@ -470,12 +464,14 @@ export default function Checkout() {
         variant_name: item.variant_name ?? null,
         variant_image: item.variant_image ?? null,
         quantity: item.quantity,
-        price: pricePerPiece * ppu * item.quantity,
+        // ✅ FIX: price = per-unit price (whatsapp.ts isko qty se multiply karta hai)
+        price: pricePerUnit,
         pieces_per_unit: ppu,
         name: (product as any).name,
         variant: item.variant_name || null,
-        piecesPerUnit: ppu,
-        pricePKR: pricePerPiece * ppu * item.quantity,
+        piecesPerUnit: 1, // ✅ FIX: 1 rakho kyunki price already per-unit hai
+        // ✅ pricePKR = line total (email ke liye — yahan already multiplied)
+        pricePKR: lineTotalPKR,
         image: imageUrl,
       };
     });
@@ -506,10 +502,9 @@ export default function Checkout() {
     setIsRedirecting(true);
 
     // ✅ STEP 5: FORAN redirect — koi await nahi, koi delay nahi
-    // Yahi asli fix hai — pehle save-order + notification ka await tha
     window.location.replace("/order-success");
 
-    // ✅ STEP 6: save-order — background fire-and-forget (keepalive = page change ke baad bhi complete hoga)
+    // ✅ STEP 6: save-order — background fire-and-forget (keepalive)
     fetch("/api/save-order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -536,8 +531,7 @@ export default function Checkout() {
     }).catch((err) => console.error("save-order background error:", err));
 
     // ✅ STEP 7: WhatsApp + Email — background fire-and-forget (keepalive)
-    // NOTE: subtotal, shipping, total are always in PKR (DB base currency)
-    // route.ts will convert them to customer's currency before sending
+    // ✅ FIX: customerCountry add kiya — WhatsApp currency conversion ke liye ZAROORI hai
     fetch("/api/send-order-notification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -546,17 +540,17 @@ export default function Checkout() {
         email: form.email,
         phone: fullPhone,
         name: customerName,
-        // orderItems already has pricePKR field set correctly
         items: orderItems,
-        // ✅ These are always PKR — route.ts converts based on currency field below
         subtotal,
         shipping,
         total,
         shippingAddress,
         paymentMethod:
           paymentMethod === "card" ? "Credit/Debit Card (Stripe)" : "PayPal",
-        // ✅ This tells route.ts which currency to convert TO
+        // ✅ Currency code — email conversion ke liye
         currency: currency.code,
+        // ✅ FIX: customerCountry — WhatsApp currency detection ke liye (pehle MISSING tha!)
+        customerCountry: phoneInfo.name,
       }),
       keepalive: true,
     }).catch((err) => console.error("notification background error:", err));

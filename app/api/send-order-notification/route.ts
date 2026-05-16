@@ -1,6 +1,8 @@
 // app/api/send-order-notification/route.ts
-// ✅ FIX: customerCountry WhatsApp tak properly pass hota hai
-// ✅ FIX: Currency conversion by customer country
+// ✅ FIX 1: customerCountry properly WhatsApp tak pass hoti hai
+// ✅ FIX 2: Currency conversion by customer country
+// ✅ FIX 3: Detailed error logging — Vercel logs mein clearly dikhega kya fail hua
+// ✅ FIX 4: pricePKR fallback chain improved
 
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -70,21 +72,44 @@ export async function POST(req: NextRequest) {
       shippingAddress,
       paymentMethod,
       currency,
-      customerCountry, // ← customer ki country (e.g. "United Kingdom", "Australia")
+      customerCountry, // ✅ FIX: page.tsx se ab ye aa raha hai
     } = body;
 
-    // Validate
+    // ── Validation ────────────────────────────────────────────────────────────
     if (!orderNumber || !email || !name || !items?.length) {
+      console.error("❌ Missing required fields:", {
+        orderNumber: !!orderNumber,
+        email: !!email,
+        name: !!name,
+        itemsCount: items?.length ?? 0,
+      });
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
         { status: 400 },
       );
     }
 
+    // ── ENV variable check ────────────────────────────────────────────────────
+    if (!process.env.WASENDER_API_KEY) {
+      console.error("❌ WASENDER_API_KEY missing from environment variables!");
+    }
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      console.error("❌ GMAIL_USER or GMAIL_APP_PASSWORD missing!");
+    }
+
     const currencyCode: string = (currency || "PKR").toUpperCase();
 
-    // Convert prices PKR → target currency (email ke liye)
+    // ✅ FIX: customerCountry — WhatsApp currency ke liye (pehle ye missing tha!)
+    // page.tsx ab phoneInfo.name bhejta hai yahan
+    const country = customerCountry || "Pakistan";
+
+    console.log(
+      `📦 Order notification: ${orderNumber} | Country: "${country}" | Currency: ${currencyCode} | Phone: ${phone || "MISSING"} | Email: ${email}`,
+    );
+
+    // ── Convert prices PKR → target currency (email ke liye) ─────────────────
     const formattedItems = items.map((item: any) => {
+      // ✅ pricePKR = line total (already qty multiplied from page.tsx)
       const pricePKR = item.pricePKR ?? item.price ?? 0;
       const convertedPrice = formatConvertedPrice(pricePKR, currencyCode);
       return {
@@ -100,15 +125,16 @@ export async function POST(req: NextRequest) {
     const totalPKR = total ?? 0;
     const formattedTotal = formatConvertedPrice(totalPKR, currencyCode);
     const customerPhone = phone || "";
-    const country = customerCountry || "Pakistan"; // ← WhatsApp currency ke liye
 
     console.log(
-      `📦 Order notification: ${orderNumber} | Country: ${country} | Currency: ${currencyCode}`,
+      `💰 Total: ${totalPKR} PKR → ${formattedTotal} (${currencyCode})`,
     );
+    console.log(`🛒 Items count: ${items.length}`);
 
+    // ── Send all 3 notifications in parallel ─────────────────────────────────
     const [whatsappResult, customerEmailResult, ownerEmailResult] =
       await Promise.allSettled([
-        // ✅ WhatsApp — customerCountry pass karo for currency conversion
+        // ✅ WhatsApp — customerCountry ab correctly pass ho raha hai
         customerPhone
           ? sendOrderWhatsApp(
               customerPhone,
@@ -119,7 +145,8 @@ export async function POST(req: NextRequest) {
                 name: item.name ?? item.product_name ?? "Product",
                 variant: item.variant ?? item.variant_name ?? null,
                 quantity: item.quantity,
-                price: item.pricePKR ?? item.price ?? 0,
+                // ✅ price = per-unit price (whatsapp.ts qty se multiply karta hai)
+                price: item.price ?? item.pricePKR ?? 0,
                 piecesPerUnit: item.piecesPerUnit ?? item.pieces_per_unit ?? 1,
                 image:
                   item.image ??
@@ -129,7 +156,7 @@ export async function POST(req: NextRequest) {
               })),
               formattedTotal,
               formattedItems,
-              country, // ← ✅ Country pass ho rahi hai currency detection ke liye
+              country, // ✅ FIX: ye ab "Australia", "United Kingdom" etc. hai, "Pakistan" nahi!
             )
           : Promise.resolve(false),
 
@@ -165,6 +192,7 @@ export async function POST(req: NextRequest) {
         ),
       ]);
 
+    // ── Log results (Vercel logs mein clearly dikhega) ────────────────────────
     const whatsappSent =
       whatsappResult.status === "fulfilled" && whatsappResult.value === true;
     const customerEmailSent =
@@ -174,9 +202,36 @@ export async function POST(req: NextRequest) {
       ownerEmailResult.status === "fulfilled" &&
       ownerEmailResult.value === true;
 
-    console.log(`📊 Results for ${orderNumber}:`, {
+    // ✅ Detailed failure reasons log karo
+    if (whatsappResult.status === "rejected") {
+      console.error("❌ WhatsApp EXCEPTION:", whatsappResult.reason);
+    } else if (!whatsappSent) {
+      console.error(
+        "❌ WhatsApp returned false — WasenderAPI session check karo!",
+      );
+      console.error(
+        "   👉 https://wasenderapi.com/dashboard → Sessions → Reconnect",
+      );
+    }
+
+    if (customerEmailResult.status === "rejected") {
+      console.error("❌ Customer Email EXCEPTION:", customerEmailResult.reason);
+    } else if (!customerEmailSent) {
+      console.error(
+        "❌ Customer Email returned false — Gmail SMTP check karo!",
+      );
+    }
+
+    if (ownerEmailResult.status === "rejected") {
+      console.error("❌ Owner Email EXCEPTION:", ownerEmailResult.reason);
+    } else if (!ownerEmailSent) {
+      console.error("❌ Owner Email returned false");
+    }
+
+    console.log(`📊 Results [${orderNumber}]:`, {
       country,
       currency: currencyCode,
+      phone: customerPhone || "NOT PROVIDED",
       whatsapp: whatsappSent ? "✅ sent" : "❌ failed",
       customerEmail: customerEmailSent ? "✅ sent" : "❌ failed",
       ownerEmail: ownerEmailSent ? "✅ sent" : "❌ failed",
@@ -191,7 +246,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error("send-order-notification error:", error);
+    console.error("❌ send-order-notification CRASH:", error?.message || error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 },
