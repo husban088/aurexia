@@ -127,6 +127,7 @@ async function dispatchNotifications({
   orderNumber,
   courierName,
   courierCountry,
+  customerCountry,
   estimatedDays,
   trackingNumber,
   courierTrackingUrl,
@@ -144,6 +145,7 @@ async function dispatchNotifications({
   orderNumber: string;
   courierName?: string;
   courierCountry?: string;
+  customerCountry?: string;
   estimatedDays?: string;
   trackingNumber?: string;
   courierTrackingUrl?: string;
@@ -190,7 +192,8 @@ async function dispatchNotifications({
           variant: item.variant_name,
           quantity: item.quantity,
           formattedPrice: `PKR ${(item.price * (item.pieces_per_unit || 1)).toLocaleString()}`,
-        })),
+        })) || [],
+        customerCountry || "Pakistan",
       ),
       sendOwnerOrderAlert(
         orderNumber,
@@ -208,7 +211,8 @@ async function dispatchNotifications({
           variant: item.variant_name,
           quantity: item.quantity,
           formattedPrice: `PKR ${(item.price * (item.pieces_per_unit || 1)).toLocaleString()}`,
-        })),
+        })) || [],
+        customerCountry || "Pakistan",
       ),
     ]);
 
@@ -502,6 +506,7 @@ export async function PATCH(req: NextRequest) {
           orderNumber: orderData.order_number,
           courierName: finalCourierName,
           courierCountry: finalCourierCountry,
+          customerCountry: orderData.country || "Pakistan",
           estimatedDays: finalEstimatedDays,
           trackingNumber: finalTrackingNumber,
           courierTrackingUrl: finalCourierUrl,
