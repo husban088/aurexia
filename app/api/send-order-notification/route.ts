@@ -1,8 +1,8 @@
 // app/api/send-order-notification/route.ts
-// ✅ FIX 1: customerCountry properly WhatsApp tak pass hoti hai
-// ✅ FIX 2: Currency conversion by customer country
-// ✅ FIX 3: Detailed error logging — Vercel logs mein clearly dikhega kya fail hua
-// ✅ FIX 4: pricePKR fallback chain improved
+// ✅ WhatsApp: sendOrderWhatsApp (same as update-order-status pattern)
+// ✅ Currency by customer country
+// ✅ Items + total in every WhatsApp message
+// ✅ Detailed Vercel error logging
 
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -11,45 +11,58 @@ import {
 } from "@/lib/email-smtp";
 import { sendOrderWhatsApp } from "@/lib/whatsapp";
 
-// Exchange rates — PKR se convert (email ke liye)
-const PKR_EXCHANGE_RATES: Record<string, number> = {
-  PKR: 1,
-  USD: 0.003584,
-  GBP: 0.002639,
-  EUR: 0.003049,
-  AUD: 0.005,
-  CAD: 0.004878,
-  AED: 0.013082,
-  SAR: 0.013357,
-  INR: 0.298507,
+// ── Currency helpers (matching whatsapp.ts + update-order-status) ────────────
+const PKR_RATES: Record<
+  string,
+  { symbol: string; rate: number; code: string }
+> = {
+  Pakistan: { symbol: "₨", rate: 1, code: "PKR" },
+  "United States": { symbol: "$", rate: 0.0036, code: "USD" },
+  USA: { symbol: "$", rate: 0.0036, code: "USD" },
+  US: { symbol: "$", rate: 0.0036, code: "USD" },
+  "United Kingdom": { symbol: "£", rate: 0.0028, code: "GBP" },
+  UK: { symbol: "£", rate: 0.0028, code: "GBP" },
+  GB: { symbol: "£", rate: 0.0028, code: "GBP" },
+  England: { symbol: "£", rate: 0.0028, code: "GBP" },
+  Australia: { symbol: "A$", rate: 0.0055, code: "AUD" },
+  AU: { symbol: "A$", rate: 0.0055, code: "AUD" },
+  Canada: { symbol: "C$", rate: 0.0049, code: "CAD" },
+  CA: { symbol: "C$", rate: 0.0049, code: "CAD" },
+  "United Arab Emirates": { symbol: "AED", rate: 0.013, code: "AED" },
+  UAE: { symbol: "AED", rate: 0.013, code: "AED" },
+  AE: { symbol: "AED", rate: 0.013, code: "AED" },
+  Dubai: { symbol: "AED", rate: 0.013, code: "AED" },
+  "Saudi Arabia": { symbol: "﷼", rate: 0.013, code: "SAR" },
+  SA: { symbol: "﷼", rate: 0.013, code: "SAR" },
+  KSA: { symbol: "﷼", rate: 0.013, code: "SAR" },
+  India: { symbol: "₹", rate: 0.3, code: "INR" },
+  IN: { symbol: "₹", rate: 0.3, code: "INR" },
+  Germany: { symbol: "€", rate: 0.0033, code: "EUR" },
+  France: { symbol: "€", rate: 0.0033, code: "EUR" },
+  Italy: { symbol: "€", rate: 0.0033, code: "EUR" },
+  Spain: { symbol: "€", rate: 0.0033, code: "EUR" },
+  Netherlands: { symbol: "€", rate: 0.0033, code: "EUR" },
 };
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  PKR: "PKR",
-  USD: "$",
-  GBP: "£",
-  EUR: "€",
-  AUD: "A$",
-  CAD: "C$",
-  AED: "AED",
-  SAR: "SAR",
-  INR: "₹",
-};
-
-function convertFromPKR(pricePKR: number, targetCurrency: string): number {
-  const rate = PKR_EXCHANGE_RATES[targetCurrency] ?? 1;
-  const converted = pricePKR * rate;
-  if (targetCurrency === "PKR") return Math.round(converted);
-  return Math.round(converted * 100) / 100;
+function getCurrencyForCountry(country: string) {
+  if (!country) return PKR_RATES["Pakistan"];
+  if (PKR_RATES[country]) return PKR_RATES[country];
+  const lower = country.toLowerCase();
+  for (const [key, val] of Object.entries(PKR_RATES)) {
+    if (key.toLowerCase() === lower || lower.includes(key.toLowerCase()))
+      return val;
+  }
+  return PKR_RATES["Pakistan"];
 }
 
-function formatConvertedPrice(pricePKR: number, currencyCode: string): string {
-  const symbol = CURRENCY_SYMBOLS[currencyCode] ?? currencyCode;
-  const converted = convertFromPKR(pricePKR, currencyCode);
-  if (currencyCode === "PKR" || currencyCode === "INR") {
-    return `${symbol} ${converted.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-  }
-  return `${symbol} ${converted.toLocaleString("en-US", {
+function formatAmount(amountPKR: number, country: string): string {
+  const cfg = getCurrencyForCountry(country);
+  if (cfg.code === "PKR")
+    return `₨ ${Math.round(amountPKR).toLocaleString("en-PK")}`;
+  if (cfg.code === "INR")
+    return `₹${Math.round(amountPKR * cfg.rate).toLocaleString("en-IN")}`;
+  const converted = amountPKR * cfg.rate;
+  return `${cfg.symbol}${converted.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -66,13 +79,11 @@ export async function POST(req: NextRequest) {
       phone,
       name,
       items,
-      subtotal,
-      shipping,
       total,
       shippingAddress,
       paymentMethod,
       currency,
-      customerCountry, // ✅ FIX: page.tsx se ab ye aa raha hai
+      customerCountry,
     } = body;
 
     // ── Validation ────────────────────────────────────────────────────────────
@@ -89,7 +100,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── ENV variable check ────────────────────────────────────────────────────
+    // ── ENV check ─────────────────────────────────────────────────────────────
     if (!process.env.WASENDER_API_KEY) {
       console.error("❌ WASENDER_API_KEY missing from environment variables!");
     }
@@ -97,140 +108,136 @@ export async function POST(req: NextRequest) {
       console.error("❌ GMAIL_USER or GMAIL_APP_PASSWORD missing!");
     }
 
-    const currencyCode: string = (currency || "PKR").toUpperCase();
-
-    // ✅ FIX: customerCountry — WhatsApp currency ke liye (pehle ye missing tha!)
-    // page.tsx ab phoneInfo.name bhejta hai yahan
+    // ── Currency ──────────────────────────────────────────────────────────────
     const country = customerCountry || "Pakistan";
+    const currencyCfg = getCurrencyForCountry(country);
+    const isPKR = currencyCfg.code === "PKR";
+    const totalAmountNum = total ?? 0;
+    const formattedTotal = formatAmount(totalAmountNum, country);
+    const currencyNote = !isPKR
+      ? `\n💱 _Amount in ${currencyCfg.code} (approx.)_`
+      : "";
+    const customerPhone = phone || "";
 
     console.log(
-      `📦 Order notification: ${orderNumber} | Country: "${country}" | Currency: ${currencyCode} | Phone: ${phone || "MISSING"} | Email: ${email}`,
+      `📦 Order notification: ${orderNumber} | Country: "${country}" | Currency: ${currencyCfg.code} | Phone: ${customerPhone || "MISSING"} | Email: ${email}`,
     );
+    console.log(
+      `💰 Total: ${totalAmountNum} PKR → ${formattedTotal} (${currencyCfg.code})`,
+    );
+    console.log(`🛒 Items count: ${items.length}`);
 
-    // ── Convert prices PKR → target currency (email ke liye) ─────────────────
+    // ── formattedItems for email ──────────────────────────────────────────────
+    // item.price = per-unit PKR price (from page.tsx)
+    // item.pricePKR = line total PKR (qty already multiplied) — fallback
     const formattedItems = items.map((item: any) => {
-      // ✅ pricePKR = line total (already qty multiplied from page.tsx)
-      const pricePKR = item.pricePKR ?? item.price ?? 0;
-      const convertedPrice = formatConvertedPrice(pricePKR, currencyCode);
+      const perUnitPKR = item.price ?? 0;
+      const ppu = item.piecesPerUnit ?? item.pieces_per_unit ?? 1;
+      const qty = item.quantity ?? 1;
+      const lineTotalPKR = perUnitPKR * ppu * qty;
       return {
         name: item.name ?? item.product_name ?? "Product",
         variant: item.variant ?? item.variant_name ?? null,
-        quantity: item.quantity,
-        formattedPrice: convertedPrice,
-        pricePKR,
+        quantity: qty,
+        formattedPrice: formatAmount(lineTotalPKR, country),
+        pricePKR: lineTotalPKR,
         image: item.image ?? item.variant_image ?? item.product_image ?? null,
       };
     });
 
-    const totalPKR = total ?? 0;
-    const formattedTotal = formatConvertedPrice(totalPKR, currencyCode);
-    const customerPhone = phone || "";
+    // ── waItems for WhatsApp (sendOrderWhatsApp handles price * ppu * qty) ────
+    // price = per-unit PKR, piecesPerUnit = pieces per unit
+    const waItems = items.map((item: any) => ({
+      name: item.name ?? item.product_name ?? "Product",
+      variant: item.variant ?? item.variant_name ?? null,
+      quantity: item.quantity ?? 1,
+      price: item.price ?? 0, // ✅ per-unit PKR only — whatsapp.ts multiplies itself
+      piecesPerUnit: item.piecesPerUnit ?? item.pieces_per_unit ?? 1,
+      image: item.image ?? item.variant_image ?? item.product_image ?? null,
+      variant_image: item.variant_image ?? null,
+      product_image: item.product_image ?? null,
+    }));
 
-    console.log(
-      `💰 Total: ${totalPKR} PKR → ${formattedTotal} (${currencyCode})`,
-    );
-    console.log(`🛒 Items count: ${items.length}`);
+    // ── Send all 3 notifications ──────────────────────────────────────────────
+    let whatsappSent = false;
+    let customerEmailSent = false;
+    let ownerEmailSent = false;
 
-    // ── Send all 3 notifications in parallel ─────────────────────────────────
-    const [whatsappResult, customerEmailResult, ownerEmailResult] =
-      await Promise.allSettled([
-        // ✅ WhatsApp — customerCountry ab correctly pass ho raha hai
-        customerPhone
-          ? sendOrderWhatsApp(
-              customerPhone,
-              orderNumber,
-              name,
-              totalPKR,
-              items.map((item: any) => ({
-                name: item.name ?? item.product_name ?? "Product",
-                variant: item.variant ?? item.variant_name ?? null,
-                quantity: item.quantity,
-                // ✅ price = per-unit price (whatsapp.ts qty se multiply karta hai)
-                price: item.price ?? item.pricePKR ?? 0,
-                piecesPerUnit: item.piecesPerUnit ?? item.pieces_per_unit ?? 1,
-                image:
-                  item.image ??
-                  item.variant_image ??
-                  item.product_image ??
-                  null,
-              })),
-              formattedTotal,
-              formattedItems,
-              country, // ✅ FIX: ye ab "Australia", "United Kingdom" etc. hai, "Pakistan" nahi!
-            )
-          : Promise.resolve(false),
-
-        // Customer email
-        sendOrderConfirmationEmail(
-          email,
-          orderNumber,
-          name,
-          items,
-          totalPKR,
-          shippingAddress || "",
-          paymentMethod || "N/A",
-          currencyCode,
-          formattedTotal,
-          formattedItems,
-          country,
-        ),
-
-        // Owner alert
-        sendOwnerOrderAlert(
-          orderNumber,
-          name,
-          email,
+    // ── WhatsApp ──────────────────────────────────────────────────────────────
+    if (customerPhone) {
+      try {
+        whatsappSent = await sendOrderWhatsApp(
           customerPhone,
-          items,
-          totalPKR,
-          shippingAddress || "",
-          paymentMethod || "N/A",
-          currencyCode,
-          formattedTotal,
-          formattedItems,
-          country,
-        ),
-      ]);
-
-    // ── Log results (Vercel logs mein clearly dikhega) ────────────────────────
-    const whatsappSent =
-      whatsappResult.status === "fulfilled" && whatsappResult.value === true;
-    const customerEmailSent =
-      customerEmailResult.status === "fulfilled" &&
-      customerEmailResult.value === true;
-    const ownerEmailSent =
-      ownerEmailResult.status === "fulfilled" &&
-      ownerEmailResult.value === true;
-
-    // ✅ Detailed failure reasons log karo
-    if (whatsappResult.status === "rejected") {
-      console.error("❌ WhatsApp EXCEPTION:", whatsappResult.reason);
-    } else if (!whatsappSent) {
-      console.error(
-        "❌ WhatsApp returned false — WasenderAPI session check karo!",
-      );
-      console.error(
-        "   👉 https://wasenderapi.com/dashboard → Sessions → Reconnect",
-      );
+          orderNumber,
+          name,
+          totalAmountNum, // ✅ total PKR
+          waItems, // ✅ per-unit price, whatsapp.ts handles multiplication
+          formattedTotal, // ✅ pre-formatted for display
+          formattedItems, // ✅ optional, whatsapp.ts rebuilds anyway
+          country, // ✅ "Australia", "United Kingdom" etc.
+        );
+        if (whatsappSent) {
+          console.log(`✅ WhatsApp sent → ${customerPhone}`);
+        } else {
+          console.error(
+            `❌ WhatsApp returned false → ${customerPhone} | WasenderAPI session check: https://wasenderapi.com/dashboard`,
+          );
+        }
+      } catch (err: any) {
+        console.error("❌ WhatsApp EXCEPTION:", err?.message || err);
+      }
+    } else {
+      console.warn("⚠️ No phone number — WhatsApp skipped");
     }
 
-    if (customerEmailResult.status === "rejected") {
-      console.error("❌ Customer Email EXCEPTION:", customerEmailResult.reason);
-    } else if (!customerEmailSent) {
-      console.error(
-        "❌ Customer Email returned false — Gmail SMTP check karo!",
+    // ── Customer Email ────────────────────────────────────────────────────────
+    try {
+      customerEmailSent = await sendOrderConfirmationEmail(
+        email,
+        orderNumber,
+        name,
+        items,
+        totalAmountNum,
+        shippingAddress || "",
+        paymentMethod || "N/A",
+        currencyCfg.code,
+        formattedTotal,
+        formattedItems,
+        country,
       );
+      if (!customerEmailSent)
+        console.error(
+          "❌ Customer Email returned false — Gmail SMTP check karo!",
+        );
+    } catch (err: any) {
+      console.error("❌ Customer Email EXCEPTION:", err?.message || err);
     }
 
-    if (ownerEmailResult.status === "rejected") {
-      console.error("❌ Owner Email EXCEPTION:", ownerEmailResult.reason);
-    } else if (!ownerEmailSent) {
-      console.error("❌ Owner Email returned false");
+    // ── Owner Email ───────────────────────────────────────────────────────────
+    try {
+      ownerEmailSent = await sendOwnerOrderAlert(
+        orderNumber,
+        name,
+        email,
+        customerPhone,
+        items,
+        totalAmountNum,
+        shippingAddress || "",
+        paymentMethod || "N/A",
+        currencyCfg.code,
+        formattedTotal,
+        formattedItems,
+        country,
+      );
+      if (!ownerEmailSent) console.error("❌ Owner Email returned false");
+    } catch (err: any) {
+      console.error("❌ Owner Email EXCEPTION:", err?.message || err);
     }
 
-    console.log(`📊 Results [${orderNumber}]:`, {
+    // ── Summary Log ───────────────────────────────────────────────────────────
+    console.log(`📊 Results [${orderNumber}] confirmed:`, {
       country,
-      currency: currencyCode,
+      currency: currencyCfg.code,
       phone: customerPhone || "NOT PROVIDED",
       whatsapp: whatsappSent ? "✅ sent" : "❌ failed",
       customerEmail: customerEmailSent ? "✅ sent" : "❌ failed",
@@ -241,8 +248,8 @@ export async function POST(req: NextRequest) {
       success: true,
       results: {
         emailSent: customerEmailSent,
-        whatsappSent: whatsappSent,
-        ownerEmailSent: ownerEmailSent,
+        whatsappSent,
+        ownerEmailSent,
       },
     });
   } catch (error: any) {
