@@ -1,8 +1,7 @@
 // app/api/send-order-notification/route.ts
-// ✅ FIXED: buildConfirmedWhatsApp + sendWhatsAppMessage — exactly same as update-order-status
-// ✅ Currency by customer country
-// ✅ Items + total in every WhatsApp message
-// ✅ Confirmed msg checkout pe place order hote hi jata hai
+// ✅ FIXED: Currency properly converted in WhatsApp + Email
+// ✅ customerCountry → formattedTotal + formattedItems always in customer's currency
+// ✅ Items total correctly calculated (price = perUnit, piecesPerUnit = 1 from page.tsx)
 
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -11,7 +10,7 @@ import {
 } from "@/lib/email-smtp";
 import { sendWhatsAppMessage, buildConfirmedWhatsApp } from "@/lib/whatsapp";
 
-// ── Currency helpers (exactly same as update-order-status) ────────────────────
+// ── Currency helpers ──────────────────────────────────────────────────────────
 const PKR_RATES: Record<
   string,
   { symbol: string; rate: number; code: string }
@@ -98,16 +97,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!process.env.WASENDER_API_KEY)
-      console.error("❌ WASENDER_API_KEY missing!");
-    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD)
-      console.error("❌ GMAIL credentials missing!");
-
-    // ── Currency — exactly same as update-order-status ────────────────────────
+    // ── Currency setup ────────────────────────────────────────────────────────
+    // customerCountry comes from page.tsx as phoneInfo.name e.g. "Australia"
     const country = customerCountry || "Pakistan";
     const currencyCfg = getCurrencyForCountry(country);
     const isPKR = currencyCfg.code === "PKR";
     const totalAmountNum = total ?? 0;
+
+    // ✅ formattedTotal — in customer's currency
     const formattedTotal = formatAmount(totalAmountNum, country);
     const currencyNote = !isPKR
       ? `\n💱 _Amount in ${currencyCfg.code} (approx.)_`
@@ -120,28 +117,36 @@ export async function POST(req: NextRequest) {
     console.log(`💰 Total: ${totalAmountNum} PKR → ${formattedTotal}`);
     console.log(`🛒 Items: ${items.length}`);
 
-    // ── Items for email ───────────────────────────────────────────────────────
+    // ── formattedItems for email ──────────────────────────────────────────────
+    // ✅ page.tsx sends: price = perUnit PKR, piecesPerUnit = 1
+    // So: lineTotalPKR = price * piecesPerUnit * quantity = price * 1 * qty = price * qty
     const formattedItems = items.map((item: any) => {
-      const perUnitPKR = item.price ?? 0;
       const ppu = item.piecesPerUnit ?? item.pieces_per_unit ?? 1;
+      const perUnitPKR = item.price ?? 0;
       const qty = item.quantity ?? 1;
       const lineTotalPKR = perUnitPKR * ppu * qty;
+
       return {
         name: item.name ?? item.product_name ?? "Product",
         variant: item.variant ?? item.variant_name ?? null,
         quantity: qty,
+        // ✅ formattedPrice — properly converted to customer's currency
         formattedPrice: formatAmount(lineTotalPKR, country),
         pricePKR: lineTotalPKR,
-        image: item.image ?? item.variant_image ?? item.product_image ?? null,
+        image: item.image ?? null,
+        variant_image: item.variant_image ?? null,
+        product_image: item.product_image ?? null,
       };
     });
 
-    // ── Items for WhatsApp (same shape as update-order-status waItems) ────────
+    // ── waItems for WhatsApp builder ──────────────────────────────────────────
+    // WhatsApp builder (buildConfirmedWhatsApp) calls formatPrice(itemTotalPKR, country)
+    // internally — so pass raw PKR prices, it handles conversion itself
     const waItems = items.map((item: any) => ({
       name: item.name ?? item.product_name ?? "Product",
       variant: item.variant ?? item.variant_name ?? null,
       quantity: item.quantity ?? 1,
-      price: item.price ?? 0,
+      price: item.price ?? 0, // PKR per-unit price
       piecesPerUnit: item.piecesPerUnit ?? item.pieces_per_unit ?? 1,
     }));
 
@@ -149,24 +154,23 @@ export async function POST(req: NextRequest) {
     let ownerEmailSent = false;
     let whatsappSent = false;
 
-    // ── 1. WhatsApp — EXACT SAME as update-order-status "confirmed" ───────────
-    // buildConfirmedWhatsApp → sendWhatsAppMessage (same pattern)
+    // ── 1. WhatsApp ───────────────────────────────────────────────────────────
     if (customerPhone) {
       try {
+        // buildConfirmedWhatsApp internally formats each item price using country
         const whatsappMsg = buildConfirmedWhatsApp(
           name,
           orderNumber,
-          formattedTotal,
+          formattedTotal, // ✅ customer's currency e.g. "A$8.25"
           currencyNote,
           waItems,
-          country,
+          country, // ✅ "Australia" → formatPrice converts each item to AUD
         );
 
         whatsappSent = await sendWhatsAppMessage(customerPhone, whatsappMsg);
-
         console.log(
           whatsappSent
-            ? `✅ WhatsApp sent → ${customerPhone}`
+            ? `✅ WhatsApp sent → ${customerPhone} (${currencyCfg.code})`
             : `❌ WhatsApp failed → ${customerPhone}`,
         );
       } catch (err: any) {
@@ -176,7 +180,7 @@ export async function POST(req: NextRequest) {
       console.warn("⚠️ No phone — WhatsApp skipped");
     }
 
-    // ── 2. Customer Email ─────────────────────────────────────────────────────
+    // ── 2. Customer Confirmation Email ────────────────────────────────────────
     try {
       customerEmailSent = await sendOrderConfirmationEmail(
         email,
@@ -186,21 +190,21 @@ export async function POST(req: NextRequest) {
         totalAmountNum,
         shippingAddress || "",
         paymentMethod || "N/A",
-        currencyCfg.code,
-        formattedTotal,
-        formattedItems,
-        country,
+        currencyCfg.code, // ✅ "AUD"
+        formattedTotal, // ✅ "A$8.25"
+        formattedItems, // ✅ each item has formattedPrice in AUD
+        country, // ✅ "Australia"
       );
       console.log(
         customerEmailSent
-          ? "✅ Customer email sent"
+          ? `✅ Customer email sent (${currencyCfg.code}: ${formattedTotal})`
           : "❌ Customer email failed",
       );
     } catch (err: any) {
       console.error("❌ Customer Email EXCEPTION:", err?.message || err);
     }
 
-    // ── 3. Owner Email ────────────────────────────────────────────────────────
+    // ── 3. Owner Alert Email ──────────────────────────────────────────────────
     try {
       ownerEmailSent = await sendOwnerOrderAlert(
         orderNumber,
@@ -226,6 +230,7 @@ export async function POST(req: NextRequest) {
     console.log(`📊 Results [${orderNumber}] order-placed:`, {
       country,
       currency: currencyCfg.code,
+      formattedTotal,
       phone: customerPhone || "NOT PROVIDED",
       whatsapp: whatsappSent ? "✅" : "❌",
       customerEmail: customerEmailSent ? "✅" : "❌",

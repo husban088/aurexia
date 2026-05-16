@@ -1,37 +1,32 @@
 // app/api/admin/update-order-status/route.ts
-// ✅ Uses new WhatsApp builder functions — same content as email
-// ✅ Currency by customer country
-// ✅ Items + total in every WhatsApp message
+// ✅ Only 3 status buttons: shipped | delivered | cancelled
+// ✅ confirmed is handled by send-order-notification (on checkout)
+// ✅ processing removed from admin panel
+// ✅ Currency by customer country in all emails + WhatsApp
+// ✅ PAID PLAN: Product image sent with WhatsApp for ALL statuses
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import {
-  sendWhatsAppMessage,
-  buildShippedWhatsApp,
-  buildDeliveredWhatsApp,
-  buildCancelledWhatsApp,
-  buildConfirmedWhatsApp,
-  buildProcessingWhatsApp,
+  sendShippedWhatsApp,
+  sendDeliveredWhatsApp,
+  sendCancelledWhatsApp,
 } from "@/lib/whatsapp";
-import {
-  sendStatusUpdateEmail,
-  sendOwnerStatusAlert,
-  sendOrderConfirmationEmail,
-  sendOwnerOrderAlert,
-} from "@/lib/email-smtp";
+import { sendStatusUpdateEmail, sendOwnerStatusAlert } from "@/lib/email-smtp";
 
-// ── Currency helpers (matching whatsapp.ts + email.ts) ───────────────────────
+// ── Currency helpers ──────────────────────────────────────────────────────────
 const PKR_RATES: Record<
   string,
   { symbol: string; rate: number; code: string }
 > = {
-  Pakistan: { symbol: "₨", rate: 1, code: "PKR" },
+  Pakistan: { symbol: "Rs.", rate: 1, code: "PKR" },
   "United States": { symbol: "$", rate: 0.0036, code: "USD" },
   USA: { symbol: "$", rate: 0.0036, code: "USD" },
   US: { symbol: "$", rate: 0.0036, code: "USD" },
-  "United Kingdom": { symbol: "£", rate: 0.0028, code: "GBP" },
-  UK: { symbol: "£", rate: 0.0028, code: "GBP" },
-  GB: { symbol: "£", rate: 0.0028, code: "GBP" },
+  "United Kingdom": { symbol: "GBP", rate: 0.0028, code: "GBP" },
+  UK: { symbol: "GBP", rate: 0.0028, code: "GBP" },
+  GB: { symbol: "GBP", rate: 0.0028, code: "GBP" },
+  England: { symbol: "GBP", rate: 0.0028, code: "GBP" },
   Australia: { symbol: "A$", rate: 0.0055, code: "AUD" },
   AU: { symbol: "A$", rate: 0.0055, code: "AUD" },
   Canada: { symbol: "C$", rate: 0.0049, code: "CAD" },
@@ -39,14 +34,17 @@ const PKR_RATES: Record<
   "United Arab Emirates": { symbol: "AED", rate: 0.013, code: "AED" },
   UAE: { symbol: "AED", rate: 0.013, code: "AED" },
   AE: { symbol: "AED", rate: 0.013, code: "AED" },
-  "Saudi Arabia": { symbol: "﷼", rate: 0.013, code: "SAR" },
-  SA: { symbol: "﷼", rate: 0.013, code: "SAR" },
-  India: { symbol: "₹", rate: 0.3, code: "INR" },
-  IN: { symbol: "₹", rate: 0.3, code: "INR" },
-  Germany: { symbol: "€", rate: 0.0033, code: "EUR" },
-  France: { symbol: "€", rate: 0.0033, code: "EUR" },
-  Italy: { symbol: "€", rate: 0.0033, code: "EUR" },
-  Spain: { symbol: "€", rate: 0.0033, code: "EUR" },
+  Dubai: { symbol: "AED", rate: 0.013, code: "AED" },
+  "Saudi Arabia": { symbol: "SAR", rate: 0.013, code: "SAR" },
+  SA: { symbol: "SAR", rate: 0.013, code: "SAR" },
+  KSA: { symbol: "SAR", rate: 0.013, code: "SAR" },
+  India: { symbol: "Rs", rate: 0.3, code: "INR" },
+  IN: { symbol: "Rs", rate: 0.3, code: "INR" },
+  Germany: { symbol: "EUR", rate: 0.0033, code: "EUR" },
+  France: { symbol: "EUR", rate: 0.0033, code: "EUR" },
+  Italy: { symbol: "EUR", rate: 0.0033, code: "EUR" },
+  Spain: { symbol: "EUR", rate: 0.0033, code: "EUR" },
+  Netherlands: { symbol: "EUR", rate: 0.0033, code: "EUR" },
 };
 
 function getCurrencyForCountry(country: string) {
@@ -63,11 +61,14 @@ function getCurrencyForCountry(country: string) {
 function formatAmount(amountPKR: number, country: string): string {
   const cfg = getCurrencyForCountry(country);
   if (cfg.code === "PKR")
-    return `₨ ${Math.round(amountPKR).toLocaleString("en-PK")}`;
+    return `Rs. ${Math.round(amountPKR).toLocaleString("en-PK")}`;
   if (cfg.code === "INR")
-    return `₹${Math.round(amountPKR * cfg.rate).toLocaleString("en-IN")}`;
+    return `Rs ${Math.round(amountPKR * cfg.rate).toLocaleString("en-IN")}`;
   const converted = amountPKR * cfg.rate;
-  return `${cfg.symbol}${converted.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${cfg.symbol} ${converted.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function getClient() {
@@ -98,14 +99,15 @@ export async function POST(req: NextRequest) {
       paymentMethod,
       items: itemsDirect,
       orderItems,
-      subtotal,
       totalAmount,
       customerCountry,
       cancelReason,
     } = body;
 
+    // items array — support both field names
     const items = itemsDirect || orderItems || [];
 
+    // ── Validation ────────────────────────────────────────────────────────────
     if (
       !orderId ||
       !status ||
@@ -119,13 +121,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const validStatuses = [
-      "shipped",
-      "delivered",
-      "cancelled",
-      "confirmed",
-      "processing",
-    ];
+    // ✅ Only 3 valid statuses — confirmed and processing removed from admin
+    const validStatuses = ["shipped", "delivered", "cancelled"];
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
         { error: `Invalid status. Valid: ${validStatuses.join(", ")}` },
@@ -133,18 +130,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── Currency ──────────────────────────────────────────────────────────────
+    // ── Currency setup ────────────────────────────────────────────────────────
     const country = customerCountry || "Pakistan";
     const currencyCfg = getCurrencyForCountry(country);
-    const isPKR = currencyCfg.code === "PKR";
     const totalAmountNum = totalAmount || 0;
     const formattedTotal = formatAmount(totalAmountNum, country);
-    const currencyNote = !isPKR
-      ? `\n💱 _Amount in ${currencyCfg.code} (approx.)_`
-      : "";
 
     console.log(
-      `🌍 [${orderNumber}] ${status} | Country: ${country} → Currency: ${currencyCfg.code}`,
+      `🌍 [${orderNumber}] ${status.toUpperCase()} | Country: ${country} | Currency: ${currencyCfg.code} | Total: ${formattedTotal}`,
     );
 
     // ── DB Update ─────────────────────────────────────────────────────────────
@@ -168,63 +161,57 @@ export async function POST(req: NextRequest) {
       .from("orders")
       .update(updatePayload)
       .eq("id", orderId);
+
     if (dbError) {
-      console.error("DB error:", dbError.message);
+      console.error("❌ DB error:", dbError.message);
       return NextResponse.json({ error: dbError.message }, { status: 500 });
     }
 
-    // ── Formatted items for email ─────────────────────────────────────────────
-    const formattedItems =
-      items?.map((item: any) => ({
-        name: item.product_name || item.name || "Product",
-        variant: item.variant_name || null,
-        quantity: item.quantity,
-        price: item.price,
-        piecesPerUnit: item.pieces_per_unit || 1,
-        formattedPrice: formatAmount(
-          item.price * (item.pieces_per_unit || 1),
-          country,
-        ),
-        pricePKR: item.price * (item.pieces_per_unit || 1),
-        variant_image: item.variant_image || null,
-        image: item.image || null,
-        product_image: item.product_image || null,
-      })) || [];
+    // ── Formatted items (for email) ───────────────────────────────────────────
+    const formattedItems = items.map((item: any) => ({
+      name: item.product_name || item.name || "Product",
+      variant: item.variant_name || null,
+      quantity: item.quantity,
+      price: item.price,
+      piecesPerUnit: item.pieces_per_unit || 1,
+      formattedPrice: formatAmount(
+        (item.price || 0) * (item.pieces_per_unit || 1) * (item.quantity || 1),
+        country,
+      ),
+      pricePKR: (item.price || 0) * (item.pieces_per_unit || 1),
+      variant_image: item.variant_image || null,
+      image: item.image || null,
+      product_image: item.product_image || null,
+    }));
 
-    // ── Normalized items for WhatsApp builder ─────────────────────────────────
-    const waItems =
-      items?.map((item: any) => ({
-        name: item.product_name || item.name || "Product",
-        variant: item.variant_name || null,
-        quantity: item.quantity,
-        price: item.price,
-        piecesPerUnit: item.pieces_per_unit || 1,
-      })) || [];
+    // ── WhatsApp items — raw PKR + image fields ───────────────────────────────
+    // sendShippedWhatsApp / sendDeliveredWhatsApp / sendCancelledWhatsApp
+    // need image fields to pick product image
+    const waItems = items.map((item: any) => ({
+      name: item.product_name || item.name || "Product",
+      variant: item.variant_name || null,
+      quantity: item.quantity,
+      price: item.price,
+      piecesPerUnit: item.pieces_per_unit || 1,
+      // ✅ image fields passed so WhatsApp can pick product image
+      variant_image: item.variant_image || null,
+      image: item.image || null,
+      product_image: item.product_image || null,
+    }));
 
-    // ── Build messages + send emails ──────────────────────────────────────────
-    let whatsappMsg = "";
     let customerEmailSent = false;
     let ownerEmailSent = false;
     let whatsappSent = false;
 
+    // ── SHIPPED ───────────────────────────────────────────────────────────────
     if (status === "shipped") {
       const cn = courierName || "Courier";
       const tn = trackingNumber || "N/A";
       const ed = estimatedDays || "3-5 business days";
 
-      whatsappMsg = buildShippedWhatsApp(
-        customerName,
-        orderNumber,
-        cn,
-        tn,
-        ed,
-        courierTrackingUrl,
-        waItems,
-        totalAmountNum,
-        country,
-      );
-
-      const [emailResult, ownerResult] = await Promise.all([
+      // ✅ Email and WhatsApp in parallel
+      // WhatsApp uses sendShippedWhatsApp which sends image first, then text
+      const [emailResult, ownerResult, waResult] = await Promise.all([
         sendStatusUpdateEmail(
           customerEmail,
           customerName,
@@ -234,7 +221,7 @@ export async function POST(req: NextRequest) {
           cn,
           courierTrackingUrl,
           ed,
-          items || [],
+          items,
           formattedItems,
           formattedTotal,
           country,
@@ -247,19 +234,31 @@ export async function POST(req: NextRequest) {
           "shipped",
           `${cn} | Tracking: ${tn} | Est: ${ed}`,
         ),
+        // ✅ Image + text WhatsApp for shipped
+        customerPhone
+          ? sendShippedWhatsApp(
+              customerPhone,
+              customerName,
+              orderNumber,
+              cn,
+              tn,
+              ed,
+              courierTrackingUrl,
+              waItems,
+              totalAmountNum,
+              country,
+            )
+          : Promise.resolve(false),
       ]);
+
       customerEmailSent = emailResult;
       ownerEmailSent = ownerResult;
-    } else if (status === "delivered") {
-      whatsappMsg = buildDeliveredWhatsApp(
-        customerName,
-        orderNumber,
-        waItems,
-        totalAmountNum,
-        country,
-      );
+      whatsappSent = waResult;
+    }
 
-      const [emailResult, ownerResult] = await Promise.all([
+    // ── DELIVERED ─────────────────────────────────────────────────────────────
+    else if (status === "delivered") {
+      const [emailResult, ownerResult, waResult] = await Promise.all([
         sendStatusUpdateEmail(
           customerEmail,
           customerName,
@@ -269,7 +268,7 @@ export async function POST(req: NextRequest) {
           undefined,
           undefined,
           undefined,
-          items || [],
+          items,
           formattedItems,
           formattedTotal,
           country,
@@ -281,20 +280,27 @@ export async function POST(req: NextRequest) {
           customerPhone || "",
           "delivered",
         ),
+        // ✅ Image + text WhatsApp for delivered
+        customerPhone
+          ? sendDeliveredWhatsApp(
+              customerPhone,
+              customerName,
+              orderNumber,
+              waItems,
+              totalAmountNum,
+              country,
+            )
+          : Promise.resolve(false),
       ]);
+
       customerEmailSent = emailResult;
       ownerEmailSent = ownerResult;
-    } else if (status === "cancelled") {
-      whatsappMsg = buildCancelledWhatsApp(
-        customerName,
-        orderNumber,
-        cancelReason,
-        waItems,
-        totalAmountNum,
-        country,
-      );
+      whatsappSent = waResult;
+    }
 
-      const [emailResult, ownerResult] = await Promise.all([
+    // ── CANCELLED ─────────────────────────────────────────────────────────────
+    else if (status === "cancelled") {
+      const [emailResult, ownerResult, waResult] = await Promise.all([
         sendStatusUpdateEmail(
           customerEmail,
           customerName,
@@ -304,7 +310,7 @@ export async function POST(req: NextRequest) {
           undefined,
           undefined,
           undefined,
-          items || [],
+          items,
           formattedItems,
           formattedTotal,
           country,
@@ -318,98 +324,36 @@ export async function POST(req: NextRequest) {
           "cancelled",
           cancelReason ? `Reason: ${cancelReason}` : undefined,
         ),
+        // ✅ Image + text WhatsApp for cancelled
+        customerPhone
+          ? sendCancelledWhatsApp(
+              customerPhone,
+              customerName,
+              orderNumber,
+              cancelReason,
+              waItems,
+              totalAmountNum,
+              country,
+            )
+          : Promise.resolve(false),
       ]);
-      customerEmailSent = emailResult;
-      ownerEmailSent = ownerResult;
-    } else if (status === "confirmed") {
-      whatsappMsg = buildConfirmedWhatsApp(
-        customerName,
-        orderNumber,
-        formattedTotal,
-        currencyNote,
-        waItems,
-        country,
-      );
 
-      const [emailResult, ownerResult] = await Promise.all([
-        sendOrderConfirmationEmail(
-          customerEmail,
-          orderNumber,
-          customerName,
-          items || [],
-          totalAmountNum,
-          shippingAddress || "",
-          paymentMethod || "N/A",
-          currencyCfg.code,
-          formattedTotal,
-          formattedItems,
-          country,
-        ),
-        sendOwnerOrderAlert(
-          orderNumber,
-          customerName,
-          customerEmail,
-          customerPhone || "",
-          items || [],
-          totalAmountNum,
-          shippingAddress || "",
-          paymentMethod || "N/A",
-          currencyCfg.code,
-          formattedTotal,
-          formattedItems,
-          country,
-        ),
-      ]);
       customerEmailSent = emailResult;
       ownerEmailSent = ownerResult;
-    } else if (status === "processing") {
-      whatsappMsg = buildProcessingWhatsApp(
-        customerName,
-        orderNumber,
-        formattedTotal,
-        waItems,
-        country,
-      );
-
-      const [emailResult, ownerResult] = await Promise.all([
-        sendStatusUpdateEmail(
-          customerEmail,
-          customerName,
-          orderNumber,
-          "processing",
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          items || [],
-          formattedItems,
-          formattedTotal,
-          country,
-        ),
-        sendOwnerStatusAlert(
-          orderNumber,
-          customerName,
-          customerEmail,
-          customerPhone || "",
-          "processing",
-          "Order is being processed",
-        ),
-      ]);
-      customerEmailSent = emailResult;
-      ownerEmailSent = ownerResult;
+      whatsappSent = waResult;
     }
 
-    // ── Send WhatsApp ─────────────────────────────────────────────────────────
-    if (customerPhone && whatsappMsg) {
-      whatsappSent = await sendWhatsAppMessage(customerPhone, whatsappMsg);
-    }
-
-    console.log(`📊 Results [${orderNumber}] ${status}:`, {
+    console.log(`📊 [${orderNumber}] ${status.toUpperCase()} results:`, {
       whatsapp: whatsappSent ? "✅" : "❌",
       customerEmail: customerEmailSent ? "✅" : "❌",
       ownerEmail: ownerEmailSent ? "✅" : "❌",
       country,
       currency: currencyCfg.code,
+      total: formattedTotal,
+      itemsCount: items.length,
+      hasImages: waItems.some(
+        (i: any) => i.variant_image || i.image || i.product_image,
+      ),
     });
 
     return NextResponse.json({
@@ -420,7 +364,7 @@ export async function POST(req: NextRequest) {
       ownerEmailSent,
     });
   } catch (err: any) {
-    console.error("update-order-status error:", err);
+    console.error("❌ update-order-status crash:", err?.message || err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

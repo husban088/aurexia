@@ -1,4 +1,5 @@
 /* ShippingSection.css - Fully Responsive Luxury Design */
+/* Premium Australian State Dropdown with Animations */
 
 .ss-shipping-section {
   display: flex;
@@ -25,12 +26,14 @@
   font-weight: 500;
   color: #1a1a1a;
   margin: 0;
+  letter-spacing: -0.01em;
 }
 
 .ss-section-title em {
   font-style: italic;
   color: #daa520;
   margin-right: 0.3em;
+  font-weight: 600;
 }
 
 .ss-fields-grid {
@@ -63,8 +66,33 @@
   grid-column: span 2;
 }
 
+.ss-field--half {
+  grid-column: span 1;
+}
+
 @media (max-width: 580px) {
-  .ss-field--full {
+  .ss-field--full,
+  .ss-field--half {
+    grid-column: span 1;
+  }
+}
+
+/* ============================================
+   LUXURY STATE DROPDOWN STYLES
+   ============================================ */
+.ss-state-field {
+  position: relative;
+  grid-column: span 1;
+}
+
+@media (min-width: 581px) and (max-width: 768px) {
+  .ss-state-field {
+    grid-column: span 1;
+  }
+}
+
+@media (min-width: 769px) {
+  .ss-state-field {
     grid-column: span 1;
   }
 }
@@ -76,18 +104,111 @@
   letter-spacing: 0.25em;
   text-transform: uppercase;
   color: #999999;
-  transition: color 0.5s var(--co-ease, 0.5s cubic-bezier(0.22, 1, 0.36, 1));
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.ss-label-star {
+  color: #daa520;
+  font-size: 0.7rem;
 }
 
 .ss-field--focused .ss-label,
 .ss-field--filled .ss-label {
   color: #8b6914;
+  transform: translateY(-2px);
 }
 
 .ss-input-wrap {
   position: relative;
 }
 
+/* Premium Select Wrapper */
+.ss-select-wrap {
+  position: relative;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+}
+
+/* Luxury Select Element */
+.ss-select {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0.6rem 2rem 0.6rem 0;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: clamp(0.75rem, 3vw, 0.8rem);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: #1a1a1a;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  transition: all 0.3s ease;
+}
+
+.ss-select option {
+  background: #ffffff;
+  color: #1a1a1a;
+  padding: 12px;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.8rem;
+}
+
+.ss-select option:checked {
+  background: linear-gradient(135deg, #daa52020, #f0c04020);
+  color: #daa520;
+}
+
+/* Premium Dropdown Arrow */
+.ss-select-arrow {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #aaa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  width: 20px;
+  height: 20px;
+  background: rgba(218, 165, 32, 0.05);
+  border-radius: 50%;
+}
+
+.ss-field--focused .ss-select-arrow {
+  color: #daa520;
+  transform: translateY(-50%) rotate(180deg);
+  background: rgba(218, 165, 32, 0.12);
+}
+
+/* Glow effect on focus */
+.ss-select-glow {
+  position: absolute;
+  inset: -2px;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: radial-gradient(
+    circle at center,
+    rgba(218, 165, 32, 0.15),
+    transparent
+  );
+}
+
+.ss-field--focused .ss-select-glow {
+  opacity: 1;
+}
+
+/* Input styles */
 .ss-input,
 .ss-select {
   width: 100%;
@@ -103,24 +224,17 @@
   caret-color: #daa520;
 }
 
-.ss-select {
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b6914' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0 center;
-  background-size: 14px;
-}
-
 .ss-input::placeholder {
   color: #cccccc;
 }
 
+/* Field Line Animation */
 .ss-field-line {
   height: 1px;
   background: rgba(139, 105, 20, 0.2);
   position: relative;
   overflow: hidden;
+  transition: all 0.3s ease;
 }
 
 .ss-field-line::after {
@@ -130,15 +244,27 @@
   top: 0;
   width: 100%;
   height: 100%;
-  background: #daa520;
-  transition: left 0.5s var(--co-ease, 0.5s cubic-bezier(0.22, 1, 0.36, 1));
+  background: linear-gradient(90deg, #daa520, #f0c040, #daa520);
+  transition: left 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .ss-field--focused .ss-field-line::after {
   left: 0;
 }
 
-/* Phone Input */
+.ss-field--error .ss-field-line {
+  background: rgba(220, 38, 38, 0.3);
+}
+
+.ss-field--error .ss-field-line::after {
+  background: #dc2626;
+}
+
+.ss-field--error .ss-label {
+  color: #dc2626;
+}
+
+/* Phone Input Styles */
 .ss-phone-prefix {
   position: absolute;
   left: 0;
@@ -153,6 +279,12 @@
   font-size: 0.7rem;
   pointer-events: none;
   z-index: 1;
+  transition: all 0.3s ease;
+}
+
+.ss-field--focused .ss-phone-prefix {
+  background: rgba(218, 165, 32, 0.15);
+  box-shadow: 0 0 8px rgba(218, 165, 32, 0.1);
 }
 
 @media (max-width: 480px) {
@@ -183,21 +315,27 @@
   }
 }
 
-/* Error states */
-.ss-field--error .ss-field-line::after {
-  background: #dc2626;
-}
-
-.ss-field--error .ss-label {
-  color: #dc2626;
-}
-
+/* Error & Hint Text */
 .ss-error-text {
   font-family: "Josefin Sans", sans-serif;
   font-size: 0.55rem;
   color: #dc2626;
   margin-top: 0.25rem;
   display: block;
+  animation: ss-shake 0.3s ease;
+}
+
+@keyframes ss-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
 }
 
 .ss-hint-text {
@@ -206,9 +344,23 @@
   color: #999999;
   margin-top: 0.25rem;
   display: block;
+  transition: all 0.3s ease;
 }
 
-/* Responsive adjustments */
+.ss-hint-success {
+  color: #27ae60;
+}
+
+/* Hover Effects for Fields */
+.ss-field:hover .ss-field-line {
+  background: rgba(139, 105, 20, 0.3);
+}
+
+.ss-select:hover {
+  color: #8b6914;
+}
+
+/* Responsive Adjustments */
 @media (max-width: 580px) {
   .ss-field {
     gap: 0.3rem;
@@ -216,11 +368,101 @@
   .ss-label {
     font-size: 0.52rem;
   }
-  .ss-input {
+  .ss-input,
+  .ss-select {
     padding: 0.5rem 0;
     font-size: 0.75rem;
   }
   .ss-error-text {
     font-size: 0.5rem;
+  }
+}
+
+/* Loading State for Dropdown */
+.ss-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Focus Ring for Accessibility */
+.ss-select:focus-visible {
+  outline: 2px solid #daa520;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Selected Value Animation */
+.ss-field--filled .ss-select {
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+/* Custom Scrollbar for Dropdown Options */
+.ss-select option {
+  scrollbar-width: thin;
+  scrollbar-color: #daa520 #f0e6d0;
+}
+
+.ss-select option::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ss-select option::-webkit-scrollbar-track {
+  background: #f0e6d0;
+  border-radius: 3px;
+}
+
+.ss-select option::-webkit-scrollbar-thumb {
+  background: #daa520;
+  border-radius: 3px;
+}
+
+/* Smooth Transition for All Elements */
+.ss-field,
+.ss-input,
+.ss-select,
+.ss-label,
+.ss-field-line {
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Premium Ripple Effect on Click */
+.ss-select-wrap:active .ss-select-arrow {
+  transform: translateY(-50%) scale(0.95);
+}
+
+/* Australian State Badge Animation (Optional) */
+@keyframes ss-state-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(218, 165, 32, 0.2);
+  }
+  70% {
+    box-shadow: 0 0 0 4px rgba(218, 165, 32, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(218, 165, 32, 0);
+  }
+}
+
+.ss-field--filled.ss-state-field {
+  animation: ss-state-pulse 0.6s ease-out;
+}
+
+/* Australia Map Icon (Decorative) */
+.ss-state-field::before {
+  content: "🇦🇺";
+  position: absolute;
+  right: -30px;
+  top: 28px;
+  font-size: 0.8rem;
+  opacity: 0;
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+@media (min-width: 992px) {
+  .ss-state-field:hover::before {
+    opacity: 0.5;
+    transform: translateX(5px);
   }
 }

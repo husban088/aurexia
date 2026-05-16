@@ -2,7 +2,7 @@
 // ✅ WASENDERAPI — PAID PLAN ACTIVE
 // ✅ WhatsApp messages email ke bilkul same content/structure
 // ✅ Currency auto-detect by customer country
-// ✅ Product image + text (paid plan)
+// ✅ Product image + text (paid plan) — ALL statuses: confirmed, shipped, delivered, cancelled
 // Docs: https://wasenderapi.com/api-docs
 
 // ─────────────────────────────────────────────────────────────
@@ -48,19 +48,16 @@ const PKR_RATES: Record<
 
 function getCurrencyConfig(country: string) {
   if (!country) return PKR_RATES["Pakistan"];
-  // Exact match
   if (PKR_RATES[country]) return PKR_RATES[country];
-  // Case-insensitive match
   const lower = country.toLowerCase();
   for (const [key, val] of Object.entries(PKR_RATES)) {
     if (key.toLowerCase() === lower) return val;
   }
-  // Partial match (e.g. "United Kingdom (UK)")
   for (const [key, val] of Object.entries(PKR_RATES)) {
     if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower))
       return val;
   }
-  return PKR_RATES["Pakistan"]; // fallback
+  return PKR_RATES["Pakistan"];
 }
 
 function formatPrice(amountPKR: number, country: string): string {
@@ -106,6 +103,19 @@ function isValidPublicImageUrl(url: string | null | undefined): boolean {
   )
     return false;
   return true;
+}
+
+// ─────────────────────────────────────────────────────────────
+// PICK BEST IMAGE from item (variant_image > image > product_image)
+// ─────────────────────────────────────────────────────────────
+function pickItemImage(item: {
+  variant_image?: string | null;
+  image?: string | null;
+  product_image?: string | null;
+}): string | null {
+  const url =
+    item.variant_image || item.image || item.product_image || null;
+  return isValidPublicImageUrl(url) ? url : null;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -227,6 +237,48 @@ export async function sendWhatsAppImage(
 }
 
 // ─────────────────────────────────────────────────────────────
+// HELPER: Send image first (if available), then text message
+// Used by ALL status notifications (confirmed, shipped, delivered, cancelled)
+// ─────────────────────────────────────────────────────────────
+async function sendImageThenText(
+  phoneNumber: string,
+  textMessage: string,
+  items: Array<{
+    name: string;
+    variant?: string | null;
+    variant_image?: string | null;
+    image?: string | null;
+    product_image?: string | null;
+  }>,
+  orderNumber: string,
+  statusLabel: string,
+): Promise<boolean> {
+  // Find first item with a valid image
+  const firstItemWithImage = items.find((item) => pickItemImage(item) !== null);
+  const imageUrl = firstItemWithImage ? pickItemImage(firstItemWithImage) : null;
+
+  if (imageUrl) {
+    const variantText =
+      firstItemWithImage?.variant && firstItemWithImage.variant !== "Standard"
+        ? ` (${firstItemWithImage.variant})`
+        : "";
+    const imageCaption = `🛍️ *${firstItemWithImage?.name}*${variantText}\n📦 Order #${orderNumber} — ${statusLabel} | Tech4U`;
+    console.log(`🖼️ Sending product image first (${statusLabel})...`);
+    const imageSent = await sendWhatsAppImage(phoneNumber, imageUrl, imageCaption);
+    if (imageSent) {
+      console.log("✅ Image sent — waiting 1.5s before text...");
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    } else {
+      console.warn("⚠️ Image failed — continuing with text only");
+    }
+  } else {
+    console.log(`ℹ️ No product image available for ${statusLabel} — text only`);
+  }
+
+  return sendWhatsAppMessage(phoneNumber, textMessage);
+}
+
+// ─────────────────────────────────────────────────────────────
 // ORDER CONFIRMATION WhatsApp
 // ✅ Matches email.ts sendOrderConfirmationEmail exactly
 // ✅ PAID PLAN: Image + Text
@@ -262,7 +314,6 @@ export async function sendOrderWhatsApp(
 
   console.log(`🌍 Country: "${country}" → Currency: ${cfg.code}`);
 
-  // ── Build items list (same as email ORDER SUMMARY table) ─────────────────
   let itemLines: string[] = [];
   let totalPKRCalc = 0;
 
@@ -281,19 +332,11 @@ export async function sendOrderWhatsApp(
 
   const displayTotal = formatPrice(total || totalPKRCalc, country);
 
-  // ── Currency note for non-PKR customers ──────────────────────────────────
   const currencyNote = !isPKR
     ? `\n💱 _Prices shown in ${cfg.code} (approx.)_`
     : "";
 
-  // ── MESSAGE — matches email structure exactly ─────────────────────────────
-  // Email has: Greeting → Order Info Box → Items Table → Shipping note → Footer
-  // WhatsApp:  Greeting → Order Info     → Items List  → Shipping note → Footer
-
-  const message = `╔══════════════════════╗
-  ✦ T E C H 4 U ✦
-  LUXURY ESSENTIALS
-╚══════════════════════╝
+  const message = `✦ T E C H 4 U ✦
 
 ✅ *Order Confirmed, ${name}!*
 Thank you for choosing Tech4U. Your order has been received and will be processed shortly.
@@ -326,46 +369,12 @@ You will receive updates when your order is processed and shipped.
     `📱 Order WhatsApp → ${phoneNumber} | #${orderNumber} | ${displayTotal} (${cfg.code})`,
   );
 
-  // ── PAID PLAN: Image first, then text ────────────────────────────────────
-  const firstItemWithImage = items.find((item) =>
-    isValidPublicImageUrl(
-      item.variant_image || item.image || item.product_image,
-    ),
-  );
-  const imageUrl = firstItemWithImage
-    ? firstItemWithImage.variant_image ||
-      firstItemWithImage.image ||
-      firstItemWithImage.product_image
-    : null;
-
-  if (imageUrl) {
-    const variantText =
-      firstItemWithImage?.variant && firstItemWithImage.variant !== "Standard"
-        ? ` (${firstItemWithImage.variant})`
-        : "";
-    const imageCaption = `🛍️ *${firstItemWithImage?.name}*${variantText}\n📦 Order #${orderNumber} — Tech4U`;
-    console.log("🖼️ Sending product image first...");
-    const imageSent = await sendWhatsAppImage(
-      phoneNumber,
-      imageUrl,
-      imageCaption,
-    );
-    if (imageSent) {
-      console.log("✅ Image sent — waiting 1.5s before text...");
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-    } else {
-      console.warn("⚠️ Image failed — continuing with text only");
-    }
-  } else {
-    console.log("ℹ️ No product image available — text only");
-  }
-
-  return sendWhatsAppMessage(phoneNumber, message);
+  return sendImageThenText(phoneNumber, message, items, orderNumber, "CONFIRMED ✅");
 }
 
 // ─────────────────────────────────────────────────────────────
-// SHIPPED WhatsApp
-// ✅ Matches email.ts sendStatusUpdateEmail "shipped" exactly
+// SHIPPED WhatsApp — with image support
+// ✅ PAID PLAN: Image + Text
 // ─────────────────────────────────────────────────────────────
 export function buildShippedWhatsApp(
   name: string,
@@ -411,10 +420,7 @@ ${displayTotal ? `💳 *TOTAL: ${displayTotal}*` : ""}
     ? `\n🔗 Track online: ${courierTrackingUrl}`
     : "";
 
-  return `╔══════════════════════╗
-  ✦ T E C H 4 U ✦
-  LUXURY ESSENTIALS
-╚══════════════════════╝
+  return `✦ T E C H 4 U ✦
 
 🚚 *Order Shipped, ${name}!*
 Great news — your order is on its way!
@@ -428,16 +434,54 @@ Great news — your order is on its way!
 📦 Tracking No: *${trackingNumber}*
 ⏱ Est. Delivery: *${estimatedDays}*${trackLine}
 ━━━━━━━━━━━━━━━━━━━━━━
-${itemLines}
-📧 info@tech4ru.com
+${itemLines}📧 info@tech4ru.com
 🌐 tech4ru.com
 
 ✦ TECH4U — Luxury Redefined ✦`;
 }
 
 // ─────────────────────────────────────────────────────────────
+// sendShippedWhatsApp — image + text for shipped status
+// ✅ PAID PLAN: Image first, then full shipped message
+// ─────────────────────────────────────────────────────────────
+export async function sendShippedWhatsApp(
+  phoneNumber: string,
+  name: string,
+  orderNumber: string,
+  courierName: string,
+  trackingNumber: string,
+  estimatedDays: string,
+  courierTrackingUrl: string | undefined,
+  items: Array<{
+    name: string;
+    variant?: string | null;
+    quantity: number;
+    price: number;
+    piecesPerUnit?: number;
+    variant_image?: string | null;
+    image?: string | null;
+    product_image?: string | null;
+  }>,
+  total: number,
+  country: string,
+): Promise<boolean> {
+  const message = buildShippedWhatsApp(
+    name,
+    orderNumber,
+    courierName,
+    trackingNumber,
+    estimatedDays,
+    courierTrackingUrl,
+    items,
+    total,
+    country,
+  );
+
+  return sendImageThenText(phoneNumber, message, items, orderNumber, "SHIPPED 🚚");
+}
+
+// ─────────────────────────────────────────────────────────────
 // DELIVERED WhatsApp
-// ✅ Matches email.ts sendStatusUpdateEmail "delivered" exactly
 // ─────────────────────────────────────────────────────────────
 export function buildDeliveredWhatsApp(
   name: string,
@@ -475,10 +519,7 @@ ${displayTotal ? `💳 *TOTAL: ${displayTotal}*` : ""}
 `;
   }
 
-  return `╔══════════════════════╗
-  ✦ T E C H 4 U ✦
-  LUXURY ESSENTIALS
-╚══════════════════════╝
+  return `✦ T E C H 4 U ✦
 
 ✅ *Order Delivered, ${name}!*
 
@@ -498,8 +539,32 @@ We hope you love your purchase! 🛍️
 }
 
 // ─────────────────────────────────────────────────────────────
+// sendDeliveredWhatsApp — image + text for delivered status
+// ✅ PAID PLAN: Image first, then full delivered message
+// ─────────────────────────────────────────────────────────────
+export async function sendDeliveredWhatsApp(
+  phoneNumber: string,
+  name: string,
+  orderNumber: string,
+  items: Array<{
+    name: string;
+    variant?: string | null;
+    quantity: number;
+    price: number;
+    piecesPerUnit?: number;
+    variant_image?: string | null;
+    image?: string | null;
+    product_image?: string | null;
+  }>,
+  total: number,
+  country: string,
+): Promise<boolean> {
+  const message = buildDeliveredWhatsApp(name, orderNumber, items, total, country);
+  return sendImageThenText(phoneNumber, message, items, orderNumber, "DELIVERED ✅");
+}
+
+// ─────────────────────────────────────────────────────────────
 // CANCELLED WhatsApp
-// ✅ Matches email.ts sendStatusUpdateEmail "cancelled" exactly
 // ─────────────────────────────────────────────────────────────
 export function buildCancelledWhatsApp(
   name: string,
@@ -540,10 +605,7 @@ ${displayTotal ? `💳 *TOTAL: ${displayTotal}*` : ""}
 
   const reasonBlock = cancelReason ? `\n📋 *REASON:* ${cancelReason}\n` : "";
 
-  return `╔══════════════════════╗
-  ✦ T E C H 4 U ✦
-  LUXURY ESSENTIALS
-╚══════════════════════╝
+  return `✦ T E C H 4 U ✦
 
 ❌ *Order Cancelled, ${name}*
 
@@ -563,7 +625,33 @@ We hope to serve you again soon. 🙏
 }
 
 // ─────────────────────────────────────────────────────────────
-// CONFIRMED WhatsApp (admin panel se manual confirm)
+// sendCancelledWhatsApp — image + text for cancelled status
+// ✅ PAID PLAN: Image first, then full cancelled message
+// ─────────────────────────────────────────────────────────────
+export async function sendCancelledWhatsApp(
+  phoneNumber: string,
+  name: string,
+  orderNumber: string,
+  cancelReason: string | undefined,
+  items: Array<{
+    name: string;
+    variant?: string | null;
+    quantity: number;
+    price: number;
+    piecesPerUnit?: number;
+    variant_image?: string | null;
+    image?: string | null;
+    product_image?: string | null;
+  }>,
+  total: number,
+  country: string,
+): Promise<boolean> {
+  const message = buildCancelledWhatsApp(name, orderNumber, cancelReason, items, total, country);
+  return sendImageThenText(phoneNumber, message, items, orderNumber, "CANCELLED ❌");
+}
+
+// ─────────────────────────────────────────────────────────────
+// CONFIRMED WhatsApp (text-only builder — used by buildConfirmedWhatsApp callers)
 // ─────────────────────────────────────────────────────────────
 export function buildConfirmedWhatsApp(
   name: string,
@@ -601,10 +689,7 @@ ${lines.join("\n")}
 `;
   }
 
-  return `╔══════════════════════╗
-  ✦ T E C H 4 U ✦
-  LUXURY ESSENTIALS
-╚══════════════════════╝
+  return `✦ T E C H 4 U ✦
 
 ✅ *Order Confirmed, ${name}!*
 Thank you for choosing Tech4U. Your order has been confirmed.
@@ -662,10 +747,7 @@ ${displayTotal ? `💳 *TOTAL: ${displayTotal}*` : ""}
 `;
   }
 
-  return `╔══════════════════════╗
-  ✦ T E C H 4 U ✦
-  LUXURY ESSENTIALS
-╚══════════════════════╝
+  return `✦ T E C H 4 U ✦
 
 ⚙️ *Order Processing, ${name}*
 

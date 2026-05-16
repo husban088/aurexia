@@ -23,6 +23,7 @@ interface FormData {
   city: string;
   zip: string;
   country: string;
+  state: string; // ✅ NEW: Australian state
   cardNumber: string;
   cardName: string;
   expiry: string;
@@ -38,6 +39,7 @@ interface FormErrors {
   apartment?: string;
   city?: string;
   zip?: string;
+  state?: string; // ✅ NEW
 }
 
 // ✅ Toast component
@@ -206,6 +208,18 @@ const currencyToPhone: Record<
   },
 };
 
+// ✅ Australian state full names for display
+const AUSTRALIAN_STATE_NAMES: Record<string, string> = {
+  NSW: "New South Wales",
+  VIC: "Victoria",
+  QLD: "Queensland",
+  WA: "Western Australia",
+  SA: "South Australia",
+  TAS: "Tasmania",
+  ACT: "Australian Capital Territory",
+  NT: "Northern Territory",
+};
+
 const STORAGE_KEY = "checkout_form_data";
 
 function generateOrderNumber(): string {
@@ -249,11 +263,14 @@ export default function Checkout() {
   );
   const [paymentMethod, setPaymentMethod] = useState<"card" | "paypal">("card");
 
-  // ✅ KEY FIX: Double-fire guard ref
+  // ✅ Double-fire guard ref
   const successCalledRef = useRef(false);
 
   const phoneInfo = currencyToPhone[currency.code] || currencyToPhone["USD"];
   const detectedCountryCode = currencyToCountry[currency.code] || "US";
+
+  // ✅ Is the customer in Australia?
+  const isAustralia = currency.code === "AUD";
 
   const [form, setForm] = useState<FormData>({
     firstName: "",
@@ -265,6 +282,7 @@ export default function Checkout() {
     city: "",
     zip: "",
     country: detectedCountryCode,
+    state: "", // ✅ NEW
     cardNumber: "",
     cardName: "",
     expiry: "",
@@ -367,8 +385,12 @@ export default function Checkout() {
         if (!value.trim()) return "City is required";
         return undefined;
       case "zip":
-        if (!value.trim()) return "ZIP/Postal code is required";
-        if (value.trim().length < 3) return "Enter a valid ZIP code";
+        if (!value.trim()) return "ZIP/Postcode is required";
+        if (value.trim().length < 3) return "Enter a valid postcode";
+        return undefined;
+      // ✅ NEW: State validation — only required for Australia
+      case "state":
+        if (isAustralia && !value.trim()) return "Please select your state";
         return undefined;
       default:
         return undefined;
@@ -376,6 +398,7 @@ export default function Checkout() {
   };
 
   const validateAll = (): boolean => {
+    // ✅ Include "state" in validation fields only for Australia
     const fields: (keyof FormData)[] = [
       "firstName",
       "lastName",
@@ -384,6 +407,7 @@ export default function Checkout() {
       "address",
       "city",
       "zip",
+      ...(isAustralia ? (["state"] as (keyof FormData)[]) : []),
     ];
     const newErrors: FormErrors = {};
     let valid = true;
@@ -407,10 +431,18 @@ export default function Checkout() {
 
   const fullPhone = `${phoneInfo.code}${form.phone}`;
   const customerName = `${form.firstName} ${form.lastName}`;
+
+  // ✅ shippingAddress — state included for Australia
+  const stateDisplay =
+    isAustralia && form.state
+      ? AUSTRALIAN_STATE_NAMES[form.state] || form.state
+      : null;
+
   const shippingAddress = [
     form.address,
     form.apartment,
     form.city,
+    stateDisplay, // ✅ State added here
     form.zip,
     phoneInfo.name,
   ]
@@ -431,7 +463,7 @@ export default function Checkout() {
   // ✅ MAIN FIX — handlePaymentSuccess
   // ============================================
   const handlePaymentSuccess = useCallback(() => {
-    // ✅ Double-fire guard — kabhi double na chale
+    // ✅ Double-fire guard
     if (successCalledRef.current) return;
     successCalledRef.current = true;
 
@@ -441,8 +473,6 @@ export default function Checkout() {
     const snapCount = getCartCount();
 
     // ✅ STEP 2: Order items prepare karo
-    // ✅ FIX: price = per-unit PKR price (NOT multiplied by quantity)
-    //         pricePKR = total line price (price * ppu * qty) — email ke liye
     const orderItems = validItems.map((item) => {
       const product = item.product ?? {
         name: item.variant_name || "Product",
@@ -450,8 +480,8 @@ export default function Checkout() {
       };
       const ppu = item.pieces_per_unit ?? 1;
       const pricePerPiece = item.variant_price ?? (product as any).price ?? 0;
-      const pricePerUnit = pricePerPiece * ppu; // 1 unit ki price (ppu pieces)
-      const lineTotalPKR = pricePerUnit * item.quantity; // total for this line
+      const pricePerUnit = pricePerPiece * ppu;
+      const lineTotalPKR = pricePerUnit * item.quantity;
       const imageUrl =
         item.variant_image ||
         (product as any).main_images?.[0] ||
@@ -464,19 +494,18 @@ export default function Checkout() {
         variant_name: item.variant_name ?? null,
         variant_image: item.variant_image ?? null,
         quantity: item.quantity,
-        // ✅ FIX: price = per-unit price (whatsapp.ts isko qty se multiply karta hai)
         price: pricePerUnit,
         pieces_per_unit: ppu,
         name: (product as any).name,
         variant: item.variant_name || null,
-        piecesPerUnit: 1, // ✅ FIX: 1 rakho kyunki price already per-unit hai
-        // ✅ pricePKR = line total (email ke liye — yahan already multiplied)
+        piecesPerUnit: 1,
         pricePKR: lineTotalPKR,
         image: imageUrl,
       };
     });
 
     // ✅ STEP 3: sessionStorage — order-success page ke liye data
+    // ✅ state field bhi include hai — order success page pe show hogi
     try {
       sessionStorage.setItem("payment_just_completed", "true");
       sessionStorage.setItem("payment_order_number", orderNumber);
@@ -484,27 +513,30 @@ export default function Checkout() {
         "order_success_data",
         JSON.stringify({
           orderNumber,
-          form,
+          form, // ✅ form.state included
           paymentMethod,
           snapItems,
           snapSubtotal,
           snapCount,
           phoneInfoName: phoneInfo.name,
           fullPhone,
-          shippingAddress,
+          shippingAddress, // ✅ State already inside shippingAddress
           currencyCode: currency.code,
+          // ✅ Explicit state fields for order-success page
+          customerState: form.state,
+          customerStateName: stateDisplay,
         }),
       );
     } catch {}
 
-    // ✅ STEP 4: UI update — toast dikhao
+    // ✅ STEP 4: UI update
     setShowToast(true);
     setIsRedirecting(true);
 
-    // ✅ STEP 5: FORAN redirect — koi await nahi, koi delay nahi
+    // ✅ STEP 5: Redirect immediately
     window.location.replace("/order-success");
 
-    // ✅ STEP 6: save-order — background fire-and-forget (keepalive)
+    // ✅ STEP 6: save-order — Supabase mein state bhi save hoga
     fetch("/api/save-order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -519,6 +551,7 @@ export default function Checkout() {
         city: form.city,
         zip: form.zip,
         country: phoneInfo.name,
+        state: stateDisplay || null, // ✅ NEW: Australian state Supabase mein save hoga
         subtotal,
         shipping_cost: shipping,
         total_amount: total,
@@ -530,10 +563,7 @@ export default function Checkout() {
       keepalive: true,
     }).catch((err) => console.error("save-order background error:", err));
 
-    // ✅ STEP 7: WhatsApp + Email — keepalive HATAYA (Vercel pe silent fail hota tha)
-    // ✅ FIX: keepalive: true REMOVED — WasenderAPI slow hai (~2-3s), Vercel function
-    //         keepalive ke saath request ko "best effort" pe chhod deta hai aur
-    //         WhatsApp silently fail hota tha. Ab normal fetch hai — properly await hoga.
+    // ✅ STEP 7: WhatsApp + Email notification
     fetch("/api/send-order-notification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -546,18 +576,15 @@ export default function Checkout() {
         subtotal,
         shipping,
         total,
-        shippingAddress,
+        shippingAddress, // ✅ state already inside this
         paymentMethod:
           paymentMethod === "card" ? "Credit/Debit Card (Stripe)" : "PayPal",
-        // ✅ Currency code — email conversion ke liye
         currency: currency.code,
-        // ✅ FIX: customerCountry — WhatsApp currency detection ke liye (pehle MISSING tha!)
         customerCountry: phoneInfo.name,
       }),
-      // ✅ keepalive REMOVED — causes silent WhatsApp failure on Vercel
     }).catch((err) => console.error("notification background error:", err));
 
-    // ✅ STEP 8: Cart clear — background
+    // ✅ STEP 8: Cart clear
     clearCart().catch(() => {});
     try {
       localStorage.removeItem(STORAGE_KEY);
@@ -579,6 +606,8 @@ export default function Checkout() {
     total,
     customerName,
     clearCart,
+    stateDisplay,
+    isAustralia,
   ]);
 
   const handlePaymentError = (error: string) => {

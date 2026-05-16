@@ -2106,6 +2106,14 @@ export default function OrdersPage() {
     setNotifResult(null);
 
     try {
+      const addressParts = [
+        shippingModalOrder.address,
+        shippingModalOrder.apartment,
+        `${shippingModalOrder.city}${shippingModalOrder.zip ? ", " + shippingModalOrder.zip : ""}`,
+        shippingModalOrder.country,
+      ].filter(Boolean);
+      const fullAddress = addressParts.join(", ");
+
       const res = await fetch("/api/admin/update-order-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2122,6 +2130,12 @@ export default function OrdersPage() {
           estimatedDays: data.estimatedDays,
           trackingNumber: data.trackingNumber,
           courierTrackingUrl: data.courierTrackingUrl,
+          // ✅ YEH TEENO FIELDS ADD KIYE — image ke liye zaroori hain
+          orderItems: shippingModalOrder.items,
+          totalAmount: shippingModalOrder.total_amount,
+          customerCountry: shippingModalOrder.country,
+          shippingAddress: fullAddress,
+          paymentMethod: shippingModalOrder.payment_method,
         }),
       });
 

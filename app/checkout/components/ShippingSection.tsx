@@ -14,6 +14,7 @@ interface FormData {
   city: string;
   zip: string;
   country: string;
+  state: string;
   cardNumber: string;
   cardName: string;
   expiry: string;
@@ -31,6 +32,7 @@ interface ShippingSectionProps {
     city: string;
     zip: string;
     country: string;
+    state: string;
   };
   setFormField: (
     key: keyof FormData,
@@ -45,6 +47,18 @@ interface ShippingSectionProps {
   selectedCountry?: string;
   onCountryChange?: (countryCode: string) => void;
 }
+
+// Australian states with abbreviations and full names
+const AUSTRALIAN_STATES = [
+  { value: "NSW", label: "New South Wales", abbr: "NSW" },
+  { value: "VIC", label: "Victoria", abbr: "VIC" },
+  { value: "QLD", label: "Queensland", abbr: "QLD" },
+  { value: "WA", label: "Western Australia", abbr: "WA" },
+  { value: "SA", label: "South Australia", abbr: "SA" },
+  { value: "TAS", label: "Tasmania", abbr: "TAS" },
+  { value: "ACT", label: "Australian Capital Territory", abbr: "ACT" },
+  { value: "NT", label: "Northern Territory", abbr: "NT" },
+];
 
 export default function ShippingSection({
   form,
@@ -87,8 +101,15 @@ export default function ShippingSection({
   };
 
   const phoneInfo = phoneMap[currency.code] || phoneMap["USD"];
+  const isAustralia = currency.code === "AUD";
 
   const isFieldFilled = (value: string) => value.trim().length > 0;
+
+  // Get selected state label for display
+  const getSelectedStateLabel = () => {
+    const state = AUSTRALIAN_STATES.find((s) => s.value === form.state);
+    return state?.label || "";
+  };
 
   return (
     <div className="ss-shipping-section">
@@ -273,17 +294,17 @@ export default function ShippingSection({
         {/* City */}
         <div
           className={`ss-field ${
-            focused === "city" ? "ss-field--focused" : ""
-          } ${isFieldFilled(form.city) ? "ss-field--filled" : ""} ${
-            getFieldError("city") ? "ss-field--error" : ""
-          }`}
+            !isAustralia ? "ss-field--half" : ""
+          } ${focused === "city" ? "ss-field--focused" : ""} ${
+            isFieldFilled(form.city) ? "ss-field--filled" : ""
+          } ${getFieldError("city") ? "ss-field--error" : ""}`}
         >
-          <label className="ss-label">City *</label>
+          <label className="ss-label">City / Suburb *</label>
           <div className="ss-input-wrap">
             <input
               type="text"
               className="ss-input"
-              placeholder="New York"
+              placeholder={isAustralia ? "Sydney" : "New York"}
               value={form.city}
               onChange={setFormField("city")}
               onFocus={() => setFocused("city")}
@@ -299,20 +320,85 @@ export default function ShippingSection({
           )}
         </div>
 
-        {/* ZIP */}
+        {/* Australian State Dropdown - Luxury Design */}
+        {isAustralia && (
+          <div
+            className={`ss-field ss-state-field ${
+              focused === "state" ? "ss-field--focused" : ""
+            } ${isFieldFilled(form.state) ? "ss-field--filled" : ""} ${
+              getFieldError("state") ? "ss-field--error" : ""
+            }`}
+          >
+            <label className="ss-label">
+              State / Territory <span className="ss-label-star">*</span>
+            </label>
+            <div className="ss-input-wrap ss-select-wrap">
+              <select
+                className="ss-input ss-select"
+                value={form.state}
+                onChange={setFormField("state")}
+                onFocus={() => setFocused("state")}
+                onBlur={() => {
+                  setFocused(null);
+                  handleBlur("state");
+                }}
+              >
+                <option value="" disabled>
+                  Select your state or territory
+                </option>
+                {AUSTRALIAN_STATES.map((state) => (
+                  <option key={state.value} value={state.value}>
+                    {state.label}
+                  </option>
+                ))}
+              </select>
+              <div className="ss-select-arrow" aria-hidden="true">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M2.5 4L6 7.5L9.5 4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <div className="ss-select-glow" />
+            </div>
+            <div className="ss-field-line" />
+            {getFieldError("state") && (
+              <span className="ss-error-text">{getFieldError("state")}</span>
+            )}
+            {form.state && !getFieldError("state") && (
+              <span className="ss-hint-text ss-hint-success">
+                ✓ {getSelectedStateLabel()} selected
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* ZIP / Postcode */}
         <div
           className={`ss-field ${
-            focused === "zip" ? "ss-field--focused" : ""
-          } ${isFieldFilled(form.zip) ? "ss-field--filled" : ""} ${
-            getFieldError("zip") ? "ss-field--error" : ""
-          }`}
+            !isAustralia ? "ss-field--half" : ""
+          } ${focused === "zip" ? "ss-field--focused" : ""} ${
+            isFieldFilled(form.zip) ? "ss-field--filled" : ""
+          } ${getFieldError("zip") ? "ss-field--error" : ""}`}
         >
-          <label className="ss-label">ZIP Code *</label>
+          <label className="ss-label">
+            {isAustralia ? "Postcode *" : "ZIP Code *"}
+          </label>
           <div className="ss-input-wrap">
             <input
               type="text"
               className="ss-input"
-              placeholder="10001"
+              placeholder={isAustralia ? "2000" : "10001"}
               value={form.zip}
               onChange={setFormField("zip")}
               onFocus={() => setFocused("zip")}

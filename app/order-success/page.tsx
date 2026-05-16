@@ -6,9 +6,6 @@ import { useRouter } from "next/navigation";
 import { useCurrency } from "@/app/context/CurrencyContext";
 import "./OrderSuccess.css";
 
-// ── Owner email — sirf is email se login hone pe notification section dikhe ──
-const OWNER_EMAIL = "info@tech4ru.com";
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface CartItem {
@@ -47,6 +44,7 @@ interface OrderData {
     apartment: string;
     city: string;
     zip: string;
+    state?: string;
   };
   paymentMethod: "card" | "paypal";
   snapItems: CartItem[];
@@ -56,6 +54,77 @@ interface OrderData {
   fullPhone: string;
   shippingAddress: string;
   currencyCode: string;
+  customerState?: string; // e.g. "NSW"
+  customerStateName?: string; // e.g. "New South Wales"
+}
+
+// ─── Notification Badge ───────────────────────────────────────────────────────
+
+function NotifStatusBadge({
+  sent,
+  sending,
+}: {
+  sent: boolean | null;
+  sending: boolean;
+}) {
+  if (sending || sent === null) {
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "6px",
+          color: "#888",
+          fontSize: "13px",
+          fontWeight: 500,
+        }}
+      >
+        <span
+          style={{
+            width: "12px",
+            height: "12px",
+            border: "2px solid #daa520",
+            borderTopColor: "transparent",
+            borderRadius: "50%",
+            display: "inline-block",
+            animation: "spin 0.8s linear infinite",
+            flexShrink: 0,
+          }}
+        />
+        Sending...
+      </span>
+    );
+  }
+  if (sent === true) {
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "5px",
+          color: "#22c55e",
+          fontSize: "13px",
+          fontWeight: 700,
+        }}
+      >
+        ✅ Sent Successfully
+      </span>
+    );
+  }
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "5px",
+        color: "#f59e0b",
+        fontSize: "13px",
+        fontWeight: 600,
+      }}
+    >
+      ⚠️ Failed to send
+    </span>
+  );
 }
 
 // ─── OrderSuccess UI Component ────────────────────────────────────────────────
@@ -70,6 +139,9 @@ interface OrderSuccessProps {
   city: string;
   zip: string;
   country?: string;
+  state?: string;
+  stateName?: string;
+  currencyCode?: string;
   orderNumber: string;
   paymentMethod: "card" | "paypal";
   items: CartItem[];
@@ -85,7 +157,6 @@ interface OrderSuccessProps {
   fullPhone: string;
   shippingAddress: string;
   formatPrice: (price: number) => string;
-  isOwner: boolean;
 }
 
 function OrderSuccessUI({
@@ -97,6 +168,9 @@ function OrderSuccessUI({
   city,
   zip,
   country,
+  state,
+  stateName,
+  currencyCode,
   orderNumber,
   paymentMethod,
   items,
@@ -107,11 +181,12 @@ function OrderSuccessUI({
   notifStatus,
   fullPhone,
   formatPrice,
-  isOwner,
 }: OrderSuccessProps) {
   const [visible, setVisible] = useState(false);
   const [checkAnim, setCheckAnim] = useState(false);
   const confettiRef = useRef<HTMLCanvasElement>(null);
+
+  const isAustralia = currencyCode === "AUD";
 
   const orderDate = new Date().toLocaleDateString("en-GB", {
     day: "numeric",
@@ -218,67 +293,6 @@ function OrderSuccessUI({
     };
   }, []);
 
-  // ✅ FIXED: Notification status — "Sent Successfully" jab msg gaya ho
-  const renderNotifStatus = (sent: boolean | null) => {
-    // Agar abhi bhi sending ho rahi hai
-    if (notifStatus.sending || sent === null) {
-      return (
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "5px",
-            color: "#888",
-            fontSize: "13px",
-          }}
-        >
-          <span
-            style={{
-              width: "12px",
-              height: "12px",
-              border: "2px solid #daa520",
-              borderTopColor: "transparent",
-              borderRadius: "50%",
-              display: "inline-block",
-              animation: "spin 0.8s linear infinite",
-            }}
-          />
-          Sending...
-        </span>
-      );
-    }
-    if (sent === true) {
-      return (
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "5px",
-            color: "#22c55e",
-            fontSize: "13px",
-            fontWeight: 600,
-          }}
-        >
-          ✅ Sent Successfully
-        </span>
-      );
-    }
-    // sent === false
-    return (
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "5px",
-          color: "#f59e0b",
-          fontSize: "13px",
-        }}
-      >
-        ⚠️ Failed to send
-      </span>
-    );
-  };
-
   return (
     <div className={`os-root ${visible ? "os-root--visible" : ""}`}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -329,93 +343,157 @@ function OrderSuccessUI({
             successfully.
           </p>
 
-          {/* ✅ OWNER-ONLY: Notification section — sirf info@tech4ru.com ko dikhe */}
-          {isOwner && (
+          {/* ─────────────────────────────────────────────────────────────────
+              ✅ NOTIFICATION STATUS CARD
+              Ab yeh HAMESHA dikhega — sirf owner email pe nahi
+              Har customer dekh sakta hai ke email/WhatsApp gaya ya nahi
+          ───────────────────────────────────────────────────────────────── */}
+          <div
+            style={{
+              background: "linear-gradient(135deg, #141414 0%, #1e1e1e 100%)",
+              border: "1px solid rgba(218,165,32,0.2)",
+              borderRadius: "14px",
+              padding: "18px 22px",
+              marginBottom: "24px",
+              boxShadow:
+                "0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.04)",
+            }}
+          >
+            {/* Card header */}
             <div
               style={{
-                background: "#f9f9f9",
-                border: "1px solid #eee",
-                borderRadius: "12px",
-                padding: "16px 20px",
-                marginBottom: "24px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "14px",
               }}
             >
-              <p
-                style={{
-                  margin: "0 0 4px",
-                  fontWeight: 700,
-                  fontSize: "13px",
-                  color: "#daa520",
-                  letterSpacing: "0.03em",
-                }}
-              >
-                🔐 Owner View
-              </p>
-              <p
-                style={{
-                  margin: "0 0 12px",
-                  fontWeight: 600,
-                  fontSize: "14px",
-                  color: "#333",
-                }}
-              >
-                📬 Notifications Sent:
-              </p>
+              <span style={{ fontSize: "18px" }}>📬</span>
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontWeight: 700,
+                    fontSize: "13px",
+                    color: "#daa520",
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Order Confirmation Sent
+                </p>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "12px",
+                    color: "#666",
+                    fontWeight: 400,
+                  }}
+                >
+                  Notifications dispatched to:
+                </p>
+              </div>
+            </div>
 
-              {/* Email status */}
+            {/* Email row */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "10px 14px",
+                background: "rgba(255,255,255,0.03)",
+                borderRadius: "8px",
+                marginBottom: "8px",
+                border: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
               <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "8px",
-                }}
+                style={{ display: "flex", alignItems: "center", gap: "10px" }}
               >
-                <span style={{ fontSize: "13px", color: "#555" }}>
-                  📧 Email:{" "}
-                  <strong
+                <span style={{ fontSize: "18px" }}>📧</span>
+                <div>
+                  <div
                     style={{
-                      fontFamily: "monospace",
+                      fontSize: "11px",
+                      color: "#666",
+                      fontWeight: 600,
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    Email
+                  </div>
+                  <div
+                    style={{
                       fontSize: "12px",
-                      color: "#333",
+                      color: "#bbb",
+                      fontFamily: "monospace",
                     }}
                   >
                     {email}
-                  </strong>
-                </span>
-                {renderNotifStatus(notifStatus.email)}
+                  </div>
+                </div>
               </div>
+              <NotifStatusBadge
+                sent={notifStatus.email}
+                sending={notifStatus.sending}
+              />
+            </div>
 
-              {/* WhatsApp status */}
+            {/* WhatsApp row */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "10px 14px",
+                background: "rgba(255,255,255,0.03)",
+                borderRadius: "8px",
+                border: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
               <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
+                style={{ display: "flex", alignItems: "center", gap: "10px" }}
               >
-                <span style={{ fontSize: "13px", color: "#555" }}>
-                  💬 WhatsApp:{" "}
-                  <strong
+                <span style={{ fontSize: "18px" }}>💬</span>
+                <div>
+                  <div
                     style={{
-                      fontFamily: "monospace",
+                      fontSize: "11px",
+                      color: "#666",
+                      fontWeight: 600,
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    WhatsApp
+                  </div>
+                  <div
+                    style={{
                       fontSize: "12px",
-                      color: "#333",
+                      color: "#bbb",
+                      fontFamily: "monospace",
                     }}
                   >
                     {fullPhone || "—"}
-                  </strong>
-                </span>
-                {fullPhone ? (
-                  renderNotifStatus(notifStatus.whatsapp)
-                ) : (
-                  <span style={{ fontSize: "12px", color: "#aaa" }}>
-                    No phone
-                  </span>
-                )}
+                  </div>
+                </div>
               </div>
+              {fullPhone ? (
+                <NotifStatusBadge
+                  sent={notifStatus.whatsapp}
+                  sending={notifStatus.sending}
+                />
+              ) : (
+                <span style={{ fontSize: "12px", color: "#444" }}>
+                  No phone
+                </span>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Order Details Card */}
           <div className="os-details-card">
@@ -484,8 +562,31 @@ function OrderSuccessUI({
               </div>
               <div className="os-detail-addr-line">
                 {city}
+                {/* ✅ State name for Australian orders */}
+                {isAustralia && stateName ? `, ${stateName}` : ""}
                 {zip ? ` — ${zip}` : ""}
               </div>
+              {/* ✅ State code badge — only for Australia */}
+              {isAustralia && state && (
+                <div style={{ marginTop: "4px", marginBottom: "2px" }}>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      background: "rgba(218,165,32,0.1)",
+                      color: "#daa520",
+                      border: "1px solid rgba(218,165,32,0.3)",
+                      borderRadius: "6px",
+                      padding: "2px 9px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      letterSpacing: "0.06em",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {state}
+                  </span>
+                </div>
+              )}
               {country && (
                 <div className="os-detail-addr-line os-detail-addr-country">
                   {country}
@@ -769,9 +870,8 @@ export default function OrderSuccessPage() {
 
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [ready, setReady] = useState(false);
-  const [isOwner, setIsOwner] = useState(false);
 
-  // ✅ FIXED: sending flag added — jab tak API response nahi aata "Sending..." dikhe
+  // ✅ sending: true — page load pe spinner dikhao jab tak API respond na kare
   const [notifStatus, setNotifStatus] = useState<{
     email: boolean | null;
     whatsapp: boolean | null;
@@ -791,11 +891,6 @@ export default function OrderSuccessPage() {
       const data: OrderData = JSON.parse(raw);
       setOrderData(data);
       setReady(true);
-
-      // ✅ Owner check — customer ka email info@tech4ru.com hai toh owner hai
-      // (Owner apna hi order test karta hai ya manually place karta hai)
-      const customerEmail = data.form.email?.toLowerCase().trim();
-      setIsOwner(customerEmail === OWNER_EMAIL.toLowerCase());
     } catch {
       router.replace("/");
     }
@@ -805,12 +900,11 @@ export default function OrderSuccessPage() {
   useEffect(() => {
     if (!orderData) return;
 
-    // Already sent guard — double-send se bachne ke liye
+    // ✅ Double-send guard
     const alreadySent = sessionStorage.getItem(
       `notif_sent_${orderData.orderNumber}`,
     );
     if (alreadySent) {
-      // Already sent — show success without re-sending
       setNotifStatus({ email: true, whatsapp: true, sending: false });
       return;
     }
@@ -827,7 +921,7 @@ export default function OrderSuccessPage() {
       phoneInfoName,
     } = orderData;
 
-    // ── Build items array for API ──────────────────────────────────────────────
+    // ── Build items for notification API ──────────────────────────────────────
     const items = snapItems.map((item) => {
       const ppu = item.pieces_per_unit ?? 1;
       const pricePerPiece =
@@ -850,7 +944,6 @@ export default function OrderSuccessPage() {
 
     const totalPKR = snapSubtotal;
 
-    // ── Fire notification API ──────────────────────────────────────────────────
     const sendNotifications = async () => {
       try {
         console.log(`📤 Sending notifications for order ${orderNumber}...`);
@@ -881,7 +974,6 @@ export default function OrderSuccessPage() {
           const emailOk = result.results?.emailSent === true;
           const whatsappOk = result.results?.whatsappSent === true;
 
-          // ✅ sending: false — ab status show hoga correctly
           setNotifStatus({
             email: emailOk,
             whatsapp: fullPhone ? whatsappOk : null,
@@ -931,7 +1023,7 @@ export default function OrderSuccessPage() {
     );
   }
 
-  // ── Render success page ──────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <OrderSuccessUI
       firstName={orderData.form.firstName}
@@ -943,6 +1035,9 @@ export default function OrderSuccessPage() {
       city={orderData.form.city}
       zip={orderData.form.zip}
       country={orderData.phoneInfoName}
+      state={orderData.customerState}
+      stateName={orderData.customerStateName}
+      currencyCode={orderData.currencyCode}
       orderNumber={orderData.orderNumber}
       paymentMethod={orderData.paymentMethod}
       items={orderData.snapItems}
@@ -954,7 +1049,6 @@ export default function OrderSuccessPage() {
       fullPhone={orderData.fullPhone}
       shippingAddress={orderData.shippingAddress}
       formatPrice={formatPrice}
-      isOwner={isOwner}
     />
   );
 }

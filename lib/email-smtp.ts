@@ -1,980 +1,644 @@
 // lib/email-smtp.ts
-// ✅ COMPLETE - Gmail SMTP with nodemailer
-// ✅ Full cart details with images, product names, variants, quantities, prices
-// ✅ Currency conversion from PKR based on customer's country
-// ✅ All statuses: confirmed, processing, shipped, delivered, cancelled
-// ✅ Cancel reason included in cancellation emails
+// ✅ ALL emails → INBOX (same transporter + plain text + no emoji subjects)
+// ✅ sendOrderConfirmationEmail — inbox-friendly, same as status emails
+// ✅ Currency properly used from formattedTotal + formattedItems
 
 import nodemailer from "nodemailer";
 
-// ─── Gmail SMTP Transporter ──────────────────────────────────────────────
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-});
-
-// ─── Currency Conversion ─────────────────────────────────────────────────
+// ── Currency helpers ──────────────────────────────────────────────────────────
 const PKR_RATES: Record<
   string,
-  { symbol: string; rate: number; locale: string; code: string }
+  { symbol: string; rate: number; code: string }
 > = {
-  Pakistan: { symbol: "₨", rate: 1, locale: "en-PK", code: "PKR" },
-  "United States": { symbol: "$", rate: 0.0036, locale: "en-US", code: "USD" },
-  "United Kingdom": { symbol: "£", rate: 0.0028, locale: "en-GB", code: "GBP" },
-  Australia: { symbol: "A$", rate: 0.0055, locale: "en-AU", code: "AUD" },
-  Canada: { symbol: "C$", rate: 0.0049, locale: "en-CA", code: "CAD" },
-  "United Arab Emirates": {
-    symbol: "د.إ",
-    rate: 0.013,
-    locale: "ar-AE",
-    code: "AED",
-  },
-  Germany: { symbol: "€", rate: 0.0033, locale: "de-DE", code: "EUR" },
-  France: { symbol: "€", rate: 0.0033, locale: "fr-FR", code: "EUR" },
-  "Saudi Arabia": { symbol: "﷼", rate: 0.013, locale: "ar-SA", code: "SAR" },
+  Pakistan: { symbol: "Rs.", rate: 1, code: "PKR" },
+  "United States": { symbol: "$", rate: 0.0036, code: "USD" },
+  USA: { symbol: "$", rate: 0.0036, code: "USD" },
+  US: { symbol: "$", rate: 0.0036, code: "USD" },
+  "United Kingdom": { symbol: "GBP", rate: 0.0028, code: "GBP" },
+  UK: { symbol: "GBP", rate: 0.0028, code: "GBP" },
+  GB: { symbol: "GBP", rate: 0.0028, code: "GBP" },
+  England: { symbol: "GBP", rate: 0.0028, code: "GBP" },
+  Australia: { symbol: "A$", rate: 0.0055, code: "AUD" },
+  AU: { symbol: "A$", rate: 0.0055, code: "AUD" },
+  Canada: { symbol: "C$", rate: 0.0049, code: "CAD" },
+  CA: { symbol: "C$", rate: 0.0049, code: "CAD" },
+  "United Arab Emirates": { symbol: "AED", rate: 0.013, code: "AED" },
+  UAE: { symbol: "AED", rate: 0.013, code: "AED" },
+  AE: { symbol: "AED", rate: 0.013, code: "AED" },
+  Dubai: { symbol: "AED", rate: 0.013, code: "AED" },
+  "Saudi Arabia": { symbol: "SAR", rate: 0.013, code: "SAR" },
+  SA: { symbol: "SAR", rate: 0.013, code: "SAR" },
+  KSA: { symbol: "SAR", rate: 0.013, code: "SAR" },
+  India: { symbol: "Rs", rate: 0.3, code: "INR" },
+  IN: { symbol: "Rs", rate: 0.3, code: "INR" },
+  Germany: { symbol: "EUR", rate: 0.0033, code: "EUR" },
+  France: { symbol: "EUR", rate: 0.0033, code: "EUR" },
+  Italy: { symbol: "EUR", rate: 0.0033, code: "EUR" },
+  Spain: { symbol: "EUR", rate: 0.0033, code: "EUR" },
+  Netherlands: { symbol: "EUR", rate: 0.0033, code: "EUR" },
 };
 
-function convertPrice(
-  pkrAmount: number,
-  country: string,
-): { formatted: string; code: string; symbol: string; amount: number } {
-  const cfg = PKR_RATES[country];
-  if (!cfg || cfg.code === "PKR") {
-    return {
-      formatted: "₨ " + Math.round(pkrAmount).toLocaleString("en-PK"),
-      code: "PKR",
-      symbol: "₨",
-      amount: pkrAmount,
-    };
+function getCurrencyForCountry(country: string) {
+  if (!country) return PKR_RATES["Pakistan"];
+  if (PKR_RATES[country]) return PKR_RATES[country];
+  const lower = country.toLowerCase();
+  for (const [key, val] of Object.entries(PKR_RATES)) {
+    if (key.toLowerCase() === lower || lower.includes(key.toLowerCase()))
+      return val;
   }
-  const converted = pkrAmount * cfg.rate;
-  return {
-    formatted: new Intl.NumberFormat(cfg.locale, {
-      style: "currency",
-      currency: cfg.code,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(converted),
-    code: cfg.code,
-    symbol: cfg.symbol,
-    amount: converted,
-  };
+  return PKR_RATES["Pakistan"];
 }
 
-// ─── Core sendEmail using SMTP ───────────────────────────────────────────
-async function sendEmail(
-  to: string | string[],
-  subject: string,
-  html: string,
-  text: string,
-): Promise<boolean> {
-  try {
-    const toArray = Array.isArray(to) ? to : [to];
-
-    await transporter.sendMail({
-      from: `"Tech4U" <${process.env.GMAIL_USER}>`,
-      to: toArray,
-      replyTo: "info@tech4ru.com",
-      subject,
-      html,
-      text,
-    });
-
-    console.log(`✅ Email sent to ${toArray.join(", ")} | ${subject}`);
-    return true;
-  } catch (err: any) {
-    console.error("❌ SMTP Email error:", err?.message || err);
-    return false;
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+// TRANSPORTER
+// ✅ Uses explicit SMTP (not just service:"gmail") — better deliverability
+// ✅ Port 587 + requireTLS — standard for transactional email
+// ─────────────────────────────────────────────────────────────────────────────
+function getTransporter() {
+  return nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+    tls: { rejectUnauthorized: true },
+  });
 }
 
-// ─── HTML Wrapper ────────────────────────────────────────────────────────
-function luxeWrap(content: string): string {
-  return `<!DOCTYPE html>
-<html>
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface FormattedItem {
+  name: string;
+  variant?: string | null;
+  quantity: number;
+  formattedPrice: string;
+  pricePKR?: number;
+  image?: string | null;
+  variant_image?: string | null;
+  product_image?: string | null;
+}
+
+// ── Item rows HTML ────────────────────────────────────────────────────────────
+function buildItemRows(items: FormattedItem[]): string {
+  return items
+    .map((item) => {
+      const variantText =
+        item.variant && item.variant !== "Standard"
+          ? `<br/><span style="font-size:12px;color:#888888;">${item.variant}</span>`
+          : "";
+      const imageUrl =
+        item.variant_image || item.image || item.product_image || null;
+      const imgCell = imageUrl
+        ? `<img src="${imageUrl}" alt="${item.name}" width="56" height="56" style="width:56px;height:56px;object-fit:cover;border-radius:8px;display:block;" />`
+        : `<div style="width:56px;height:56px;background-color:#f5f0e8;border-radius:8px;text-align:center;line-height:56px;font-size:18px;display:block;">Box</div>`;
+
+      return `<tr>
+      <td style="padding:12px 8px;border-bottom:1px solid #f0ead8;vertical-align:middle;width:72px;">${imgCell}</td>
+      <td style="padding:12px 8px;border-bottom:1px solid #f0ead8;vertical-align:middle;">
+        <span style="font-size:14px;color:#1a1a1a;font-weight:500;">${item.name}</span>${variantText}
+      </td>
+      <td style="padding:12px 8px;border-bottom:1px solid #f0ead8;vertical-align:middle;text-align:center;">
+        <span style="font-size:13px;color:#555555;">x${item.quantity}</span>
+      </td>
+      <td style="padding:12px 8px;border-bottom:1px solid #f0ead8;vertical-align:middle;text-align:right;">
+        <span style="font-size:14px;color:#1a1a1a;font-weight:600;">${item.formattedPrice}</span>
+      </td>
+    </tr>`;
+    })
+    .join("");
+}
+
+// ── Email HTML wrapper ────────────────────────────────────────────────────────
+// ✅ Valid XHTML — better email client compatibility
+function wrapEmail(title: string, body: string): string {
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tech4U</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #0a0a0a;
-      font-family: 'Georgia', 'Times New Roman', Times, serif;
-      padding: 40px 20px;
-    }
-    .email-container {
-      max-width: 620px;
-      margin: 0 auto;
-      background: #ffffff;
-      border-radius: 24px;
-      overflow: hidden;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    }
-    .email-header {
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      padding: 32px 24px;
-      text-align: center;
-      border-bottom: 3px solid #daa520;
-    }
-    .email-header h1 {
-      color: #daa520;
-      font-size: 28px;
-      letter-spacing: 2px;
-      font-weight: 400;
-      margin: 0;
-      font-family: 'Georgia', serif;
-    }
-    .email-header p {
-      color: rgba(255,255,255,0.7);
-      font-size: 13px;
-      margin-top: 8px;
-      letter-spacing: 1px;
-    }
-    .email-body {
-      padding: 32px 28px;
-      background: #fff;
-    }
-    .greeting {
-      margin-bottom: 28px;
-      border-left: 3px solid #daa520;
-      padding-left: 18px;
-    }
-    .greeting h2 {
-      color: #1a1a2e;
-      font-size: 20px;
-      font-weight: 500;
-      margin-bottom: 6px;
-    }
-    .greeting p {
-      color: #555;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-    .order-info {
-      background: #f8f6f2;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 28px;
-    }
-    .order-info-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 0;
-      border-bottom: 1px solid #e8e4dc;
-    }
-    .order-info-row:last-child {
-      border-bottom: none;
-    }
-    .order-info-label {
-      color: #666;
-      font-size: 13px;
-      letter-spacing: 0.5px;
-    }
-    .order-info-value {
-      color: #1a1a2e;
-      font-weight: 600;
-      font-size: 14px;
-    }
-    .order-number {
-      font-family: monospace;
-      color: #daa520;
-      font-weight: 700;
-      font-size: 15px;
-    }
-    .items-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: #1a1a2e;
-      margin: 28px 0 16px 0;
-      letter-spacing: 1px;
-      padding-bottom: 8px;
-      border-bottom: 2px solid #daa520;
-      display: inline-block;
-    }
-    .items-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 16px 0;
-    }
-    .items-table th {
-      text-align: left;
-      padding: 12px 8px;
-      color: #888;
-      font-weight: 500;
-      font-size: 11px;
-      letter-spacing: 1px;
-      border-bottom: 1px solid #eee;
-    }
-    .items-table td {
-      padding: 16px 8px;
-      border-bottom: 1px solid #f0f0f0;
-      vertical-align: middle;
-    }
-    .product-cell {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-    .product-image {
-      width: 60px;
-      height: 60px;
-      border-radius: 12px;
-      object-fit: cover;
-      background: #f5f5f5;
-      border: 1px solid #eee;
-    }
-    .product-name {
-      font-weight: 600;
-      color: #1a1a2e;
-      font-size: 14px;
-    }
-    .product-variant {
-      font-size: 11px;
-      color: #daa520;
-      margin-top: 3px;
-    }
-    .product-pieces {
-      font-size: 10px;
-      color: #888;
-      margin-top: 2px;
-    }
-    .total-row {
-      border-top: 2px solid #daa520;
-    }
-    .total-row td {
-      padding-top: 16px;
-      font-weight: 700;
-      font-size: 16px;
-    }
-    .shipping-info {
-      background: #f0f7ff;
-      border-radius: 16px;
-      padding: 20px;
-      margin: 24px 0;
-      border: 1px solid #d4e4fc;
-    }
-    .shipping-info h4 {
-      color: #1a5ba0;
-      font-size: 13px;
-      letter-spacing: 1px;
-      margin-bottom: 12px;
-    }
-    .tracking-link {
-      display: inline-block;
-      background: #daa520;
-      color: #1a1a2e;
-      padding: 12px 24px;
-      border-radius: 40px;
-      text-decoration: none;
-      font-weight: 700;
-      font-size: 14px;
-      margin-top: 12px;
-    }
-    .footer {
-      background: #f8f6f2;
-      padding: 24px 28px;
-      text-align: center;
-      border-top: 1px solid #e8e4dc;
-    }
-    .footer-logo {
-      font-size: 20px;
-      color: #daa520;
-      font-family: 'Georgia', serif;
-      margin-bottom: 12px;
-    }
-    .footer-links {
-      margin: 16px 0;
-    }
-    .footer-links a {
-      color: #666;
-      text-decoration: none;
-      font-size: 12px;
-      margin: 0 10px;
-    }
-    .footer-copyright {
-      color: #999;
-      font-size: 11px;
-    }
-    @media (max-width: 560px) {
-      .email-body { padding: 24px 16px; }
-      .product-image { width: 48px; height: 48px; }
-      .product-name { font-size: 12px; }
-    }
-  </style>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
 </head>
-<body>
-  <div class="email-container">
-    <div class="email-header">
-      <h1>TECH<span style="color:#fff">4U</span></h1>
-      <p>LUXURY ESSENTIALS</p>
-    </div>
-    <div class="email-body">
-      ${content}
-    </div>
-    <div class="footer">
-      <div class="footer-logo">✦ TECH4U ✦</div>
-      <div class="footer-links">
-        <a href="https://tech4ru.com">Shop</a>
-        <a href="https://tech4ru.com/contact">Contact</a>
-        <a href="https://tech4ru.com/returns">Returns</a>
-      </div>
-      <div class="footer-copyright">© 2024 Tech4U — Luxury Redefined</div>
-    </div>
-  </div>
+<body style="margin:0;padding:0;background-color:#f5f0e8;font-family:Georgia,serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f0e8">
+    <tr><td align="center" style="padding:32px 16px;">
+      <table width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="max-width:600px;border-radius:16px;">
+
+        <tr>
+          <td bgcolor="#1a1a1a" style="padding:32px 40px;text-align:center;border-radius:16px 16px 0 0;">
+            <p style="margin:0;font-size:11px;color:#daa520;letter-spacing:4px;text-transform:uppercase;">LUXURY ESSENTIALS</p>
+            <h1 style="margin:8px 0 0;font-size:28px;color:#ffffff;letter-spacing:2px;font-weight:400;font-family:Georgia,serif;">TECH4U</h1>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:36px 40px;background-color:#ffffff;">
+            ${body}
+          </td>
+        </tr>
+
+        <tr>
+          <td bgcolor="#1a1a1a" style="padding:24px 40px;text-align:center;border-radius:0 0 16px 16px;">
+            <p style="margin:0 0 6px;color:#daa520;font-size:11px;letter-spacing:3px;">TECH4U - LUXURY REDEFINED</p>
+            <p style="margin:0;color:#888888;font-size:12px;font-family:Arial,sans-serif;">
+              <a href="mailto:info@tech4ru.com" style="color:#daa520;text-decoration:none;">info@tech4ru.com</a>
+              &nbsp;|&nbsp;
+              <a href="https://tech4ru.com" style="color:#daa520;text-decoration:none;">tech4ru.com</a>
+            </p>
+            <p style="margin:8px 0 0;color:#666666;font-size:11px;font-family:Arial,sans-serif;">
+              You received this email because you placed an order at tech4ru.com
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
 </body>
 </html>`;
 }
 
-// ─── Helper function to get product name correctly ───────────────────────
-function getProductName(item: any): string {
-  return item.product_name || item.name || item.productName || "Product";
-}
-
-function getVariantName(item: any): string | null {
-  const variant = item.variant_name || item.variant || null;
-  if (variant === "Standard") return null;
-  return variant;
-}
-
-function getProductImage(item: any): string | null {
-  return item.variant_image || item.product_image || item.image || null;
-}
-
-function getPiecesPerUnit(item: any): number {
-  return item.pieces_per_unit || item.piecesPerUnit || 1;
-}
-
-function getItemPrice(item: any): number {
-  return item.price || 0;
-}
-
-function getItemQuantity(item: any): number {
-  return item.quantity || 0;
-}
-
-// ─── Build item rows for HTML email ─────────────────────────────────────
-function buildItemRowsHtml(
-  items: any[],
-  country?: string,
-): { html: string; subtotalFormatted: string; subtotalPKR: number } {
-  let subtotalPKR = 0;
-
-  const rowsHtml = items
-    .map((item) => {
-      const ppu = getPiecesPerUnit(item);
-      const price = getItemPrice(item);
-      const quantity = getItemQuantity(item);
-      const itemTotalPKR = price * ppu * quantity;
-      subtotalPKR += itemTotalPKR;
-
-      const totalData = country
-        ? convertPrice(itemTotalPKR, country)
-        : { formatted: "₨ " + itemTotalPKR.toLocaleString("en-PK") };
-
-      const itemImage = getProductImage(item);
-      const displayName = getProductName(item);
-      const variantName = getVariantName(item);
-
-      const perUnitPrice = country
-        ? convertPrice(price * ppu, country).formatted
-        : "₨ " + (price * ppu).toLocaleString("en-PK");
-
-      return `
-      <tr>
-        <td style="padding: 16px 8px; border-bottom: 1px solid #f0f0f0;">
-          <div class="product-cell" style="display: flex; align-items: center; gap: 14px;">
-            ${
-              itemImage
-                ? `<img src="${itemImage}" alt="${displayName}" class="product-image" style="width: 60px; height: 60px; border-radius: 12px; object-fit: cover;">`
-                : `
-              <div style="width: 60px; height: 60px; background: #f5f5f5; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 24px;">📦</div>
-            `
-            }
-            <div>
-              <div class="product-name" style="font-weight: 600; color: #1a1a2e;">${displayName}</div>
-              ${variantName ? `<div class="product-variant" style="font-size: 11px; color: #daa520; margin-top: 3px;">✨ ${variantName}</div>` : ""}
-              ${ppu > 1 ? `<div class="product-pieces" style="font-size: 10px; color: #888; margin-top: 2px;">📦 ${ppu} pieces per unit</div>` : ""}
-              <div style="font-size: 11px; color: #666; margin-top: 3px;">@ ${perUnitPrice} / unit</div>
-            </div>
-          </div>
-        </td>
-        <td style="padding: 16px 8px; border-bottom: 1px solid #f0f0f0; text-align: center; color: #555; font-weight: 600;">×${quantity}</td>
-        <td style="padding: 16px 8px; border-bottom: 1px solid #f0f0f0; text-align: right; font-weight: 700; color: #1a1a2e;">${totalData.formatted}</td>
-      </tr>
-    `;
-    })
-    .join("");
-
-  const totalData = country
-    ? convertPrice(subtotalPKR, country)
-    : { formatted: "₨ " + subtotalPKR.toLocaleString("en-PK") };
-
-  return {
-    html: rowsHtml,
-    subtotalFormatted: totalData.formatted,
-    subtotalPKR: subtotalPKR,
-  };
-}
-
-// ─── Build plain text items list ────────────────────────────────────────
-function buildItemRowsPlain(items: any[], country?: string): string {
-  return items
-    .map((item) => {
-      const ppu = getPiecesPerUnit(item);
-      const price = getItemPrice(item);
-      const quantity = getItemQuantity(item);
-      const totalPrice = price * ppu * quantity;
-      const priceFormatted = country
-        ? convertPrice(totalPrice, country).formatted
-        : "₨ " + totalPrice.toLocaleString("en-PK");
-      const perUnitFormatted = country
-        ? convertPrice(price * ppu, country).formatted
-        : "₨ " + (price * ppu).toLocaleString("en-PK");
-
-      const productName = getProductName(item);
-      const variantName = getVariantName(item);
-      const variantText = variantName ? ` (${variantName})` : "";
-      const piecesText = ppu > 1 ? ` [${ppu} pieces/unit]` : "";
-
-      return `  • ${productName}${variantText}${piecesText}\n    Quantity: ${quantity} × ${perUnitFormatted} = ${priceFormatted}`;
-    })
-    .join("\n");
-}
-
-// ============================================================
-// 1. ORDER CONFIRMATION - Customer (Complete cart details)
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
+// FUNCTION 1: ORDER CONFIRMATION (Customer)
+// ✅ Called by send-order-notification route on checkout success
+// ✅ Goes to INBOX: plain text body, no emoji subject, proper headers
+// ─────────────────────────────────────────────────────────────────────────────
 export async function sendOrderConfirmationEmail(
-  customerEmail: string,
+  to: string,
   orderNumber: string,
-  customerName: string,
+  name: string,
   items: any[],
-  total: number,
+  totalPKR: number,
   shippingAddress: string,
   paymentMethod: string,
-  currencyCode: string = "PKR",
-  formattedTotal?: string,
-  formattedItems?: any[],
-  customerCountry?: string,
+  currencyCode: string,
+  formattedTotal: string,
+  formattedItems: FormattedItem[],
+  customerCountry: string,
 ): Promise<boolean> {
-  const country = customerCountry || "Pakistan";
-  const itemsList =
-    Array.isArray(items) && items.length > 0
-      ? items
-      : (formattedItems as any) || [];
+  try {
+    const isPKR = currencyCode === "PKR";
 
-  console.log(
-    `[EMAIL] Building order confirmation for ${orderNumber} with ${itemsList.length} items`,
-  );
+    const rowsToUse =
+      formattedItems.length > 0
+        ? formattedItems
+        : items.map((item) => ({
+            name: item.name || item.product_name || "Product",
+            variant: item.variant || item.variant_name || null,
+            quantity: item.quantity || 1,
+            formattedPrice: formattedTotal,
+            variant_image: item.variant_image || null,
+            image: item.image || null,
+            product_image: item.product_image || null,
+          }));
 
-  const {
-    html: itemRowsHtml,
-    subtotalFormatted,
-    subtotalPKR,
-  } = buildItemRowsHtml(itemsList, country);
-  const displayTotal = country
-    ? convertPrice(total, country).formatted
-    : "₨ " + total.toLocaleString("en-PK");
+    const itemRows = buildItemRows(rowsToUse);
 
-  const addressHtml = (shippingAddress || "").replace(/\n/g, "<br>");
+    const body = `
+      <h2 style="margin:0 0 8px;font-size:22px;color:#1a1a1a;font-weight:400;font-family:Georgia,serif;">
+        Thank you, ${name}!
+      </h2>
+      <p style="margin:0 0 24px;color:#555555;font-size:15px;line-height:1.6;font-family:Arial,sans-serif;">
+        Your order has been confirmed. We will send WhatsApp and email updates as your order progresses.
+      </p>
 
-  const content = `
-    <div class="greeting">
-      <h2>Order Confirmed, ${customerName}</h2>
-      <p>Thank you for choosing Tech4U. Your order has been received and will be processed shortly.</p>
-    </div>
-    
-    <div class="order-info">
-      <div class="order-info-row">
-        <span class="order-info-label">ORDER NUMBER</span>
-        <span class="order-info-value order-number">${orderNumber}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">ORDER DATE</span>
-        <span class="order-info-value">${new Date().toLocaleDateString()}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">TOTAL AMOUNT</span>
-        <span class="order-info-value" style="color: #daa520; font-size: 18px;">${displayTotal}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">PAYMENT METHOD</span>
-        <span class="order-info-value">${paymentMethod === "card" ? "💳 Credit/Debit Card (Stripe)" : paymentMethod === "paypal" ? "🅿️ PayPal" : paymentMethod || "N/A"}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">SHIPPING ADDRESS</span>
-        <span class="order-info-value" style="text-align: right; max-width: 60%;">${addressHtml}</span>
-      </div>
-    </div>
-    
-    <div class="items-title">🛍️ ORDER SUMMARY</div>
-    <table class="items-table" style="width: 100%; border-collapse: collapse;">
-      <thead>
-        <tr>
-          <th style="text-align: left; padding: 12px 8px;">Product</th>
-          <th style="text-align: center; padding: 12px 8px;">Qty</th>
-          <th style="text-align: right; padding: 12px 8px;">Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${itemRowsHtml}
-        <tr class="total-row">
-          <td colspan="2" style="padding: 16px 8px; text-align: right; font-weight: 700;">GRAND TOTAL</td>
-          <td style="padding: 16px 8px; text-align: right; font-weight: 700; font-size: 18px; color: #daa520;">${displayTotal}</td>
-         </tr>
-      </tbody>
-    </table>
-    
-    <div style="margin-top: 32px; padding: 20px; background: #f8f6f2; border-radius: 16px; text-align: center;">
-      <p style="color: #555; font-size: 13px;">✨ Free shipping on all orders ✨</p>
-      <p style="color: #999; font-size: 12px; margin-top: 8px;">You will receive updates when your order is processed and shipped.</p>
-    </div>
-  `;
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f9f5ee" style="border:1px solid #e8dcc8;border-radius:12px;margin-bottom:28px;">
+        <tr><td style="padding:20px 24px;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="padding:6px 0;width:50%;">
+                <p style="margin:0;font-size:11px;color:#888888;text-transform:uppercase;letter-spacing:1px;font-family:Arial,sans-serif;">Order Number</p>
+                <p style="margin:4px 0 0;font-size:16px;color:#1a1a1a;font-weight:700;font-family:Arial,sans-serif;">${orderNumber}</p>
+              </td>
+              <td style="padding:6px 0;text-align:right;">
+                <p style="margin:0;font-size:11px;color:#888888;text-transform:uppercase;letter-spacing:1px;font-family:Arial,sans-serif;">Status</p>
+                <p style="margin:4px 0 0;font-size:14px;color:#2e7d32;font-weight:600;font-family:Arial,sans-serif;">Confirmed</p>
+              </td>
+            </tr>
+            <tr><td colspan="2"><div style="border-top:1px solid #e8dcc8;margin:12px 0;"></div></td></tr>
+            <tr>
+              <td style="padding:4px 0;">
+                <p style="margin:0;font-size:11px;color:#888888;text-transform:uppercase;letter-spacing:1px;font-family:Arial,sans-serif;">Payment</p>
+                <p style="margin:4px 0 0;font-size:14px;color:#1a1a1a;font-family:Arial,sans-serif;">${paymentMethod}</p>
+              </td>
+              <td style="padding:4px 0;text-align:right;">
+                <p style="margin:0;font-size:11px;color:#888888;text-transform:uppercase;letter-spacing:1px;font-family:Arial,sans-serif;">Shipping</p>
+                <p style="margin:4px 0 0;font-size:14px;color:#2e7d32;font-weight:600;font-family:Arial,sans-serif;">FREE</p>
+              </td>
+            </tr>
+            ${
+              shippingAddress
+                ? `
+            <tr>
+              <td colspan="2" style="padding:10px 0 0;">
+                <p style="margin:0;font-size:11px;color:#888888;text-transform:uppercase;letter-spacing:1px;font-family:Arial,sans-serif;">Shipping To</p>
+                <p style="margin:4px 0 0;font-size:13px;color:#555555;font-family:Arial,sans-serif;">${shippingAddress}</p>
+              </td>
+            </tr>`
+                : ""
+            }
+          </table>
+        </td></tr>
+      </table>
 
-  const text = `TECH4U - ORDER CONFIRMED ✅
+      <h3 style="margin:0 0 12px;font-size:12px;color:#888888;text-transform:uppercase;letter-spacing:2px;font-weight:600;font-family:Arial,sans-serif;">
+        Order Summary
+      </h3>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e8dcc8;border-radius:12px;margin-bottom:16px;">
+        <thead>
+          <tr bgcolor="#f5f0e8">
+            <th style="padding:10px 8px;font-size:11px;color:#888888;text-align:left;width:72px;font-family:Arial,sans-serif;"></th>
+            <th style="padding:10px 8px;font-size:11px;color:#888888;text-align:left;font-family:Arial,sans-serif;">Product</th>
+            <th style="padding:10px 8px;font-size:11px;color:#888888;text-align:center;font-family:Arial,sans-serif;">Qty</th>
+            <th style="padding:10px 8px;font-size:11px;color:#888888;text-align:right;font-family:Arial,sans-serif;">Price (${currencyCode})</th>
+          </tr>
+        </thead>
+        <tbody>${itemRows}</tbody>
+        <tfoot>
+          <tr bgcolor="#f9f5ee">
+            <td colspan="3" style="padding:14px 8px;font-size:14px;color:#888888;font-weight:600;font-family:Arial,sans-serif;">Total Amount</td>
+            <td style="padding:14px 8px;font-size:18px;color:#daa520;font-weight:700;text-align:right;font-family:Arial,sans-serif;">${formattedTotal}</td>
+          </tr>
+        </tfoot>
+      </table>
 
-Hello ${customerName},
+      ${!isPKR ? `<p style="font-size:12px;color:#aaaaaa;font-style:italic;margin:0 0 16px;font-family:Arial,sans-serif;">Prices shown in ${currencyCode} (approximate conversion from PKR)</p>` : ""}
 
-Your order has been confirmed!
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f0faf0" style="border:1px solid #c8e6c9;border-radius:10px;margin-top:20px;">
+        <tr><td style="padding:14px 18px;text-align:center;">
+          <p style="margin:0;font-size:14px;color:#2e7d32;font-weight:600;font-family:Arial,sans-serif;">Free Shipping Included</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#555555;font-family:Arial,sans-serif;">You will receive a WhatsApp message with tracking when your order ships.</p>
+        </td></tr>
+      </table>
+    `;
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ORDER DETAILS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Order Number: ${orderNumber}
-Order Date: ${new Date().toLocaleDateString()}
-Total: ${displayTotal}
-Payment: ${paymentMethod === "card" ? "Credit/Debit Card" : paymentMethod === "paypal" ? "PayPal" : paymentMethod}
-Ship To: ${shippingAddress}
+    // ✅ Plain text — required for inbox delivery
+    const text = [
+      `Order Confirmed - Tech4U`,
+      ``,
+      `Hi ${name},`,
+      ``,
+      `Your order #${orderNumber} has been confirmed.`,
+      `Payment: ${paymentMethod}`,
+      `Shipping: Free`,
+      shippingAddress ? `Shipping To: ${shippingAddress}` : "",
+      ``,
+      `Order Total: ${formattedTotal}${!isPKR ? ` (${currencyCode} approx.)` : ""}`,
+      ``,
+      `Items:`,
+      ...rowsToUse.map(
+        (i) =>
+          `- ${i.name}${i.variant ? ` (${i.variant})` : ""} x${i.quantity}: ${i.formattedPrice}`,
+      ),
+      ``,
+      `Questions? Email us: info@tech4ru.com`,
+      `tech4ru.com`,
+    ]
+      .filter((l) => l !== null)
+      .join("\n");
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ITEMS ORDERED
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const html = wrapEmail(`Order Confirmed - ${orderNumber}`, body);
+    const transporter = getTransporter();
 
-${buildItemRowsPlain(itemsList, country)}
+    await transporter.sendMail({
+      from: `Tech4U Orders <${process.env.GMAIL_USER}>`,
+      replyTo: `Tech4U Support <${process.env.GMAIL_USER}>`,
+      to,
+      // ✅ NO emoji in subject — main reason for spam
+      subject: `Order Confirmed - #${orderNumber} - Tech4U`,
+      html,
+      text, // ✅ Plain text alternative — KEY for inbox
+    });
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Total: ${displayTotal}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-✨ Free shipping on all orders
-
-You will receive updates when your order is processed and shipped.
-
-Questions? Contact us at info@tech4ru.com
-
-Thank you for shopping with Tech4U! 🛍️`;
-
-  return sendEmail(
-    customerEmail,
-    `✅ Order Confirmed — ${orderNumber}`,
-    luxeWrap(content),
-    text,
-  );
+    console.log(
+      `✅ Confirmation email → ${to} [${currencyCode}: ${formattedTotal}]`,
+    );
+    return true;
+  } catch (err: any) {
+    console.error("❌ sendOrderConfirmationEmail:", err?.message || err);
+    return false;
+  }
 }
 
-// ============================================================
-// 2. OWNER ORDER ALERT (Complete details for admin)
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
+// FUNCTION 2: OWNER ORDER ALERT
+// ─────────────────────────────────────────────────────────────────────────────
 export async function sendOwnerOrderAlert(
   orderNumber: string,
   customerName: string,
   customerEmail: string,
   customerPhone: string,
   items: any[],
-  total: number,
+  totalPKR: number,
   shippingAddress: string,
   paymentMethod: string,
-  currencyCode: string = "PKR",
-  formattedTotal?: string,
-  formattedItems?: any[],
-  customerCountry?: string,
+  currencyCode: string,
+  formattedTotal: string,
+  formattedItems: FormattedItem[],
+  customerCountry: string,
 ): Promise<boolean> {
-  const ownerEmails = (process.env.OWNER_EMAILS || "tech4ruu@gmail.com")
-    .split(",")
-    .map((e) => e.trim())
-    .filter(Boolean);
+  const ownerEmail = process.env.OWNER_EMAIL || process.env.GMAIL_USER;
+  if (!ownerEmail) return false;
 
-  const now = new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" });
-  const itemsList =
-    Array.isArray(items) && items.length > 0
-      ? items
-      : (formattedItems as any) || [];
-  const displayTotal = "₨ " + Math.round(total).toLocaleString("en-PK");
+  try {
+    const isPKR = currencyCode === "PKR";
+    const pkrTotal = `Rs. ${Math.round(totalPKR).toLocaleString("en-PK")}`;
 
-  const itemRowsPlain = itemsList
-    .map((item: any) => {
-      const ppu = getPiecesPerUnit(item);
-      const price = getItemPrice(item);
-      const quantity = getItemQuantity(item);
-      const itemTotal = price * ppu * quantity;
-      const productName = getProductName(item);
-      const variantName = getVariantName(item);
-      const variantText = variantName ? ` (${variantName})` : "";
-      const piecesText = ppu > 1 ? ` [${ppu} pieces/unit]` : "";
-      return `  • ${productName}${variantText}${piecesText}\n    Qty: ${quantity} × ₨ ${(price * ppu).toLocaleString()} = ₨ ${itemTotal.toLocaleString()}`;
-    })
-    .join("\n");
+    const rowsToUse =
+      formattedItems.length > 0
+        ? formattedItems
+        : items.map((item) => ({
+            name: item.name || item.product_name || "Product",
+            variant: item.variant || item.variant_name || null,
+            quantity: item.quantity || 1,
+            formattedPrice: formattedTotal,
+          }));
 
-  const content = `
-    <div class="greeting">
-      <h2>🛍️ New Order Received</h2>
-      <p style="color: #666;">${now} PKT</p>
-    </div>
-    
-    <div class="order-info">
-      <div class="order-info-row">
-        <span class="order-info-label">ORDER NUMBER</span>
-        <span class="order-info-value order-number">${orderNumber}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">TOTAL (PKR)</span>
-        <span class="order-info-value">${displayTotal}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">PAYMENT METHOD</span>
-        <span class="order-info-value">${paymentMethod}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">CUSTOMER</span>
-        <span class="order-info-value">${customerName}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">COUNTRY</span>
-        <span class="order-info-value">${customerCountry || "Pakistan"}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">EMAIL</span>
-        <span class="order-info-value">${customerEmail}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">PHONE</span>
-        <span class="order-info-value">${customerPhone}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">ADDRESS</span>
-        <span class="order-info-value" style="text-align: right;">${shippingAddress}</span>
-      </div>
-    </div>
-    
-    <div class="items-title">📦 ORDER ITEMS</div>
-    <pre style="background: #f5f5f5; padding: 16px; border-radius: 12px; font-size: 12px; overflow-x: auto; font-family: monospace;">${itemRowsPlain}</pre>
-    <p style="margin-top: 16px; font-weight: 700; text-align: right; font-size: 16px;">Total: ${displayTotal}</p>
-  `;
+    const body = `
+      <h2 style="margin:0 0 4px;font-size:20px;color:#1a1a1a;font-family:Georgia,serif;">New Order Received!</h2>
+      <p style="margin:0 0 24px;color:#555555;font-size:14px;font-family:Arial,sans-serif;">Order #${orderNumber}</p>
 
-  const text = `🛍️ NEW ORDER RECEIVED - Tech4U
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f9f5ee" style="border:1px solid #e8dcc8;border-radius:12px;margin-bottom:24px;">
+        <tr><td style="padding:16px 20px;">
+          <p style="margin:0 0 10px;font-size:11px;color:#888888;text-transform:uppercase;letter-spacing:1px;font-family:Arial,sans-serif;">Customer Details</p>
+          <table cellpadding="5" cellspacing="0" border="0">
+            <tr><td style="font-size:13px;color:#888888;font-family:Arial,sans-serif;width:90px;">Name</td><td style="font-size:13px;color:#1a1a1a;font-weight:600;font-family:Arial,sans-serif;">${customerName}</td></tr>
+            <tr><td style="font-size:13px;color:#888888;font-family:Arial,sans-serif;">Email</td><td style="font-size:13px;color:#1a1a1a;font-family:Arial,sans-serif;">${customerEmail}</td></tr>
+            <tr><td style="font-size:13px;color:#888888;font-family:Arial,sans-serif;">Phone</td><td style="font-size:13px;color:#1a1a1a;font-family:Arial,sans-serif;">${customerPhone || "-"}</td></tr>
+            <tr><td style="font-size:13px;color:#888888;font-family:Arial,sans-serif;">Country</td><td style="font-size:13px;color:#1a1a1a;font-family:Arial,sans-serif;">${customerCountry}</td></tr>
+            <tr><td style="font-size:13px;color:#888888;font-family:Arial,sans-serif;">Payment</td><td style="font-size:13px;color:#1a1a1a;font-family:Arial,sans-serif;">${paymentMethod}</td></tr>
+            <tr><td style="font-size:13px;color:#888888;font-family:Arial,sans-serif;">Address</td><td style="font-size:13px;color:#555555;font-family:Arial,sans-serif;">${shippingAddress || "-"}</td></tr>
+          </table>
+        </td></tr>
+      </table>
 
-Time: ${now} PKT
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e8dcc8;border-radius:12px;margin-bottom:16px;">
+        <thead>
+          <tr bgcolor="#f5f0e8">
+            <th style="padding:10px 8px;font-size:11px;color:#888888;text-align:left;width:72px;font-family:Arial,sans-serif;"></th>
+            <th style="padding:10px 8px;font-size:11px;color:#888888;text-align:left;font-family:Arial,sans-serif;">Product</th>
+            <th style="padding:10px 8px;font-size:11px;color:#888888;text-align:center;font-family:Arial,sans-serif;">Qty</th>
+            <th style="padding:10px 8px;font-size:11px;color:#888888;text-align:right;font-family:Arial,sans-serif;">${currencyCode} Price</th>
+          </tr>
+        </thead>
+        <tbody>${buildItemRows(rowsToUse)}</tbody>
+        <tfoot>
+          <tr bgcolor="#f9f5ee">
+            <td colspan="3" style="padding:12px 8px;font-size:13px;color:#888888;font-family:Arial,sans-serif;">Total (${currencyCode})</td>
+            <td style="padding:12px 8px;font-size:16px;color:#daa520;font-weight:700;text-align:right;font-family:Arial,sans-serif;">${formattedTotal}</td>
+          </tr>
+          ${!isPKR ? `<tr><td colspan="3" style="padding:4px 8px 12px;font-size:12px;color:#888888;font-family:Arial,sans-serif;">Total (PKR)</td><td style="padding:4px 8px 12px;font-size:13px;color:#555555;text-align:right;font-family:Arial,sans-serif;">${pkrTotal}</td></tr>` : ""}
+        </tfoot>
+      </table>
+    `;
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ORDER SUMMARY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Order Number: ${orderNumber}
-Total: ${displayTotal}
-Payment: ${paymentMethod}
+    const text = `New Order #${orderNumber} - Tech4U\n\nCustomer: ${customerName}\nEmail: ${customerEmail}\nPhone: ${customerPhone || "-"}\nCountry: ${customerCountry}\nPayment: ${paymentMethod}\nAddress: ${shippingAddress || "-"}\n\nTotal (${currencyCode}): ${formattedTotal}${!isPKR ? `\nTotal (PKR): ${pkrTotal}` : ""}`;
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CUSTOMER DETAILS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Name: ${customerName}
-Country: ${customerCountry || "Pakistan"}
-Email: ${customerEmail}
-Phone: ${customerPhone}
-Address: ${shippingAddress}
+    const html = wrapEmail(`New Order #${orderNumber}`, body);
+    const transporter = getTransporter();
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ITEMS ORDERED
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    await transporter.sendMail({
+      from: `Tech4U Orders <${process.env.GMAIL_USER}>`,
+      replyTo: `Tech4U Orders <${process.env.GMAIL_USER}>`,
+      to: ownerEmail,
+      subject: `New Order #${orderNumber} - ${customerName} (${currencyCode}: ${formattedTotal})`,
+      html,
+      text,
+    });
 
-${itemRowsPlain}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Total: ${displayTotal}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Process this order in the admin panel.`;
-
-  return sendEmail(
-    ownerEmails,
-    `🛍️ New Order ${orderNumber} — ${displayTotal}`,
-    luxeWrap(content),
-    text,
-  );
+    console.log(
+      `✅ Owner alert → ${ownerEmail} [${currencyCode}: ${formattedTotal}]`,
+    );
+    return true;
+  } catch (err: any) {
+    console.error("❌ sendOwnerOrderAlert:", err?.message || err);
+    return false;
+  }
 }
 
-// ============================================================
-// 3. STATUS UPDATE EMAIL - Customer (Shipped/Delivered/Cancelled/Processing)
-// ✅ UPDATED: Includes cancelReason parameter
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
+// FUNCTION 3: STATUS UPDATE EMAIL — shipped / delivered / cancelled
+// ✅ Already goes to inbox — keeping exact same pattern
+// ─────────────────────────────────────────────────────────────────────────────
 export async function sendStatusUpdateEmail(
-  customerEmail: string,
+  to: string,
   customerName: string,
   orderNumber: string,
-  newStatus: "shipped" | "delivered" | "cancelled" | "confirmed" | "processing",
+  status: "shipped" | "delivered" | "cancelled" | "processing" | "confirmed",
   trackingNumber?: string,
   courierName?: string,
   courierTrackingUrl?: string,
   estimatedDays?: string,
   items?: any[],
-  formattedItems?: any[],
-  displayTotal?: string,
+  formattedItems?: FormattedItem[],
+  formattedTotal?: string,
   customerCountry?: string,
-  cancelReason?: string, // ✅ ADDED: Cancel reason parameter
+  cancelReason?: string,
 ): Promise<boolean> {
-  const country = customerCountry || "Pakistan";
+  try {
+    const country = customerCountry || "Pakistan";
+    const cfg = getCurrencyForCountry(country);
+    const currencyCode = cfg.code;
+    const displayTotal = formattedTotal || "-";
+    const fItems = formattedItems || [];
 
-  let statusTitle = "";
-  let statusIcon = "";
-  let statusColor = "";
-  let statusMessage = "";
+    const statusConfig: Record<
+      string,
+      { label: string; title: string; color: string; message: string }
+    > = {
+      shipped: {
+        label: "SHIPPED",
+        title: "Your Order Has Shipped",
+        color: "#1565c0",
+        message:
+          "Great news! Your order is on its way. Track it using the details below.",
+      },
+      delivered: {
+        label: "DELIVERED",
+        title: "Order Delivered",
+        color: "#2e7d32",
+        message:
+          "Your order has been delivered. We hope you love your purchase!",
+      },
+      cancelled: {
+        label: "CANCELLED",
+        title: "Order Cancelled",
+        color: "#c62828",
+        message: cancelReason
+          ? `Your order has been cancelled. Reason: ${cancelReason}`
+          : "Your order has been cancelled. Please contact us if you have questions.",
+      },
+      processing: {
+        label: "PROCESSING",
+        title: "Order Being Processed",
+        color: "#e65100",
+        message:
+          "We are preparing your order. You will receive an update when it ships.",
+      },
+      confirmed: {
+        label: "CONFIRMED",
+        title: "Order Confirmed",
+        color: "#2e7d32",
+        message: "Your order has been confirmed and will be processed shortly.",
+      },
+    };
 
-  if (newStatus === "shipped") {
-    statusTitle = "Order Shipped";
-    statusIcon = "🚚";
-    statusColor = "#daa520";
-    statusMessage = "Great news! Your order is on its way to you.";
-  } else if (newStatus === "delivered") {
-    statusTitle = "Order Delivered";
-    statusIcon = "✅";
-    statusColor = "#22c55e";
-    statusMessage =
-      "Your order has been successfully delivered. We hope you love your purchase!";
-  } else if (newStatus === "cancelled") {
-    statusTitle = "Order Cancelled";
-    statusIcon = "❌";
-    statusColor = "#ef4444";
-    // ✅ UPDATED: Include cancel reason in message if provided
-    statusMessage = cancelReason
-      ? `Your order has been cancelled. Reason: ${cancelReason}`
-      : "Your order has been cancelled as requested.";
-  } else if (newStatus === "confirmed") {
-    statusTitle = "Order Confirmed";
-    statusIcon = "✓";
-    statusColor = "#daa520";
-    statusMessage = "Your order has been confirmed and will be processed soon.";
-  } else {
-    statusTitle = "Order Processing";
-    statusIcon = "⚙️";
-    statusColor = "#f59e0b";
-    statusMessage = "Your order is now being prepared for shipment.";
-  }
+    const sc = statusConfig[status] || statusConfig["processing"];
 
-  let itemsHtml = "";
-  let itemsPlain = "";
-  let totalDisplayFormatted = displayTotal;
+    const shippingBlock =
+      status === "shipped" && courierName
+        ? `
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#e8f4fd" style="border:1px solid #bee3f8;border-radius:12px;margin:20px 0;">
+        <tr><td style="padding:16px 20px;">
+          <p style="margin:0 0 10px;font-size:12px;color:#1565c0;font-weight:600;text-transform:uppercase;letter-spacing:1px;font-family:Arial,sans-serif;">Shipping Details</p>
+          <table cellpadding="5" cellspacing="0" border="0">
+            <tr><td style="font-size:13px;color:#555555;font-family:Arial,sans-serif;min-width:110px;">Courier</td><td style="font-size:13px;color:#1a1a1a;font-weight:600;font-family:Arial,sans-serif;">${courierName}</td></tr>
+            ${trackingNumber ? `<tr><td style="font-size:13px;color:#555555;font-family:Arial,sans-serif;">Tracking No.</td><td style="font-size:13px;color:#1a1a1a;font-weight:600;font-family:Arial,sans-serif;">${trackingNumber}</td></tr>` : ""}
+            ${estimatedDays ? `<tr><td style="font-size:13px;color:#555555;font-family:Arial,sans-serif;">Est. Delivery</td><td style="font-size:13px;color:#1a1a1a;font-family:Arial,sans-serif;">${estimatedDays}</td></tr>` : ""}
+            ${courierTrackingUrl ? `<tr><td colspan="2" style="padding-top:8px;"><a href="${courierTrackingUrl}" style="color:#1565c0;font-size:13px;font-family:Arial,sans-serif;">Track Your Order &rarr;</a></td></tr>` : ""}
+          </table>
+        </td></tr>
+      </table>`
+        : "";
 
-  const itemsList =
-    items && Array.isArray(items) && items.length > 0
-      ? items
-      : (formattedItems as any) || [];
-
-  if (itemsList.length > 0) {
-    const { html: itemRowsHtml, subtotalFormatted } = buildItemRowsHtml(
-      itemsList,
-      country,
-    );
-    totalDisplayFormatted = subtotalFormatted;
-
-    itemsHtml = `
-      <div class="items-title">🛍️ ORDER SUMMARY</div>
-      <table class="items-table" style="width: 100%; border-collapse: collapse;">
+    const itemsBlock =
+      fItems.length > 0
+        ? `
+      <h3 style="margin:20px 0 10px;font-size:12px;color:#888888;text-transform:uppercase;letter-spacing:2px;font-family:Arial,sans-serif;">Order Summary</h3>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e8dcc8;border-radius:10px;margin-bottom:16px;">
         <thead>
-          <tr>
-            <th style="text-align: left; padding: 12px 8px;">Product</th>
-            <th style="text-align: center; padding: 12px 8px;">Qty</th>
-            <th style="text-align: right; padding: 12px 8px;">Total</th>
+          <tr bgcolor="#f5f0e8">
+            <th style="padding:8px;font-size:11px;color:#888888;text-align:left;width:72px;font-family:Arial,sans-serif;"></th>
+            <th style="padding:8px;font-size:11px;color:#888888;text-align:left;font-family:Arial,sans-serif;">Product</th>
+            <th style="padding:8px;font-size:11px;color:#888888;text-align:center;font-family:Arial,sans-serif;">Qty</th>
+            <th style="padding:8px;font-size:11px;color:#888888;text-align:right;font-family:Arial,sans-serif;">${currencyCode}</th>
           </tr>
         </thead>
-        <tbody>
-          ${itemRowsHtml}
-          <tr class="total-row">
-            <td colspan="2" style="padding: 16px 8px; text-align: right; font-weight: 700;">TOTAL</td>
-            <td style="padding: 16px 8px; text-align: right; font-weight: 700;">${totalDisplayFormatted}</td>
-           </tr>
-        </tbody>
+        <tbody>${buildItemRows(fItems)}</tbody>
+        <tfoot>
+          <tr bgcolor="#f9f5ee">
+            <td colspan="3" style="padding:12px 8px;font-size:13px;color:#888888;font-family:Arial,sans-serif;">Total</td>
+            <td style="padding:12px 8px;font-size:16px;color:#daa520;font-weight:700;text-align:right;font-family:Arial,sans-serif;">${displayTotal}</td>
+          </tr>
+        </tfoot>
       </table>
+      ${cfg.code !== "PKR" ? `<p style="font-size:11px;color:#aaaaaa;font-style:italic;margin:0 0 16px;font-family:Arial,sans-serif;">Prices shown in ${cfg.code} (approx.)</p>` : ""}`
+        : "";
+
+    const body = `
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+        <tr><td align="center">
+          <table cellpadding="0" cellspacing="0" border="0">
+            <tr><td bgcolor="${sc.color}22" style="border:1px solid ${sc.color}66;border-radius:50px;padding:10px 24px;">
+              <span style="font-size:15px;color:${sc.color};font-weight:600;font-family:Arial,sans-serif;">${sc.label} - ${sc.title}</span>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+
+      <p style="margin:0 0 8px;font-size:16px;color:#1a1a1a;font-family:Georgia,serif;">Hi ${customerName},</p>
+      <p style="margin:0 0 20px;font-size:14px;color:#555555;line-height:1.7;font-family:Arial,sans-serif;">${sc.message}</p>
+
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f9f5ee" style="border:1px solid #e8dcc8;border-radius:10px;margin-bottom:20px;">
+        <tr><td style="padding:14px 18px;font-family:Arial,sans-serif;">
+          <span style="font-size:13px;color:#888888;">Order Number: </span>
+          <span style="font-size:14px;color:#1a1a1a;font-weight:700;">${orderNumber}</span>
+        </td></tr>
+      </table>
+
+      ${shippingBlock}
+      ${itemsBlock}
     `;
-    itemsPlain = buildItemRowsPlain(itemsList, country);
+
+    const text = [
+      `${sc.title} - Tech4U`,
+      ``,
+      `Hi ${customerName},`,
+      ``,
+      sc.message,
+      ``,
+      `Order: ${orderNumber}`,
+      status === "shipped" && courierName ? `Courier: ${courierName}` : "",
+      trackingNumber ? `Tracking: ${trackingNumber}` : "",
+      estimatedDays ? `Est. Delivery: ${estimatedDays}` : "",
+      courierTrackingUrl ? `Track: ${courierTrackingUrl}` : "",
+      `Total: ${displayTotal}`,
+      ``,
+      `tech4ru.com | info@tech4ru.com`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const html = wrapEmail(`${sc.title} - ${orderNumber}`, body);
+    const transporter = getTransporter();
+
+    await transporter.sendMail({
+      from: `Tech4U Orders <${process.env.GMAIL_USER}>`,
+      replyTo: `Tech4U Support <${process.env.GMAIL_USER}>`,
+      to,
+      // ✅ NO emoji — same as other emails that reach inbox
+      subject: `${sc.title} - Order #${orderNumber} - Tech4U`,
+      html,
+      text,
+    });
+
+    console.log(
+      `✅ Status email (${status}) → ${to} [${currencyCode}: ${displayTotal}]`,
+    );
+    return true;
+  } catch (err: any) {
+    console.error("❌ sendStatusUpdateEmail:", err?.message || err);
+    return false;
   }
-
-  let shippingInfoHtml = "";
-  let shippingInfoPlain = "";
-  if (newStatus === "shipped" && courierName && trackingNumber) {
-    const trackUrl = courierTrackingUrl || "";
-    shippingInfoHtml = `
-      <div class="shipping-info">
-        <h4>📦 SHIPPING DETAILS</h4>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-          <span style="color: #666;">Courier:</span>
-          <span style="font-weight: 600;">${courierName}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-          <span style="color: #666;">Tracking Number:</span>
-          <span style="font-weight: 600; font-family: monospace;">${trackingNumber}</span>
-        </div>
-        ${
-          estimatedDays
-            ? `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-          <span style="color: #666;">Est. Delivery:</span>
-          <span style="font-weight: 600;">${estimatedDays}</span>
-        </div>
-        `
-            : ""
-        }
-        ${trackUrl ? `<a href="${trackUrl}" class="tracking-link">🔗 Track Your Order</a>` : ""}
-      </div>
-    `;
-    shippingInfoPlain = `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nSHIPPING DETAILS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCourier: ${courierName}\nTracking Number: ${trackingNumber}${estimatedDays ? `\nEst. Delivery: ${estimatedDays}` : ""}\n`;
-  }
-
-  const content = `
-    <div class="greeting">
-      <h2>${statusIcon} ${statusTitle}, ${customerName}</h2>
-      <p>${statusMessage}</p>
-      <p style="margin-top: 5px;">Order #${orderNumber}</p>
-    </div>
-    
-    <div class="order-info">
-      <div class="order-info-row">
-        <span class="order-info-label">STATUS</span>
-        <span class="order-info-value" style="color: ${statusColor};">${newStatus.toUpperCase()}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">ORDER NUMBER</span>
-        <span class="order-info-value order-number">${orderNumber}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">DATE</span>
-        <span class="order-info-value">${new Date().toLocaleDateString()}</span>
-      </div>
-    </div>
-    
-    ${shippingInfoHtml}
-    ${itemsHtml}
-    
-    <div style="margin-top: 24px; text-align: center;">
-      <a href="https://tech4ru.com" style="color: #daa520; text-decoration: none; font-size: 13px;">Visit Tech4U →</a>
-    </div>
-  `;
-
-  const subjects: Record<string, string> = {
-    confirmed: `✅ Order Confirmed — ${orderNumber}`,
-    processing: `⚙️ Order Processing — ${orderNumber}`,
-    shipped: `🚚 Order Shipped — ${orderNumber}`,
-    delivered: `✅ Order Delivered — ${orderNumber}`,
-    cancelled: `❌ Order Cancelled — ${orderNumber}`,
-  };
-
-  const text = `${statusIcon} ${statusTitle.toUpperCase()} - Tech4U
-
-Hello ${customerName},
-
-${statusMessage}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ORDER DETAILS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Order #${orderNumber}
-Status: ${newStatus.toUpperCase()}
-Date: ${new Date().toLocaleDateString()}
-${shippingInfoPlain}
-${itemsPlain ? `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nITEMS ORDERED\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${itemsPlain}\n` : ""}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Total: ${totalDisplayFormatted || displayTotal}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Questions? Contact us at info@tech4ru.com
-
-Thank you for shopping with Tech4U! 🛍️`;
-
-  return sendEmail(customerEmail, subjects[newStatus], luxeWrap(content), text);
 }
 
-// ============================================================
-// 4. OWNER STATUS ALERT
-// ============================================================
+// ─────────────────────────────────────────────────────────────────────────────
+// FUNCTION 4: OWNER STATUS ALERT
+// ─────────────────────────────────────────────────────────────────────────────
 export async function sendOwnerStatusAlert(
   orderNumber: string,
   customerName: string,
   customerEmail: string,
   customerPhone: string,
-  status: "shipped" | "delivered" | "cancelled" | "confirmed" | "processing",
-  extraInfo?: string,
+  status: string,
+  notes?: string,
 ): Promise<boolean> {
-  const ownerEmails = (process.env.OWNER_EMAILS || "tech4ruu@gmail.com")
-    .split(",")
-    .map((e) => e.trim())
-    .filter(Boolean);
+  const ownerEmail = process.env.OWNER_EMAIL || process.env.GMAIL_USER;
+  if (!ownerEmail) return false;
 
-  const statusLabel = status.toUpperCase();
-  const now = new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" });
+  try {
+    const label = status.toUpperCase();
 
-  const statusEmoji: Record<string, string> = {
-    shipped: "🚚",
-    delivered: "✅",
-    cancelled: "❌",
-    confirmed: "✓",
-    processing: "⚙️",
-  };
+    const body = `
+      <h2 style="margin:0 0 16px;font-size:18px;color:#1a1a1a;font-family:Georgia,serif;">Order Status Update</h2>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e8dcc8;border-radius:10px;">
+        <tr bgcolor="#f5f0e8"><td style="padding:10px 16px;font-size:13px;color:#888888;font-family:Arial,sans-serif;width:110px;">Order</td><td style="padding:10px 16px;font-size:14px;color:#1a1a1a;font-weight:700;font-family:Arial,sans-serif;">${orderNumber}</td></tr>
+        <tr><td style="padding:10px 16px;font-size:13px;color:#888888;font-family:Arial,sans-serif;">Status</td><td style="padding:10px 16px;font-size:14px;color:#1a1a1a;font-family:Arial,sans-serif;">${label}</td></tr>
+        <tr bgcolor="#f5f0e8"><td style="padding:10px 16px;font-size:13px;color:#888888;font-family:Arial,sans-serif;">Customer</td><td style="padding:10px 16px;font-size:14px;color:#1a1a1a;font-family:Arial,sans-serif;">${customerName}</td></tr>
+        <tr><td style="padding:10px 16px;font-size:13px;color:#888888;font-family:Arial,sans-serif;">Email</td><td style="padding:10px 16px;font-size:14px;color:#1a1a1a;font-family:Arial,sans-serif;">${customerEmail}</td></tr>
+        <tr bgcolor="#f5f0e8"><td style="padding:10px 16px;font-size:13px;color:#888888;font-family:Arial,sans-serif;">Phone</td><td style="padding:10px 16px;font-size:14px;color:#1a1a1a;font-family:Arial,sans-serif;">${customerPhone || "-"}</td></tr>
+        ${notes ? `<tr><td style="padding:10px 16px;font-size:13px;color:#888888;font-family:Arial,sans-serif;">Notes</td><td style="padding:10px 16px;font-size:13px;color:#555555;font-family:Arial,sans-serif;">${notes}</td></tr>` : ""}
+      </table>
+    `;
 
-  const content = `
-    <div class="greeting">
-      <h2>${statusEmoji[status]} ${statusLabel} — Admin Alert</h2>
-      <p style="color: #666;">${now} PKT</p>
-    </div>
-    
-    <div class="order-info">
-      <div class="order-info-row">
-        <span class="order-info-label">ORDER</span>
-        <span class="order-info-value">${orderNumber}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">STATUS</span>
-        <span class="order-info-value">${statusLabel}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">CUSTOMER</span>
-        <span class="order-info-value">${customerName}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">EMAIL</span>
-        <span class="order-info-value">${customerEmail}</span>
-      </div>
-      <div class="order-info-row">
-        <span class="order-info-label">PHONE</span>
-        <span class="order-info-value">${customerPhone}</span>
-      </div>
-      ${extraInfo ? `<div class="order-info-row"><span class="order-info-label">INFO</span><span class="order-info-value">${extraInfo}</span></div>` : ""}
-    </div>
-  `;
+    const text = `Order ${label} - Tech4U\n\nOrder: ${orderNumber}\nStatus: ${label}\nCustomer: ${customerName}\nEmail: ${customerEmail}\nPhone: ${customerPhone || "-"}${notes ? `\nNotes: ${notes}` : ""}`;
+    const html = wrapEmail(`Order ${label} - ${orderNumber}`, body);
+    const transporter = getTransporter();
 
-  const text = `${statusEmoji[status]} ${statusLabel} - Tech4U Admin
+    await transporter.sendMail({
+      from: `Tech4U Orders <${process.env.GMAIL_USER}>`,
+      replyTo: `Tech4U Orders <${process.env.GMAIL_USER}>`,
+      to: ownerEmail,
+      subject: `Order ${label} - #${orderNumber} (${customerName})`,
+      html,
+      text,
+    });
 
-Time: ${now} PKT
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ORDER UPDATE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Order: ${orderNumber}
-Status: ${statusLabel}
-Customer: ${customerName}
-Email: ${customerEmail}
-Phone: ${customerPhone}
-${extraInfo ? `Info: ${extraInfo}` : ""}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-
-  const subjects: Record<string, string> = {
-    shipped: `🚚 Order ${orderNumber} Shipped`,
-    delivered: `✅ Order ${orderNumber} Delivered`,
-    cancelled: `❌ Order ${orderNumber} Cancelled`,
-    confirmed: `✓ Order ${orderNumber} Confirmed`,
-    processing: `⚙️ Order ${orderNumber} Processing`,
-  };
-
-  return sendEmail(ownerEmails, subjects[status], luxeWrap(content), text);
+    console.log(`✅ Owner status alert (${status}) → ${ownerEmail}`);
+    return true;
+  } catch (err: any) {
+    console.error("❌ sendOwnerStatusAlert:", err?.message || err);
+    return false;
+  }
 }
