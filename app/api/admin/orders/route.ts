@@ -11,7 +11,7 @@ import {
   sendOwnerStatusAlert,
   sendOrderConfirmationEmail,
   sendOwnerOrderAlert,
-} from "@/lib/email";
+} from "@/lib/email-smtp";
 
 // ─── Supabase Client ──────────────────────────────────────────────────────────
 function getClient() {

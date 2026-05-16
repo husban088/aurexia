@@ -1,4 +1,4 @@
-// app/panel/orders/page.tsx  ← APNE ACTUAL PATH PE RAKHO
+// app/panel/orders/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -39,11 +39,10 @@ interface Order {
   items: OrderItem[];
   created_at: string;
   updated_at: string;
-  // Shipping fields (Supabase mein save honge)
   courier_name?: string;
   courier_country?: string;
   tracking_number?: string;
-  courier_tracking_url?: string; // owner ka diya hua courier website link
+  courier_tracking_url?: string;
   estimated_days?: string;
   shipped_at?: string;
 }
@@ -56,7 +55,6 @@ type Toast = {
 };
 
 // ─── COURIER CONFIG ───────────────────────────────────────────────────────────
-// Har country ke couriers + estimated delivery days
 
 const COURIER_CONFIG: Record<
   string,
@@ -152,10 +150,7 @@ const COURIER_CONFIG: Record<
   },
 };
 
-// ─── COURIER TRACKING URLs ────────────────────────────────────────────────────
-// Har courier ka base tracking URL (tracking number append hoga ya customer enter karega)
 const COURIER_TRACKING_URLS: Record<string, string> = {
-  // Pakistan
   leopard: "https://www.leopardscourier.com/leopards-tracking/?track_numbers=",
   tcs: "https://www.tcs.com.pk/tracking.php?rno=",
   postex: "https://postex.pk/tracking/",
@@ -164,7 +159,6 @@ const COURIER_TRACKING_URLS: Record<string, string> = {
   call_courier: "https://callcourier.com.pk/tracking?tracking_no=",
   "m&p": "https://moversnpackers.com.pk/tracking?consignment=",
   swyft: "https://swyftlogistics.com/tracking?awb=",
-  // UK
   royal_mail: "https://www.royalmail.com/track-your-item#/tracking-results/",
   dpd_uk: "https://track.dpd.co.uk/parcels/",
   evri: "https://www.evri.com/track-a-parcel#/parcel/",
@@ -172,7 +166,6 @@ const COURIER_TRACKING_URLS: Record<string, string> = {
   yodel: "https://www.yodel.co.uk/tracking/",
   ups_uk: "https://www.ups.com/track?loc=en_GB&tracknum=",
   fedex_uk: "https://www.fedex.com/fedextrack/?trknbr=",
-  // Australia
   auspost: "https://auspost.com.au/mypost/track/#/details/",
   startrack: "https://startrack.com.au/tracking?id=",
   courier_please: "https://www.couriersplease.com.au/tools/track?consignment=",
@@ -181,25 +174,21 @@ const COURIER_TRACKING_URLS: Record<string, string> = {
   fastway_aus: "https://www.fastway.com.au/tools/track?l=&dest=&cnum=",
   dhl_aus:
     "https://www.dhl.com/au-en/home/tracking/tracking-express.html?submit=1&tracking-id=",
-  // US
   usps: "https://tools.usps.com/go/TrackConfirmAction?tLabels=",
   ups_us: "https://www.ups.com/track?tracknum=",
   fedex_us: "https://www.fedex.com/fedextrack/?trknbr=",
   amazon_us: "https://www.amazon.com/gp/your-account/ship-track?itemId=",
   ontrac: "https://www.ontrac.com/tracking/?number=",
-  // UAE
   aramex: "https://www.aramex.com/us/en/track/results?ShipmentNumber=",
   dhl_uae: "https://www.dhl.com/ae-en/home/tracking.html?tracking-id=",
   fetchr: "https://www.fetchr.com/tracking?number=",
   smsa_uae: "https://www.smsaexpress.com/trackingdetails?tracknumbers=",
-  // Canada
   canada_post:
     "https://www.canadapost-postescanada.ca/track-reperage/en#/search?searchFor=",
   purolator:
     "https://www.purolator.com/en/track-and-manage/track-your-packages?pin=",
   ups_ca: "https://www.ups.com/track?loc=en_CA&tracknum=",
   fedex_ca: "https://www.fedex.com/en-ca/tracking.html?tracknumbers=",
-  // Generic
   dhl: "https://www.dhl.com/en/express/tracking.html?AWB=",
   fedex: "https://www.fedex.com/fedextrack/?trknbr=",
   ups: "https://www.ups.com/track?tracknum=",
@@ -215,7 +204,6 @@ function getCourierTrackingUrl(
   return trackingNum ? base + encodeURIComponent(trackingNum) : base;
 }
 
-// Default "Other" — agar country match na ho
 const OTHER_COURIERS = [
   { id: "dhl", name: "DHL", days: "3–7 business days" },
   { id: "fedex", name: "FedEx", days: "2–5 business days" },
@@ -225,7 +213,6 @@ const OTHER_COURIERS = [
 ];
 
 function getCouriersForCountry(country: string) {
-  // Partial match — "Pakistan", "UK", "United Kingdom" sab match karein
   const key = Object.keys(COURIER_CONFIG).find(
     (k) =>
       country.toLowerCase().includes(k.toLowerCase()) ||
@@ -383,7 +370,7 @@ function NotifBadge({
   );
 }
 
-// ─── Shipping Info Display (Order Card mein) ──────────────────────────────────
+// ─── Shipping Info Display ──────────────────────────────────────────────────
 
 function ShippingInfoBadge({ order }: { order: Order }) {
   if (order.status !== "shipped" || !order.courier_name) return null;
@@ -429,7 +416,295 @@ function ShippingInfoBadge({ order }: { order: Order }) {
   );
 }
 
-// ─── Shipping Modal (Courier + Rider Number) ──────────────────────────────────
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontFamily: "var(--ords-sans)",
+  fontSize: "0.7rem",
+  fontWeight: 600,
+  color: "#aaa",
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+  marginBottom: "10px",
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px 14px",
+  borderRadius: "10px",
+  border: "1px solid rgba(255,255,255,0.1)",
+  background: "rgba(255,255,255,0.04)",
+  color: "#fff",
+  fontFamily: "var(--ords-sans)",
+  fontSize: "0.82rem",
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+// ─── Cancel Reason Modal ──────────────────────────────────────────────────────
+
+function CancelReasonModal({
+  order,
+  onClose,
+  onConfirm,
+  loading,
+}: {
+  order: Order;
+  onClose: () => void;
+  onConfirm: (reason: string) => void;
+  loading: boolean;
+}) {
+  const [reason, setReason] = useState("");
+  const [customReason, setCustomReason] = useState("");
+  const [selectedReason, setSelectedReason] = useState("");
+
+  const commonReasons = [
+    "Customer requested cancellation",
+    "Out of stock / unavailable",
+    "Payment issue",
+    "Shipping address issue",
+    "Duplicate order",
+    "Other (please specify)",
+  ];
+
+  const finalReason =
+    selectedReason === "Other (please specify)" ? customReason : selectedReason;
+  const canConfirm = finalReason.trim().length >= 5 && !loading;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.85)",
+        zIndex: 20001,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "12px",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
+        overflowY: "auto",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: "#1a1a1a",
+          border: "1px solid rgba(239,68,68,0.4)",
+          borderRadius: "24px",
+          padding: "clamp(20px, 5vw, 32px)",
+          maxWidth: "500px",
+          width: "100%",
+          maxHeight: "calc(100dvh - 40px)",
+          overflowY: "auto",
+          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8)",
+          position: "relative",
+          margin: "auto",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: "16px",
+            right: "16px",
+            background: "rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: "50%",
+            width: "32px",
+            height: "32px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            color: "#888",
+          }}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            width="16"
+            height="16"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+
+        <div style={{ textAlign: "center", marginBottom: "24px" }}>
+          <div style={{ fontSize: "2rem", marginBottom: "8px" }}>❌</div>
+          <h2 style={{ color: "#ef4444", margin: 0, fontSize: "1.5rem" }}>
+            Cancel Order
+          </h2>
+          <p style={{ color: "#888", fontSize: "0.8rem", marginTop: "6px" }}>
+            Order #{order.order_number} · {order.first_name} {order.last_name}
+          </p>
+        </div>
+
+        <div style={{ marginBottom: "24px" }}>
+          <label
+            style={{ ...labelStyle, color: "#ef4444", marginBottom: "12px" }}
+          >
+            ❗ Reason for Cancellation{" "}
+            <span style={{ color: "#ef4444" }}>*</span>
+          </label>
+
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+          >
+            {commonReasons.map((r) => (
+              <button
+                key={r}
+                onClick={() => {
+                  setSelectedReason(r);
+                  if (r !== "Other (please specify)") setCustomReason("");
+                }}
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: "12px",
+                  border: `1px solid ${selectedReason === r ? "#ef4444" : "rgba(255,255,255,0.1)"}`,
+                  background:
+                    selectedReason === r
+                      ? "rgba(239,68,68,0.12)"
+                      : "rgba(255,255,255,0.03)",
+                  color: selectedReason === r ? "#ef4444" : "#ccc",
+                  fontFamily: "var(--ords-sans)",
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                {r === "Other (please specify)" ? "✏️ " : "• "}
+                {r}
+              </button>
+            ))}
+          </div>
+
+          {selectedReason === "Other (please specify)" && (
+            <div style={{ marginTop: "16px" }}>
+              <textarea
+                value={customReason}
+                onChange={(e) => setCustomReason(e.target.value)}
+                placeholder="Please explain the reason for cancellation in detail..."
+                rows={3}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "#fff",
+                  fontFamily: "var(--ords-sans)",
+                  fontSize: "0.85rem",
+                  resize: "vertical",
+                  outline: "none",
+                }}
+                autoFocus
+              />
+              {customReason && customReason.length < 5 && (
+                <p
+                  style={{
+                    color: "#ef4444",
+                    fontSize: "0.7rem",
+                    marginTop: "6px",
+                  }}
+                >
+                  Please enter at least 5 characters
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {finalReason && finalReason.length >= 5 && (
+          <div
+            style={{
+              background: "rgba(239,68,68,0.08)",
+              border: "1px solid rgba(239,68,68,0.2)",
+              borderRadius: "12px",
+              padding: "14px",
+              marginBottom: "24px",
+            }}
+          >
+            <p
+              style={{
+                color: "#ef4444",
+                fontSize: "0.7rem",
+                fontWeight: 700,
+                marginBottom: "8px",
+              }}
+            >
+              📋 CANCELLATION REASON
+            </p>
+            <p style={{ color: "#ccc", fontSize: "0.85rem", margin: 0 }}>
+              {finalReason}
+            </p>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: "12px" }}>
+          <button
+            onClick={onClose}
+            disabled={loading}
+            style={{
+              flex: 1,
+              padding: "12px",
+              borderRadius: "12px",
+              border: "1px solid rgba(255,255,255,0.15)",
+              background: "transparent",
+              color: "#888",
+              fontFamily: "var(--ords-sans)",
+              fontSize: "0.85rem",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            Go Back
+          </button>
+          <button
+            onClick={() => {
+              if (canConfirm) onConfirm(finalReason);
+            }}
+            disabled={!canConfirm}
+            style={{
+              flex: 1,
+              padding: "12px",
+              borderRadius: "12px",
+              border: "none",
+              background: canConfirm
+                ? "linear-gradient(135deg, #dc2626, #991b1b)"
+                : "rgba(255,255,255,0.08)",
+              color: canConfirm ? "#fff" : "#555",
+              fontFamily: "var(--ords-sans)",
+              fontSize: "0.85rem",
+              fontWeight: 700,
+              cursor: canConfirm ? "pointer" : "not-allowed",
+            }}
+          >
+            {loading ? "⏳ Cancelling..." : "❌ Confirm Cancellation"}
+          </button>
+        </div>
+
+        <p
+          style={{
+            color: "#666",
+            fontSize: "0.65rem",
+            textAlign: "center",
+            marginTop: "16px",
+          }}
+        >
+          Customer will be notified via WhatsApp + Email with the cancellation
+          reason
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Shipping Modal ──────────────────────────────────────────────────────────
 
 function ShippingModal({
   order,
@@ -457,7 +732,6 @@ function ShippingModal({
   const [urlManuallyEdited, setUrlManuallyEdited] = useState(false);
   const [customCourierName, setCustomCourierName] = useState("");
 
-  // Order ke country se default set karo
   useEffect(() => {
     if (order.country) {
       const matched = Object.keys(COURIER_CONFIG).find(
@@ -471,10 +745,8 @@ function ShippingModal({
 
   const countryData = selectedCountry ? COURIER_CONFIG[selectedCountry] : null;
   const couriers = countryData ? countryData.couriers : OTHER_COURIERS;
-
   const isOthers = selectedCourier === "others";
   const selectedCourierObj = couriers.find((c) => c.id === selectedCourier);
-  // When "others", use customCourierName; else use the matched courier name
   const effectiveCourierName = isOthers
     ? customCourierName.trim()
     : selectedCourierObj?.name || "";
@@ -484,13 +756,26 @@ function ShippingModal({
   // Auto-generate tracking URL when courier or tracking number changes
   useEffect(() => {
     if (!urlManuallyEdited && selectedCourier) {
-      const autoUrl = getCourierTrackingUrl(
-        selectedCourier,
-        trackingNumber.trim() || undefined,
-      );
+      let autoUrl = "";
+      if (isOthers && customCourierName.trim()) {
+        const encodedCourierName = encodeURIComponent(customCourierName.trim());
+        const encodedTracking = encodeURIComponent(trackingNumber.trim() || "");
+        autoUrl = `https://www.google.com/search?q=${encodedCourierName}+tracking+${encodedTracking}`;
+      } else {
+        autoUrl = getCourierTrackingUrl(
+          selectedCourier,
+          trackingNumber.trim() || undefined,
+        );
+      }
       setCourierTrackingUrl(autoUrl);
     }
-  }, [selectedCourier, trackingNumber, urlManuallyEdited]);
+  }, [
+    selectedCourier,
+    trackingNumber,
+    urlManuallyEdited,
+    isOthers,
+    customCourierName,
+  ]);
 
   const canConfirm =
     selectedCountry &&
@@ -533,7 +818,6 @@ function ShippingModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button */}
         <button
           onClick={onClose}
           style={{
@@ -569,7 +853,6 @@ function ShippingModal({
           </svg>
         </button>
 
-        {/* Header */}
         <div
           style={{
             textAlign: "center",
@@ -610,7 +893,6 @@ function ShippingModal({
           </p>
         </div>
 
-        {/* Step 1: Country */}
         <div style={{ marginBottom: "18px" }}>
           <label style={labelStyle}>📦 Step 1: Delivery Country</label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "7px" }}>
@@ -647,7 +929,6 @@ function ShippingModal({
           </div>
         </div>
 
-        {/* Step 2: Courier */}
         {selectedCountry && (
           <div style={{ marginBottom: "18px" }}>
             <label style={labelStyle}>
@@ -690,7 +971,6 @@ function ShippingModal({
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
-                      transition: "all 0.15s",
                     }}
                   >
                     <span
@@ -720,7 +1000,6 @@ function ShippingModal({
               })}
             </div>
 
-            {/* Others custom input — shows instantly below list when "others" selected */}
             {isOthers && (
               <div
                 style={{
@@ -789,29 +1068,16 @@ function ShippingModal({
                     </span>
                   </div>
                 )}
-                {!customCourierName.trim() && (
-                  <p
-                    style={{
-                      color: "#ef4444",
-                      fontSize: "0.65rem",
-                      fontFamily: "var(--ords-sans)",
-                      margin: "5px 0 0",
-                    }}
-                  >
-                    ⚠️ Courier name required to continue
-                  </p>
-                )}
               </div>
             )}
           </div>
         )}
 
-        {/* Estimated Delivery */}
         {selectedCourier && (
           <div style={{ marginBottom: "18px" }}>
             <label style={labelStyle}>
-              ⏱ Estimated Delivery
-              {!isOthers && " (auto-filled — edit if needed)"}
+              ⏱ Estimated Delivery{" "}
+              {!isOthers && "(auto-filled — edit if needed)"}
             </label>
             <input
               type="text"
@@ -820,27 +1086,12 @@ function ShippingModal({
                 (isOthers ? "" : selectedCourierObj?.days || "")
               }
               onChange={(e) => setCustomEstimate(e.target.value)}
-              placeholder={
-                isOthers ? "e.g. 2–3 business days" : "e.g. 2–3 business days"
-              }
+              placeholder="e.g. 2–3 business days"
               style={inputStyle}
             />
-            {!isOthers && (
-              <p
-                style={{
-                  color: "#666",
-                  fontSize: "0.65rem",
-                  fontFamily: "var(--ords-sans)",
-                  margin: "4px 0 0",
-                }}
-              >
-                ✅ Auto-set from courier — change karo agar zaroorat ho
-              </p>
-            )}
           </div>
         )}
 
-        {/* Step 3: Tracking Number */}
         {selectedCourier && (!isOthers || customCourierName.trim()) && (
           <div style={{ marginBottom: "18px" }}>
             <label style={labelStyle}>
@@ -867,12 +1118,10 @@ function ShippingModal({
           </div>
         )}
 
-        {/* Step 4: Courier Tracking URL */}
         {selectedCourier && (!isOthers || customCourierName.trim()) && (
           <div style={{ marginBottom: "20px" }}>
             <label style={labelStyle}>
-              🔗 Step 4: Courier Tracking Link
-              {!isOthers && " (auto-generated)"}
+              🔗 Step 4: Courier Tracking Link {!isOthers && "(auto-generated)"}
             </label>
             <input
               type="url"
@@ -883,7 +1132,7 @@ function ShippingModal({
               }}
               placeholder={
                 isOthers
-                  ? "https://yourcourier.com/track?id=..."
+                  ? "Auto-generated Google search URL"
                   : "Auto-fills when you select courier + tracking number"
               }
               style={inputStyle}
@@ -897,13 +1146,12 @@ function ShippingModal({
               }}
             >
               {isOthers
-                ? "Optional — customer is link se parcel track kar sakta hai"
+                ? "✅ Auto-generates Google search for: [Courier Name] + tracking [Number]"
                 : "✅ Auto-generate hota hai — customer is link se direct apna parcel track kar sakta hai"}
             </p>
           </div>
         )}
 
-        {/* Preview / Shipping Summary */}
         {selectedCourier && effectiveCourierName && (
           <div
             style={{
@@ -981,7 +1229,6 @@ function ShippingModal({
           </div>
         )}
 
-        {/* Buttons */}
         <div style={{ display: "flex", gap: "10px" }}>
           <button
             onClick={onClose}
@@ -1043,30 +1290,6 @@ function ShippingModal({
   );
 }
 
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontFamily: "var(--ords-sans)",
-  fontSize: "0.7rem",
-  fontWeight: 600,
-  color: "#aaa",
-  textTransform: "uppercase",
-  letterSpacing: "0.08em",
-  marginBottom: "10px",
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 14px",
-  borderRadius: "10px",
-  border: "1px solid rgba(255,255,255,0.1)",
-  background: "rgba(255,255,255,0.04)",
-  color: "#fff",
-  fontFamily: "var(--ords-sans)",
-  fontSize: "0.82rem",
-  outline: "none",
-  boxSizing: "border-box",
-};
-
 // ─── Order Detail Modal ───────────────────────────────────────────────────────
 
 function OrderModal({
@@ -1099,14 +1322,12 @@ function OrderModal({
           </svg>
         </button>
 
-        {/* Header */}
         <div className="ords-modal-header">
           <div className="ords-modal-badge">Order Details</div>
           <h2 className="ords-modal-title">#{order.order_number}</h2>
           <p className="ords-modal-date">{formatDate(order.created_at)}</p>
         </div>
 
-        {/* ── Shipping Info (agar shipped hai) ── */}
         {order.status === "shipped" && order.courier_name && (
           <div
             style={{
@@ -1188,7 +1409,6 @@ function OrderModal({
           </div>
         )}
 
-        {/* ── Status Update Section ── */}
         <div className="ords-modal-status-section">
           <p
             style={{
@@ -1225,13 +1445,6 @@ function OrderModal({
                 className={`ords-status-btn${order.status === s ? ` active ${s}` : ""}`}
                 onClick={() => onStatusChange(order.id, s, order)}
                 disabled={updatingStatus || order.status === s}
-                title={
-                  s === "shipped"
-                    ? "Click to select courier & notify customer"
-                    : NOTIFY_STATUSES.includes(s)
-                      ? `Mark as ${s} — WhatsApp + Email notification will be sent`
-                      : `Mark as ${s}`
-                }
               >
                 {s === "shipped"
                   ? "🚚 Shipped"
@@ -1264,13 +1477,11 @@ function OrderModal({
             }}
           >
             📱 WhatsApp + 📧 Email auto-sent for: Shipped (with courier info),
-            Delivered, Cancelled
+            Delivered, Cancelled (with reason)
           </p>
         </div>
 
-        {/* Info Grid */}
         <div className="ords-modal-grid">
-          {/* Customer */}
           <div className="ords-modal-card">
             <h3>Customer</h3>
             <div className="ords-modal-info-row">
@@ -1291,7 +1502,6 @@ function OrderModal({
             </div>
           </div>
 
-          {/* Shipping Address */}
           <div className="ords-modal-card">
             <h3>Shipping Address</h3>
             <p className="ords-modal-address">
@@ -1309,7 +1519,6 @@ function OrderModal({
             </p>
           </div>
 
-          {/* Payment */}
           <div className="ords-modal-card">
             <h3>Payment</h3>
             <div className="ords-modal-info-row">
@@ -1385,7 +1594,6 @@ function OrderModal({
           </div>
         </div>
 
-        {/* Items Table */}
         <div className="ords-modal-items">
           <h3
             style={{
@@ -1470,7 +1678,6 @@ function OrderModal({
           )}
         </div>
 
-        {/* Summary */}
         <div className="ords-modal-summary">
           <div className="ords-summary-row">
             <span>Subtotal</span>
@@ -1555,7 +1762,6 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
           </div>
         </div>
 
-        {/* Shipping badge (agar shipped) */}
         <ShippingInfoBadge order={order} />
 
         <div className="ords-card-items">
@@ -1677,11 +1883,10 @@ export default function OrdersPage() {
     whatsapp: boolean | null;
     email: boolean | null;
   } | null>(null);
-
-  // ── Shipping Modal State ──
   const [shippingModalOrder, setShippingModalOrder] = useState<Order | null>(
     null,
   );
+  const [cancelModalOrder, setCancelModalOrder] = useState<Order | null>(null);
 
   const addToast = useCallback((type: Toast["type"], msg: string) => {
     const id = Date.now();
@@ -1704,7 +1909,6 @@ export default function OrdersPage() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 350);
   };
 
-  // ── Fetch Orders ──
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     setFetchError("");
@@ -1728,12 +1932,12 @@ export default function OrdersPage() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
   useEffect(() => {
     const interval = setInterval(fetchOrders, 30000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
-  // ── Local order update helper ──
   const updateOrderLocal = (orderId: string, patch: Partial<Order>) => {
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, ...patch } : o)),
@@ -1743,9 +1947,6 @@ export default function OrdersPage() {
     );
   };
 
-  // ── Handle Status Change ──
-  // "shipped" → Shipping Modal kholta hai
-  // Baaki → Direct API call
   const handleStatusChange = async (
     orderId: string,
     newStatus: string,
@@ -1754,21 +1955,24 @@ export default function OrdersPage() {
     const currentOrder = orderObj || orders.find((o) => o.id === orderId);
     if (currentOrder?.status === newStatus) return;
 
-    // ── SHIPPED: Order modal band karo, Shipping Modal kholo ──
     if (newStatus === "shipped") {
-      setSelectedOrder(null); // Order details modal close
+      setSelectedOrder(null);
       setNotifResult(null);
-      setShippingModalOrder(currentOrder || null); // Shipping modal open on top
-      return; // Modal confirm ke baad proceed hoga
+      setShippingModalOrder(currentOrder || null);
+      return;
     }
 
-    // ── DELIVERED / CANCELLED: Direct send ──
+    if (newStatus === "cancelled") {
+      setSelectedOrder(null);
+      setCancelModalOrder(currentOrder || null);
+      return;
+    }
+
     setUpdatingStatus(true);
     setNotifResult(null);
 
     try {
-      if (["delivered", "cancelled"].includes(newStatus) && currentOrder) {
-        // Build full shipping address string
+      if (["delivered"].includes(newStatus) && currentOrder) {
         const addressParts = [
           currentOrder.address,
           currentOrder.apartment,
@@ -1788,7 +1992,6 @@ export default function OrdersPage() {
             customerName:
               `${currentOrder.first_name} ${currentOrder.last_name}`.trim(),
             orderNumber: currentOrder.order_number,
-            // Full order details for email
             orderItems: currentOrder.items,
             subtotal: currentOrder.subtotal,
             shippingCost: currentOrder.shipping_cost,
@@ -1799,13 +2002,7 @@ export default function OrdersPage() {
           }),
         });
 
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(
-            `Server error: ${res.status} — ${text.slice(0, 100)}`,
-          );
-        }
-
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
         const json = await res.json();
         if (json.error) throw new Error(json.error);
 
@@ -1819,21 +2016,14 @@ export default function OrdersPage() {
           `Status → "${newStatus}" | 📱 WA: ${json.whatsappSent ? "✅" : "❌"} | 📧 Email: ${json.emailSent ? "✅" : "❌"}`,
         );
       } else {
-        // Pending / Processing / Confirmed — sirf DB update
         const res = await fetch("/api/admin/orders", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ orderId, status: newStatus }),
         });
-
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`Server error: ${res.status}`);
-        }
-
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
         const json = await res.json();
         if (json.error) throw new Error(json.error);
-
         updateOrderLocal(orderId, { status: newStatus as Order["status"] });
         addToast("success", `Order status updated to "${newStatus}"`);
       }
@@ -1844,7 +2034,65 @@ export default function OrdersPage() {
     }
   };
 
-  // ── Shipping Modal Confirm ──
+  const handleCancelWithReason = async (reason: string) => {
+    if (!cancelModalOrder) return;
+    setUpdatingStatus(true);
+    setNotifResult(null);
+
+    try {
+      const addressParts = [
+        cancelModalOrder.address,
+        cancelModalOrder.apartment,
+        `${cancelModalOrder.city}${cancelModalOrder.zip ? ", " + cancelModalOrder.zip : ""}`,
+        cancelModalOrder.country,
+      ].filter(Boolean);
+      const fullAddress = addressParts.join(", ");
+
+      const res = await fetch("/api/admin/update-order-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: cancelModalOrder.id,
+          status: "cancelled",
+          customerEmail: cancelModalOrder.email,
+          customerPhone: cancelModalOrder.phone,
+          customerName:
+            `${cancelModalOrder.first_name} ${cancelModalOrder.last_name}`.trim(),
+          orderNumber: cancelModalOrder.order_number,
+          orderItems: cancelModalOrder.items,
+          subtotal: cancelModalOrder.subtotal,
+          shippingCost: cancelModalOrder.shipping_cost,
+          totalAmount: cancelModalOrder.total_amount,
+          shippingAddress: fullAddress,
+          paymentMethod: cancelModalOrder.payment_method,
+          customerCountry: cancelModalOrder.country,
+          cancelReason: reason,
+        }),
+      });
+
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+
+      updateOrderLocal(cancelModalOrder.id, {
+        status: "cancelled" as Order["status"],
+      });
+      setNotifResult({
+        whatsapp: json.whatsappSent ?? false,
+        email: json.emailSent ?? false,
+      });
+      addToast(
+        "success",
+        `❌ Order Cancelled! Reason: ${reason.substring(0, 50)}${reason.length > 50 ? "..." : ""} | 📱 WA: ${json.whatsappSent ? "✅" : "❌"} | 📧 Email: ${json.emailSent ? "✅" : "❌"}`,
+      );
+      setCancelModalOrder(null);
+    } catch (err: any) {
+      addToast("error", err.message || "Failed to cancel order");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   const handleShippingConfirm = async (data: {
     courierCountry: string;
     courierName: string;
@@ -1869,7 +2117,6 @@ export default function OrdersPage() {
           customerName:
             `${shippingModalOrder.first_name} ${shippingModalOrder.last_name}`.trim(),
           orderNumber: shippingModalOrder.order_number,
-          // Shipping extra fields
           courierName: data.courierName,
           courierCountry: data.courierCountry,
           estimatedDays: data.estimatedDays,
@@ -1878,11 +2125,7 @@ export default function OrdersPage() {
         }),
       });
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Server error: ${res.status} — ${text.slice(0, 120)}`);
-      }
-
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
 
@@ -1912,7 +2155,6 @@ export default function OrdersPage() {
     }
   };
 
-  // ── Filter ──
   const filtered = orders.filter((order) => {
     const s = search.toLowerCase();
     const matchesSearch =
@@ -1942,7 +2184,6 @@ export default function OrdersPage() {
       <PanelNavbar />
 
       <div className="ords-content">
-        {/* Header */}
         <div className="ords-page-header">
           <p className="ords-eyebrow">
             <span className="ords-ey-line" />
@@ -1957,7 +2198,6 @@ export default function OrdersPage() {
           </p>
         </div>
 
-        {/* Stats */}
         <div className="ords-stats-grid">
           <div className="ords-stat-card">
             <div className="ords-stat-icon">
@@ -2038,7 +2278,6 @@ export default function OrdersPage() {
           </div>
         )}
 
-        {/* Filters */}
         <div className="ords-filters-section">
           <div className="ords-search-bar">
             <svg
@@ -2210,12 +2449,20 @@ export default function OrdersPage() {
         />
       )}
 
-      {/* ── Shipping Modal ── */}
       {shippingModalOrder && (
         <ShippingModal
           order={shippingModalOrder}
           onClose={() => setShippingModalOrder(null)}
           onConfirm={handleShippingConfirm}
+          loading={updatingStatus}
+        />
+      )}
+
+      {cancelModalOrder && (
+        <CancelReasonModal
+          order={cancelModalOrder}
+          onClose={() => setCancelModalOrder(null)}
+          onConfirm={handleCancelWithReason}
           loading={updatingStatus}
         />
       )}

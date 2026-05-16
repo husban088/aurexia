@@ -1,16 +1,22 @@
-// lib/email.ts
-// ✅ COMPLETE FIX - All exports properly defined
-// ✅ Proper cart details with images, currency conversion, tracking links
-// ✅ No ERC20 text anywhere
+// lib/email-smtp.ts
+// ✅ COMPLETE - Gmail SMTP with nodemailer
+// ✅ Full cart details with images, product names, variants, quantities, prices
+// ✅ Currency conversion from PKR based on customer's country
+// ✅ All statuses: confirmed, processing, shipped, delivered, cancelled
+// ✅ Cancel reason included in cancellation emails
 
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+// ─── Gmail SMTP Transporter ──────────────────────────────────────────────
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
 
-const FROM = '"Tech4U" <orders@tech4ru.com>';
-const REPLY_TO = "info@tech4ru.com";
-
-// ─── Currency Conversion ──────────────────────────────────────────────────────
+// ─── Currency Conversion ─────────────────────────────────────────────────
 const PKR_RATES: Record<
   string,
   { symbol: string; rate: number; locale: string; code: string }
@@ -58,7 +64,7 @@ function convertPrice(
   };
 }
 
-// ─── Core sendEmail ─────────────────────────────────────────────────────────
+// ─── Core sendEmail using SMTP ───────────────────────────────────────────
 async function sendEmail(
   to: string | string[],
   subject: string,
@@ -67,37 +73,25 @@ async function sendEmail(
 ): Promise<boolean> {
   try {
     const toArray = Array.isArray(to) ? to : [to];
-    const uid = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-    const { data, error } = await resend.emails.send({
-      from: FROM,
+    await transporter.sendMail({
+      from: `"Tech4U" <${process.env.GMAIL_USER}>`,
       to: toArray,
-      replyTo: REPLY_TO,
+      replyTo: "info@tech4ru.com",
       subject,
       html,
       text,
-      headers: {
-        "X-Entity-Ref-ID": `tech4u-${uid}`,
-        "X-Mailer": "Tech4U/1.0",
-      },
     });
 
-    if (error) {
-      console.error("Resend error:", JSON.stringify(error));
-      return false;
-    }
-
-    console.log(
-      `Email sent [${data?.id}] to ${toArray.join(", ")} | ${subject}`,
-    );
+    console.log(`✅ Email sent to ${toArray.join(", ")} | ${subject}`);
     return true;
   } catch (err: any) {
-    console.error("Email exception:", err?.message || err);
+    console.error("❌ SMTP Email error:", err?.message || err);
     return false;
   }
 }
 
-// ─── HTML Wrapper ─────────────────────────────────────────────────────────
+// ─── HTML Wrapper ────────────────────────────────────────────────────────
 function luxeWrap(content: string): string {
   return `<!DOCTYPE html>
 <html>
@@ -239,6 +233,16 @@ function luxeWrap(content: string): string {
       color: #1a1a2e;
       font-size: 14px;
     }
+    .product-variant {
+      font-size: 11px;
+      color: #daa520;
+      margin-top: 3px;
+    }
+    .product-pieces {
+      font-size: 10px;
+      color: #888;
+      margin-top: 2px;
+    }
     .total-row {
       border-top: 2px solid #daa520;
     }
@@ -326,28 +330,59 @@ function luxeWrap(content: string): string {
 </html>`;
 }
 
-// ─── Helper functions ─────────────────────────────────────────────────────────
+// ─── Helper function to get product name correctly ───────────────────────
+function getProductName(item: any): string {
+  return item.product_name || item.name || item.productName || "Product";
+}
+
+function getVariantName(item: any): string | null {
+  const variant = item.variant_name || item.variant || null;
+  if (variant === "Standard") return null;
+  return variant;
+}
+
+function getProductImage(item: any): string | null {
+  return item.variant_image || item.product_image || item.image || null;
+}
+
+function getPiecesPerUnit(item: any): number {
+  return item.pieces_per_unit || item.piecesPerUnit || 1;
+}
+
+function getItemPrice(item: any): number {
+  return item.price || 0;
+}
+
+function getItemQuantity(item: any): number {
+  return item.quantity || 0;
+}
+
+// ─── Build item rows for HTML email ─────────────────────────────────────
 function buildItemRowsHtml(
   items: any[],
   country?: string,
-): { html: string; subtotalFormatted: string } {
+): { html: string; subtotalFormatted: string; subtotalPKR: number } {
   let subtotalPKR = 0;
 
   const rowsHtml = items
     .map((item) => {
-      const ppu = item.piecesPerUnit || 1;
-      const itemTotalPKR = item.price * ppu * item.quantity;
+      const ppu = getPiecesPerUnit(item);
+      const price = getItemPrice(item);
+      const quantity = getItemQuantity(item);
+      const itemTotalPKR = price * ppu * quantity;
       subtotalPKR += itemTotalPKR;
 
       const totalData = country
         ? convertPrice(itemTotalPKR, country)
         : { formatted: "₨ " + itemTotalPKR.toLocaleString("en-PK") };
 
-      const itemImage =
-        item.variant_image || item.product_image || item.image || null;
-      const displayName = item.name || "Product";
-      const variantText =
-        item.variant && item.variant !== "Standard" ? ` (${item.variant})` : "";
+      const itemImage = getProductImage(item);
+      const displayName = getProductName(item);
+      const variantName = getVariantName(item);
+
+      const perUnitPrice = country
+        ? convertPrice(price * ppu, country).formatted
+        : "₨ " + (price * ppu).toLocaleString("en-PK");
 
       return `
       <tr>
@@ -357,17 +392,19 @@ function buildItemRowsHtml(
               itemImage
                 ? `<img src="${itemImage}" alt="${displayName}" class="product-image" style="width: 60px; height: 60px; border-radius: 12px; object-fit: cover;">`
                 : `
-              <div style="width: 60px; height: 60px; background: #f5f5f5; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #ccc;">📦</div>
+              <div style="width: 60px; height: 60px; background: #f5f5f5; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 24px;">📦</div>
             `
             }
             <div>
-              <div class="product-name" style="font-weight: 600; color: #1a1a2e;">${displayName}${variantText}</div>
-              ${ppu > 1 ? `<div style="font-size: 11px; color: #888; margin-top: 4px;">${ppu} pieces per unit</div>` : ""}
+              <div class="product-name" style="font-weight: 600; color: #1a1a2e;">${displayName}</div>
+              ${variantName ? `<div class="product-variant" style="font-size: 11px; color: #daa520; margin-top: 3px;">✨ ${variantName}</div>` : ""}
+              ${ppu > 1 ? `<div class="product-pieces" style="font-size: 10px; color: #888; margin-top: 2px;">📦 ${ppu} pieces per unit</div>` : ""}
+              <div style="font-size: 11px; color: #666; margin-top: 3px;">@ ${perUnitPrice} / unit</div>
             </div>
           </div>
         </td>
-        <td style="padding: 16px 8px; border-bottom: 1px solid #f0f0f0; text-align: center; color: #555;">x${item.quantity}</td>
-        <td style="padding: 16px 8px; border-bottom: 1px solid #f0f0f0; text-align: right; font-weight: 600; color: #1a1a2e;">${totalData.formatted}</td>
+        <td style="padding: 16px 8px; border-bottom: 1px solid #f0f0f0; text-align: center; color: #555; font-weight: 600;">×${quantity}</td>
+        <td style="padding: 16px 8px; border-bottom: 1px solid #f0f0f0; text-align: right; font-weight: 700; color: #1a1a2e;">${totalData.formatted}</td>
       </tr>
     `;
     })
@@ -380,24 +417,37 @@ function buildItemRowsHtml(
   return {
     html: rowsHtml,
     subtotalFormatted: totalData.formatted,
+    subtotalPKR: subtotalPKR,
   };
 }
 
+// ─── Build plain text items list ────────────────────────────────────────
 function buildItemRowsPlain(items: any[], country?: string): string {
   return items
     .map((item) => {
-      const ppu = item.piecesPerUnit || 1;
-      const totalPrice = item.price * ppu * item.quantity;
-      const price = country
+      const ppu = getPiecesPerUnit(item);
+      const price = getItemPrice(item);
+      const quantity = getItemQuantity(item);
+      const totalPrice = price * ppu * quantity;
+      const priceFormatted = country
         ? convertPrice(totalPrice, country).formatted
         : "₨ " + totalPrice.toLocaleString("en-PK");
-      return `- ${item.name}${item.variant ? ` (${item.variant})` : ""} x${item.quantity}: ${price}`;
+      const perUnitFormatted = country
+        ? convertPrice(price * ppu, country).formatted
+        : "₨ " + (price * ppu).toLocaleString("en-PK");
+
+      const productName = getProductName(item);
+      const variantName = getVariantName(item);
+      const variantText = variantName ? ` (${variantName})` : "";
+      const piecesText = ppu > 1 ? ` [${ppu} pieces/unit]` : "";
+
+      return `  • ${productName}${variantText}${piecesText}\n    Quantity: ${quantity} × ${perUnitFormatted} = ${priceFormatted}`;
     })
     .join("\n");
 }
 
 // ============================================================
-// 1. ORDER CONFIRMATION - Customer
+// 1. ORDER CONFIRMATION - Customer (Complete cart details)
 // ============================================================
 export async function sendOrderConfirmationEmail(
   customerEmail: string,
@@ -413,17 +463,25 @@ export async function sendOrderConfirmationEmail(
   customerCountry?: string,
 ): Promise<boolean> {
   const country = customerCountry || "Pakistan";
-  const itemsList = items.length > 0 ? items : (formattedItems as any) || [];
+  const itemsList =
+    Array.isArray(items) && items.length > 0
+      ? items
+      : (formattedItems as any) || [];
 
-  const { html: itemRowsHtml, subtotalFormatted } = buildItemRowsHtml(
-    itemsList,
-    country,
+  console.log(
+    `[EMAIL] Building order confirmation for ${orderNumber} with ${itemsList.length} items`,
   );
+
+  const {
+    html: itemRowsHtml,
+    subtotalFormatted,
+    subtotalPKR,
+  } = buildItemRowsHtml(itemsList, country);
   const displayTotal = country
     ? convertPrice(total, country).formatted
     : "₨ " + total.toLocaleString("en-PK");
 
-  const addressHtml = shippingAddress.replace(/\n/g, "<br>");
+  const addressHtml = (shippingAddress || "").replace(/\n/g, "<br>");
 
   const content = `
     <div class="greeting">
@@ -437,12 +495,16 @@ export async function sendOrderConfirmationEmail(
         <span class="order-info-value order-number">${orderNumber}</span>
       </div>
       <div class="order-info-row">
+        <span class="order-info-label">ORDER DATE</span>
+        <span class="order-info-value">${new Date().toLocaleDateString()}</span>
+      </div>
+      <div class="order-info-row">
         <span class="order-info-label">TOTAL AMOUNT</span>
-        <span class="order-info-value">${displayTotal}</span>
+        <span class="order-info-value" style="color: #daa520; font-size: 18px;">${displayTotal}</span>
       </div>
       <div class="order-info-row">
         <span class="order-info-label">PAYMENT METHOD</span>
-        <span class="order-info-value">${paymentMethod === "card" ? "Credit/Debit Card" : paymentMethod === "paypal" ? "PayPal" : paymentMethod}</span>
+        <span class="order-info-value">${paymentMethod === "card" ? "💳 Credit/Debit Card (Stripe)" : paymentMethod === "paypal" ? "🅿️ PayPal" : paymentMethod || "N/A"}</span>
       </div>
       <div class="order-info-row">
         <span class="order-info-label">SHIPPING ADDRESS</span>
@@ -450,7 +512,7 @@ export async function sendOrderConfirmationEmail(
       </div>
     </div>
     
-    <div class="items-title">ORDER SUMMARY</div>
+    <div class="items-title">🛍️ ORDER SUMMARY</div>
     <table class="items-table" style="width: 100%; border-collapse: collapse;">
       <thead>
         <tr>
@@ -463,8 +525,8 @@ export async function sendOrderConfirmationEmail(
         ${itemRowsHtml}
         <tr class="total-row">
           <td colspan="2" style="padding: 16px 8px; text-align: right; font-weight: 700;">GRAND TOTAL</td>
-          <td style="padding: 16px 8px; text-align: right; font-weight: 700; font-size: 16px;">${displayTotal}</td>
-        </tr>
+          <td style="padding: 16px 8px; text-align: right; font-weight: 700; font-size: 18px; color: #daa520;">${displayTotal}</td>
+         </tr>
       </tbody>
     </table>
     
@@ -474,18 +536,49 @@ export async function sendOrderConfirmationEmail(
     </div>
   `;
 
-  const text = `TECH4U - ORDER CONFIRMED\n\nHello ${customerName},\n\nYour order has been confirmed.\n\nOrder Number: ${orderNumber}\nTotal: ${displayTotal}\nPayment: ${paymentMethod}\nShip To: ${shippingAddress}\n\nItems Ordered:\n${buildItemRowsPlain(itemsList, country)}\n\nTotal: ${displayTotal}\n\nShipping: FREE\n\nThank you for shopping with Tech4U!`;
+  const text = `TECH4U - ORDER CONFIRMED ✅
+
+Hello ${customerName},
+
+Your order has been confirmed!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ORDER DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Order Number: ${orderNumber}
+Order Date: ${new Date().toLocaleDateString()}
+Total: ${displayTotal}
+Payment: ${paymentMethod === "card" ? "Credit/Debit Card" : paymentMethod === "paypal" ? "PayPal" : paymentMethod}
+Ship To: ${shippingAddress}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ITEMS ORDERED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${buildItemRowsPlain(itemsList, country)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total: ${displayTotal}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ Free shipping on all orders
+
+You will receive updates when your order is processed and shipped.
+
+Questions? Contact us at info@tech4ru.com
+
+Thank you for shopping with Tech4U! 🛍️`;
 
   return sendEmail(
     customerEmail,
-    `Order Confirmed — ${orderNumber}`,
+    `✅ Order Confirmed — ${orderNumber}`,
     luxeWrap(content),
     text,
   );
 }
 
 // ============================================================
-// 2. OWNER ORDER ALERT
+// 2. OWNER ORDER ALERT (Complete details for admin)
 // ============================================================
 export async function sendOwnerOrderAlert(
   orderNumber: string,
@@ -507,9 +600,25 @@ export async function sendOwnerOrderAlert(
     .filter(Boolean);
 
   const now = new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" });
-  const itemsList = items.length > 0 ? items : (formattedItems as any) || [];
+  const itemsList =
+    Array.isArray(items) && items.length > 0
+      ? items
+      : (formattedItems as any) || [];
   const displayTotal = "₨ " + Math.round(total).toLocaleString("en-PK");
-  const itemRowsPlain = buildItemRowsPlain(itemsList, "Pakistan");
+
+  const itemRowsPlain = itemsList
+    .map((item: any) => {
+      const ppu = getPiecesPerUnit(item);
+      const price = getItemPrice(item);
+      const quantity = getItemQuantity(item);
+      const itemTotal = price * ppu * quantity;
+      const productName = getProductName(item);
+      const variantName = getVariantName(item);
+      const variantText = variantName ? ` (${variantName})` : "";
+      const piecesText = ppu > 1 ? ` [${ppu} pieces/unit]` : "";
+      return `  • ${productName}${variantText}${piecesText}\n    Qty: ${quantity} × ₨ ${(price * ppu).toLocaleString()} = ₨ ${itemTotal.toLocaleString()}`;
+    })
+    .join("\n");
 
   const content = `
     <div class="greeting">
@@ -552,23 +661,54 @@ export async function sendOwnerOrderAlert(
       </div>
     </div>
     
-    <div class="items-title">ORDER ITEMS</div>
-    <pre style="background: #f5f5f5; padding: 16px; border-radius: 12px; font-size: 12px; overflow-x: auto;">${itemRowsPlain}</pre>
-    <p style="margin-top: 16px; font-weight: 700; text-align: right;">Total: ${displayTotal}</p>
+    <div class="items-title">📦 ORDER ITEMS</div>
+    <pre style="background: #f5f5f5; padding: 16px; border-radius: 12px; font-size: 12px; overflow-x: auto; font-family: monospace;">${itemRowsPlain}</pre>
+    <p style="margin-top: 16px; font-weight: 700; text-align: right; font-size: 16px;">Total: ${displayTotal}</p>
   `;
 
-  const text = `NEW ORDER RECEIVED - Tech4U\nTime: ${now} PKT\n\nOrder Number: ${orderNumber}\nTotal: ${displayTotal}\nPayment: ${paymentMethod}\n\nCustomer: ${customerName}\nCountry: ${customerCountry || "Pakistan"}\nEmail: ${customerEmail}\nPhone: ${customerPhone}\nAddress: ${shippingAddress}\n\nItems:\n${itemRowsPlain}\nTotal: ${displayTotal}`;
+  const text = `🛍️ NEW ORDER RECEIVED - Tech4U
+
+Time: ${now} PKT
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ORDER SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Order Number: ${orderNumber}
+Total: ${displayTotal}
+Payment: ${paymentMethod}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CUSTOMER DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Name: ${customerName}
+Country: ${customerCountry || "Pakistan"}
+Email: ${customerEmail}
+Phone: ${customerPhone}
+Address: ${shippingAddress}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ITEMS ORDERED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${itemRowsPlain}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total: ${displayTotal}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Process this order in the admin panel.`;
 
   return sendEmail(
     ownerEmails,
-    `New Order ${orderNumber} — ${displayTotal}`,
+    `🛍️ New Order ${orderNumber} — ${displayTotal}`,
     luxeWrap(content),
     text,
   );
 }
 
 // ============================================================
-// 3. STATUS UPDATE EMAIL - Customer
+// 3. STATUS UPDATE EMAIL - Customer (Shipped/Delivered/Cancelled/Processing)
+// ✅ UPDATED: Includes cancelReason parameter
 // ============================================================
 export async function sendStatusUpdateEmail(
   customerEmail: string,
@@ -583,41 +723,56 @@ export async function sendStatusUpdateEmail(
   formattedItems?: any[],
   displayTotal?: string,
   customerCountry?: string,
+  cancelReason?: string, // ✅ ADDED: Cancel reason parameter
 ): Promise<boolean> {
   const country = customerCountry || "Pakistan";
 
   let statusTitle = "";
   let statusIcon = "";
   let statusColor = "";
+  let statusMessage = "";
 
   if (newStatus === "shipped") {
     statusTitle = "Order Shipped";
     statusIcon = "🚚";
     statusColor = "#daa520";
+    statusMessage = "Great news! Your order is on its way to you.";
   } else if (newStatus === "delivered") {
     statusTitle = "Order Delivered";
     statusIcon = "✅";
     statusColor = "#22c55e";
+    statusMessage =
+      "Your order has been successfully delivered. We hope you love your purchase!";
   } else if (newStatus === "cancelled") {
     statusTitle = "Order Cancelled";
     statusIcon = "❌";
     statusColor = "#ef4444";
+    // ✅ UPDATED: Include cancel reason in message if provided
+    statusMessage = cancelReason
+      ? `Your order has been cancelled. Reason: ${cancelReason}`
+      : "Your order has been cancelled as requested.";
   } else if (newStatus === "confirmed") {
     statusTitle = "Order Confirmed";
     statusIcon = "✓";
     statusColor = "#daa520";
+    statusMessage = "Your order has been confirmed and will be processed soon.";
   } else {
     statusTitle = "Order Processing";
     statusIcon = "⚙️";
     statusColor = "#f59e0b";
+    statusMessage = "Your order is now being prepared for shipment.";
   }
 
   let itemsHtml = "";
   let itemsPlain = "";
   let totalDisplayFormatted = displayTotal;
 
-  if (items && items.length > 0) {
-    const itemsList = items.length > 0 ? items : (formattedItems as any) || [];
+  const itemsList =
+    items && Array.isArray(items) && items.length > 0
+      ? items
+      : (formattedItems as any) || [];
+
+  if (itemsList.length > 0) {
     const { html: itemRowsHtml, subtotalFormatted } = buildItemRowsHtml(
       itemsList,
       country,
@@ -625,7 +780,7 @@ export async function sendStatusUpdateEmail(
     totalDisplayFormatted = subtotalFormatted;
 
     itemsHtml = `
-      <div class="items-title">ORDER SUMMARY</div>
+      <div class="items-title">🛍️ ORDER SUMMARY</div>
       <table class="items-table" style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr>
@@ -639,7 +794,7 @@ export async function sendStatusUpdateEmail(
           <tr class="total-row">
             <td colspan="2" style="padding: 16px 8px; text-align: right; font-weight: 700;">TOTAL</td>
             <td style="padding: 16px 8px; text-align: right; font-weight: 700;">${totalDisplayFormatted}</td>
-          </tr>
+           </tr>
         </tbody>
       </table>
     `;
@@ -674,13 +829,14 @@ export async function sendStatusUpdateEmail(
         ${trackUrl ? `<a href="${trackUrl}" class="tracking-link">🔗 Track Your Order</a>` : ""}
       </div>
     `;
-    shippingInfoPlain = `\nShipping Details:\nCourier: ${courierName}\nTracking Number: ${trackingNumber}${estimatedDays ? `\nEst. Delivery: ${estimatedDays}` : ""}\n`;
+    shippingInfoPlain = `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nSHIPPING DETAILS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCourier: ${courierName}\nTracking Number: ${trackingNumber}${estimatedDays ? `\nEst. Delivery: ${estimatedDays}` : ""}\n`;
   }
 
   const content = `
     <div class="greeting">
       <h2>${statusIcon} ${statusTitle}, ${customerName}</h2>
-      <p>Order #${orderNumber}</p>
+      <p>${statusMessage}</p>
+      <p style="margin-top: 5px;">Order #${orderNumber}</p>
     </div>
     
     <div class="order-info">
@@ -691,6 +847,10 @@ export async function sendStatusUpdateEmail(
       <div class="order-info-row">
         <span class="order-info-label">ORDER NUMBER</span>
         <span class="order-info-value order-number">${orderNumber}</span>
+      </div>
+      <div class="order-info-row">
+        <span class="order-info-label">DATE</span>
+        <span class="order-info-value">${new Date().toLocaleDateString()}</span>
       </div>
     </div>
     
@@ -703,14 +863,34 @@ export async function sendStatusUpdateEmail(
   `;
 
   const subjects: Record<string, string> = {
-    confirmed: `Order Confirmed — ${orderNumber}`,
-    processing: `Order Processing — ${orderNumber}`,
-    shipped: `Order Shipped — ${orderNumber}`,
-    delivered: `Order Delivered — ${orderNumber}`,
-    cancelled: `Order Cancelled — ${orderNumber}`,
+    confirmed: `✅ Order Confirmed — ${orderNumber}`,
+    processing: `⚙️ Order Processing — ${orderNumber}`,
+    shipped: `🚚 Order Shipped — ${orderNumber}`,
+    delivered: `✅ Order Delivered — ${orderNumber}`,
+    cancelled: `❌ Order Cancelled — ${orderNumber}`,
   };
 
-  const text = `${statusTitle.toUpperCase()} - Tech4U\n\nHello ${customerName},\n\nOrder #${orderNumber}\nStatus: ${newStatus.toUpperCase()}\n${shippingInfoPlain}\n${itemsPlain ? `\nOrder Summary:\n${itemsPlain}\n` : ""}\nThank you for shopping with Tech4U!`;
+  const text = `${statusIcon} ${statusTitle.toUpperCase()} - Tech4U
+
+Hello ${customerName},
+
+${statusMessage}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ORDER DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Order #${orderNumber}
+Status: ${newStatus.toUpperCase()}
+Date: ${new Date().toLocaleDateString()}
+${shippingInfoPlain}
+${itemsPlain ? `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nITEMS ORDERED\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${itemsPlain}\n` : ""}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total: ${totalDisplayFormatted || displayTotal}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Questions? Contact us at info@tech4ru.com
+
+Thank you for shopping with Tech4U! 🛍️`;
 
   return sendEmail(customerEmail, subjects[newStatus], luxeWrap(content), text);
 }
@@ -734,10 +914,18 @@ export async function sendOwnerStatusAlert(
   const statusLabel = status.toUpperCase();
   const now = new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" });
 
+  const statusEmoji: Record<string, string> = {
+    shipped: "🚚",
+    delivered: "✅",
+    cancelled: "❌",
+    confirmed: "✓",
+    processing: "⚙️",
+  };
+
   const content = `
     <div class="greeting">
-      <h2>📋 ${statusLabel} — Admin Alert</h2>
-      <p>${now} PKT</p>
+      <h2>${statusEmoji[status]} ${statusLabel} — Admin Alert</h2>
+      <p style="color: #666;">${now} PKT</p>
     </div>
     
     <div class="order-info">
@@ -765,14 +953,27 @@ export async function sendOwnerStatusAlert(
     </div>
   `;
 
-  const text = `${statusLabel} - Tech4U Admin\nTime: ${now} PKT\n\nOrder: ${orderNumber}\nCustomer: ${customerName} | ${customerEmail} | ${customerPhone}\n${extraInfo ? `Info: ${extraInfo}` : ""}`;
+  const text = `${statusEmoji[status]} ${statusLabel} - Tech4U Admin
+
+Time: ${now} PKT
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ORDER UPDATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Order: ${orderNumber}
+Status: ${statusLabel}
+Customer: ${customerName}
+Email: ${customerEmail}
+Phone: ${customerPhone}
+${extraInfo ? `Info: ${extraInfo}` : ""}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
   const subjects: Record<string, string> = {
-    shipped: `Order ${orderNumber} Shipped`,
-    delivered: `Order ${orderNumber} Delivered`,
-    cancelled: `Order ${orderNumber} Cancelled`,
-    confirmed: `Order ${orderNumber} Confirmed`,
-    processing: `Order ${orderNumber} Processing`,
+    shipped: `🚚 Order ${orderNumber} Shipped`,
+    delivered: `✅ Order ${orderNumber} Delivered`,
+    cancelled: `❌ Order ${orderNumber} Cancelled`,
+    confirmed: `✓ Order ${orderNumber} Confirmed`,
+    processing: `⚙️ Order ${orderNumber} Processing`,
   };
 
   return sendEmail(ownerEmails, subjects[status], luxeWrap(content), text);

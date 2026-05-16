@@ -1,23 +1,25 @@
 // app/api/send-order-notification/route.ts
-// FIX 1 — Actual results return karo (fire-and-forget band)
-//          Page ko pata chalega email/whatsapp actually gayi ya nahi
-// FIX 2 — Anti-spam headers + text version (Yahoo inbox fix)
+// ✅ FIX: customerCountry WhatsApp tak properly pass hota hai
+// ✅ FIX: Currency conversion by customer country
 
 import { NextRequest, NextResponse } from "next/server";
-import { sendOrderConfirmationEmail, sendOwnerOrderAlert } from "@/lib/email";
+import {
+  sendOrderConfirmationEmail,
+  sendOwnerOrderAlert,
+} from "@/lib/email-smtp";
 import { sendOrderWhatsApp } from "@/lib/whatsapp";
 
-// Exchange rates — PKR se convert
+// Exchange rates — PKR se convert (email ke liye)
 const PKR_EXCHANGE_RATES: Record<string, number> = {
   PKR: 1,
   USD: 0.003584,
-  GBP: 0.002817,
-  EUR: 0.003289,
-  AUD: 0.005384,
-  CAD: 0.00488,
-  AED: 0.013168,
-  SAR: 0.013443,
-  INR: 0.2987,
+  GBP: 0.002639,
+  EUR: 0.003049,
+  AUD: 0.005,
+  CAD: 0.004878,
+  AED: 0.013082,
+  SAR: 0.013357,
+  INR: 0.298507,
 };
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -68,6 +70,7 @@ export async function POST(req: NextRequest) {
       shippingAddress,
       paymentMethod,
       currency,
+      customerCountry, // ← customer ki country (e.g. "United Kingdom", "Australia")
     } = body;
 
     // Validate
@@ -79,9 +82,8 @@ export async function POST(req: NextRequest) {
     }
 
     const currencyCode: string = (currency || "PKR").toUpperCase();
-    const currencySymbol = CURRENCY_SYMBOLS[currencyCode] ?? currencyCode;
 
-    // Convert prices PKR → target currency
+    // Convert prices PKR → target currency (email ke liye)
     const formattedItems = items.map((item: any) => {
       const pricePKR = item.pricePKR ?? item.price ?? 0;
       const convertedPrice = formatConvertedPrice(pricePKR, currencyCode);
@@ -91,36 +93,47 @@ export async function POST(req: NextRequest) {
         quantity: item.quantity,
         formattedPrice: convertedPrice,
         pricePKR,
+        image: item.image ?? item.variant_image ?? item.product_image ?? null,
       };
     });
 
     const totalPKR = total ?? 0;
     const formattedTotal = formatConvertedPrice(totalPKR, currencyCode);
     const customerPhone = phone || "";
+    const country = customerCountry || "Pakistan"; // ← WhatsApp currency ke liye
 
     console.log(
-      `Sending notifications for order ${orderNumber} (${currencyCode})`,
+      `📦 Order notification: ${orderNumber} | Country: ${country} | Currency: ${currencyCode}`,
     );
 
-    // ── AWAIT actual results — fire-and-forget band karo ──────────────────────
-    // Pehle "queued" return karta tha — isliye hamesha "Sent Successfully" dikhta tha
-    // Ab actual true/false aayega — page sahi status dikhayega
     const [whatsappResult, customerEmailResult, ownerEmailResult] =
       await Promise.allSettled([
-        // WhatsApp
+        // ✅ WhatsApp — customerCountry pass karo for currency conversion
         customerPhone
           ? sendOrderWhatsApp(
               customerPhone,
               orderNumber,
               name,
               totalPKR,
-              items,
+              items.map((item: any) => ({
+                name: item.name ?? item.product_name ?? "Product",
+                variant: item.variant ?? item.variant_name ?? null,
+                quantity: item.quantity,
+                price: item.pricePKR ?? item.price ?? 0,
+                piecesPerUnit: item.piecesPerUnit ?? item.pieces_per_unit ?? 1,
+                image:
+                  item.image ??
+                  item.variant_image ??
+                  item.product_image ??
+                  null,
+              })),
               formattedTotal,
               formattedItems,
+              country, // ← ✅ Country pass ho rahi hai currency detection ke liye
             )
           : Promise.resolve(false),
 
-        // Customer email — email.ts ka function (already anti-spam perfect)
+        // Customer email
         sendOrderConfirmationEmail(
           email,
           orderNumber,
@@ -132,6 +145,7 @@ export async function POST(req: NextRequest) {
           currencyCode,
           formattedTotal,
           formattedItems,
+          country,
         ),
 
         // Owner alert
@@ -147,10 +161,10 @@ export async function POST(req: NextRequest) {
           currencyCode,
           formattedTotal,
           formattedItems,
+          country,
         ),
       ]);
 
-    // Actual results extract karo
     const whatsappSent =
       whatsappResult.status === "fulfilled" && whatsappResult.value === true;
     const customerEmailSent =
@@ -160,19 +174,19 @@ export async function POST(req: NextRequest) {
       ownerEmailResult.status === "fulfilled" &&
       ownerEmailResult.value === true;
 
-    console.log(`Notification results for ${orderNumber}:`, {
-      whatsapp: whatsappSent ? "sent" : "failed",
-      customerEmail: customerEmailSent ? "sent" : "failed",
-      ownerEmail: ownerEmailSent ? "sent" : "failed",
+    console.log(`📊 Results for ${orderNumber}:`, {
+      country,
+      currency: currencyCode,
+      whatsapp: whatsappSent ? "✅ sent" : "❌ failed",
+      customerEmail: customerEmailSent ? "✅ sent" : "❌ failed",
+      ownerEmail: ownerEmailSent ? "✅ sent" : "❌ failed",
     });
 
-    // ── Actual results return karo page ko ───────────────────────────────────
     return NextResponse.json({
       success: true,
       results: {
-        // page.tsx in fields ko check karta hai
-        emailSent: customerEmailSent, // true/false — actual result
-        whatsappSent: whatsappSent, // true/false — actual result
+        emailSent: customerEmailSent,
+        whatsappSent: whatsappSent,
         ownerEmailSent: ownerEmailSent,
       },
     });

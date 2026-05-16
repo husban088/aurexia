@@ -1,40 +1,100 @@
 // lib/whatsapp.ts
-// ✅ WASENDERAPI — WhatsApp for ALL Countries
-// UK +44, USA +1, Australia +61, Pakistan +92 — sab kaam karta hai
-// NO sandbox, NO join message, NO daily limit
-// Unlimited messages — $6/month
+// ✅ WASENDERAPI — PAID PLAN ACTIVE
+// ✅ WhatsApp messages email ke bilkul same content/structure
+// ✅ Currency auto-detect by customer country
+// ✅ Product image + text (paid plan)
 // Docs: https://wasenderapi.com/api-docs
 
-// ============================================
-// PHONE NUMBER FORMATTER — ALL COUNTRIES
-// E.164 format required: +[country][number]
-//
-// +61426855997  → +61426855997  ✅ Australia
-// +12125551234  → +12125551234  ✅ USA
-// +447123456789 → +447123456789 ✅ UK
-// +923001234567 → +923001234567 ✅ Pakistan (international)
-// 03001234567   → +923001234567 ✅ Pakistan (local 0-format)
-// +971501234567 → +971501234567 ✅ UAE
-// ============================================
+// ─────────────────────────────────────────────────────────────
+// CURRENCY CONFIG — exactly matching email.ts PKR_RATES
+// ─────────────────────────────────────────────────────────────
+const PKR_RATES: Record<
+  string,
+  { symbol: string; rate: number; code: string; locale: string }
+> = {
+  Pakistan: { symbol: "₨", rate: 1, code: "PKR", locale: "en-PK" },
+  "United States": { symbol: "$", rate: 0.0036, code: "USD", locale: "en-US" },
+  USA: { symbol: "$", rate: 0.0036, code: "USD", locale: "en-US" },
+  US: { symbol: "$", rate: 0.0036, code: "USD", locale: "en-US" },
+  "United Kingdom": { symbol: "£", rate: 0.0028, code: "GBP", locale: "en-GB" },
+  UK: { symbol: "£", rate: 0.0028, code: "GBP", locale: "en-GB" },
+  GB: { symbol: "£", rate: 0.0028, code: "GBP", locale: "en-GB" },
+  England: { symbol: "£", rate: 0.0028, code: "GBP", locale: "en-GB" },
+  Australia: { symbol: "A$", rate: 0.0055, code: "AUD", locale: "en-AU" },
+  AU: { symbol: "A$", rate: 0.0055, code: "AUD", locale: "en-AU" },
+  Canada: { symbol: "C$", rate: 0.0049, code: "CAD", locale: "en-CA" },
+  CA: { symbol: "C$", rate: 0.0049, code: "CAD", locale: "en-CA" },
+  "United Arab Emirates": {
+    symbol: "AED",
+    rate: 0.013,
+    code: "AED",
+    locale: "ar-AE",
+  },
+  UAE: { symbol: "AED", rate: 0.013, code: "AED", locale: "ar-AE" },
+  AE: { symbol: "AED", rate: 0.013, code: "AED", locale: "ar-AE" },
+  Dubai: { symbol: "AED", rate: 0.013, code: "AED", locale: "ar-AE" },
+  "Saudi Arabia": { symbol: "﷼", rate: 0.013, code: "SAR", locale: "ar-SA" },
+  SA: { symbol: "﷼", rate: 0.013, code: "SAR", locale: "ar-SA" },
+  KSA: { symbol: "﷼", rate: 0.013, code: "SAR", locale: "ar-SA" },
+  India: { symbol: "₹", rate: 0.3, code: "INR", locale: "en-IN" },
+  IN: { symbol: "₹", rate: 0.3, code: "INR", locale: "en-IN" },
+  Germany: { symbol: "€", rate: 0.0033, code: "EUR", locale: "de-DE" },
+  France: { symbol: "€", rate: 0.0033, code: "EUR", locale: "fr-FR" },
+  Italy: { symbol: "€", rate: 0.0033, code: "EUR", locale: "it-IT" },
+  Spain: { symbol: "€", rate: 0.0033, code: "EUR", locale: "es-ES" },
+  Netherlands: { symbol: "€", rate: 0.0033, code: "EUR", locale: "nl-NL" },
+  EU: { symbol: "€", rate: 0.0033, code: "EUR", locale: "en-EU" },
+};
+
+function getCurrencyConfig(country: string) {
+  if (!country) return PKR_RATES["Pakistan"];
+  // Exact match
+  if (PKR_RATES[country]) return PKR_RATES[country];
+  // Case-insensitive match
+  const lower = country.toLowerCase();
+  for (const [key, val] of Object.entries(PKR_RATES)) {
+    if (key.toLowerCase() === lower) return val;
+  }
+  // Partial match (e.g. "United Kingdom (UK)")
+  for (const [key, val] of Object.entries(PKR_RATES)) {
+    if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower))
+      return val;
+  }
+  return PKR_RATES["Pakistan"]; // fallback
+}
+
+function formatPrice(amountPKR: number, country: string): string {
+  const cfg = getCurrencyConfig(country);
+  if (cfg.code === "PKR") {
+    return `₨ ${Math.round(amountPKR).toLocaleString("en-PK")}`;
+  }
+  const converted = amountPKR * cfg.rate;
+  if (cfg.code === "INR") {
+    return `₹${Math.round(converted).toLocaleString("en-IN")}`;
+  }
+  return `${cfg.symbol}${converted.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// PHONE NUMBER FORMATTER — ALL COUNTRIES (E.164)
+// ─────────────────────────────────────────────────────────────
 export function formatPhoneForWhatsApp(phoneNumber: string): string {
   let clean = phoneNumber.trim().replace(/[\s\-\(\)\.]/g, "");
-
   if (clean.startsWith("+")) {
-    clean = "+" + clean.slice(1).replace(/\D/g, "");
-    return clean;
+    return "+" + clean.slice(1).replace(/\D/g, "");
   } else if (clean.startsWith("0") && clean.length === 11 && clean[1] === "3") {
-    // Pakistan local: 03001234567 → +923001234567
-    clean = clean.replace(/\D/g, "");
-    return `+92${clean.slice(1)}`;
+    return `+92${clean.replace(/\D/g, "").slice(1)}`;
   } else {
-    clean = clean.replace(/\D/g, "");
-    return `+${clean}`;
+    return `+${clean.replace(/\D/g, "")}`;
   }
 }
 
-// ============================================
-// HELPER: Valid public image URL
-// ============================================
+// ─────────────────────────────────────────────────────────────
+// IMAGE URL VALIDATOR
+// ─────────────────────────────────────────────────────────────
 function isValidPublicImageUrl(url: string | null | undefined): boolean {
   if (!url || url === "null" || url === "undefined" || url.trim() === "")
     return false;
@@ -48,18 +108,16 @@ function isValidPublicImageUrl(url: string | null | undefined): boolean {
   return true;
 }
 
-// ============================================
-// WASENDERAPI — Send Text Message
-// POST /api/send-message
-// ============================================
+// ─────────────────────────────────────────────────────────────
+// CORE: Send Text Message
+// ─────────────────────────────────────────────────────────────
 export async function sendWhatsAppMessage(
   to: string,
   message: string,
 ): Promise<boolean> {
   const apiKey = process.env.WASENDER_API_KEY;
-
   if (!apiKey) {
-    console.warn("⚠️ WASENDER_API_KEY missing — Add to .env.local");
+    console.error("❌ WASENDER_API_KEY missing — .env.local mein add karo");
     return false;
   }
 
@@ -75,14 +133,15 @@ export async function sendWhatsAppMessage(
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          to: toFormatted,
-          text: message,
-        }),
+        body: JSON.stringify({ to: toFormatted, text: message }),
       },
     );
 
     const result = await response.json();
+    console.log(
+      `📥 WasenderAPI response (${response.status}):`,
+      JSON.stringify(result),
+    );
 
     if (response.ok && result.success) {
       console.log(
@@ -91,39 +150,46 @@ export async function sendWhatsAppMessage(
       return true;
     } else {
       console.error(
-        `❌ WasenderAPI text error (${toFormatted}):`,
+        `❌ WasenderAPI FAILED (${response.status}) → ${toFormatted}:`,
         JSON.stringify(result),
       );
+      if (response.status === 403) {
+        console.error("⚠️  403 SESSION DISCONNECT!");
+        console.error(
+          "   👉 https://wasenderapi.com/dashboard → Sessions → Reconnect WhatsApp",
+        );
+      }
+      if (response.status === 401) {
+        console.error(
+          "⚠️  401 INVALID API KEY — Dashboard se sahi key copy karo",
+        );
+      }
       return false;
     }
   } catch (error) {
-    console.error(`❌ WasenderAPI fetch error (${toFormatted}):`, error);
+    console.error(`❌ WasenderAPI fetch exception (${toFormatted}):`, error);
     return false;
   }
 }
 
-// ============================================
-// WASENDERAPI — Send Image with Caption
-// POST /api/send-message (imageUrl parameter)
-// ⚠️ PAID PLAN ONLY — uncomment when upgraded
-// ============================================
+// ─────────────────────────────────────────────────────────────
+// CORE: Send Image with Caption (PAID PLAN ✅)
+// ─────────────────────────────────────────────────────────────
 export async function sendWhatsAppImage(
   to: string,
   imageUrl: string,
   caption: string,
 ): Promise<boolean> {
   const apiKey = process.env.WASENDER_API_KEY;
-
   if (!apiKey) return false;
 
   if (!isValidPublicImageUrl(imageUrl)) {
-    console.warn(`⚠️ Invalid image URL — must be public https: ${imageUrl}`);
+    console.warn(`⚠️ Invalid/localhost image URL — skipping: ${imageUrl}`);
     return false;
   }
 
   const toFormatted = formatPhoneForWhatsApp(to);
   console.log(`🖼️ WasenderAPI image → ${toFormatted}`);
-  console.log(`   Image: ${imageUrl}`);
 
   try {
     const response = await fetch(
@@ -134,129 +200,487 @@ export async function sendWhatsAppImage(
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          to: toFormatted,
-          text: caption,
-          imageUrl: imageUrl,
-        }),
+        body: JSON.stringify({ to: toFormatted, text: caption, imageUrl }),
       },
     );
 
     const result = await response.json();
+    console.log(
+      `📥 WasenderAPI image response (${response.status}):`,
+      JSON.stringify(result),
+    );
 
     if (response.ok && result.success) {
       console.log(`✅ WasenderAPI image sent! MsgID: ${result.data?.msgId}`);
       return true;
     } else {
       console.error(
-        `❌ WasenderAPI image error (${toFormatted}):`,
+        `❌ WasenderAPI image FAILED (${response.status}):`,
         JSON.stringify(result),
       );
       return false;
     }
   } catch (error) {
-    console.error(`❌ WasenderAPI image fetch error:`, error);
+    console.error(`❌ WasenderAPI image exception:`, error);
     return false;
   }
 }
 
-// ============================================
-// COMPLETE ORDER NOTIFICATION
-// FREE TRIAL MODE: Sirf text message
-// PAID PLAN: Image + text dono (uncomment below)
-// ============================================
+// ─────────────────────────────────────────────────────────────
+// ORDER CONFIRMATION WhatsApp
+// ✅ Matches email.ts sendOrderConfirmationEmail exactly
+// ✅ PAID PLAN: Image + Text
+// ✅ Currency by customer country
+// ─────────────────────────────────────────────────────────────
 export async function sendOrderWhatsApp(
   phoneNumber: string,
   orderNumber: string,
   name: string,
-  total: number,
+  total: number, // always PKR
   items: Array<{
     name: string;
-    variant?: string;
+    variant?: string | null;
     quantity: number;
-    price: number;
+    price: number; // PKR
     piecesPerUnit?: number;
-    image?: string;
+    image?: string | null;
+    variant_image?: string | null;
+    product_image?: string | null;
   }>,
   formattedTotal?: string,
   formattedItems?: Array<{
     name: string;
-    variant?: string;
+    variant?: string | null;
     quantity: number;
     formattedPrice: string;
   }>,
+  customerCountry?: string,
 ): Promise<boolean> {
-  // Build items list
-  const itemsList =
-    formattedItems && formattedItems.length > 0
-      ? formattedItems
-          .map(
-            (item) =>
-              `• ${item.name}${item.variant ? ` (${item.variant})` : ""} x${item.quantity} — ${item.formattedPrice}`,
-          )
-          .join("\n")
-      : items
-          .map(
-            (item) =>
-              `• ${item.name}${item.variant ? ` (${item.variant})` : ""} x${item.quantity} — PKR ${item.price.toLocaleString()}`,
-          )
-          .join("\n");
+  const country = customerCountry || "Pakistan";
+  const cfg = getCurrencyConfig(country);
+  const isPKR = cfg.code === "PKR";
 
-  const displayTotal = formattedTotal || `PKR ${total.toLocaleString()}`;
+  console.log(`🌍 Country: "${country}" → Currency: ${cfg.code}`);
 
-  const message = `✅ *Order Confirmed — Tech4U* 🎉
+  // ── Build items list (same as email ORDER SUMMARY table) ─────────────────
+  let itemLines: string[] = [];
+  let totalPKRCalc = 0;
 
-Hello *${name}*! Thank you for your purchase!
+  for (const item of items) {
+    const ppu = item.piecesPerUnit || 1;
+    const itemTotalPKR = item.price * ppu * item.quantity;
+    totalPKRCalc += itemTotalPKR;
+    const priceFormatted = formatPrice(itemTotalPKR, country);
+    const variantText =
+      item.variant && item.variant !== "Standard" ? ` (${item.variant})` : "";
+    const ppuText = ppu > 1 ? ` [${ppu} pcs/unit]` : "";
+    itemLines.push(
+      `  • ${item.name}${variantText}${ppuText}\n    Qty: ×${item.quantity}   Total: ${priceFormatted}`,
+    );
+  }
 
-━━━━━━━━━━━━━━━━━
-📦 *Order Number:* ${orderNumber}
-💰 *Total Amount:* ${displayTotal}
-━━━━━━━━━━━━━━━━━
+  const displayTotal = formatPrice(total || totalPKRCalc, country);
 
-🛒 *Items Ordered:*
-${itemsList}
+  // ── Currency note for non-PKR customers ──────────────────────────────────
+  const currencyNote = !isPKR
+    ? `\n💱 _Prices shown in ${cfg.code} (approx.)_`
+    : "";
 
-━━━━━━━━━━━━━━━━━
-🚚 Shipping: FREE
-━━━━━━━━━━━━━━━━━
+  // ── MESSAGE — matches email structure exactly ─────────────────────────────
+  // Email has: Greeting → Order Info Box → Items Table → Shipping note → Footer
+  // WhatsApp:  Greeting → Order Info     → Items List  → Shipping note → Footer
 
-Your order is being processed and will be shipped soon.
-You'll receive tracking info here on WhatsApp once shipped.
+  const message = `╔══════════════════════╗
+  ✦ T E C H 4 U ✦
+  LUXURY ESSENTIALS
+╚══════════════════════╝
 
-For any questions:
+✅ *Order Confirmed, ${name}!*
+Thank you for choosing Tech4U. Your order has been received and will be processed shortly.
+
+━━━━━━━━━━━━━━━━━━━━━━
+📋 *ORDER DETAILS*
+━━━━━━━━━━━━━━━━━━━━━━
+🔢 Order Number:  *${orderNumber}*
+💰 Total Amount:  *${displayTotal}*${currencyNote}
+🚚 Shipping:      *FREE*
+━━━━━━━━━━━━━━━━━━━━━━
+
+🛒 *ORDER SUMMARY*
+──────────────────────
+${itemLines.join("\n──────────────────────\n")}
+──────────────────────
+💳 *GRAND TOTAL:  ${displayTotal}*
+
+━━━━━━━━━━━━━━━━━━━━━━
+✨ *Free shipping on all orders* ✨
+You will receive updates when your order is processed and shipped.
+━━━━━━━━━━━━━━━━━━━━━━
+
 📧 info@tech4ru.com
 🌐 tech4ru.com
 
-Thank you for choosing Tech4U! ✨`;
+✦ TECH4U — Luxury Redefined ✦`;
 
-  // ============================================
-  // 🆓 FREE TRIAL MODE — Sirf text jayega
-  // Image disabled — rate limit se bachne ke liye
-  // ============================================
-  console.log("📱 Sending order text (FREE TRIAL MODE — image disabled)");
+  console.log(
+    `📱 Order WhatsApp → ${phoneNumber} | #${orderNumber} | ${displayTotal} (${cfg.code})`,
+  );
+
+  // ── PAID PLAN: Image first, then text ────────────────────────────────────
+  const firstItemWithImage = items.find((item) =>
+    isValidPublicImageUrl(
+      item.variant_image || item.image || item.product_image,
+    ),
+  );
+  const imageUrl = firstItemWithImage
+    ? firstItemWithImage.variant_image ||
+      firstItemWithImage.image ||
+      firstItemWithImage.product_image
+    : null;
+
+  if (imageUrl) {
+    const variantText =
+      firstItemWithImage?.variant && firstItemWithImage.variant !== "Standard"
+        ? ` (${firstItemWithImage.variant})`
+        : "";
+    const imageCaption = `🛍️ *${firstItemWithImage?.name}*${variantText}\n📦 Order #${orderNumber} — Tech4U`;
+    console.log("🖼️ Sending product image first...");
+    const imageSent = await sendWhatsAppImage(
+      phoneNumber,
+      imageUrl,
+      imageCaption,
+    );
+    if (imageSent) {
+      console.log("✅ Image sent — waiting 1.5s before text...");
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    } else {
+      console.warn("⚠️ Image failed — continuing with text only");
+    }
+  } else {
+    console.log("ℹ️ No product image available — text only");
+  }
+
   return sendWhatsAppMessage(phoneNumber, message);
+}
 
-  // ============================================
-  // 💰 PAID PLAN — Uncomment karo jab upgrade karo
-  // Image + text dono jayenge
-  // ============================================
-  // const firstItemWithImage = items.find((item) =>
-  //   isValidPublicImageUrl(item.image),
-  // );
-  // if (firstItemWithImage?.image) {
-  //   const imageCaption = `🛍️ *${firstItemWithImage.name}*${
-  //     firstItemWithImage.variant ? ` (${firstItemWithImage.variant})` : ""
-  //   }\n📦 Order #${orderNumber} — Tech4U`;
-  //   console.log("🖼️ Sending order image first...");
-  //   const imageSent = await sendWhatsAppImage(
-  //     phoneNumber,
-  //     firstItemWithImage.image,
-  //     imageCaption,
-  //   );
-  //   if (!imageSent) {
-  //     console.warn("⚠️ Image send failed — continuing with text only");
-  //   }
-  //   await new Promise((resolve) => setTimeout(resolve, 1000));
-  // }
-  // return sendWhatsAppMessage(phoneNumber, message);
+// ─────────────────────────────────────────────────────────────
+// SHIPPED WhatsApp
+// ✅ Matches email.ts sendStatusUpdateEmail "shipped" exactly
+// ─────────────────────────────────────────────────────────────
+export function buildShippedWhatsApp(
+  name: string,
+  orderNumber: string,
+  courierName: string,
+  trackingNumber: string,
+  estimatedDays: string,
+  courierTrackingUrl?: string,
+  items?: Array<{
+    name: string;
+    variant?: string | null;
+    quantity: number;
+    price: number;
+    piecesPerUnit?: number;
+  }>,
+  total?: number,
+  country?: string,
+): string {
+  const c = country || "Pakistan";
+  const displayTotal = total ? formatPrice(total, c) : null;
+
+  let itemLines = "";
+  if (items && items.length > 0) {
+    const lines = items.map((item) => {
+      const ppu = item.piecesPerUnit || 1;
+      const itemTotalPKR = item.price * ppu * item.quantity;
+      const priceFormatted = formatPrice(itemTotalPKR, c);
+      const variantText =
+        item.variant && item.variant !== "Standard" ? ` (${item.variant})` : "";
+      return `  • ${item.name}${variantText} ×${item.quantity}   ${priceFormatted}`;
+    });
+    itemLines = `
+🛒 *ORDER SUMMARY*
+──────────────────────
+${lines.join("\n")}
+──────────────────────
+${displayTotal ? `💳 *TOTAL: ${displayTotal}*` : ""}
+
+`;
+  }
+
+  const trackLine = courierTrackingUrl
+    ? `\n🔗 Track online: ${courierTrackingUrl}`
+    : "";
+
+  return `╔══════════════════════╗
+  ✦ T E C H 4 U ✦
+  LUXURY ESSENTIALS
+╚══════════════════════╝
+
+🚚 *Order Shipped, ${name}!*
+Great news — your order is on its way!
+
+━━━━━━━━━━━━━━━━━━━━━━
+📋 *SHIPPING DETAILS*
+━━━━━━━━━━━━━━━━━━━━━━
+🔢 Order:       *${orderNumber}*
+📊 Status:      *SHIPPED* ✅
+🏢 Courier:     *${courierName}*
+📦 Tracking No: *${trackingNumber}*
+⏱ Est. Delivery: *${estimatedDays}*${trackLine}
+━━━━━━━━━━━━━━━━━━━━━━
+${itemLines}
+📧 info@tech4ru.com
+🌐 tech4ru.com
+
+✦ TECH4U — Luxury Redefined ✦`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// DELIVERED WhatsApp
+// ✅ Matches email.ts sendStatusUpdateEmail "delivered" exactly
+// ─────────────────────────────────────────────────────────────
+export function buildDeliveredWhatsApp(
+  name: string,
+  orderNumber: string,
+  items?: Array<{
+    name: string;
+    variant?: string | null;
+    quantity: number;
+    price: number;
+    piecesPerUnit?: number;
+  }>,
+  total?: number,
+  country?: string,
+): string {
+  const c = country || "Pakistan";
+  const displayTotal = total ? formatPrice(total, c) : null;
+
+  let itemLines = "";
+  if (items && items.length > 0) {
+    const lines = items.map((item) => {
+      const ppu = item.piecesPerUnit || 1;
+      const itemTotalPKR = item.price * ppu * item.quantity;
+      const priceFormatted = formatPrice(itemTotalPKR, c);
+      const variantText =
+        item.variant && item.variant !== "Standard" ? ` (${item.variant})` : "";
+      return `  • ${item.name}${variantText} ×${item.quantity}   ${priceFormatted}`;
+    });
+    itemLines = `
+🛒 *ORDER SUMMARY*
+──────────────────────
+${lines.join("\n")}
+──────────────────────
+${displayTotal ? `💳 *TOTAL: ${displayTotal}*` : ""}
+
+`;
+  }
+
+  return `╔══════════════════════╗
+  ✦ T E C H 4 U ✦
+  LUXURY ESSENTIALS
+╚══════════════════════╝
+
+✅ *Order Delivered, ${name}!*
+
+━━━━━━━━━━━━━━━━━━━━━━
+📋 *ORDER STATUS*
+━━━━━━━━━━━━━━━━━━━━━━
+🔢 Order:   *${orderNumber}*
+📊 Status:  *DELIVERED* ✅
+━━━━━━━━━━━━━━━━━━━━━━
+${itemLines}Your order has been successfully delivered! 📦🎉
+We hope you love your purchase! 🛍️
+
+📧 info@tech4ru.com
+🌐 tech4ru.com
+
+✦ TECH4U — Luxury Redefined ✦`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// CANCELLED WhatsApp
+// ✅ Matches email.ts sendStatusUpdateEmail "cancelled" exactly
+// ─────────────────────────────────────────────────────────────
+export function buildCancelledWhatsApp(
+  name: string,
+  orderNumber: string,
+  cancelReason?: string,
+  items?: Array<{
+    name: string;
+    variant?: string | null;
+    quantity: number;
+    price: number;
+    piecesPerUnit?: number;
+  }>,
+  total?: number,
+  country?: string,
+): string {
+  const c = country || "Pakistan";
+  const displayTotal = total ? formatPrice(total, c) : null;
+
+  let itemLines = "";
+  if (items && items.length > 0) {
+    const lines = items.map((item) => {
+      const ppu = item.piecesPerUnit || 1;
+      const itemTotalPKR = item.price * ppu * item.quantity;
+      const priceFormatted = formatPrice(itemTotalPKR, c);
+      const variantText =
+        item.variant && item.variant !== "Standard" ? ` (${item.variant})` : "";
+      return `  • ${item.name}${variantText} ×${item.quantity}   ${priceFormatted}`;
+    });
+    itemLines = `
+🛒 *ORDER SUMMARY*
+──────────────────────
+${lines.join("\n")}
+──────────────────────
+${displayTotal ? `💳 *TOTAL: ${displayTotal}*` : ""}
+
+`;
+  }
+
+  const reasonBlock = cancelReason ? `\n📋 *REASON:* ${cancelReason}\n` : "";
+
+  return `╔══════════════════════╗
+  ✦ T E C H 4 U ✦
+  LUXURY ESSENTIALS
+╚══════════════════════╝
+
+❌ *Order Cancelled, ${name}*
+
+━━━━━━━━━━━━━━━━━━━━━━
+📋 *ORDER STATUS*
+━━━━━━━━━━━━━━━━━━━━━━
+🔢 Order:   *${orderNumber}*
+📊 Status:  *CANCELLED* ❌${reasonBlock}
+━━━━━━━━━━━━━━━━━━━━━━
+${itemLines}If you have any questions, please contact us:
+📧 info@tech4ru.com
+🌐 tech4ru.com
+
+We hope to serve you again soon. 🙏
+
+✦ TECH4U — Luxury Redefined ✦`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// CONFIRMED WhatsApp (admin panel se manual confirm)
+// ─────────────────────────────────────────────────────────────
+export function buildConfirmedWhatsApp(
+  name: string,
+  orderNumber: string,
+  displayTotal: string,
+  currencyNote: string,
+  items?: Array<{
+    name: string;
+    variant?: string | null;
+    quantity: number;
+    price: number;
+    piecesPerUnit?: number;
+  }>,
+  country?: string,
+): string {
+  const c = country || "Pakistan";
+
+  let itemLines = "";
+  if (items && items.length > 0) {
+    const lines = items.map((item) => {
+      const ppu = item.piecesPerUnit || 1;
+      const itemTotalPKR = item.price * ppu * item.quantity;
+      const priceFormatted = formatPrice(itemTotalPKR, c);
+      const variantText =
+        item.variant && item.variant !== "Standard" ? ` (${item.variant})` : "";
+      return `  • ${item.name}${variantText} ×${item.quantity}   ${priceFormatted}`;
+    });
+    itemLines = `
+🛒 *ORDER SUMMARY*
+──────────────────────
+${lines.join("\n")}
+──────────────────────
+💳 *GRAND TOTAL: ${displayTotal}*
+
+`;
+  }
+
+  return `╔══════════════════════╗
+  ✦ T E C H 4 U ✦
+  LUXURY ESSENTIALS
+╚══════════════════════╝
+
+✅ *Order Confirmed, ${name}!*
+Thank you for choosing Tech4U. Your order has been confirmed.
+
+━━━━━━━━━━━━━━━━━━━━━━
+📋 *ORDER DETAILS*
+━━━━━━━━━━━━━━━━━━━━━━
+🔢 Order Number: *${orderNumber}*
+📊 Status:       *CONFIRMED* ✅
+💰 Total Amount: *${displayTotal}*${currencyNote}
+━━━━━━━━━━━━━━━━━━━━━━
+${itemLines}We'll notify you here on WhatsApp when your order is shipped.
+
+📧 info@tech4ru.com
+🌐 tech4ru.com
+
+✦ TECH4U — Luxury Redefined ✦`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// PROCESSING WhatsApp
+// ─────────────────────────────────────────────────────────────
+export function buildProcessingWhatsApp(
+  name: string,
+  orderNumber: string,
+  displayTotal?: string,
+  items?: Array<{
+    name: string;
+    variant?: string | null;
+    quantity: number;
+    price: number;
+    piecesPerUnit?: number;
+  }>,
+  country?: string,
+): string {
+  const c = country || "Pakistan";
+
+  let itemLines = "";
+  if (items && items.length > 0) {
+    const lines = items.map((item) => {
+      const ppu = item.piecesPerUnit || 1;
+      const itemTotalPKR = item.price * ppu * item.quantity;
+      const priceFormatted = formatPrice(itemTotalPKR, c);
+      const variantText =
+        item.variant && item.variant !== "Standard" ? ` (${item.variant})` : "";
+      return `  • ${item.name}${variantText} ×${item.quantity}   ${priceFormatted}`;
+    });
+    itemLines = `
+🛒 *ORDER SUMMARY*
+──────────────────────
+${lines.join("\n")}
+──────────────────────
+${displayTotal ? `💳 *TOTAL: ${displayTotal}*` : ""}
+
+`;
+  }
+
+  return `╔══════════════════════╗
+  ✦ T E C H 4 U ✦
+  LUXURY ESSENTIALS
+╚══════════════════════╝
+
+⚙️ *Order Processing, ${name}*
+
+━━━━━━━━━━━━━━━━━━━━━━
+📋 *ORDER STATUS*
+━━━━━━━━━━━━━━━━━━━━━━
+🔢 Order:   *${orderNumber}*
+📊 Status:  *PROCESSING* ⚙️
+━━━━━━━━━━━━━━━━━━━━━━
+${itemLines}We'll notify you here on WhatsApp when your order is shipped.
+
+📧 info@tech4ru.com
+🌐 tech4ru.com
+
+Thank you for your patience! 🙏
+
+✦ TECH4U — Luxury Redefined ✦`;
 }
