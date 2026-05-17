@@ -1,82 +1,112 @@
 // lib/get-initial-currency.ts
+// Server-side currency detection — runs at page request time
+// Reads CDN geo headers — no external API calls needed server-side
+
 import { cookies } from "next/headers";
 import { headers } from "next/headers";
-import { currencies, getCurrencyByCountry, defaultCurrency } from "./currency";
+import { currencies, getCurrencyByCountry } from "./currency";
+
+// This key marks that the user MANUALLY selected a currency
+// We only respect cookie if user explicitly chose it
+const CURRENCY_USER_SELECTED_COOKIE = "currencyUserSelected";
+const CURRENCY_PREF_COOKIE = "preferredCurrency";
 
 export async function getInitialCurrency() {
   try {
     const cookieStore = await cookies();
-    const savedCurrencyCode = cookieStore.get("preferredCurrency")?.value;
+    const headersList = await headers();
 
-    // ── 1. Saved preference from cookie (user manually selected) ─────────
-    if (savedCurrencyCode) {
-      const savedCurrency = currencies.find(
-        (c) => c.code === savedCurrencyCode,
-      );
-      if (savedCurrency) {
-        console.log("📀 Cookie currency:", savedCurrency.code);
-        return savedCurrency;
+    // ── 1. User manually selected currency — always respect ───────────────
+    const userSelectedFlag = cookieStore.get(
+      CURRENCY_USER_SELECTED_COOKIE,
+    )?.value;
+    if (userSelectedFlag === "true") {
+      const savedCode = cookieStore.get(CURRENCY_PREF_COOKIE)?.value;
+      if (savedCode) {
+        const saved = currencies.find((c) => c.code === savedCode);
+        if (saved) {
+          console.log("📀 User-selected currency from cookie:", saved.code);
+          return saved;
+        }
       }
     }
 
-    // ── 2. Server headers — Cloudflare / Vercel / CloudFront ─────────────
-    const headersList = await headers();
-
-    const headersToCheck = [
-      "cf-ipcountry", // Cloudflare (most reliable)
-      "x-vercel-ip-country", // Vercel
+    // ── 2. CDN geo headers — most accurate, zero latency ─────────────────
+    const geoHeaders = [
+      "cf-ipcountry", // Cloudflare — most reliable
+      "x-vercel-ip-country", // Vercel Edge Network
       "cloudfront-viewer-country", // AWS CloudFront
       "x-country",
       "x-geo-country",
       "x-real-country",
     ];
 
-    for (const header of headersToCheck) {
+    for (const header of geoHeaders) {
       const value = headersList.get(header);
       if (value && value.length === 2 && value !== "XX" && value !== "T1") {
-        // XX = unknown, T1 = Tor — skip these
-        const detectedCurrency = getCurrencyByCountry(value.toUpperCase());
-        console.log(
-          `🌍 Header [${header}]: ${value} → ${detectedCurrency.code}`,
-        );
-        return detectedCurrency;
+        const country = value.toUpperCase();
+        const detected = getCurrencyByCountry(country);
+        console.log(`🌍 Server geo [${header}]: ${country} → ${detected.code}`);
+        return detected;
       }
     }
 
-    // ── 3. Accept-Language header fallback ────────────────────────────────
+    // ── 3. Accept-Language header — browser sends this on every request ───
     const acceptLang = headersList.get("accept-language") || "";
-    const primaryLang =
-      acceptLang.split(",")[0]?.trim().split(";")[0]?.trim() || "";
+    // Example: "ur-PK,ur;q=0.9,en;q=0.8"
+    const langs = acceptLang
+      .split(",")
+      .map((l) => l.split(";")[0].trim())
+      .filter(Boolean);
 
     const langToCountry: Record<string, string> = {
       "ur-PK": "PK",
       ur: "PK",
       "ar-AE": "AE",
       "ar-SA": "SA",
+      "ar-QA": "QA",
+      "ar-KW": "KW",
+      "ar-BH": "BH",
+      "ar-OM": "OM",
       "hi-IN": "IN",
       hi: "IN",
       "en-GB": "GB",
       "en-AU": "AU",
       "en-CA": "CA",
       "de-DE": "DE",
+      de: "DE",
       "fr-FR": "FR",
+      fr: "FR",
+      "bn-BD": "BD",
     };
 
-    if (primaryLang && langToCountry[primaryLang]) {
-      const langCountry = langToCountry[primaryLang];
-      const langCurrency = getCurrencyByCountry(langCountry);
-      console.log(
-        `🗣️ Accept-Language [${primaryLang}]: ${langCountry} → ${langCurrency.code}`,
-      );
-      return langCurrency;
+    for (const lang of langs) {
+      // Exact match
+      if (langToCountry[lang]) {
+        const country = langToCountry[lang];
+        const detected = getCurrencyByCountry(country);
+        console.log(
+          `🗣️ Accept-Language [${lang}]: ${country} → ${detected.code}`,
+        );
+        return detected;
+      }
+      // Prefix match (e.g. "ur-" matches "ur")
+      for (const [key, country] of Object.entries(langToCountry)) {
+        if (lang.startsWith(key + "-")) {
+          const detected = getCurrencyByCountry(country);
+          console.log(
+            `🗣️ Accept-Language prefix [${lang}→${key}]: ${country} → ${detected.code}`,
+          );
+          return detected;
+        }
+      }
     }
 
-    // ── 4. Default — PKR (app is Pakistan-based) ─────────────────────────
-    const pkr = currencies.find((c) => c.code === "PKR") || defaultCurrency;
-    console.log("🌎 Default currency: PKR");
-    return pkr;
+    // ── 4. Default: PKR — app is Pakistan-based, client will detect precisely
+    console.log("📌 Server fallback: PKR (client will detect)");
+    return currencies.find((c) => c.code === "PKR") || currencies[0];
   } catch (error) {
     console.error("❌ getInitialCurrency error:", error);
-    return currencies.find((c) => c.code === "PKR") || defaultCurrency;
+    return currencies.find((c) => c.code === "PKR") || currencies[0];
   }
 }

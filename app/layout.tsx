@@ -6,6 +6,8 @@ import "./globals.css";
 import Providers from "./providers";
 import { CurrencyProvider } from "./context/CurrencyContext";
 import { LanguageProvider } from "./context/LanguageContext";
+import { CurrencyCleaner } from "./components/CurrencyCleaner";
+import { getInitialCurrency } from "@/lib/get-initial-currency";
 
 // Poppins font configuration
 const poppins = Poppins({
@@ -24,14 +26,16 @@ export const metadata: Metadata = {
   icons: { icon: "/icon.jpg" },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Server-side currency detect — Cloudflare/Vercel CDN headers se
+  // Yeh page render hone se pehle hota hai — koi flash nahi
+  const initialCurrency = await getInitialCurrency();
+
   return (
-    // NOTE: dir="ltr" is default — LanguageContext will update it client-side
-    // when Arabic is detected (UAE). This avoids SSR mismatch.
     <html
       lang="en"
       dir="ltr"
@@ -71,13 +75,13 @@ export default function RootLayout({
         {/* ===== End Meta Pixel Code ===== */}
       </head>
       <body className="min-h-full flex flex-col">
-        {/*
-          LanguageProvider wraps everything so ALL components can access
-          translations via useLanguage() hook.
-          CurrencyProvider is kept inside so it can coexist.
-        */}
         <LanguageProvider>
-          <CurrencyProvider>
+          {/*
+            initialCurrencyCode — server se detected country ka currency code
+            CurrencyCleaner — purana galat localStorage (auto-saved USD) clear karta hai
+          */}
+          <CurrencyProvider initialCurrencyCode={initialCurrency.code}>
+            <CurrencyCleaner />
             <Providers>{children}</Providers>
           </CurrencyProvider>
         </LanguageProvider>
