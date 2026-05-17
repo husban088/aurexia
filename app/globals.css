@@ -22,6 +22,10 @@
     Agar AnnouncementBar ~40px + Navbar ~64px = ~104px total hai toh yahi rakho.
   */
   --navbar-height: 104px;
+
+  /* ── Golden Scrollbar Colors ── */
+  --scrollbar-thumb: #c9a84c;
+  --scrollbar-track: #1a1410;
 }
 
 @theme inline {
@@ -30,6 +34,60 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
+
+/* ============================================================
+   ✅ GOLDEN SCROLLBAR — Chrome, Edge, Safari, Opera
+   * selector se ALAG rakha — koi conflict nahi
+   ============================================================ */
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track {
+  background: #1a1410;
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #e0b84e 0%, #c9a84c 40%, #b4912f 100%);
+  border-radius: 6px;
+  border: 1px solid #8a6d1f;
+}
+
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #f0cc6a 0%, #e0b84e 40%, #c9a84c 100%);
+}
+
+html::-webkit-scrollbar-thumb:active,
+body::-webkit-scrollbar-thumb:active,
+*::-webkit-scrollbar-thumb:active {
+  background: #b4912f;
+}
+
+html::-webkit-scrollbar-corner,
+body::-webkit-scrollbar-corner,
+*::-webkit-scrollbar-corner {
+  background: #1a1410;
+}
+
+/* ── Firefox Scrollbar ── */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #c9a84c #1a1410;
+}
+
+/* ============================================================
+   BOX SIZING — scrollbar properties se bilkul alag
+   ============================================================ */
 
 *,
 *::before,
