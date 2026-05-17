@@ -1,3 +1,4 @@
+// app/components/Navbar.tsx
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -18,7 +19,6 @@ interface NavbarProps {
   onCartOpen: () => void;
 }
 
-// ✅ Category translations — FULL TRANSLATIONS for all languages
 const categoryLabels: Record<string, Record<"en" | "ar" | "de", string>> = {
   "/accessories": { en: "Accessories", ar: "الإكسسوارات", de: "Zubehör" },
   "/watches": { en: "Watches", ar: "الساعات", de: "Uhren" },
@@ -26,12 +26,10 @@ const categoryLabels: Record<string, Record<"en" | "ar" | "de", string>> = {
   "/home-decor": { en: "Home Decor", ar: "ديكور المنزل", de: "Wohnkultur" },
 };
 
-// ✅ Subcategory translations
 const subcategoryTranslations: Record<
   string,
   Record<"en" | "ar" | "de", string>
 > = {
-  // Accessories subcategories
   Chargers: { en: "Chargers", ar: "شواحن", de: "Ladegeräte" },
   Cables: { en: "Cables", ar: "كابلات", de: "Kabel" },
   "Phone Holders": {
@@ -45,7 +43,6 @@ const subcategoryTranslations: Record<
     ar: "إكسسوارات ذكية",
     de: "Intelligentes Zubehör",
   },
-  // Watches subcategories
   "Men Watches": { en: "Men Watches", ar: "ساعات رجالية", de: "Herrenuhren" },
   "Women Watches": {
     en: "Women Watches",
@@ -62,7 +59,6 @@ const subcategoryTranslations: Record<
     ar: "ساعات فاخرة",
     de: "Luxusuhren",
   },
-  // Automotive subcategories
   "Car Accessories": {
     en: "Car Accessories",
     ar: "إكسسوارات السيارة",
@@ -78,7 +74,6 @@ const subcategoryTranslations: Record<
     ar: "إكسسوارات داخلية",
     de: "Innenausstattung",
   },
-  // Home Decor subcategories
   "Wall Decor": { en: "Wall Decor", ar: "ديكور الحائط", de: "Wanddekoration" },
   Lighting: { en: "Lighting", ar: "إضاءة", de: "Beleuchtung" },
   "Kitchen Essentials": {
@@ -93,7 +88,6 @@ const subcategoryTranslations: Record<
   },
 };
 
-// Get translated subcategory name
 function getTranslatedSubcategory(
   originalName: string,
   language: SupportedLanguage,
@@ -101,7 +95,6 @@ function getTranslatedSubcategory(
   return subcategoryTranslations[originalName]?.[language] || originalName;
 }
 
-// Subcategories data (keep original names, translate dynamically)
 const categorySubcategories: Record<string, { name: string; href: string }[]> =
   {
     "/accessories": [
@@ -165,7 +158,6 @@ export default function Navbar({
     isRTLMode,
   } = useLanguage();
 
-  // ✅ FULLY TRANSLATED nav links
   const navLinks = [
     { href: "/", label: t.nav.home },
     { href: "/accessories", label: categoryLabels["/accessories"][language] },
@@ -188,10 +180,8 @@ export default function Navbar({
         if (currentY <= 10) {
           setNavVisible(true);
         } else if (currentY > lastScrollY.current) {
-          // Scrolling DOWN — hide navbar
           setNavVisible(false);
         } else {
-          // Scrolling UP — show navbar
           setNavVisible(true);
         }
         lastScrollY.current = currentY;
@@ -242,28 +232,26 @@ export default function Navbar({
   const authResolved = user !== undefined;
   const isSignedIn = authResolved && user !== null;
 
-  const availableCurrencies = currencies.filter((c) => c.code !== "PKR");
+  // ✅ FIX: All currencies including PKR in one list (no separate PKR button)
+  const allCurrencies = currencies;
 
   const handleCurrencySelect = (cur: (typeof currencies)[0]) => {
     setCurrency(cur);
     setCurrencyOpen(false);
 
     if (cur.code === "EUR") {
-      // EUR selected → switch to German language, hide language dropdown
       window.dispatchEvent(
         new CustomEvent("force-language-dropdown", {
           detail: { country: "DE" },
         }),
       );
     } else if (cur.code === "AED") {
-      // AED selected → show UAE language dropdown (English/Arabic)
       window.dispatchEvent(
         new CustomEvent("force-language-dropdown", {
           detail: { country: "AE" },
         }),
       );
     } else {
-      // Any other currency → English, hide language dropdown
       window.dispatchEvent(
         new CustomEvent("force-language-dropdown", {
           detail: { country: "OTHER" },
@@ -333,61 +321,44 @@ export default function Navbar({
       <div className="navbar-container">
         {/* LEFT — Currency & Search */}
         <div className="navbar-left">
-          {showPanel && (
-            <div
-              className="currency-dropdown"
-              onMouseEnter={handleCurrencyMouseEnter}
-              onMouseLeave={handleCurrencyMouseLeave}
-            >
-              <button className="currency-btn">
-                <span className="currency-flag">{currency.flag}</span>
-                <span className="currency-symbol">{currency.symbol}</span>
-                <span className="currency-code">{currency.code}</span>
-                <svg
-                  className={`currency-arrow ${currencyOpen ? "open" : ""}`}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
+          {/* ✅ FIX: Currency dropdown shown to ALL users (not just admin) */}
+          <div
+            className="currency-dropdown"
+            onMouseEnter={handleCurrencyMouseEnter}
+            onMouseLeave={handleCurrencyMouseLeave}
+          >
+            <button className="currency-btn">
+              <span className="currency-flag">{currency.flag}</span>
+              <span className="currency-symbol">{currency.symbol}</span>
+              <span className="currency-code">{currency.code}</span>
+              <svg
+                className={`currency-arrow ${currencyOpen ? "open" : ""}`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
 
-              {currencyOpen && (
-                <div className="currency-menu">
-                  {availableCurrencies.map((cur) => (
-                    <button
-                      key={cur.code}
-                      className={`currency-option${currency.code === cur.code ? " active" : ""}`}
-                      onClick={() => handleCurrencySelect(cur)}
-                    >
-                      <span className="currency-option-flag">{cur.flag}</span>
-                      <span className="currency-option-symbol">
-                        {cur.symbol}
-                      </span>
-                      <span className="currency-option-code">{cur.code}</span>
-                      <span className="currency-option-name">{cur.name}</span>
-                    </button>
-                  ))}
+            {currencyOpen && (
+              <div className="currency-menu">
+                {allCurrencies.map((cur) => (
                   <button
-                    className={`currency-option${currency.code === "PKR" ? " active" : ""}`}
-                    onClick={() => {
-                      const pkr = currencies.find((c) => c.code === "PKR");
-                      if (pkr) handleCurrencySelect(pkr);
-                    }}
+                    key={cur.code}
+                    className={`currency-option${currency.code === cur.code ? " active" : ""}`}
+                    onClick={() => handleCurrencySelect(cur)}
                   >
-                    <span className="currency-option-flag">🇵🇰</span>
-                    <span className="currency-option-symbol">₨</span>
-                    <span className="currency-option-code">PKR</span>
-                    <span className="currency-option-name">
-                      Pakistani Rupee
-                    </span>
+                    <span className="currency-option-flag">{cur.flag}</span>
+                    <span className="currency-option-symbol">{cur.symbol}</span>
+                    <span className="currency-option-code">{cur.code}</span>
+                    <span className="currency-option-name">{cur.name}</span>
                   </button>
-                </div>
-              )}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
 
           <button
             className="nav-icon-btn search-btn"
@@ -428,7 +399,7 @@ export default function Navbar({
           </a>
         </div>
 
-        {/* RIGHT — Language Dropdown + User + Cart */}
+        {/* RIGHT — Language + User + Cart */}
         <div className="navbar-right">
           {showLanguageDropdown && (
             <LanguageDropdown className="nav-desktop-only" />
@@ -498,7 +469,7 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* BOTTOM NAV — Desktop with FULL TRANSLATIONS */}
+      {/* BOTTOM NAV — Desktop */}
       <div className="navbar-bottom desktop-only">
         <ul className="nav-links">
           {navLinks.map((link) => {
