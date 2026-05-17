@@ -1321,7 +1321,6 @@ function SimpleModeEditForm({
 
   const [uploading, setUploading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const isUpdatingRef = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const getStockValue = (): number => {
@@ -1368,27 +1367,14 @@ function SimpleModeEditForm({
     setUploading(false);
   };
 
-  const handleSubmit = async () => {
-    if (isUpdatingRef.current) return; // prevent double submit
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!name.trim() || !priceDisplay) {
       onError("Product name and price are required");
       return;
     }
 
-    isUpdatingRef.current = true;
     setIsUpdating(true);
-
-    // Safety timer: 60s baad button khud unlock ho jaaye
-    const safetyTimer = setTimeout(() => {
-      isUpdatingRef.current = false;
-      setIsUpdating(false);
-    }, 60000);
-
-    const done = () => {
-      clearTimeout(safetyTimer);
-      isUpdatingRef.current = false;
-      setIsUpdating(false);
-    };
 
     // ✅ FIX: Poora submit try/catch mein wrap — koi bhi error ho setIsUpdating(false) zaroor chalega
     try {
@@ -1424,7 +1410,7 @@ function SimpleModeEditForm({
 
       if (productError) {
         onError("Failed to update product: " + productError.message);
-        done();
+        setIsUpdating(false);
         return;
       }
 
@@ -1451,7 +1437,7 @@ function SimpleModeEditForm({
 
         if (variantError) {
           onError("Failed to update variant: " + variantError.message);
-          done();
+          setIsUpdating(false);
           return;
         }
       } else {
@@ -1480,7 +1466,7 @@ function SimpleModeEditForm({
 
         if (variantError) {
           onError("Failed to create variant: " + variantError.message);
-          done();
+          setIsUpdating(false);
           return;
         }
         variantId = newVariant.id;
@@ -1545,20 +1531,21 @@ function SimpleModeEditForm({
         }
       }
 
-      done();
+      setIsUpdating(false);
       onSuccess();
     } catch (err) {
+      // ✅ FIX: Koi bhi unexpected error — loading hatao, user ko batao
       console.error("SimpleMode handleSubmit error:", err);
       onError(
         "An unexpected error occurred: " +
           (err instanceof Error ? err.message : String(err)),
       );
-      done();
+      setIsUpdating(false);
     }
   };
 
   return (
-    <div>
+    <form onSubmit={handleSubmit}>
       <div className="ap-form-grid-simple">
         <div>
           <div className="ap-card">
@@ -1858,8 +1845,7 @@ function SimpleModeEditForm({
                 </div>
               ))}
               <button
-                type="button"
-                onClick={handleSubmit}
+                type="submit"
                 className="ap-submit-btn"
                 disabled={isUpdating}
                 style={{ marginTop: "1rem" }}
@@ -1898,7 +1884,7 @@ function SimpleModeEditForm({
           </div>
         </div>
       </div>
-    </div>
+    </form>
   );
 }
 
@@ -1939,7 +1925,6 @@ function DetailedModeEditForm({
   const [isActive, setIsActive] = useState(initialProduct?.is_active !== false);
   const [faqs, setFaqs] = useState<FAQ[]>(initialFaqs);
   const [isUpdating, setIsUpdating] = useState(false);
-  const isUpdatingRef = useRef(false);
   const [mainImages, setMainImages] = useState<string[]>(() => {
     // main_images column in products table — set by add-product detailed mode
     if (
@@ -2064,8 +2049,8 @@ function DetailedModeEditForm({
     setDescriptionImages(imagesInDesc);
   };
 
-  const handleSubmit = async () => {
-    if (isUpdatingRef.current) return; // prevent double submit
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!name.trim()) {
       onError("Product name is required");
       return;
@@ -2084,20 +2069,7 @@ function DetailedModeEditForm({
       return;
     }
 
-    isUpdatingRef.current = true;
     setIsUpdating(true);
-
-    // Safety timer: 60s baad button khud unlock ho jaaye
-    const safetyTimer = setTimeout(() => {
-      isUpdatingRef.current = false;
-      setIsUpdating(false);
-    }, 60000);
-
-    const done = () => {
-      clearTimeout(safetyTimer);
-      isUpdatingRef.current = false;
-      setIsUpdating(false);
-    };
 
     // ✅ FIX: Poora submit try/catch mein wrap — button kabhi stuck nahi hoga
     try {
@@ -2136,7 +2108,7 @@ function DetailedModeEditForm({
 
       if (productError) {
         onError("Failed to update product: " + productError.message);
-        done();
+        setIsUpdating(false);
         return;
       }
 
@@ -2162,89 +2134,74 @@ function DetailedModeEditForm({
           .eq("product_id", productId);
       }
 
-      // 3. Insert new variants — PARALLEL (sab ek saath, sequential nahi)
-      const variantResults = await Promise.allSettled(
-        allVariants.map(async (variant) => {
-          const pricePKR = variant.price;
-          const originalPricePKR = variant.originalPrice ?? null;
+      // 3. Insert new variants
+      // NOTE: variant.price and variant.bulkPricingTiers.tier_price are ALREADY in PKR
+      // because VariantFormItem's useEffect converts them via getPriceInPKR/convertPriceToPKR
+      // before calling onUpdate. Do NOT convert again to avoid double conversion.
+      for (const variant of allVariants) {
+        const pricePKR = variant.price; // already PKR from VariantFormItem onUpdate
+        const originalPricePKR = variant.originalPrice ?? null; // already PKR
 
-          const { data: variantData, error: variantError } = await supabase
-            .from("product_variants")
-            .insert([
-              {
-                product_id: productId,
-                attribute_type: variant.attributeType,
-                attribute_value: variant.attributeValue,
-                price: pricePKR,
-                original_price: originalPricePKR,
-                description_rich: variant.description || "",
-                description_images: variant.descriptionImages || [],
-                description: variant.description
-                  ? variant.description.substring(0, 500)
-                  : null,
-                stock: variant.stock,
-                low_stock_threshold: variant.lowStockThreshold,
-                is_active: true,
+        const { data: variantData, error: variantError } = await supabase
+          .from("product_variants")
+          .insert([
+            {
+              product_id: productId,
+              attribute_type: variant.attributeType,
+              attribute_value: variant.attributeValue,
+              price: pricePKR,
+              original_price: originalPricePKR,
+              description_rich: variant.description || "",
+              description_images: variant.descriptionImages || [],
+              description: variant.description
+                ? variant.description.substring(0, 500)
+                : null,
+              stock: variant.stock,
+              low_stock_threshold: variant.lowStockThreshold,
+              is_active: true,
+              currency_code: currency.code,
+              base_price_pkr: pricePKR,
+              base_original_price_pkr: originalPricePKR,
+            },
+          ])
+          .select()
+          .single();
+
+        if (variantError) {
+          onError("Failed to save variant: " + variantError.message);
+          setIsUpdating(false);
+          return;
+        }
+
+        if (variant.images?.length > 0) {
+          await supabase.from("variant_images").insert(
+            variant.images.map((url: string, idx: number) => ({
+              variant_id: variantData.id,
+              image_url: url,
+              display_order: idx,
+            })),
+          );
+        }
+
+        if (variant.bulkPricingTiers?.length > 0) {
+          const validTiers = variant.bulkPricingTiers.filter(
+            (t: BulkPricingTier) => t.min_quantity && t.tier_price,
+          );
+          if (validTiers.length > 0) {
+            await supabase.from("bulk_pricing_tiers").insert(
+              validTiers.map((t: BulkPricingTier) => ({
+                variant_id: variantData.id,
+                min_quantity: t.min_quantity,
+                max_quantity: t.max_quantity,
+                tier_price: t.tier_price, // already PKR from VariantFormItem onUpdate
+                discount_percentage: t.discount_percentage,
+                discount_price: t.discount_price ?? null, // already PKR
                 currency_code: currency.code,
-                base_price_pkr: pricePKR,
-                base_original_price_pkr: originalPricePKR,
-              },
-            ])
-            .select()
-            .single();
-
-          if (variantError)
-            throw new Error("Failed to save variant: " + variantError.message);
-
-          // Variant images aur bulk tiers parallel insert
-          const subTasks: Promise<any>[] = [];
-
-          if (variant.images?.length > 0) {
-            subTasks.push(
-              supabase.from("variant_images").insert(
-                variant.images.map((url: string, idx: number) => ({
-                  variant_id: variantData.id,
-                  image_url: url,
-                  display_order: idx,
-                })),
-              ),
+                base_tier_price_pkr: t.tier_price, // already PKR
+              })),
             );
           }
-
-          if (variant.bulkPricingTiers?.length > 0) {
-            const validTiers = variant.bulkPricingTiers.filter(
-              (t: BulkPricingTier) => t.min_quantity && t.tier_price,
-            );
-            if (validTiers.length > 0) {
-              subTasks.push(
-                supabase.from("bulk_pricing_tiers").insert(
-                  validTiers.map((t: BulkPricingTier) => ({
-                    variant_id: variantData.id,
-                    min_quantity: t.min_quantity,
-                    max_quantity: t.max_quantity,
-                    tier_price: t.tier_price,
-                    discount_percentage: t.discount_percentage,
-                    discount_price: t.discount_price ?? null,
-                    currency_code: currency.code,
-                    base_tier_price_pkr: t.tier_price,
-                  })),
-                ),
-              );
-            }
-          }
-
-          if (subTasks.length > 0) await Promise.allSettled(subTasks);
-        }),
-      );
-
-      // Check if any variant failed
-      const failedVariant = variantResults.find((r) => r.status === "rejected");
-      if (failedVariant && failedVariant.status === "rejected") {
-        onError(
-          failedVariant.reason?.message || "Failed to save some variants",
-        );
-        done();
-        return;
+        }
       }
 
       // 4. Update FAQs
@@ -2263,15 +2220,16 @@ function DetailedModeEditForm({
         }
       }
 
-      done();
+      setIsUpdating(false);
       onSuccess();
     } catch (err) {
+      // ✅ FIX: Koi bhi unexpected error — loading hatao, user ko batao
       console.error("DetailedMode handleSubmit error:", err);
       onError(
         "An unexpected error occurred: " +
           (err instanceof Error ? err.message : String(err)),
       );
-      done();
+      setIsUpdating(false);
     }
   };
 
@@ -2759,7 +2717,7 @@ export default function EditProduct() {
     };
   }, [authorized, productId]);
 
-  if (checking || dataLoading) {
+  if (currencyLoading || checking || dataLoading) {
     return (
       <div className="ap-root">
         <div className="ap-ambient" aria-hidden="true" />
@@ -2785,7 +2743,11 @@ export default function EditProduct() {
               fontSize: "0.8rem",
             }}
           >
-            {checking ? "Verifying access..." : "Loading product..."}
+            {checking
+              ? "Verifying access..."
+              : currencyLoading
+                ? "Loading currency..."
+                : "Loading product..."}
           </p>
         </div>
       </div>
