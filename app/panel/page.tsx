@@ -10,6 +10,12 @@ import "./panel.css";
 import "./panel-dashboard.css";
 import { getSalePercent, applyDiscount } from "@/lib/saleStore";
 
+// ─── Module-level cache — instant display on every revisit & navigation ────────
+// Survives SPA navigation, back/forward, tab switches — never resets on re-mount
+let _panelCache: PanelProduct[] | null = null;
+let _panelCacheTs = 0;
+const PANEL_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type Toast = {
@@ -548,9 +554,11 @@ function CategorySection({
 export default function PanelDashboardPage() {
   const { currency, formatPrice } = useCurrency();
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !_panelCache);
 
-  const [allProducts, setAllProducts] = useState<PanelProduct[]>([]);
+  const [allProducts, setAllProducts] = useState<PanelProduct[]>(
+    () => _panelCache || [],
+  );
   const [search, setSearch] = useState("");
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<PanelProduct | null>(null);
@@ -587,88 +595,148 @@ export default function PanelDashboardPage() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 350);
   };
 
-  // ─── Fetch Products ───────────────────────────────────────────────────────
+  // ─── Fetch Products (cache-aware + timeout) ──────────────────────────────
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
+  const processProducts = (data: any[]): PanelProduct[] =>
+    data.map((item: any) => {
+      const variants: ProductVariantData[] = item.product_variants || [];
+      const sorted = [...variants].sort((a, b) => {
+        if (a.attribute_type === "standard") return -1;
+        if (b.attribute_type === "standard") return 1;
+        return a.price - b.price;
+      });
+      const best = sorted[0];
+      let displayImage: string | undefined;
+      for (const v of sorted) {
+        const imgs = (v.variant_images || []).sort(
+          (a: any, b: any) => a.display_order - b.display_order,
+        );
+        if (imgs.length > 0) {
+          displayImage = imgs[0].image_url;
+          break;
+        }
+      }
+      const displayPrice = best?.price ?? 0;
+      const displayOriginalPrice = best?.original_price ?? null;
+      const stockCount = best?.stock ?? 0;
+      const stockStatus = getStockStatus(stockCount, best?.low_stock_threshold);
+      const discount =
+        displayOriginalPrice && displayOriginalPrice > displayPrice
+          ? Math.round(
+              ((displayOriginalPrice - displayPrice) / displayOriginalPrice) *
+                100,
+            )
+          : null;
+      return {
+        id: item.id,
+        name: item.name,
+        brand: item.brand || undefined,
+        category: item.category,
+        subcategory: item.subcategory,
+        condition: item.condition || "new",
+        is_featured: item.is_featured || false,
+        is_active: item.is_active !== false,
+        created_at: item.created_at,
+        displayPrice,
+        displayOriginalPrice,
+        displayImage,
+        stockStatus,
+        stockCount,
+        variantCount: variants.length,
+        discount,
+      };
+    });
+
+  const fetchProducts = useCallback(async (silent = false) => {
+    // If silent (background refresh) — never show spinner
+    if (!silent) {
+      if (!_panelCache) setLoading(true);
+    }
+    // 15-second hard timeout — loading never hangs forever
+    const timeoutId = setTimeout(() => {
+      if (!_panelCache) setLoading(false);
+    }, 15000);
     try {
-      const { data, error } = await supabase
+      const fetchPromise = supabase
         .from("products")
         .select("*, product_variants(*, variant_images(*))")
         .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      const processed: PanelProduct[] = (data || []).map((item: any) => {
-        const variants: ProductVariantData[] = item.product_variants || [];
-
-        // Sort variants: standard first, then by price
-        const sorted = [...variants].sort((a, b) => {
-          if (a.attribute_type === "standard") return -1;
-          if (b.attribute_type === "standard") return 1;
-          return a.price - b.price;
-        });
-
-        const best = sorted[0];
-
-        // Get best display image
-        let displayImage: string | undefined;
-        for (const v of sorted) {
-          const imgs = (v.variant_images || []).sort(
-            (a: any, b: any) => a.display_order - b.display_order,
-          );
-          if (imgs.length > 0) {
-            displayImage = imgs[0].image_url;
-            break;
-          }
-        }
-
-        const displayPrice = best?.price ?? 0;
-        const displayOriginalPrice = best?.original_price ?? null;
-        const stockCount = best?.stock ?? 0;
-        const stockStatus = getStockStatus(
-          stockCount,
-          best?.low_stock_threshold,
-        );
-        const discount =
-          displayOriginalPrice && displayOriginalPrice > displayPrice
-            ? Math.round(
-                ((displayOriginalPrice - displayPrice) / displayOriginalPrice) *
-                  100,
-              )
-            : null;
-
-        return {
-          id: item.id,
-          name: item.name,
-          brand: item.brand || undefined,
-          category: item.category,
-          subcategory: item.subcategory,
-          condition: item.condition || "new",
-          is_featured: item.is_featured || false,
-          is_active: item.is_active !== false,
-          created_at: item.created_at,
-          displayPrice,
-          displayOriginalPrice,
-          displayImage,
-          stockStatus,
-          stockCount,
-          variantCount: variants.length,
-          discount,
-        };
-      });
-
+      const timeoutRace = new Promise<{ data: null; error: Error }>((res) =>
+        setTimeout(
+          () => res({ data: null, error: new Error("timeout") }),
+          12000,
+        ),
+      );
+      const { data, error } = (await Promise.race([
+        fetchPromise,
+        timeoutRace,
+      ])) as any;
+      clearTimeout(timeoutId);
+      if (error || !data) {
+        if (!silent)
+          addToast("error", "Load Failed", "Could not fetch products");
+        return;
+      }
+      const processed = processProducts(data);
+      _panelCache = processed;
+      _panelCacheTs = Date.now();
       setAllProducts(processed);
     } catch (err) {
+      clearTimeout(timeoutId);
       console.error("Fetch error:", err);
-      addToast("error", "Load Failed", "Could not fetch products");
+      if (!silent) addToast("error", "Load Failed", "Could not fetch products");
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    fetchProducts();
+    // If cache is fresh (< 3 min), show instantly — skip fetch
+    if (_panelCache && Date.now() - _panelCacheTs < PANEL_CACHE_TTL) {
+      setAllProducts(_panelCache);
+      setLoading(false);
+      return;
+    }
+    fetchProducts(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ─── Visibility & pageshow handlers — instant cache display ──────────────
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        // Show cache immediately — never blank/spinner
+        if (_panelCache) {
+          setAllProducts(_panelCache);
+          setLoading(false);
+        }
+        // Silent background refresh only if cache stale
+        const age = Date.now() - _panelCacheTs;
+        if (age > PANEL_CACHE_TTL) {
+          fetchProducts(true);
+        }
+      }
+    };
+    const handlePageShow = (_e: PageTransitionEvent) => {
+      // bfcache restore — show cached data instantly
+      if (_panelCache) {
+        setAllProducts(_panelCache);
+        setLoading(false);
+        // Always do a silent refresh after coming back from edit pages
+        fetchProducts(true);
+      } else {
+        fetchProducts(false);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("pageshow", handlePageShow);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchProducts]);
 
   // ─── Delete ───────────────────────────────────────────────────────────────
@@ -707,7 +775,15 @@ export default function PanelDashboardPage() {
 
       if (error) throw error;
 
-      setAllProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+      const updated = (prev: PanelProduct[]) =>
+        prev.filter((p) => p.id !== deleteTarget.id);
+      setAllProducts((prev) => {
+        const next = updated(prev);
+        // Update module-level cache so pageshow/visibility shows fresh list
+        _panelCache = next;
+        _panelCacheTs = Date.now();
+        return next;
+      });
       addToast(
         "success",
         "Deleted",

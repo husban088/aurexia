@@ -224,7 +224,7 @@ export function getCurrencyByCountry(countryCode: string): Currency {
 
 export function convertPrice(
   priceInPKR: number,
-  targetCurrency: Currency
+  targetCurrency: Currency,
 ): number {
   return priceInPKR * targetCurrency.rate;
 }

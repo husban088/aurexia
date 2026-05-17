@@ -154,7 +154,14 @@ async function fetchProductsWithVariants(
   query = query.order("created_at", { ascending: false });
   if (limit) query = query.limit(limit);
 
-  const { data, error } = await query;
+  // 12-second timeout — never hang loading forever
+  const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+    setTimeout(
+      () => resolve({ data: null, error: new Error("timeout") }),
+      12000,
+    ),
+  );
+  const { data, error } = (await Promise.race([query, timeoutPromise])) as any;
   if (error || !data) return [];
 
   const typePriority: Record<string, number> = {
@@ -913,11 +920,15 @@ export default function ProductGrid({
       }
     };
 
-    // If already cached, show instantly then silently refresh in background
+    // If already cached, show instantly
     if (pgCache[key]?.data?.length) {
       setProducts(pgCache[key].data);
       setLoading(false);
-      loadProducts(true); // silent background refresh
+      // Silent background refresh only if cache is older than 2 minutes
+      const cacheAge = Date.now() - (pgCache[key].fetchedAt || 0);
+      if (cacheAge > 120000) {
+        loadProducts(true);
+      }
     } else {
       loadProducts(false);
     }
@@ -963,19 +974,21 @@ export default function ProductGrid({
   // Handle page visibility change (tab switch back)
   useEffect(() => {
     const key = getPgCacheKey(category, subcategory, limit, featured);
-    const handleVisibilityChange = async () => {
+    const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        // Show cached instantly
-        if (pgCache[key]) setProducts(pgCache[key].data);
-        // Refresh from network silently
-        const data = await fetchProductsWithVariants(
-          category,
-          subcategory,
-          limit,
-          featured,
-        );
-        pgCache[key] = { data, fetchedAt: Date.now() };
-        setProducts(data);
+        // Show cached data immediately — no loading state change
+        if (pgCache[key]?.data?.length) {
+          setProducts(pgCache[key].data);
+        }
+        // Silent background refresh — never block UI
+        fetchProductsWithVariants(category, subcategory, limit, featured)
+          .then((data) => {
+            if (data.length > 0) {
+              pgCache[key] = { data, fetchedAt: Date.now() };
+              setProducts(data);
+            }
+          })
+          .catch(() => {}); // never break visible content
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -987,21 +1000,21 @@ export default function ProductGrid({
   // Handle back/forward navigation (bfcache pageshow)
   useEffect(() => {
     const key = getPgCacheKey(category, subcategory, limit, featured);
-    const handlePageShow = async (e: PageTransitionEvent) => {
-      // Show cached data immediately
-      if (pgCache[key]) {
+    const handlePageShow = (_e: PageTransitionEvent) => {
+      // Show cached data immediately — no loading spinner
+      if (pgCache[key]?.data?.length) {
         setProducts(pgCache[key].data);
         setLoading(false);
       }
-      // Then silently refresh
-      const data = await fetchProductsWithVariants(
-        category,
-        subcategory,
-        limit,
-        featured,
-      );
-      pgCache[key] = { data, fetchedAt: Date.now() };
-      setProducts(data);
+      // Silent background refresh — fire-and-forget
+      fetchProductsWithVariants(category, subcategory, limit, featured)
+        .then((data) => {
+          if (data.length > 0) {
+            pgCache[key] = { data, fetchedAt: Date.now() };
+            setProducts(data);
+          }
+        })
+        .catch(() => {});
     };
     window.addEventListener("pageshow", handlePageShow);
     return () => {

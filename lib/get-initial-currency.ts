@@ -5,52 +5,41 @@ import { currencies, getCurrencyByCountry, defaultCurrency } from "./currency";
 
 export async function getInitialCurrency() {
   try {
-    // Check saved preference from cookies
     const cookieStore = await cookies();
-    const savedCurrencyCode = cookieStore.get("preferredCurrency")?.value;
 
-    if (savedCurrencyCode) {
-      const savedCurrency = currencies.find(
-        (c) => c.code === savedCurrencyCode,
-      );
-      if (savedCurrency) {
-        console.log("📀 Using saved currency from cookie:", savedCurrency.code);
-        return savedCurrency;
+    // Only use saved cookie if user manually selected
+    if (
+      cookieStore.get("currencyUserSelected")?.value === "true" &&
+      cookieStore.get("preferredCurrency")?.value
+    ) {
+      const code = cookieStore.get("preferredCurrency")!.value;
+      const saved = currencies.find((c) => c.code === code);
+      if (saved) {
+        console.log("📀 User-selected from cookie:", saved.code);
+        return saved;
       }
     }
 
-    // Detect from Cloudflare/Vercel headers
-    const headersList = await headers();
-
-    const headersToCheck = [
+    // CDN/Edge headers (Cloudflare cf-ipcountry is VPN-aware)
+    const h = await headers();
+    for (const header of [
       "cf-ipcountry",
       "x-vercel-ip-country",
       "cloudfront-viewer-country",
       "x-country",
       "x-geo-country",
-    ];
-
-    for (const header of headersToCheck) {
-      const value = headersList.get(header);
-      if (value && value.length === 2) {
-        const detectedCurrency = getCurrencyByCountry(value);
-        console.log(
-          "🌍 Country header detected:",
-          value,
-          "→ Currency:",
-          detectedCurrency.code,
-        );
-        return detectedCurrency;
+    ]) {
+      const val = h.get(header);
+      if (val && val.length === 2 && val !== "XX" && val !== "T1") {
+        const detected = getCurrencyByCountry(val.toUpperCase());
+        console.log(`🌍 [${header}] ${val} → ${detected.code}`);
+        return detected;
       }
     }
 
-    // Default to USD for international visitors
-    const defaultCurr =
-      currencies.find((c) => c.code === "USD") || defaultCurrency;
-    console.log("🌎 Using default currency: USD");
-    return defaultCurr;
-  } catch (error) {
-    console.error("❌ Error getting initial currency:", error);
+    // No header — client will detect via IP APIs
+    return currencies.find((c) => c.code === "PKR") ?? defaultCurrency;
+  } catch {
     return defaultCurrency;
   }
 }

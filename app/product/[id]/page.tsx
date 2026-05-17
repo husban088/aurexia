@@ -163,7 +163,14 @@ function processProductData(data: any): any {
 async function fetchById(id: string, retries = 3): Promise<any | null> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      const { data, error } = await supabase
+      const timeoutPromise = new Promise<{ data: null; error: Error }>(
+        (resolve) =>
+          setTimeout(
+            () => resolve({ data: null, error: new Error("timeout") }),
+            12000,
+          ),
+      );
+      const fetchPromise = supabase
         .from("products")
         .select(
           "*, description, description_images, product_variants(*, description_rich, description_images, description, variant_images(*))",
@@ -171,6 +178,10 @@ async function fetchById(id: string, retries = 3): Promise<any | null> {
         .eq("id", id)
         .eq("is_active", true)
         .single();
+      const { data, error } = (await Promise.race([
+        fetchPromise,
+        timeoutPromise,
+      ])) as any;
 
       if (error || !data) {
         if (attempt === retries - 1) return null;
@@ -712,8 +723,23 @@ export default function ProductDetail() {
     setLoading(true);
     setNotFound(false);
 
+    // Hard timeout: if after 20s still loading, stop spinner (never stuck forever)
+    const hardTimeout = setTimeout(() => {
+      if (!active) return;
+      // Last-chance: check cache one more time
+      if (_productCache.has(cacheKey)) {
+        hydrateFromData(_productCache.get(cacheKey));
+        setLoading(false);
+        setNotFound(false);
+      } else {
+        setLoading(false);
+        setNotFound(true);
+      }
+    }, 20000);
+
     fetchProductCached(cacheKey).then((data) => {
       if (!active) return;
+      clearTimeout(hardTimeout);
       if (data) {
         hydrateFromData(data);
         setLoading(false);
@@ -747,6 +773,7 @@ export default function ProductDetail() {
 
     return () => {
       active = false;
+      clearTimeout(hardTimeout);
     };
   }, [cacheKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -808,7 +835,40 @@ export default function ProductDetail() {
         return;
       }
 
-      // Not in any cache — trigger fresh fetch so we never stay stuck on loading
+      // If product is already displayed on screen, do a silent background
+      // refresh — NEVER show loading spinner over visible content
+      if (!forceRefresh) {
+        setProduct((currentProduct) => {
+          if (currentProduct) {
+            // Already showing product — silent background refresh only
+            fetchProductCached(cacheKey)
+              .then((data) => {
+                if (data) {
+                  hydrateFromData(data);
+                }
+              })
+              .catch(() => {});
+            return currentProduct; // keep current visible state
+          }
+          // No product visible — show spinner and fetch
+          setLoading(true);
+          setNotFound(false);
+          fetchProductCached(cacheKey).then((data) => {
+            if (data) {
+              hydrateFromData(data);
+              setLoading(false);
+              setNotFound(false);
+            } else {
+              setLoading(false);
+              setNotFound(true);
+            }
+          });
+          return null;
+        });
+        return;
+      }
+
+      // forceRefresh=true — always show fresh data with spinner
       setLoading(true);
       setNotFound(false);
       fetchProductCached(cacheKey).then((data) => {

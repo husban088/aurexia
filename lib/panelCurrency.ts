@@ -7,7 +7,7 @@ import { Currency } from "./currency";
 
 export function convertPriceToPKR(
   priceInForeign: number,
-  currency: Currency
+  currency: Currency,
 ): number {
   // If currency is PKR, return as is
   if (currency.code === "PKR") return priceInForeign;
@@ -19,7 +19,7 @@ export function convertPriceToPKR(
 
 export function convertPriceFromPKR(
   priceInPKR: number,
-  currency: Currency
+  currency: Currency,
 ): number {
   // If currency is PKR, return as is
   if (currency.code === "PKR") return priceInPKR;
@@ -30,7 +30,7 @@ export function convertPriceFromPKR(
 
 export function formatPanelPrice(
   priceInPKR: number,
-  currency: Currency
+  currency: Currency,
 ): string {
   const converted = convertPriceFromPKR(priceInPKR, currency);
   const formatted = converted.toLocaleString(undefined, {

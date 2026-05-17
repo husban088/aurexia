@@ -139,13 +139,25 @@ const getStockStatus = (
 
 /* ── Fetch function ── */
 async function fetchFeaturedTabData(tab: string): Promise<CachedData> {
-  const { data: productsData, error } = await supabase
+  // 10-second timeout so loading never gets stuck forever
+  const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+    setTimeout(
+      () => resolve({ data: null, error: new Error("timeout") }),
+      10000,
+    ),
+  );
+  const fetchPromise = supabase
     .from("products")
     .select("*, product_variants(*, variant_images(*))")
     .eq("is_active", true)
     .eq("is_featured", true)
     .eq("category", tab)
     .order("created_at", { ascending: false });
+
+  const { data: productsData, error } = (await Promise.race([
+    fetchPromise,
+    timeoutPromise,
+  ])) as any;
 
   if (error || !productsData || productsData.length === 0) {
     const empty: CachedData = {
@@ -950,11 +962,26 @@ export default function FeaturedProducts() {
     };
   }, [loadProductsForTab]);
 
-  // Handle visibility change (user returns to tab)
+  // Handle visibility change (user returns to tab) — silent background refresh only
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === "visible") {
-        await loadProductsForTab(activeTabRef.current, true);
+        const tab = activeTabRef.current;
+        // If we already have data displayed, do a SILENT background refresh (no loading state)
+        if (tabCache[tab]?.products?.length) {
+          fetchFeaturedTabData(tab)
+            .then((data) => {
+              if (activeTabRef.current === tab && data.products.length > 0) {
+                setProducts(data.products);
+                setVariantsMap(data.variantsMap);
+                setVariantImagesMap(data.variantImagesMap);
+              }
+            })
+            .catch(() => {}); // silent — never break visible UI
+        } else {
+          // No data at all — do a full load
+          await loadProductsForTab(tab, true);
+        }
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -965,19 +992,28 @@ export default function FeaturedProducts() {
 
   // Handle page show (back/forward navigation — bfcache)
   useEffect(() => {
-    const handlePageShow = async (e: PageTransitionEvent) => {
+    const handlePageShow = (_e: PageTransitionEvent) => {
       const tab = activeTabRef.current;
-      // Show cached data instantly if available
-      if (tabCache[tab]) {
+      if (tabCache[tab]?.products?.length) {
         const cached = tabCache[tab];
         setProducts(cached.products);
         setVariantsMap(cached.variantsMap);
         setVariantImagesMap(cached.variantImagesMap);
         setIsLoading(false);
         setSwiperKey((prev) => prev + 1);
+        // Silent background refresh — no loading state change
+        fetchFeaturedTabData(tab)
+          .then((data) => {
+            if (activeTabRef.current === tab && data.products.length > 0) {
+              setProducts(data.products);
+              setVariantsMap(data.variantsMap);
+              setVariantImagesMap(data.variantImagesMap);
+            }
+          })
+          .catch(() => {});
+      } else {
+        loadProductsForTab(tab, false);
       }
-      // Then refresh from network in background
-      await loadProductsForTab(tab, true);
     };
     window.addEventListener("pageshow", handlePageShow);
     return () => {

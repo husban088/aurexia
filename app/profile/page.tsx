@@ -133,15 +133,25 @@ const getProfileTranslation = (
   );
 };
 
+// ── Module-level profile cache — instant display on re-visits, tab switches ──
+// Survives SPA navigation and component re-mounts
+let _cachedProfile: ProfileData | null = null;
+let _cacheTs = 0;
+const PROFILE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export default function ProfilePage() {
   const router = useRouter();
   const { language, isRTLMode } = useLanguage();
   const lang = language;
 
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<ProfileData | null>(
+    () => _cachedProfile,
+  );
+  const [loading, setLoading] = useState(() => !_cachedProfile);
   const [activeTab, setActiveTab] = useState<"info" | "security">("info");
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(
+    () => _cachedProfile?.username || "",
+  );
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState<{
     type: "error" | "success";
@@ -157,15 +167,47 @@ export default function ProfilePage() {
   useEffect(() => {
     let isMounted = true;
 
-    async function loadProfile() {
-      setLoading(true);
+    // If cache is fresh (< 5min), show immediately and skip fetch
+    if (_cachedProfile && Date.now() - _cacheTs < PROFILE_CACHE_TTL) {
+      setProfile(_cachedProfile);
+      setUsername(_cachedProfile.username);
+      setLoading(false);
+    }
+
+    async function loadProfile(force = false) {
+      // Use cache if still fresh and not forced
+      if (
+        !force &&
+        _cachedProfile &&
+        Date.now() - _cacheTs < PROFILE_CACHE_TTL
+      ) {
+        if (isMounted) {
+          setProfile(_cachedProfile);
+          setUsername(_cachedProfile.username);
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (!_cachedProfile) setLoading(true);
+
+      // 10-second hard timeout so loading never hangs forever
+      const hardTimeout = setTimeout(() => {
+        if (isMounted && !_cachedProfile) setLoading(false);
+      }, 10000);
+
       try {
         const {
           data: { user },
           error: userError,
         } = await supabase.auth.getUser();
+        clearTimeout(hardTimeout);
+
         if (userError || !user) {
-          router.replace("/signin?redirectTo=/profile");
+          if (isMounted) {
+            if (!_cachedProfile) setLoading(false);
+            router.replace("/signin?redirectTo=/profile");
+          }
           return;
         }
 
@@ -206,26 +248,51 @@ export default function ProfilePage() {
           }
         }
 
+        // Update module-level cache
+        _cachedProfile = profileData;
+        _cacheTs = Date.now();
+
         if (isMounted) {
           setProfile(profileData);
           setUsername(profileData.username);
           setLoading(false);
         }
       } catch (err) {
-        if (isMounted) setLoading(false);
+        clearTimeout(hardTimeout);
+        if (isMounted && !_cachedProfile) setLoading(false);
       }
     }
 
     loadProfile();
 
-    // Handle online/offline
+    // Handle online/offline — retry only if no data showing
     const handleOnline = () => {
-      if (!profile) loadProfile();
+      if (!_cachedProfile) loadProfile(true);
     };
+
+    // Handle tab visibility change — show cache instantly, refresh silently
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        if (_cachedProfile && isMounted) {
+          setProfile(_cachedProfile);
+          setUsername(_cachedProfile.username);
+          setLoading(false);
+          // Silent background refresh if cache older than 5min
+          if (Date.now() - _cacheTs > PROFILE_CACHE_TTL) {
+            loadProfile(true);
+          }
+        } else {
+          loadProfile(true);
+        }
+      }
+    };
+
     window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       isMounted = false;
       window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [router]);
 
@@ -284,6 +351,9 @@ export default function ProfilePage() {
         .single();
 
       if (error) throw error;
+      // Update module-level cache so re-visits show fresh data
+      _cachedProfile = updated;
+      _cacheTs = Date.now();
       setProfile(updated);
       setUsername(updated.username);
       setAlert({
