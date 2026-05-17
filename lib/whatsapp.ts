@@ -113,8 +113,7 @@ function pickItemImage(item: {
   image?: string | null;
   product_image?: string | null;
 }): string | null {
-  const url =
-    item.variant_image || item.image || item.product_image || null;
+  const url = item.variant_image || item.image || item.product_image || null;
   return isValidPublicImageUrl(url) ? url : null;
 }
 
@@ -237,7 +236,9 @@ export async function sendWhatsAppImage(
 }
 
 // ─────────────────────────────────────────────────────────────
-// HELPER: Send image first (if available), then text message
+// HELPER: Send image + text in ONE SINGLE MESSAGE (paid plan)
+// ✅ imageUrl + text = ek hi WhatsApp message, alag nahi
+// ✅ Agar image nahi mili to sirf text message jata hai
 // Used by ALL status notifications (confirmed, shipped, delivered, cancelled)
 // ─────────────────────────────────────────────────────────────
 async function sendImageThenText(
@@ -253,29 +254,72 @@ async function sendImageThenText(
   orderNumber: string,
   statusLabel: string,
 ): Promise<boolean> {
-  // Find first item with a valid image
-  const firstItemWithImage = items.find((item) => pickItemImage(item) !== null);
-  const imageUrl = firstItemWithImage ? pickItemImage(firstItemWithImage) : null;
-
-  if (imageUrl) {
-    const variantText =
-      firstItemWithImage?.variant && firstItemWithImage.variant !== "Standard"
-        ? ` (${firstItemWithImage.variant})`
-        : "";
-    const imageCaption = `🛍️ *${firstItemWithImage?.name}*${variantText}\n📦 Order #${orderNumber} — ${statusLabel} | Tech4U`;
-    console.log(`🖼️ Sending product image first (${statusLabel})...`);
-    const imageSent = await sendWhatsAppImage(phoneNumber, imageUrl, imageCaption);
-    if (imageSent) {
-      console.log("✅ Image sent — waiting 1.5s before text...");
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-    } else {
-      console.warn("⚠️ Image failed — continuing with text only");
-    }
-  } else {
-    console.log(`ℹ️ No product image available for ${statusLabel} — text only`);
+  const apiKey = process.env.WASENDER_API_KEY;
+  if (!apiKey) {
+    console.error("❌ WASENDER_API_KEY missing");
+    return false;
   }
 
-  return sendWhatsAppMessage(phoneNumber, textMessage);
+  const toFormatted = formatPhoneForWhatsApp(phoneNumber);
+
+  // Find first item with a valid public image
+  const firstItemWithImage = items.find((item) => pickItemImage(item) !== null);
+  const imageUrl = firstItemWithImage
+    ? pickItemImage(firstItemWithImage)
+    : null;
+
+  if (imageUrl) {
+    // ✅ EK HI API CALL — imageUrl + text saath mein = ek WhatsApp message
+    console.log(
+      `🖼️ WasenderAPI image+text (single msg) → ${toFormatted} [${statusLabel}]`,
+    );
+    try {
+      const response = await fetch(
+        "https://www.wasenderapi.com/api/send-message",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            to: toFormatted,
+            imageUrl, // ✅ image
+            text: textMessage, // ✅ full order text as caption in same message
+          }),
+        },
+      );
+
+      const result = await response.json();
+      console.log(
+        `📥 WasenderAPI image+text response (${response.status}):`,
+        JSON.stringify(result),
+      );
+
+      if (response.ok && result.success) {
+        console.log(
+          `✅ Single image+text message sent! MsgID: ${result.data?.msgId} → ${toFormatted}`,
+        );
+        return true;
+      } else {
+        console.error(
+          `❌ image+text FAILED (${response.status}):`,
+          JSON.stringify(result),
+        );
+        // Fallback: try text-only if image+text fails
+        console.warn("⚠️ Falling back to text-only message...");
+        return sendWhatsAppMessage(phoneNumber, textMessage);
+      }
+    } catch (error) {
+      console.error(`❌ image+text exception:`, error);
+      // Fallback: try text-only
+      return sendWhatsAppMessage(phoneNumber, textMessage);
+    }
+  } else {
+    // No image available — send text only
+    console.log(`ℹ️ No product image for ${statusLabel} — sending text only`);
+    return sendWhatsAppMessage(phoneNumber, textMessage);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -369,7 +413,13 @@ You will receive updates when your order is processed and shipped.
     `📱 Order WhatsApp → ${phoneNumber} | #${orderNumber} | ${displayTotal} (${cfg.code})`,
   );
 
-  return sendImageThenText(phoneNumber, message, items, orderNumber, "CONFIRMED ✅");
+  return sendImageThenText(
+    phoneNumber,
+    message,
+    items,
+    orderNumber,
+    "CONFIRMED ✅",
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -477,7 +527,13 @@ export async function sendShippedWhatsApp(
     country,
   );
 
-  return sendImageThenText(phoneNumber, message, items, orderNumber, "SHIPPED 🚚");
+  return sendImageThenText(
+    phoneNumber,
+    message,
+    items,
+    orderNumber,
+    "SHIPPED 🚚",
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -559,8 +615,20 @@ export async function sendDeliveredWhatsApp(
   total: number,
   country: string,
 ): Promise<boolean> {
-  const message = buildDeliveredWhatsApp(name, orderNumber, items, total, country);
-  return sendImageThenText(phoneNumber, message, items, orderNumber, "DELIVERED ✅");
+  const message = buildDeliveredWhatsApp(
+    name,
+    orderNumber,
+    items,
+    total,
+    country,
+  );
+  return sendImageThenText(
+    phoneNumber,
+    message,
+    items,
+    orderNumber,
+    "DELIVERED ✅",
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -646,8 +714,21 @@ export async function sendCancelledWhatsApp(
   total: number,
   country: string,
 ): Promise<boolean> {
-  const message = buildCancelledWhatsApp(name, orderNumber, cancelReason, items, total, country);
-  return sendImageThenText(phoneNumber, message, items, orderNumber, "CANCELLED ❌");
+  const message = buildCancelledWhatsApp(
+    name,
+    orderNumber,
+    cancelReason,
+    items,
+    total,
+    country,
+  );
+  return sendImageThenText(
+    phoneNumber,
+    message,
+    items,
+    orderNumber,
+    "CANCELLED ❌",
+  );
 }
 
 // ─────────────────────────────────────────────────────────────

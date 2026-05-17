@@ -62,23 +62,7 @@ interface PaymentSectionProps {
   onPaymentMethodChange?: (method: "card" | "paypal") => void;
 }
 
-// ✅ Stripe supported currencies
-const getStripeCurrency = (currencyCode: string): string => {
-  const map: Record<string, string> = {
-    PKR: "usd",
-    USD: "usd",
-    GBP: "gbp",
-    AUD: "aud",
-    EUR: "eur",
-    CAD: "cad",
-    AED: "aed",
-    SAR: "sar",
-    INR: "inr",
-  };
-  return map[currencyCode] ?? "usd";
-};
-
-// ✅ Single source of truth: PKR → foreign currency rates
+// ── PKR → target currency conversion rates ────────────────────────────────────
 const PKR_RATES: Record<string, number> = {
   USD: 0.0036,
   GBP: 0.00284,
@@ -96,13 +80,55 @@ const PKR_RATES: Record<string, number> = {
   PKR: 1.0,
 };
 
-const ZERO_DECIMAL: Set<string> = new Set(["JPY", "KRW", "IDR", "TWD"]);
+// ── Currencies Stripe supports (lowercase) ────────────────────────────────────
+const STRIPE_SUPPORTED = new Set([
+  "usd",
+  "gbp",
+  "aud",
+  "eur",
+  "cad",
+  "aed",
+  "sar",
+  "inr",
+  "sgd",
+  "nzd",
+  "jpy",
+  "chf",
+]);
 
-function convertPKR(pkrAmount: number, targetCurrency: string): number {
-  const rate = PKR_RATES[targetCurrency] ?? PKR_RATES["USD"];
-  const raw = pkrAmount * rate;
-  if (ZERO_DECIMAL.has(targetCurrency)) return Math.max(1, Math.round(raw));
-  return Math.max(0.01, parseFloat(raw.toFixed(2)));
+// ── Zero-decimal currencies ───────────────────────────────────────────────────
+const ZERO_DECIMAL = new Set(["jpy", "krw", "idr", "twd"]);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getStripeReady — ONE function, ONE source of truth
+// Input:  detectedCurrencyCode e.g. "USD", "PKR", "GBP", "AED"
+// Output: { stripeCurrency: "usd", convertRate: 0.0036 }
+// PKR → always USD (Stripe nahi karta PKR)
+// Unknown → USD fallback
+// ─────────────────────────────────────────────────────────────────────────────
+function getStripeReady(detectedCode: string): {
+  stripeCurrency: string;
+  pkrRate: number;
+} {
+  const upper = (detectedCode || "USD").toUpperCase();
+
+  // PKR → USD (Stripe doesn't support PKR)
+  const targetUpper = upper === "PKR" ? "USD" : upper;
+  const stripeCurrency = targetUpper.toLowerCase();
+
+  // If Stripe doesn't support this currency → fallback to USD
+  if (!STRIPE_SUPPORTED.has(stripeCurrency)) {
+    return { stripeCurrency: "usd", pkrRate: PKR_RATES["USD"] };
+  }
+
+  const pkrRate = PKR_RATES[targetUpper] ?? PKR_RATES["USD"];
+  return { stripeCurrency, pkrRate };
+}
+
+// ── Convert PKR to Stripe amount (already in float, e.g. 13.55) ──────────────
+function convertPKRtoFloat(pkrAmount: number, pkrRate: number): number {
+  const raw = pkrAmount * pkrRate;
+  return Math.max(0.5, parseFloat(raw.toFixed(2))); // minimum $0.50 safety
 }
 
 export default function PaymentSection({
@@ -128,25 +154,28 @@ export default function PaymentSection({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isLoadingStripe, setIsLoadingStripe] = useState(false);
 
-  // ✅ Prevent double-fire
   const successCalledRef = useRef(false);
 
   const { formatPrice, currency: detectedCurrency } = useCurrency();
 
-  const userCurrencyCode = detectedCurrency?.code || "USD";
-  const stripeCurrencyCode =
-    userCurrencyCode === "PKR" ? "USD" : userCurrencyCode;
-  const stripeCurrency = getStripeCurrency(userCurrencyCode);
-  const convertedTotal = convertPKR(totalAmount, stripeCurrencyCode);
+  // ✅ SINGLE SOURCE OF TRUTH — ek jagah se currency + rate dono niklo
+  const { stripeCurrency, pkrRate } = getStripeReady(
+    detectedCurrency?.code || "USD",
+  );
+
+  // ✅ convertedTotal — PKR amount → foreign currency float (e.g. 3820 PKR → 13.75 USD)
+  const convertedTotal = convertPKRtoFloat(totalAmount, pkrRate);
+
+  console.log(
+    `💱 Currency: ${detectedCurrency?.code || "USD"} → Stripe: ${stripeCurrency.toUpperCase()} | PKR ${totalAmount} → ${convertedTotal} ${stripeCurrency.toUpperCase()}`,
+  );
 
   const handleMethodChange = (method: "card" | "paypal") => {
     setSelectedPaymentMethod(method);
-    if (onPaymentMethodChange) {
-      onPaymentMethodChange(method);
-    }
+    if (onPaymentMethodChange) onPaymentMethodChange(method);
   };
 
-  // ✅ Create Stripe Payment Intent only when card is selected
+  // ✅ Create Stripe PaymentIntent when card selected
   useEffect(() => {
     if (
       selectedPaymentMethod === "card" &&
@@ -156,17 +185,21 @@ export default function PaymentSection({
       const createPaymentIntent = async () => {
         setIsLoadingStripe(true);
         try {
+          console.log(
+            `📤 Sending to Stripe: amount=${convertedTotal} currency=${stripeCurrency} order=${orderNumber}`,
+          );
+
           const response = await fetch("/api/create-payment-intent", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              amount: convertedTotal,
-              currency: stripeCurrency,
+              amount: convertedTotal, // ✅ correct float amount
+              currency: stripeCurrency, // ✅ correct stripe currency code
               metadata: {
                 orderNumber,
                 customerEmail: formData?.email || "",
                 customerName: formData
-                  ? `${formData.firstName} ${formData.lastName}`
+                  ? `${formData.firstName} ${formData.lastName}`.trim()
                   : "",
                 originalCurrency: "PKR",
                 originalAmount: totalAmount,
@@ -175,18 +208,24 @@ export default function PaymentSection({
           });
 
           const data = await response.json();
+
           if (data.clientSecret) {
+            console.log(`✅ PaymentIntent ready: ${data.paymentIntentId}`);
             setClientSecret(data.clientSecret);
           } else {
+            console.error("❌ PaymentIntent failed:", data.error);
             onPaymentError(data.error || "Failed to initialize payment");
           }
         } catch (error) {
-          console.error("Error creating payment intent:", error);
-          onPaymentError("Failed to initialize Stripe");
+          console.error("❌ create-payment-intent network error:", error);
+          onPaymentError(
+            "Failed to initialize payment. Please refresh and try again.",
+          );
         } finally {
           setIsLoadingStripe(false);
         }
       };
+
       createPaymentIntent();
     }
   }, [
@@ -201,14 +240,10 @@ export default function PaymentSection({
     onPaymentError,
   ]);
 
-  // ✅ KEY FIX: handlePaymentSuccess — FORAN parent call karo, koi await nahi
-  // Notification API ko WAIT mat karo — woh background mein jayegi
+  // ✅ Payment success — foran parent call, koi delay nahi
   const handlePaymentSuccess = () => {
     if (successCalledRef.current) return;
     successCalledRef.current = true;
-
-    // ✅ INSTANT — parent ka onPaymentSuccess foran call karo
-    // Parent mein router.push('/order-success') hoga — woh foran chalega
     onPaymentSuccess();
   };
 
