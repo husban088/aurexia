@@ -842,10 +842,11 @@ export default function FeaturedProducts() {
   const nextRef = useRef<HTMLButtonElement>(null);
   const swiperRef = useRef<SwiperType | null>(null);
 
-  // Load products for a tab — shows cached data instantly, then refreshes in background
+  // ✅ FIXED: loadProductsForTab NEVER sets isLoading=true when we already have products
+  // This prevents skeleton from showing on tab switch / back navigation
   const loadProductsForTab = useCallback(
     async (tab: string, forceRefresh = false) => {
-      // If we have cached data, show it immediately (no loading state)
+      // If we have cached data, show it immediately — NO loading state
       if (tabCache[tab] && !forceRefresh) {
         const cached = tabCache[tab];
         setProducts(cached.products);
@@ -856,11 +857,15 @@ export default function FeaturedProducts() {
         return cached;
       }
 
-      // No cache or forced refresh — show loading
-      if (!tabCache[tab]) setIsLoading(true);
+      // ✅ FIXED: forceRefresh with existing data = SILENT update, never show skeleton
+      const hasExistingProducts = tabCache[tab]?.products?.length > 0;
+      if (!hasExistingProducts) {
+        setIsLoading(true);
+      }
+      // If hasExistingProducts, we silently update WITHOUT showing skeleton
+
       try {
         const data = await fetchFeaturedTabData(tab);
-        // Only update if still on the same tab
         if (activeTabRef.current === tab) {
           setProducts(data.products);
           setVariantsMap(data.variantsMap);
@@ -878,12 +883,11 @@ export default function FeaturedProducts() {
     [],
   );
 
-  // Initial load — skip fetch if already showing cached data
+  // Initial load
   useEffect(() => {
     let isMounted = true;
 
     const loadInitial = async () => {
-      // If already populated from cache initializer, just do a silent background refresh
       const alreadyCached = !!tabCache["Accessories"]?.products?.length;
       if (!alreadyCached) setIsLoading(true);
 
@@ -904,14 +908,14 @@ export default function FeaturedProducts() {
 
     loadInitial();
 
-    // Prefetch other tabs in background after 800ms
+    // Prefetch other tabs in background
     const prefetchTimer = setTimeout(() => {
       ALL_TABS.forEach((tab) => {
         if (tab !== "Accessories" && !tabCache[tab]) {
-          fetchFeaturedTabData(tab).catch(console.error);
+          fetchFeaturedTabData(tab).catch(() => {});
         }
       });
-    }, 800);
+    }, 1500);
 
     return () => {
       isMounted = false;
@@ -930,7 +934,7 @@ export default function FeaturedProducts() {
     [activeTab, loadProductsForTab],
   );
 
-  // Real-time updates for featured products
+  // Real-time updates — only fires when admin changes product in DB
   useEffect(() => {
     const channel = supabase
       .channel("fp-featured-products-changes")
@@ -948,10 +952,9 @@ export default function FeaturedProducts() {
 
           if (affectedCategory && ALL_TABS.includes(affectedCategory)) {
             if (activeTabRef.current === affectedCategory) {
+              // ✅ Silent refresh — no skeleton since we have existing products
               await loadProductsForTab(affectedCategory, true);
             }
-          } else if (activeTabRef.current) {
-            await loadProductsForTab(activeTabRef.current, true);
           }
         },
       )
@@ -962,33 +965,30 @@ export default function FeaturedProducts() {
     };
   }, [loadProductsForTab]);
 
-  // Handle visibility change (user returns to tab) — silent background refresh only
+  // ✅ FIXED: Visibility change — ALWAYS silent, never show skeleton
+  // Previously this called loadProductsForTab(tab, true) when no cache —
+  // that set isLoading=true and showed skeleton every time user switched Chrome tabs
   useEffect(() => {
-    const handleVisibilityChange = async () => {
+    const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         const tab = activeTabRef.current;
-        // If we already have data displayed, do a SILENT background refresh (no loading state)
-        if (tabCache[tab]?.products?.length) {
-          fetchFeaturedTabData(tab)
-            .then((data) => {
-              if (activeTabRef.current === tab && data.products.length > 0) {
-                setProducts(data.products);
-                setVariantsMap(data.variantsMap);
-                setVariantImagesMap(data.variantImagesMap);
-              }
-            })
-            .catch(() => {}); // silent — never break visible UI
-        } else {
-          // No data at all — do a full load
-          await loadProductsForTab(tab, true);
-        }
+        // ALWAYS do a silent background refresh — never touch isLoading
+        fetchFeaturedTabData(tab)
+          .then((data) => {
+            if (activeTabRef.current === tab && data.products.length > 0) {
+              setProducts(data.products);
+              setVariantsMap(data.variantsMap);
+              setVariantImagesMap(data.variantImagesMap);
+            }
+          })
+          .catch(() => {}); // silent — never break visible UI
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [loadProductsForTab]);
+  }, []);
 
   // Handle page show (back/forward navigation — bfcache)
   useEffect(() => {
@@ -1001,7 +1001,7 @@ export default function FeaturedProducts() {
         setVariantImagesMap(cached.variantImagesMap);
         setIsLoading(false);
         setSwiperKey((prev) => prev + 1);
-        // Silent background refresh — no loading state change
+        // Silent background refresh — never show skeleton
         fetchFeaturedTabData(tab)
           .then((data) => {
             if (activeTabRef.current === tab && data.products.length > 0) {
@@ -1012,6 +1012,7 @@ export default function FeaturedProducts() {
           })
           .catch(() => {});
       } else {
+        // Only show loading if we truly have no data at all
         loadProductsForTab(tab, false);
       }
     };

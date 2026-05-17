@@ -3,7 +3,6 @@
 // Source: Daily Pakistan / forex.pk open market rates
 // Base currency: PKR (1 PKR = X foreign)
 // Formula: rate = 1 / (PKR per 1 foreign unit)
-// Example: 1 USD = 279 PKR → rate = 1/279 = 0.003584
 
 export interface Currency {
   code: string;
@@ -15,23 +14,12 @@ export interface Currency {
   countryCode: string;
 }
 
-// ✅ CORRECT LIVE RATES — 2 May 2026 Pakistan Open Market
-// 1 USD = 279 PKR   → rate = 1/279  = 0.003584
-// 1 GBP = 379 PKR   → rate = 1/379  = 0.002639
-// 1 EUR = 328 PKR   → rate = 1/328  = 0.003049
-// 1 AUD = 200 PKR   → rate = 1/200  = 0.005000
-// 1 CAD = 205 PKR   → rate = 1/205  = 0.004878
-// 1 AED = 76.45 PKR → rate = 1/76.45 = 0.013082
-// 1 SAR = 74.87 PKR → rate = 1/74.87 = 0.013357
-// 1 INR = 3.35 PKR  → rate = 1/3.35  = 0.298507
-// 1 PKR = 1 PKR     → rate = 1
-
 export const currencies: Currency[] = [
   {
     code: "USD",
     symbol: "$",
     name: "US Dollar",
-    rate: 0.003584, // 1 USD = 279 PKR ✅
+    rate: 0.003584, // 1 USD = 279 PKR
     flag: "🇺🇸",
     phoneCode: "+1",
     countryCode: "US",
@@ -40,7 +28,7 @@ export const currencies: Currency[] = [
     code: "GBP",
     symbol: "£",
     name: "British Pound",
-    rate: 0.002639, // 1 GBP = 379 PKR ✅
+    rate: 0.002639, // 1 GBP = 379 PKR
     flag: "🇬🇧",
     phoneCode: "+44",
     countryCode: "GB",
@@ -49,7 +37,7 @@ export const currencies: Currency[] = [
     code: "EUR",
     symbol: "€",
     name: "Euro",
-    rate: 0.003049, // 1 EUR = 328 PKR ✅
+    rate: 0.003049, // 1 EUR = 328 PKR
     flag: "🇪🇺",
     phoneCode: "+352",
     countryCode: "EU",
@@ -58,7 +46,7 @@ export const currencies: Currency[] = [
     code: "AUD",
     symbol: "A$",
     name: "Australian Dollar",
-    rate: 0.005, // 1 AUD = 200 PKR ✅
+    rate: 0.005, // 1 AUD = 200 PKR
     flag: "🇦🇺",
     phoneCode: "+61",
     countryCode: "AU",
@@ -67,7 +55,7 @@ export const currencies: Currency[] = [
     code: "CAD",
     symbol: "C$",
     name: "Canadian Dollar",
-    rate: 0.004878, // 1 CAD = 205 PKR ✅
+    rate: 0.004878, // 1 CAD = 205 PKR
     flag: "🇨🇦",
     phoneCode: "+1",
     countryCode: "CA",
@@ -76,7 +64,7 @@ export const currencies: Currency[] = [
     code: "AED",
     symbol: "د.إ",
     name: "UAE Dirham",
-    rate: 0.013082, // 1 AED = 76.45 PKR ✅
+    rate: 0.013082, // 1 AED = 76.45 PKR
     flag: "🇦🇪",
     phoneCode: "+971",
     countryCode: "AE",
@@ -85,7 +73,7 @@ export const currencies: Currency[] = [
     code: "SAR",
     symbol: "﷼",
     name: "Saudi Riyal",
-    rate: 0.013357, // 1 SAR = 74.87 PKR ✅
+    rate: 0.013357, // 1 SAR = 74.87 PKR
     flag: "🇸🇦",
     phoneCode: "+966",
     countryCode: "SA",
@@ -94,7 +82,7 @@ export const currencies: Currency[] = [
     code: "INR",
     symbol: "₹",
     name: "Indian Rupee",
-    rate: 0.298507, // 1 INR = 3.35 PKR ✅
+    rate: 0.298507, // 1 INR = 3.35 PKR
     flag: "🇮🇳",
     phoneCode: "+91",
     countryCode: "IN",
@@ -103,7 +91,7 @@ export const currencies: Currency[] = [
     code: "PKR",
     symbol: "₨",
     name: "Pakistani Rupee",
-    rate: 1, // Base currency ✅
+    rate: 1, // Base currency
     flag: "🇵🇰",
     phoneCode: "+92",
     countryCode: "PK",
@@ -113,9 +101,9 @@ export const currencies: Currency[] = [
 export let defaultCurrency: Currency =
   currencies.find((c) => c.code === "PKR") || currencies[0];
 
-// ✅ LIVE RATE FETCHER — exchangerate-api.com (free, no key needed for basic)
-// Fallback chain: API → hardcoded rates
-// Rates cache: 1 hour (don't fetch every page load)
+// ── Live Rate Fetcher ──────────────────────────────────────────────────────────
+// ✅ Only uses open.er-api.com — Frankfurt blocked by CORS on browser
+// Cache: 1 hour, won't re-fetch every page load
 let _ratesCacheTime = 0;
 let _ratesLive: Record<string, number> | null = null;
 const RATES_CACHE_TTL = 60 * 60 * 1000; // 1 hour
@@ -126,46 +114,36 @@ export async function fetchLiveRates(): Promise<Record<string, number> | null> {
     return _ratesLive;
   }
 
-  // ✅ Free API — no key required, returns rates relative to base currency
-  // We fetch PKR as base → gives us "1 PKR = X foreign"
-  const apis = [
-    "https://open.er-api.com/v6/latest/PKR",
-    "https://api.frankfurter.app/latest?from=PKR",
-  ];
+  // ✅ open.er-api.com only — supports CORS, no key needed
+  // Frankfurt is intentionally REMOVED — it blocks with CORS on browser
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
-  for (const url of apis) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch("https://open.er-api.com/v6/latest/PKR", {
+      signal: controller.signal,
+      cache: "no-store",
+    });
+    clearTimeout(timeout);
 
-      const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeout);
+    if (!res.ok) throw new Error("API error");
 
-      if (!res.ok) continue;
+    const data = await res.json();
+    const rates: Record<string, number> = data.rates || {};
 
-      const data = await res.json();
-
-      // open.er-api.com format: { rates: { USD: 0.00358, ... } }
-      // frankfurter.app format: { rates: { USD: 0.00358, ... } }
-      const rates: Record<string, number> =
-        data.rates || data.conversion_rates || {};
-
-      if (rates.USD) {
-        _ratesLive = rates;
-        _ratesCacheTime = Date.now();
-        console.log("✅ Live rates fetched from:", url);
-        return rates;
-      }
-    } catch {
-      continue;
+    if (rates.USD) {
+      _ratesLive = rates;
+      _ratesCacheTime = Date.now();
+      return rates;
     }
+  } catch {
+    // Silently fall back to hardcoded rates — never throw
   }
 
-  console.warn("⚠️ Live rate fetch failed — using hardcoded rates");
   return null;
 }
 
-// ✅ Apply live rates to currencies array (call once on app init)
+// ── Apply live rates to currencies array ──────────────────────────────────────
 export function applyLiveRates(liveRates: Record<string, number>): Currency[] {
   return currencies.map((c) => {
     if (c.code === "PKR") return c;
@@ -173,7 +151,7 @@ export function applyLiveRates(liveRates: Record<string, number>): Currency[] {
     if (liveRate && liveRate > 0) {
       return { ...c, rate: liveRate };
     }
-    return c; // fallback to hardcoded rate
+    return c;
   });
 }
 
@@ -244,10 +222,6 @@ export async function detectUserCountry(): Promise<string> {
     {
       url: "https://api.country.is/",
       parser: (data: any) => data.country,
-    },
-    {
-      url: "https://worldtimeapi.org/api/ip",
-      parser: (data: any) => data.client_country,
     },
   ];
 

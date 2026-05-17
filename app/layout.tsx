@@ -6,7 +6,7 @@ import "./globals.css";
 import Providers from "./providers";
 import { CurrencyProvider } from "./context/CurrencyContext";
 import { LanguageProvider } from "./context/LanguageContext";
-import { CurrencyCleaner } from "./components/CurrencyCleaner";
+// import { CurrencyCleaner } from "./components/CurrencyCleaner";
 import { getInitialCurrency } from "@/lib/get-initial-currency";
 
 // Poppins font configuration
@@ -81,7 +81,7 @@ export default async function RootLayout({
             CurrencyCleaner — purana galat localStorage (auto-saved USD) clear karta hai
           */}
           <CurrencyProvider initialCurrencyCode={initialCurrency.code}>
-            <CurrencyCleaner />
+            {/* <CurrencyCleaner /> */}
             <Providers>{children}</Providers>
           </CurrencyProvider>
         </LanguageProvider>

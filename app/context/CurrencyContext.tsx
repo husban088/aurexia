@@ -1,26 +1,6 @@
 // app/context/CurrencyContext.tsx
 "use client";
 
-/**
- * ✅ GUARANTEED COUNTRY DETECTION — WORKS ON LOCALHOST + PRODUCTION + VPN
- *
- * DETECTION ORDER (fastest to slowest):
- * 1. User manually selected (localStorage currencyUserSelected=true) → instant
- * 2. Multiple IP APIs in PARALLEL → fastest one wins (~500ms-1s)
- * 3. Browser language fallback → instant
- *
- * WHY PREVIOUS VERSION FAILED:
- * - CurrencyCleaner was clearing localStorage AFTER context set it → race condition
- * - Single API with 3s timeout was too slow / failing silently
- * - hasDetected ref was blocking re-detection
- *
- * THIS VERSION:
- * - Runs ALL IP APIs simultaneously (Promise.any) → fastest wins
- * - No race condition — CurrencyCleaner only clears, context only detects
- * - Tab/focus VPN re-detection with 5s debounce
- * - NEVER blocks UI — loading is always false
- */
-
 import {
   createContext,
   useContext,
@@ -53,11 +33,15 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(
   undefined,
 );
 
-// ─── Check if user manually selected currency ─────────────────────────────────
+const PKR =
+  staticCurrencies.find((c) => c.code === "PKR") ?? staticCurrencies[0];
+
+// ─── Check if user manually selected ─────────────────────────────────
 function getUserPref(): Currency | null {
   try {
     if (typeof window === "undefined") return null;
-    if (localStorage.getItem("currencyUserSelected") !== "true") return null;
+    const userSelected = localStorage.getItem("currencyUserSelected");
+    if (userSelected !== "true") return null;
     const code = localStorage.getItem("preferredCurrency");
     if (!code) return null;
     return staticCurrencies.find((c) => c.code === code) ?? null;
@@ -66,7 +50,7 @@ function getUserPref(): Currency | null {
   }
 }
 
-// ─── Save user manual selection ───────────────────────────────────────────────
+// ─── Save user manual selection ─────────────────────────────────────
 function saveUserPref(code: string) {
   try {
     localStorage.setItem("preferredCurrency", code);
@@ -76,84 +60,64 @@ function saveUserPref(code: string) {
   } catch {}
 }
 
-// ─── Fetch country from ONE api with timeout ──────────────────────────────────
-async function fetchCountry(
-  url: string,
-  extract: (data: any) => string | undefined,
-  timeoutMs = 5000,
-): Promise<string> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+// ─── Detect country using server API (MOST RELIABLE) ─────────────────
+async function detectCountryViaServer(): Promise<string | null> {
   try {
-    const res = await fetch(url, {
-      signal: ctrl.signal,
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const res = await fetch("/api/detect-country", {
+      signal: controller.signal,
       cache: "no-store",
-      headers: { Accept: "application/json" },
     });
-    clearTimeout(t);
-    if (!res.ok) throw new Error("not ok");
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) return null;
     const data = await res.json();
-    const code = extract(data);
-    if (typeof code === "string" && code.length === 2)
-      return code.toUpperCase();
-    throw new Error("bad code");
-  } catch (e) {
-    clearTimeout(t);
-    throw e;
+    if (data.success && data.country) {
+      console.log("🌍 Server detected country:", data.country);
+      return data.country;
+    }
+    return null;
+  } catch (err) {
+    console.error("Server country detection failed:", err);
+    return null;
   }
 }
 
-// ─── Detect country — ALL APIs in parallel, fastest wins ─────────────────────
-async function detectCountry(): Promise<string> {
+// ─── Fallback: Client-side IP detection ─────────────────────────────
+async function detectCountryClientSide(): Promise<string> {
   const apis = [
-    // These work reliably with VPN (they see the VPN exit IP)
-    fetchCountry("https://api.country.is/", (d) => d.country),
-    fetchCountry("https://ipapi.co/json/", (d) => d.country_code),
-    fetchCountry("https://freeipapi.com/api/json/", (d) => d.countryCode),
-    fetchCountry("https://ipwho.is/", (d) => d.country_code),
-    fetchCountry("https://ip-api.io/json", (d) => d.country_code),
+    { url: "https://api.country.is/", parser: (d: any) => d.country },
+    { url: "https://ipapi.co/json/", parser: (d: any) => d.country_code },
+    {
+      url: "https://freeipapi.com/api/json/",
+      parser: (d: any) => d.countryCode,
+    },
+    { url: "https://ipwho.is/", parser: (d: any) => d.country_code },
   ];
 
-  try {
-    // Promise.any = first one to SUCCEED wins (others are ignored)
-    const country = await Promise.any(apis);
-    console.log("🌍 Detected country:", country);
-    return country;
-  } catch {
-    // All failed — use browser language
-    console.warn("⚠️ All IP APIs failed — using browser fallback");
-    return detectFromBrowser();
-  }
-}
-
-// ─── Browser language fallback ────────────────────────────────────────────────
-function detectFromBrowser(): string {
-  if (typeof navigator === "undefined") return "PK";
-  const lang = navigator.language ?? "";
-  const map: Record<string, string> = {
-    "ur-PK": "PK",
-    ur: "PK",
-    "ar-AE": "AE",
-    "ar-SA": "SA",
-    "hi-IN": "IN",
-    hi: "IN",
-    "en-GB": "GB",
-    "en-AU": "AU",
-    "en-CA": "CA",
-    "en-US": "US",
-    "de-DE": "DE",
-    de: "DE",
-    "fr-FR": "FR",
-    fr: "FR",
-  };
-  if (map[lang]) return map[lang];
-  for (const [key, val] of Object.entries(map)) {
-    if (lang.startsWith(key)) return val;
+  for (const api of apis) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(api.url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const code = api.parser(data);
+      if (code && code.length === 2 && code !== "XX") {
+        return code.toUpperCase();
+      }
+    } catch (e) {
+      continue;
+    }
   }
   return "PK";
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────
 export function CurrencyProvider({
   children,
   initialCurrencyCode,
@@ -163,28 +127,10 @@ export function CurrencyProvider({
 }) {
   const [liveCurrencies, setLiveCurrencies] =
     useState<Currency[]>(staticCurrencies);
-  const running = useRef(false);
-  const lastCountry = useRef<string | null>(null);
+  const [currency, setCurrencyState] = useState<Currency>(PKR);
+  const [loading, setLoading] = useState(true);
+  const detectionDone = useRef(false);
 
-  // ── Initial currency — instant, no flash ────────────────────────────────
-  const getInitial = (): Currency => {
-    const pref = getUserPref();
-    if (pref) return pref;
-    if (initialCurrencyCode) {
-      const found = staticCurrencies.find(
-        (c) => c.code === initialCurrencyCode,
-      );
-      if (found) return found;
-    }
-    // Show PKR immediately (Pakistan visitors), detection updates in ~1s
-    return (
-      staticCurrencies.find((c) => c.code === "PKR") ?? staticCurrencies[0]
-    );
-  };
-
-  const [currency, setCurrencyState] = useState<Currency>(getInitial);
-
-  // ── User manually selects ────────────────────────────────────────────────
   const setCurrency = useCallback(
     (newCurrency: Currency) => {
       const live =
@@ -195,7 +141,6 @@ export function CurrencyProvider({
     [liveCurrencies],
   );
 
-  // ── Apply live rates helper ──────────────────────────────────────────────
   const applyRates = useCallback((currCode: string) => {
     fetchLiveRates()
       .then((rates) => {
@@ -208,72 +153,54 @@ export function CurrencyProvider({
       .catch(() => {});
   }, []);
 
-  // ── Core detection ───────────────────────────────────────────────────────
   const detect = useCallback(async () => {
-    if (running.current) return;
+    if (detectionDone.current) return;
+    detectionDone.current = true;
+    setLoading(true);
 
-    // User manually selected → only update rates
+    // 1. User manual selection?
     const pref = getUserPref();
     if (pref) {
+      console.log("📀 Using user-selected currency:", pref.code);
+      setCurrencyState(pref);
       applyRates(pref.code);
+      setLoading(false);
       return;
     }
 
-    running.current = true;
-    try {
-      const country = await detectCountry();
+    // 2. Try server-side detection first (MOST RELIABLE)
+    let country = await detectCountryViaServer();
 
-      // Only update if country changed (avoids flicker on re-detect)
-      if (country !== lastCountry.current) {
-        lastCountry.current = country;
-        const detected = getCurrencyByCountry(country);
-        setCurrencyState(detected);
-        console.log(`✅ ${country} → ${detected.code}`);
-        applyRates(detected.code);
-      }
-    } catch (err) {
-      console.error("Detection error:", err);
-    } finally {
-      running.current = false;
+    // 3. Fallback to client-side
+    if (!country) {
+      country = await detectCountryClientSide();
     }
+
+    console.log("🌍 Final detected country:", country);
+    const detected = getCurrencyByCountry(country);
+    console.log(`✅ Setting currency to: ${detected.code} (${detected.name})`);
+
+    setCurrencyState(detected);
+    applyRates(detected.code);
+
+    // Save detected but don't mark as user-selected
+    localStorage.setItem("preferredCurrency", detected.code);
+    document.cookie = `preferredCurrency=${detected.code}; path=/; max-age=3600; SameSite=Lax`;
+
+    setLoading(false);
   }, [applyRates]);
 
-  // ── Run on mount ─────────────────────────────────────────────────────────
   useEffect(() => {
     detect();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── VPN re-detection: tab visible / window focus ─────────────────────────
-  useEffect(() => {
-    let lastRun = 0;
-    const DEBOUNCE = 5000; // 5 seconds
-
-    const run = () => {
-      if (getUserPref()) return; // user selected → skip
-      const now = Date.now();
-      if (now - lastRun < DEBOUNCE) return;
-      lastRun = now;
-      console.log("🔄 Re-detecting (tab/focus)");
-      lastCountry.current = null; // force update even if same country
-      detect();
-    };
-
-    const onVisible = () => {
-      if (document.visibilityState === "visible") run();
-    };
-    const onFocus = () => run();
-
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onFocus);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [detect]);
+  }, []);
 
   const refreshCurrency = useCallback(async () => {
-    running.current = false;
-    lastCountry.current = null;
+    detectionDone.current = false;
+    if (localStorage.getItem("currencyUserSelected") !== "true") {
+      localStorage.removeItem("preferredCurrency");
+      document.cookie =
+        "preferredCurrency=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    }
     await detect();
   }, [detect]);
 
@@ -295,7 +222,7 @@ export function CurrencyProvider({
         convertPrice: convert,
         formatPrice: format,
         refreshCurrency,
-        loading: false,
+        loading,
       }}
     >
       {children}

@@ -1,22 +1,31 @@
 // app/components/CurrencyCleaner.tsx
 "use client";
 
-/**
- * Sirf ek kaam: agar user ne khud select nahi kiya toh old auto-saved entry clear karo.
- * Detect karna CurrencyContext ka kaam hai — is component ka nahi.
- */
-
 import { useEffect } from "react";
 
 export function CurrencyCleaner() {
   useEffect(() => {
     try {
-      if (localStorage.getItem("currencyUserSelected") !== "true") {
-        localStorage.removeItem("preferredCurrency");
-        document.cookie =
-          "preferredCurrency=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      // ✅ SIRF tab clear karo agar user ne MANUALLY select nahi kiya
+      const userSelected = localStorage.getItem("currencyUserSelected");
+
+      if (userSelected !== "true") {
+        // Clean old auto-detected data only
+        const currentPref = localStorage.getItem("preferredCurrency");
+
+        // Agar PKR hai toh clear karo (auto-detected hoga)
+        if (currentPref === "PKR") {
+          localStorage.removeItem("preferredCurrency");
+          document.cookie =
+            "preferredCurrency=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        }
+
+        // NEVER clear currencyUserSelected flag here
       }
-    } catch {}
+    } catch (e) {
+      console.error("CurrencyCleaner error:", e);
+    }
   }, []);
+
   return null;
 }

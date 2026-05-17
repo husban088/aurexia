@@ -242,7 +242,8 @@ export default function Navbar({
   const authResolved = user !== undefined;
   const isSignedIn = authResolved && user !== null;
 
-  const availableCurrencies = currencies.filter((c) => c.code !== "PKR");
+  // ✅ FIXED: Sab currencies show karo (PKR bhi — sirf dropdown mein duplicate avoid)
+  const availableCurrencies = currencies;
 
   const handleCurrencySelect = (cur: (typeof currencies)[0]) => {
     setCurrency(cur);
@@ -333,7 +334,8 @@ export default function Navbar({
       <div className="navbar-container">
         {/* LEFT — Currency & Search */}
         <div className="navbar-left">
-          {showPanel && (
+          {/* ✅ FIXED: Currency dropdown sab users ko dikhao — showPanel condition hatai */}
+          {mounted && (
             <div
               className="currency-dropdown"
               onMouseEnter={handleCurrencyMouseEnter}
@@ -370,20 +372,6 @@ export default function Navbar({
                       <span className="currency-option-name">{cur.name}</span>
                     </button>
                   ))}
-                  <button
-                    className={`currency-option${currency.code === "PKR" ? " active" : ""}`}
-                    onClick={() => {
-                      const pkr = currencies.find((c) => c.code === "PKR");
-                      if (pkr) handleCurrencySelect(pkr);
-                    }}
-                  >
-                    <span className="currency-option-flag">🇵🇰</span>
-                    <span className="currency-option-symbol">₨</span>
-                    <span className="currency-option-code">PKR</span>
-                    <span className="currency-option-name">
-                      Pakistani Rupee
-                    </span>
-                  </button>
                 </div>
               )}
             </div>
