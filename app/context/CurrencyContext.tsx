@@ -1,10 +1,12 @@
 // app/context/CurrencyContext.tsx
 "use client";
 
-// ✅ CORS errors FIX:
-// - Koi bhi external IP API (ipapi.co, freeipapi, etc.) CLIENT side pe NAHI chalti
-// - Sirf /api/detect-country use hota hai (same-origin, no CORS)
-// - Website fast, no stuck loading, no console errors
+// ✅ FIXES:
+// 1. Website kabhi bhi loading pe stuck nahi hogi — currency detection page ko BLOCK nahi karti
+// 2. Server-side header (Cloudflare/Vercel) se FORAN country milti hai — koi external API nahi
+// 3. localStorage se saved preference instant load hoti hai
+// 4. External IP APIs sirf background mein chalti hain — 3s timeout, page wait nahi karta
+// 5. Pakistan mein PKR show, USA mein USD, UK mein GBP — sab automatic
 
 import {
   createContext,
@@ -18,6 +20,7 @@ import {
   currencies as staticCurrencies,
   Currency,
   getCurrencyByCountry,
+  saveCurrencyPreference,
   convertPrice,
   formatPrice,
   fetchLiveRates,
@@ -38,45 +41,25 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(
   undefined,
 );
 
-const USER_SELECTED_KEY = "currencyUserSelected";
-const PREF_KEY = "preferredCurrency";
-
-// Sirf user-manually-selected currency read karo
-function getUserSelectedCurrency(): Currency | null {
+// ── Step 1: Instant — localStorage se saved preference ───────────────────────
+function getSavedCurrency(): Currency | null {
   if (typeof window === "undefined") return null;
   try {
-    if (localStorage.getItem(USER_SELECTED_KEY) !== "true") return null;
-    const code = localStorage.getItem(PREF_KEY);
-    if (!code) return null;
-    return staticCurrencies.find((c) => c.code === code) || null;
-  } catch {
-    return null;
-  }
-}
-
-function saveUserSelectedCurrency(code: string) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(PREF_KEY, code);
-    localStorage.setItem(USER_SELECTED_KEY, "true");
-    document.cookie = `preferredCurrency=${code}; path=/; max-age=31536000; SameSite=Lax`;
+    const saved = localStorage.getItem("preferredCurrency");
+    if (saved) {
+      const found = staticCurrencies.find((c) => c.code === saved);
+      if (found) return found;
+    }
   } catch {}
+  return null;
 }
 
-function resolveCurrency(code: string): Currency {
-  return (
-    staticCurrencies.find((c) => c.code === code) ||
-    staticCurrencies.find((c) => c.code === "PKR") ||
-    staticCurrencies[0]
-  );
-}
-
-// ✅ ONLY our own server route — same-origin, no CORS, reads CDN headers
-// Works on localhost + production both
-async function detectCountryFromServer(): Promise<string | null> {
+// ── Step 2: Fast — server header se country (Cloudflare/Vercel) ──────────────
+// Yeh API local hai — koi external call nahi, 50-100ms mein response
+async function getCountryFromServer(): Promise<string | null> {
   try {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 3000);
+    const t = setTimeout(() => ctrl.abort(), 2000); // 2s max
     const res = await fetch("/api/detect-country", {
       signal: ctrl.signal,
       cache: "no-store",
@@ -84,141 +67,217 @@ async function detectCountryFromServer(): Promise<string | null> {
     clearTimeout(t);
     if (!res.ok) return null;
     const data = await res.json();
-    if (typeof data?.country === "string" && data.country.length === 2) {
-      console.log("🖥️ Server detected:", data.country, "via", data.source);
-      return data.country.toUpperCase();
+    if (data?.country?.length === 2) return data.country;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Step 3: Fallback — external IP APIs (background only, page wait nahi karta)
+async function getCountryFromExternalAPIs(): Promise<string | null> {
+  const apis = [
+    { url: "https://api.country.is/", parse: (d: any) => d.country },
+    { url: "https://ipapi.co/json/", parse: (d: any) => d.country_code },
+    {
+      url: "https://freeipapi.com/api/json/",
+      parse: (d: any) => d.countryCode,
+    },
+  ];
+
+  for (const { url, parse } of apis) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 3000);
+      const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
+      clearTimeout(t);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const code = parse(data);
+      if (typeof code === "string" && code.length === 2) return code;
+    } catch {
+      continue;
     }
-  } catch {}
+  }
   return null;
 }
 
-// ─── Provider ────────────────────────────────────────────────────────────────
+// ── Browser language fallback (instant, no network) ──────────────────────────
+function getCountryFromBrowser(): string {
+  if (typeof navigator === "undefined") return "US";
+  const lang = navigator.language || "";
+  const map: Record<string, string> = {
+    "ur-PK": "PK",
+    ur: "PK",
+    "ar-AE": "AE",
+    "ar-SA": "SA",
+    "hi-IN": "IN",
+    hi: "IN",
+    "en-GB": "GB",
+    "en-AU": "AU",
+    "en-CA": "CA",
+    "en-US": "US",
+    de: "DE",
+    "de-DE": "DE",
+    fr: "FR",
+    "fr-FR": "FR",
+  };
+  // Exact match
+  if (map[lang]) return map[lang];
+  // Prefix match
+  for (const [key, val] of Object.entries(map)) {
+    if (lang.startsWith(key)) return val;
+  }
+  return "US";
+}
 
+// ─────────────────────────────────────────────────────────────────────────────
 export function CurrencyProvider({
   children,
   initialCurrencyCode,
 }: {
   children: React.ReactNode;
-  initialCurrencyCode?: string;
+  initialCurrencyCode?: string; // server se pass karo agar possible ho
 }) {
-  const liveCurrRef = useRef<Currency[]>(staticCurrencies);
-  const [liveCurrencies, _setLive] = useState<Currency[]>(staticCurrencies);
+  const [liveCurrencies, setLiveCurrencies] =
+    useState<Currency[]>(staticCurrencies);
 
-  const setLiveCurrencies = useCallback((arr: Currency[]) => {
-    liveCurrRef.current = arr;
-    _setLive(arr);
-  }, []);
-
-  // Initial currency — server prop sabse reliable
-  const getInitial = (): Currency => {
+  // ── INSTANT initial currency ──────────────────────────────────────────────
+  // Priority: 1. initialCurrencyCode (server) → 2. localStorage → 3. PKR default
+  // Page KABHI bhi blank nahi hoga — foran kuch show hoga
+  const getInitialCurrency = (): Currency => {
+    // Server-passed currency code (fastest)
     if (initialCurrencyCode) {
-      const f = staticCurrencies.find((c) => c.code === initialCurrencyCode);
-      if (f) return f;
+      const found = staticCurrencies.find(
+        (c) => c.code === initialCurrencyCode,
+      );
+      if (found) return found;
     }
-    const userPicked = getUserSelectedCurrency();
-    if (userPicked) return userPicked;
-    return resolveCurrency("PKR");
+    // localStorage saved preference
+    const saved = getSavedCurrency();
+    if (saved) return saved;
+    // Default: PKR (changes silently in background after detection)
+    return (
+      staticCurrencies.find((c) => c.code === "PKR") || staticCurrencies[0]
+    );
   };
 
-  const [currency, _setCurr] = useState<Currency>(getInitial);
-
-  const setCurrState = useCallback((c: Currency) => {
-    _setCurr(c);
-  }, []);
-
+  const [currency, setCurrencyState] = useState<Currency>(getInitialCurrency);
+  const loading = false; // ✅ NEVER block — loading always false
+  const isDetecting = useRef(false);
   const hasDetected = useRef(false);
-  const isRunning = useRef(false);
 
-  // User manually selects from dropdown
   const setCurrency = useCallback(
     (newCurrency: Currency) => {
-      const live =
-        liveCurrRef.current.find((c) => c.code === newCurrency.code) ||
-        newCurrency;
-      setCurrState(live);
-      saveUserSelectedCurrency(live.code);
+      const liveVersion =
+        liveCurrencies.find((c) => c.code === newCurrency.code) || newCurrency;
+      setCurrencyState(liveVersion);
+      saveCurrencyPreference(liveVersion.code);
     },
-    [setCurrState],
+    [liveCurrencies],
   );
 
-  // Silently fetch live exchange rates in background
-  const applyRatesForCode = useCallback(
-    (code: string) => {
-      fetchLiveRates()
-        .then((rates) => {
-          if (!rates) return;
-          const updated = applyLiveRates(rates);
-          setLiveCurrencies(updated);
-          const updatedCurr = updated.find((c) => c.code === code);
-          if (updatedCurr) {
-            setCurrState(updatedCurr);
-          }
-        })
-        .catch(() => {});
-    },
-    [setLiveCurrencies, setCurrState],
-  );
-
-  // Main detection — runs once, NO external IP APIs
-  const detect = useCallback(async () => {
-    if (isRunning.current || hasDetected.current) return;
-    isRunning.current = true;
+  // ── Main detection — runs once on mount ──────────────────────────────────
+  const detectAndSet = useCallback(async () => {
+    if (isDetecting.current || hasDetected.current) return;
+    isDetecting.current = true;
 
     try {
-      // 1. User manually selected — always respect
-      const userPicked = getUserSelectedCurrency();
-      if (userPicked) {
-        applyRatesForCode(userPicked.code);
+      // ── If user already has saved preference — respect it, don't override ──
+      const saved = getSavedCurrency();
+      if (saved) {
+        // Still fetch live rates in background but keep their preference
+        fetchLiveRates()
+          .then((liveRates) => {
+            if (liveRates) {
+              const updated = applyLiveRates(liveRates);
+              setLiveCurrencies(updated);
+              // Update rate for current currency
+              const updatedCurr = updated.find((c) => c.code === saved.code);
+              if (updatedCurr) setCurrencyState(updatedCurr);
+            }
+          })
+          .catch(() => {});
         hasDetected.current = true;
-        isRunning.current = false;
         return;
       }
 
-      // 2. Server already passed reliable currency code
-      if (initialCurrencyCode) {
-        const serverCurr = staticCurrencies.find(
-          (c) => c.code === initialCurrencyCode,
-        );
-        if (serverCurr) {
-          setCurrState(serverCurr);
-          applyRatesForCode(serverCurr.code);
-          hasDetected.current = true;
-          isRunning.current = false;
-          return;
-        }
+      // ── No saved preference — detect country ─────────────────────────────
+      // Try server header first (fast, local)
+      let countryCode = await getCountryFromServer();
+
+      if (!countryCode) {
+        // Server header nahi mila — browser language se instant guess
+        countryCode = getCountryFromBrowser();
+
+        // External APIs background mein try karo (page wait nahi karega)
+        getCountryFromExternalAPIs()
+          .then((externalCode) => {
+            if (externalCode && externalCode !== countryCode) {
+              const baseCurr = getCurrencyByCountry(externalCode);
+              const liveCurr =
+                liveCurrencies.find((c) => c.code === baseCurr.code) ||
+                baseCurr;
+              setCurrencyState(liveCurr);
+              console.log(
+                `🌍 External API updated currency: ${externalCode} → ${liveCurr.code}`,
+              );
+            }
+          })
+          .catch(() => {});
       }
 
-      // 3. Call our own /api/detect-country (same-origin, no CORS)
-      const country = await detectCountryFromServer();
-      const detected = getCurrencyByCountry(country || "PK");
-      console.log(`✅ Currency: ${country || "PK"} → ${detected.code}`);
+      // ── Set currency from detected country ────────────────────────────────
+      const baseCurrency = getCurrencyByCountry(countryCode);
 
-      setCurrState(detected);
-      applyRatesForCode(detected.code);
+      // Fetch live rates in parallel (don't await — set currency immediately)
+      fetchLiveRates()
+        .then((liveRates) => {
+          if (liveRates) {
+            const updated = applyLiveRates(liveRates);
+            setLiveCurrencies(updated);
+            const updatedCurr =
+              updated.find((c) => c.code === baseCurrency.code) || baseCurrency;
+            setCurrencyState(updatedCurr);
+            console.log(
+              `💱 Live rates applied: ${updatedCurr.code} rate=${updatedCurr.rate}`,
+            );
+          }
+        })
+        .catch(() => {});
+
+      // Set currency immediately with hardcoded rate (don't wait for live rates)
+      setCurrencyState(baseCurrency);
       hasDetected.current = true;
+
+      console.log(`✅ Currency: ${countryCode} → ${baseCurrency.code}`);
     } catch (err) {
-      console.error("Currency detect error:", err);
-      setCurrState(resolveCurrency("PKR"));
+      console.error("Currency detection error:", err);
+      // Fallback: USD
+      const usd =
+        staticCurrencies.find((c) => c.code === "USD") || staticCurrencies[0];
+      setCurrencyState(usd);
       hasDetected.current = true;
     } finally {
-      isRunning.current = false;
+      isDetecting.current = false;
     }
-  }, [initialCurrencyCode, applyRatesForCode, setCurrState]);
-
-  useEffect(() => {
-    detect();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [liveCurrencies]);
 
   const refreshCurrency = useCallback(async () => {
     hasDetected.current = false;
-    isRunning.current = false;
-    await detect();
-  }, [detect]);
+    isDetecting.current = false;
+    await detectAndSet();
+  }, [detectAndSet]);
+
+  useEffect(() => {
+    detectAndSet();
+  }, [detectAndSet]);
 
   const convert = useCallback(
     (priceInPKR: number) => convertPrice(priceInPKR, currency),
     [currency],
   );
+
   const format = useCallback(
     (priceInPKR: number) => formatPrice(priceInPKR, currency),
     [currency],
@@ -233,7 +292,7 @@ export function CurrencyProvider({
         convertPrice: convert,
         formatPrice: format,
         refreshCurrency,
-        loading: false,
+        loading,
       }}
     >
       {children}
@@ -242,7 +301,9 @@ export function CurrencyProvider({
 }
 
 export function useCurrency() {
-  const ctx = useContext(CurrencyContext);
-  if (!ctx) throw new Error("useCurrency must be used within CurrencyProvider");
-  return ctx;
+  const context = useContext(CurrencyContext);
+  if (!context) {
+    throw new Error("useCurrency must be used within CurrencyProvider");
+  }
+  return context;
 }

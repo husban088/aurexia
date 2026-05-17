@@ -849,13 +849,8 @@ function VariantFormItem({
       images: variantImage ? [variantImage] : [],
       variantImage,
       stockStatus,
-      bulkPricingTiers: bulkTiers.map((tier) => ({
-        ...tier,
-        tier_price:
-          currencyCode !== "PKR"
-            ? Math.round((tier.tier_price / currencyRate) * 100) / 100
-            : tier.tier_price,
-      })),
+      // tier_price is ALREADY in PKR — do not convert again
+      bulkPricingTiers: bulkTiers,
       displayCurrency: currencyCode,
     });
   };
@@ -887,13 +882,8 @@ function VariantFormItem({
       images: variantImage ? [variantImage] : [],
       variantImage,
       stockStatus,
-      bulkPricingTiers: bulkTiers.map((tier) => ({
-        ...tier,
-        tier_price:
-          currencyCode !== "PKR"
-            ? Math.round((tier.tier_price / currencyRate) * 100) / 100
-            : tier.tier_price,
-      })),
+      // tier_price is ALREADY in PKR — do not convert again
+      bulkPricingTiers: bulkTiers,
       displayCurrency: currencyCode,
     });
   }, [
@@ -1520,10 +1510,9 @@ function SimpleModeForm({
             variant_id: variantData.id,
             min_quantity: t.min_quantity,
             max_quantity: t.max_quantity,
-            tier_price:
-              currentCurrency.code !== "PKR" && currentRate > 0
-                ? Number((t.tier_price / currentRate).toFixed(2))
-                : t.tier_price,
+            // tier_price is ALREADY stored in PKR inside BulkPricingManager
+            // DO NOT divide by rate again — that would give wrong (tiny) values
+            tier_price: t.tier_price,
             discount_percentage: t.discount_percentage,
             discount_price: t.discount_price ?? null,
           })),
