@@ -1,4 +1,8 @@
 // app/checkout/components/StripePayment.tsx
+// ✅ Payment succeed hone pe owner ko email jati hai (stripe-payment-alert API)
+// ✅ Webhook ki zaroorat nahi
+// ✅ Double call prevent: successCalledRef
+
 "use client";
 
 import { useState, useRef } from "react";
@@ -16,6 +20,9 @@ interface StripePaymentProps {
   onError: (error: string) => void;
   formatPrice?: (pkrAmount: number) => string;
   totalAmountPKR?: number;
+  // ✅ Customer info for owner email
+  customerName?: string;
+  customerEmail?: string;
 }
 
 export default function StripePayment({
@@ -26,16 +33,43 @@ export default function StripePayment({
   onError,
   formatPrice,
   totalAmountPKR,
+  customerName = "",
+  customerEmail = "",
 }: StripePaymentProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  // ✅ Prevent double success calls
   const successCalledRef = useRef(false);
 
-  // ✅ Note: Stripe redirect recovery is handled in parent page.tsx via sessionStorage
+  // ✅ Owner ko email bhejo — fire and forget (payment nahi rokti)
+  const sendOwnerAlert = async (paymentIntentId: string) => {
+    try {
+      console.log("📧 Sending Stripe payment alert to owner...");
+      const res = await fetch("/api/stripe-payment-alert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderNumber,
+          customerName,
+          customerEmail,
+          amount,        // float e.g. 13.75 AUD
+          currency,      // e.g. "aud"
+          paymentIntentId,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        console.log("✅ Owner payment alert email sent to:", data.to);
+      } else {
+        console.warn("⚠️ Owner alert email failed:", data.error);
+      }
+    } catch (err) {
+      // Non-critical — don't block payment success
+      console.warn("⚠️ Owner alert fetch error:", err);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,24 +92,24 @@ export default function StripePayment({
       });
 
       if (error) {
-        // ❌ Payment failed
         console.error("❌ Stripe payment error:", error);
         const errorMsg = error.message || "Payment failed. Please try again.";
         setPaymentError(errorMsg);
         onError(errorMsg);
         setIsProcessing(false);
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
-        // ✅ Payment successful — no redirect happened
-        console.log("✅ Stripe payment successful for order:", orderNumber);
+        console.log("✅ Stripe payment successful:", paymentIntent.id);
 
         if (!successCalledRef.current) {
           successCalledRef.current = true;
-          // ✅ Call onSuccess immediately — toast shows, then success page
+
+          // ✅ Owner ko email bhejo (background mein — payment nahi rokti)
+          sendOwnerAlert(paymentIntent.id);
+
+          // ✅ Customer success page pe bhejo
           onSuccess();
         }
-        // Don't reset isProcessing — component will unmount when success page shows
       } else {
-        // Payment requires additional action (redirect will happen automatically)
         console.log("🔄 Stripe: Redirecting for additional authentication...");
       }
     } catch (err: any) {
@@ -87,22 +121,15 @@ export default function StripePayment({
     }
   };
 
-  // ✅ Currency symbol map
+  // ✅ Currency symbol
   const getCurrencySymbol = (code: string): string => {
     const symbols: Record<string, string> = {
-      usd: "$",
-      gbp: "£",
-      aud: "A$",
-      eur: "€",
-      cad: "C$",
-      inr: "₹",
-      aed: "د.إ",
-      sar: "﷼",
+      usd: "$", gbp: "£", aud: "A$", eur: "€",
+      cad: "C$", inr: "₹", aed: "د.إ", sar: "﷼",
     };
     return symbols[code.toLowerCase()] ?? code.toUpperCase();
   };
 
-  // ✅ Button label: use formatPrice if available
   const buttonLabel =
     formatPrice && totalAmountPKR !== undefined
       ? formatPrice(totalAmountPKR)
@@ -110,16 +137,10 @@ export default function StripePayment({
 
   return (
     <form onSubmit={handleSubmit} className="sp-stripe-form">
-      {/* ✅ Stripe's PaymentElement — fully PCI compliant */}
       <div className="sp-card-element-wrapper">
-        <PaymentElement
-          options={{
-            layout: "tabs",
-          }}
-        />
+        <PaymentElement options={{ layout: "tabs" }} />
       </div>
 
-      {/* ✅ Error message display */}
       {paymentError && (
         <div className="sp-error-message">
           <span className="sp-error-icon">⚠️</span>
@@ -127,7 +148,6 @@ export default function StripePayment({
         </div>
       )}
 
-      {/* ✅ Pay button */}
       <button
         type="submit"
         disabled={!stripe || isProcessing}

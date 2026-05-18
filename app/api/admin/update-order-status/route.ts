@@ -4,6 +4,8 @@
 // ✅ processing removed from admin panel
 // ✅ Currency by customer country in all emails + WhatsApp
 // ✅ PAID PLAN: Product image sent with WhatsApp for ALL statuses
+// ✅ NEW: When status = "delivered", customer email saved to
+//         delivered_customers table → unlocks coupon codes for them
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -77,6 +79,35 @@ function getClient() {
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   return createClient(url, key, { auth: { persistSession: false } });
+}
+
+// ── NEW: Save delivered customer email so they can use coupons ────────────────
+async function saveDeliveredCustomer(
+  supabase: ReturnType<typeof createClient>,
+  email: string,
+  orderNumber: string,
+): Promise<void> {
+  try {
+    const { error } = await supabase.from("delivered_customers").upsert(
+      {
+        email: email.trim().toLowerCase(),
+        order_number: orderNumber,
+        delivered_at: new Date().toISOString(),
+      },
+      { onConflict: "email,order_number" }, // ignore duplicate
+    );
+
+    if (error) {
+      console.error("❌ saveDeliveredCustomer DB error:", error.message);
+    } else {
+      console.log(
+        `✅ Delivered customer saved: ${email} | order ${orderNumber}`,
+      );
+    }
+  } catch (err: any) {
+    // Non-critical — don't crash the status update
+    console.error("❌ saveDeliveredCustomer exception:", err?.message || err);
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -167,6 +198,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: dbError.message }, { status: 500 });
     }
 
+    // ── ✅ NEW: Save delivered customer for coupon eligibility ─────────────────
+    if (status === "delivered" && customerEmail) {
+      await saveDeliveredCustomer(supabase, customerEmail, orderNumber);
+    }
+
     // ── Formatted items (for email) ───────────────────────────────────────────
     const formattedItems = items.map((item: any) => ({
       name: item.product_name || item.name || "Product",
@@ -185,15 +221,12 @@ export async function POST(req: NextRequest) {
     }));
 
     // ── WhatsApp items — raw PKR + image fields ───────────────────────────────
-    // sendShippedWhatsApp / sendDeliveredWhatsApp / sendCancelledWhatsApp
-    // need image fields to pick product image
     const waItems = items.map((item: any) => ({
       name: item.product_name || item.name || "Product",
       variant: item.variant_name || null,
       quantity: item.quantity,
       price: item.price,
       piecesPerUnit: item.pieces_per_unit || 1,
-      // ✅ image fields passed so WhatsApp can pick product image
       variant_image: item.variant_image || null,
       image: item.image || null,
       product_image: item.product_image || null,
@@ -209,8 +242,6 @@ export async function POST(req: NextRequest) {
       const tn = trackingNumber || "N/A";
       const ed = estimatedDays || "3-5 business days";
 
-      // ✅ Email and WhatsApp in parallel
-      // WhatsApp uses sendShippedWhatsApp which sends image first, then text
       const [emailResult, ownerResult, waResult] = await Promise.all([
         sendStatusUpdateEmail(
           customerEmail,
@@ -234,7 +265,6 @@ export async function POST(req: NextRequest) {
           "shipped",
           `${cn} | Tracking: ${tn} | Est: ${ed}`,
         ),
-        // ✅ Image + text WhatsApp for shipped
         customerPhone
           ? sendShippedWhatsApp(
               customerPhone,
@@ -280,7 +310,6 @@ export async function POST(req: NextRequest) {
           customerPhone || "",
           "delivered",
         ),
-        // ✅ Image + text WhatsApp for delivered
         customerPhone
           ? sendDeliveredWhatsApp(
               customerPhone,
@@ -324,7 +353,6 @@ export async function POST(req: NextRequest) {
           "cancelled",
           cancelReason ? `Reason: ${cancelReason}` : undefined,
         ),
-        // ✅ Image + text WhatsApp for cancelled
         customerPhone
           ? sendCancelledWhatsApp(
               customerPhone,
@@ -354,6 +382,8 @@ export async function POST(req: NextRequest) {
       hasImages: waItems.some(
         (i: any) => i.variant_image || i.image || i.product_image,
       ),
+      // ✅ Log coupon eligibility saved
+      couponEligibilitySaved: status === "delivered" ? "✅" : "n/a",
     });
 
     return NextResponse.json({

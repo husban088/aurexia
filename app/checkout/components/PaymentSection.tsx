@@ -324,6 +324,12 @@ export default function PaymentSection({
                 onError={onPaymentError}
                 formatPrice={formatPrice}
                 totalAmountPKR={totalAmount}
+                customerName={
+                  formData
+                    ? `${formData.firstName} ${formData.lastName}`.trim()
+                    : ""
+                }
+                customerEmail={formData?.email || ""}
               />
             </Elements>
           ) : isLoadingStripe ? (
