@@ -1,15 +1,16 @@
 // app/api/webhooks/stripe/route.ts
-// ✅ payment_intent.succeeded → DB update + owner email foran
+// ✅ payment_intent.succeeded → DB update + owner email
 // ✅ payment_intent.payment_failed → DB update + owner email alert
 // ✅ Idempotency — duplicate webhook ignore
-// ✅ Email: shwaqas93@gmail.com + OWNER_EMAILS env
+// ✅ Stripe alert email: STRIPE_OWNER_EMAIL env var (shwaqas93@gmail.com)
+// ✅ SMTP: GMAIL_USER (tech4ruu@gmail.com) se bhejta hai
 
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
 
-// ── Supabase (service role for webhook) ───────────────────────────────────────
+// ── Supabase ──────────────────────────────────────────────────────────────────
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,7 +20,7 @@ function getSupabase() {
   );
 }
 
-// ── Email: send owner payment received alert ──────────────────────────────────
+// ── Email sender ──────────────────────────────────────────────────────────────
 async function sendPaymentReceivedEmail(params: {
   orderNumber: string;
   customerName: string;
@@ -39,28 +40,60 @@ async function sendPaymentReceivedEmail(params: {
     status,
   } = params;
 
-  // ── Gmail SMTP transporter ────────────────────────────────────────────────
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  });
+  const gmailUser = process.env.GMAIL_USER;
+  const gmailPass = process.env.GMAIL_APP_PASSWORD;
 
-  // All owner emails — env + hardcoded backup
-  const ownerEmailsRaw =
-    process.env.OWNER_EMAILS || process.env.OWNER_EMAIL || "";
-  const ownerEmailsList = ownerEmailsRaw
-    .split(",")
-    .map((e) => e.trim())
-    .filter(Boolean);
+  // ── Debug logs ────────────────────────────────────────────────────────────
+  console.log("📧 EMAIL CHECK ─────────────────────────────────");
+  console.log(`  GMAIL_USER:         ${gmailUser ?? "❌ MISSING"}`);
+  console.log(
+    `  GMAIL_APP_PASSWORD: ${gmailPass ? `✅ set (${gmailPass.length} chars)` : "❌ MISSING"}`,
+  );
+  console.log(
+    `  STRIPE_OWNER_EMAIL: ${process.env.STRIPE_OWNER_EMAIL ?? "❌ MISSING"}`,
+  );
+  console.log("────────────────────────────────────────────────");
 
-  // ✅ Always include shwaqas93@gmail.com
-  if (!ownerEmailsList.includes("shwaqas93@gmail.com")) {
-    ownerEmailsList.push("shwaqas93@gmail.com");
+  if (!gmailUser || !gmailPass) {
+    console.error("❌ Gmail credentials missing — email aborted.");
+    return;
   }
 
+  // ── Nodemailer transporter ────────────────────────────────────────────────
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: { user: gmailUser, pass: gmailPass },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
+  });
+
+  // ── Verify SMTP connection ────────────────────────────────────────────────
+  try {
+    await transporter.verify();
+    console.log("✅ Gmail SMTP verified OK");
+  } catch (verifyErr: any) {
+    console.error("❌ Gmail SMTP FAILED:", verifyErr?.message);
+    if (verifyErr?.code === "EAUTH") {
+      console.error(
+        "   → Wrong App Password: https://myaccount.google.com/apppasswords",
+      );
+    }
+    return;
+  }
+
+  // ── Recipient list ────────────────────────────────────────────────────────
+  // STRIPE_OWNER_EMAIL = shwaqas93@gmail.com (sirf Stripe alerts ke liye)
+  // OWNER_EMAILS/OWNER_EMAIL = tech4ruu@gmail.com (orders ke liye — unchanged)
+  const stripeOwnerEmail =
+    process.env.STRIPE_OWNER_EMAIL || "shwaqas93@gmail.com";
+  const recipientList = [stripeOwnerEmail];
+
+  console.log(`📨 Stripe alert sending to: ${recipientList.join(", ")}`);
+
+  // ── Currency formatting ───────────────────────────────────────────────────
   const currencySymbols: Record<string, string> = {
     usd: "$",
     gbp: "£",
@@ -77,74 +110,94 @@ async function sendPaymentReceivedEmail(params: {
     currencySymbols[currency.toLowerCase()] ?? currency.toUpperCase() + " ";
   const formattedAmount = `${symbol}${amount.toFixed(2)}`;
   const currencyUpper = currency.toUpperCase();
-
   const isSuccess = status === "succeeded";
+  const timeNow = new Date().toLocaleString("en-PK", {
+    timeZone: "Asia/Karachi",
+  });
 
+  // ── Subject ───────────────────────────────────────────────────────────────
   const subject = isSuccess
-    ? `✅ Payment Received — ${formattedAmount} | Order #${orderNumber}`
+    ? `✅ Payment Received — ${formattedAmount} ${currencyUpper} | Order #${orderNumber}`
     : `❌ Payment FAILED — Order #${orderNumber}`;
 
+  // ── HTML body ─────────────────────────────────────────────────────────────
   const htmlBody = isSuccess
     ? `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;margin-top:20px;">
-    
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,#1a1a1a,#2d2d2d);padding:28px 32px;text-align:center;">
-      <h1 style="color:#daa520;margin:0;font-size:22px;letter-spacing:2px;">✦ TECH4U ✦</h1>
-      <p style="color:#888;margin:6px 0 0;font-size:12px;">Payment Notification</p>
-    </div>
+<div style="max-width:600px;margin:20px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
 
-    <!-- Success Banner -->
-    <div style="background:#d1fae5;padding:16px 32px;border-left:4px solid #10b981;text-align:center;">
-      <p style="margin:0;color:#065f46;font-size:18px;font-weight:700;">
-        ✅ Payment Successfully Received!
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#1a1a1a,#2d2d2d);padding:28px 32px;text-align:center;">
+    <h1 style="color:#daa520;margin:0;font-size:24px;letter-spacing:3px;">✦ TECH4U ✦</h1>
+    <p style="color:#888;margin:6px 0 0;font-size:12px;letter-spacing:1px;">PAYMENT NOTIFICATION</p>
+  </div>
+
+  <!-- Success Banner -->
+  <div style="background:#d1fae5;padding:18px 32px;border-left:5px solid #10b981;text-align:center;">
+    <p style="margin:0;color:#065f46;font-size:20px;font-weight:700;">
+      ✅ Payment Successfully Received!
+    </p>
+  </div>
+
+  <!-- Amount Hero -->
+  <div style="padding:24px 32px 0;text-align:center;">
+    <p style="margin:0;color:#666;font-size:13px;text-transform:uppercase;letter-spacing:1px;">Amount Received</p>
+    <p style="margin:4px 0 0;color:#10b981;font-size:42px;font-weight:900;letter-spacing:-1px;">${formattedAmount}</p>
+    <p style="margin:0;color:#999;font-size:13px;">${currencyUpper}</p>
+  </div>
+
+  <!-- Details Table -->
+  <div style="padding:24px 32px;">
+    <table style="width:100%;border-collapse:collapse;">
+      <tr style="border-bottom:1px solid #f0f0f0;">
+        <td style="padding:12px 0;color:#666;font-size:14px;">📦 Order Number</td>
+        <td style="padding:12px 0;color:#1a1a1a;font-weight:700;font-size:14px;text-align:right;">#${orderNumber}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #f0f0f0;">
+        <td style="padding:12px 0;color:#666;font-size:14px;">👤 Customer Name</td>
+        <td style="padding:12px 0;color:#1a1a1a;font-size:14px;text-align:right;">${customerName}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #f0f0f0;">
+        <td style="padding:12px 0;color:#666;font-size:14px;">📧 Customer Email</td>
+        <td style="padding:12px 0;color:#1a1a1a;font-size:14px;text-align:right;">${customerEmail}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #f0f0f0;">
+        <td style="padding:12px 0;color:#666;font-size:14px;">🔑 Payment ID</td>
+        <td style="padding:12px 0;color:#888;font-size:11px;font-family:monospace;text-align:right;">${paymentIntentId}</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 0;color:#666;font-size:14px;">🕐 Time (PKT)</td>
+        <td style="padding:12px 0;color:#1a1a1a;font-size:14px;text-align:right;">${timeNow}</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Action Box -->
+  <div style="padding:0 32px 24px;">
+    <div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:16px;">
+      <p style="margin:0;color:#92400e;font-size:13px;font-weight:700;">📦 Action Required</p>
+      <p style="margin:6px 0 0;color:#78350f;font-size:13px;">
+        Process this order and update its status in your admin panel.
       </p>
     </div>
-
-    <!-- Details -->
-    <div style="padding:32px;">
-      <table style="width:100%;border-collapse:collapse;">
-        <tr style="border-bottom:1px solid #f0f0f0;">
-          <td style="padding:12px 0;color:#666;font-size:14px;">Order Number</td>
-          <td style="padding:12px 0;color:#1a1a1a;font-weight:700;font-size:14px;text-align:right;">#${orderNumber}</td>
-        </tr>
-        <tr style="border-bottom:1px solid #f0f0f0;">
-          <td style="padding:12px 0;color:#666;font-size:14px;">Customer</td>
-          <td style="padding:12px 0;color:#1a1a1a;font-size:14px;text-align:right;">${customerName}</td>
-        </tr>
-        <tr style="border-bottom:1px solid #f0f0f0;">
-          <td style="padding:12px 0;color:#666;font-size:14px;">Customer Email</td>
-          <td style="padding:12px 0;color:#1a1a1a;font-size:14px;text-align:right;">${customerEmail}</td>
-        </tr>
-        <tr style="border-bottom:1px solid #f0f0f0;">
-          <td style="padding:12px 0;color:#666;font-size:14px;">Amount Received</td>
-          <td style="padding:12px 0;font-size:18px;font-weight:700;color:#10b981;text-align:right;">${formattedAmount} ${currencyUpper}</td>
-        </tr>
-        <tr style="border-bottom:1px solid #f0f0f0;">
-          <td style="padding:12px 0;color:#666;font-size:14px;">Payment ID</td>
-          <td style="padding:12px 0;color:#888;font-size:12px;font-family:monospace;text-align:right;">${paymentIntentId}</td>
-        </tr>
-        <tr>
-          <td style="padding:12px 0;color:#666;font-size:14px;">Time</td>
-          <td style="padding:12px 0;color:#1a1a1a;font-size:14px;text-align:right;">${new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" })} (PKT)</td>
-        </tr>
-      </table>
-
-      <div style="margin-top:24px;padding:16px;background:#fefce8;border-radius:8px;border:1px solid #fde68a;">
-        <p style="margin:0;color:#92400e;font-size:13px;font-weight:600;">📦 Action Required</p>
-        <p style="margin:6px 0 0;color:#78350f;font-size:13px;">Please process this order and update its status in your admin panel.</p>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div style="background:#f9f9f9;padding:16px 32px;text-align:center;border-top:1px solid #eee;">
-      <p style="margin:0;color:#aaa;font-size:11px;">Tech4U Admin • Stripe Live Payment • ${new Date().getFullYear()}</p>
-    </div>
   </div>
+
+  <!-- Stripe Button -->
+  <div style="padding:0 32px 32px;text-align:center;">
+    <a href="https://dashboard.stripe.com/payments/${paymentIntentId}"
+       style="display:inline-block;background:#635bff;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;">
+      View in Stripe Dashboard →
+    </a>
+  </div>
+
+  <!-- Footer -->
+  <div style="background:#f9f9f9;padding:16px 32px;text-align:center;border-top:1px solid #eee;">
+    <p style="margin:0;color:#aaa;font-size:11px;">Tech4U Admin • Stripe Live • ${new Date().getFullYear()}</p>
+  </div>
+</div>
 </body>
 </html>`
     : `
@@ -152,43 +205,67 @@ async function sendPaymentReceivedEmail(params: {
 <html>
 <head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;margin-top:20px;">
-    <div style="background:linear-gradient(135deg,#1a1a1a,#2d2d2d);padding:28px 32px;text-align:center;">
-      <h1 style="color:#daa520;margin:0;font-size:22px;letter-spacing:2px;">✦ TECH4U ✦</h1>
-    </div>
-    <div style="background:#fee2e2;padding:16px 32px;border-left:4px solid #ef4444;text-align:center;">
-      <p style="margin:0;color:#991b1b;font-size:18px;font-weight:700;">❌ Payment Failed</p>
-    </div>
-    <div style="padding:32px;">
-      <table style="width:100%;border-collapse:collapse;">
-        <tr style="border-bottom:1px solid #f0f0f0;">
-          <td style="padding:12px 0;color:#666;font-size:14px;">Order Number</td>
-          <td style="padding:12px 0;color:#1a1a1a;font-weight:700;font-size:14px;text-align:right;">#${orderNumber}</td>
-        </tr>
-        <tr style="border-bottom:1px solid #f0f0f0;">
-          <td style="padding:12px 0;color:#666;font-size:14px;">Customer</td>
-          <td style="padding:12px 0;color:#1a1a1a;font-size:14px;text-align:right;">${customerName}</td>
-        </tr>
-        <tr>
-          <td style="padding:12px 0;color:#666;font-size:14px;">Payment ID</td>
-          <td style="padding:12px 0;color:#888;font-size:12px;font-family:monospace;text-align:right;">${paymentIntentId}</td>
-        </tr>
-      </table>
+<div style="max-width:600px;margin:20px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+  <div style="background:linear-gradient(135deg,#1a1a1a,#2d2d2d);padding:28px 32px;text-align:center;">
+    <h1 style="color:#daa520;margin:0;font-size:24px;letter-spacing:3px;">✦ TECH4U ✦</h1>
+    <p style="color:#888;margin:6px 0 0;font-size:12px;letter-spacing:1px;">PAYMENT ALERT</p>
+  </div>
+  <div style="background:#fee2e2;padding:18px 32px;border-left:5px solid #ef4444;text-align:center;">
+    <p style="margin:0;color:#991b1b;font-size:20px;font-weight:700;">❌ Payment Failed</p>
+  </div>
+  <div style="padding:32px;">
+    <table style="width:100%;border-collapse:collapse;">
+      <tr style="border-bottom:1px solid #f0f0f0;">
+        <td style="padding:12px 0;color:#666;font-size:14px;">📦 Order Number</td>
+        <td style="padding:12px 0;color:#1a1a1a;font-weight:700;font-size:14px;text-align:right;">#${orderNumber}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #f0f0f0;">
+        <td style="padding:12px 0;color:#666;font-size:14px;">👤 Customer</td>
+        <td style="padding:12px 0;color:#1a1a1a;font-size:14px;text-align:right;">${customerName}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #f0f0f0;">
+        <td style="padding:12px 0;color:#666;font-size:14px;">📧 Email</td>
+        <td style="padding:12px 0;color:#1a1a1a;font-size:14px;text-align:right;">${customerEmail}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #f0f0f0;">
+        <td style="padding:12px 0;color:#666;font-size:14px;">🔑 Payment ID</td>
+        <td style="padding:12px 0;color:#888;font-size:11px;font-family:monospace;text-align:right;">${paymentIntentId}</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 0;color:#666;font-size:14px;">🕐 Time (PKT)</td>
+        <td style="padding:12px 0;color:#1a1a1a;font-size:14px;text-align:right;">${timeNow}</td>
+      </tr>
+    </table>
+    <div style="margin-top:20px;text-align:center;">
+      <a href="https://dashboard.stripe.com/payments/${paymentIntentId}"
+         style="display:inline-block;background:#ef4444;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;">
+        View Failed Payment →
+      </a>
     </div>
   </div>
+  <div style="background:#f9f9f9;padding:16px 32px;text-align:center;border-top:1px solid #eee;">
+    <p style="margin:0;color:#aaa;font-size:11px;">Tech4U Admin • ${new Date().getFullYear()}</p>
+  </div>
+</div>
 </body>
 </html>`;
 
+  // ── Send ──────────────────────────────────────────────────────────────────
   try {
-    await transporter.sendMail({
-      from: `"Tech4U Payments" <${process.env.GMAIL_USER}>`,
-      to: ownerEmailsList.join(","),
+    const info = await transporter.sendMail({
+      from: `"Tech4U Payments 💳" <${gmailUser}>`,
+      to: recipientList.join(","),
       subject,
       html: htmlBody,
     });
-    console.log(`✅ Payment email sent to: ${ownerEmailsList.join(", ")}`);
+    console.log("✅ EMAIL SENT!");
+    console.log(`   To: ${info.accepted?.join(", ")}`);
+    console.log(`   Message ID: ${info.messageId}`);
   } catch (err: any) {
-    console.error("❌ Payment email failed:", err?.message);
+    console.error("❌ EMAIL FAILED:", err?.code, err?.message);
+    if (err?.code === "EAUTH") {
+      console.error("   → Fix: https://myaccount.google.com/apppasswords");
+    }
   }
 }
 
@@ -214,13 +291,15 @@ export async function POST(request: NextRequest) {
     const stripe = getStripe();
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err: any) {
-    console.error("❌ Webhook signature verification failed:", err?.message);
+    console.error("❌ Webhook signature failed:", err?.message);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  console.log(`\n🎯 Webhook: ${event.type} | ${event.id}`);
+
   const supabase = getSupabase();
 
-  // ── Idempotency check ─────────────────────────────────────────────────────
+  // ── Idempotency ───────────────────────────────────────────────────────────
   try {
     const { data: existing } = await supabase
       .from("stripe_webhook_events")
@@ -229,11 +308,10 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existing) {
-      console.log(`⚠️ Duplicate webhook event: ${event.id} — skipping`);
+      console.log(`⚠️ Duplicate event ${event.id} — skip`);
       return NextResponse.json({ received: true, duplicate: true });
     }
 
-    // Log the webhook event
     await supabase.from("stripe_webhook_events").insert({
       id: event.id,
       type: event.type,
@@ -241,24 +319,22 @@ export async function POST(request: NextRequest) {
       processed_at: new Date().toISOString(),
     });
   } catch (dbErr: any) {
-    // If stripe_webhook_events table doesn't exist, just continue
-    console.warn("⚠️ stripe_webhook_events table issue:", dbErr?.message);
+    console.warn("⚠️ stripe_webhook_events:", dbErr?.message);
   }
 
-  // ── Process events ────────────────────────────────────────────────────────
+  // ── Events ────────────────────────────────────────────────────────────────
   try {
     switch (event.type) {
-      // ✅ PAYMENT SUCCESS
       case "payment_intent.succeeded": {
-        const paymentIntent = event.data.object as any;
-        const orderNumber = paymentIntent.metadata?.orderNumber;
-        const customerEmail = paymentIntent.metadata?.customerEmail || "";
-        const customerName = paymentIntent.metadata?.customerName || "Customer";
-        const amountReceived = paymentIntent.amount_received / 100;
-        const currency = paymentIntent.currency;
+        const pi = event.data.object as any;
+        const orderNumber = pi.metadata?.orderNumber;
+        const customerEmail = pi.metadata?.customerEmail || "";
+        const customerName = pi.metadata?.customerName || "Customer";
+        const amountReceived = pi.amount_received / 100;
+        const currency = pi.currency;
 
         console.log(
-          `✅ Payment succeeded: ${paymentIntent.id} | Order: ${orderNumber} | Amount: ${amountReceived} ${currency.toUpperCase()}`,
+          `✅ SUCCEEDED | Order #${orderNumber} | ${amountReceived} ${currency.toUpperCase()}`,
         );
 
         if (orderNumber) {
@@ -266,46 +342,35 @@ export async function POST(request: NextRequest) {
             .from("orders")
             .update({
               payment_status: "paid",
-              status: "confirmed", // ✅ confirmed (not processing)
-              payment_id: paymentIntent.id,
+              status: "confirmed",
+              payment_id: pi.id,
               updated_at: new Date().toISOString(),
             })
             .eq("order_number", orderNumber);
 
-          if (dbErr) {
-            console.error("❌ DB update error:", dbErr.message);
-          } else {
-            console.log(`✅ Order ${orderNumber} → confirmed + paid`);
-          }
+          if (dbErr) console.error("❌ DB error:", dbErr.message);
+          else console.log(`✅ DB: Order #${orderNumber} → confirmed + paid`);
         }
 
-        // ✅ Send payment received email to owner (shwaqas93@gmail.com)
         await sendPaymentReceivedEmail({
           orderNumber: orderNumber || "N/A",
           customerName,
           customerEmail,
           amount: amountReceived,
           currency,
-          paymentIntentId: paymentIntent.id,
+          paymentIntentId: pi.id,
           status: "succeeded",
         });
-
         break;
       }
 
-      // ❌ PAYMENT FAILED
       case "payment_intent.payment_failed": {
-        const failedIntent = event.data.object as any;
-        const orderNumber = failedIntent.metadata?.orderNumber;
-        const customerName = failedIntent.metadata?.customerName || "Customer";
-        const customerEmail = failedIntent.metadata?.customerEmail || "";
+        const pi = event.data.object as any;
+        const orderNumber = pi.metadata?.orderNumber;
+        const customerName = pi.metadata?.customerName || "Customer";
+        const customerEmail = pi.metadata?.customerEmail || "";
 
-        console.error(
-          "❌ Payment failed:",
-          failedIntent.id,
-          "| Order:",
-          orderNumber,
-        );
+        console.log(`❌ FAILED | Order #${orderNumber}`);
 
         if (orderNumber) {
           await supabase
@@ -317,21 +382,18 @@ export async function POST(request: NextRequest) {
             .eq("order_number", orderNumber);
         }
 
-        // ✅ Send failure alert email to owner
         await sendPaymentReceivedEmail({
           orderNumber: orderNumber || "N/A",
           customerName,
           customerEmail,
           amount: 0,
-          currency: failedIntent.currency || "usd",
-          paymentIntentId: failedIntent.id,
+          currency: pi.currency || "usd",
+          paymentIntentId: pi.id,
           status: "failed",
         });
-
         break;
       }
 
-      // ✅ charge.succeeded — extra safety net (some Stripe setups send this)
       case "charge.succeeded": {
         const charge = event.data.object as any;
         const orderNumber = charge.metadata?.orderNumber;
@@ -343,19 +405,18 @@ export async function POST(request: NextRequest) {
               updated_at: new Date().toISOString(),
             })
             .eq("order_number", orderNumber);
-          console.log(`✅ charge.succeeded for order: ${orderNumber}`);
+          console.log(`✅ charge.succeeded → Order #${orderNumber}`);
         }
         break;
       }
 
       default:
-        console.log(`ℹ️ Unhandled webhook event type: ${event.type}`);
+        console.log(`ℹ️ Unhandled: ${event.type}`);
     }
 
     return NextResponse.json({ received: true });
   } catch (err: any) {
-    console.error("❌ Webhook processing error:", err?.message || err);
-    // Still return 200 so Stripe doesn't retry unnecessarily
+    console.error("❌ Webhook error:", err?.message);
     return NextResponse.json({ received: true, error: err.message });
   }
 }

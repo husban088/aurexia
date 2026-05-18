@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCurrency } from "@/app/context/CurrencyContext";
+import { supabase } from "@/lib/supabase";
 import "./OrderSuccess.css";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -54,9 +55,12 @@ interface OrderData {
   fullPhone: string;
   shippingAddress: string;
   currencyCode: string;
-  customerState?: string; // e.g. "NSW"
-  customerStateName?: string; // e.g. "New South Wales"
+  customerState?: string;
+  customerStateName?: string;
 }
+
+// ─── Owner Email Constant ───────────────────────────────────────────────────
+const OWNER_EMAIL = "info@tech4ru.com";
 
 // ─── Notification Badge ───────────────────────────────────────────────────────
 
@@ -127,9 +131,9 @@ function NotifStatusBadge({
   );
 }
 
-// ─── OrderSuccess UI Component ────────────────────────────────────────────────
+// ─── OrderSuccessUI Component ────────────────────────────────────────────────
 
-interface OrderSuccessProps {
+interface OrderSuccessUIProps {
   firstName: string;
   lastName: string;
   email: string;
@@ -157,6 +161,7 @@ interface OrderSuccessProps {
   fullPhone: string;
   shippingAddress: string;
   formatPrice: (price: number) => string;
+  isOwner: boolean; // ✅ NEW PROP
 }
 
 function OrderSuccessUI({
@@ -181,7 +186,8 @@ function OrderSuccessUI({
   notifStatus,
   fullPhone,
   formatPrice,
-}: OrderSuccessProps) {
+  isOwner, // ✅ DESTRUCTURED
+}: OrderSuccessUIProps) {
   const [visible, setVisible] = useState(false);
   const [checkAnim, setCheckAnim] = useState(false);
   const confettiRef = useRef<HTMLCanvasElement>(null);
@@ -203,7 +209,7 @@ function OrderSuccessUI({
     };
   }, []);
 
-  // ✅ Gold confetti burst
+  // Gold confetti burst
   useEffect(() => {
     const canvas = confettiRef.current;
     if (!canvas) return;
@@ -344,157 +350,159 @@ function OrderSuccessUI({
           </p>
 
           {/* ─────────────────────────────────────────────────────────────────
-              ✅ NOTIFICATION STATUS CARD
-              Ab yeh HAMESHA dikhega — sirf owner email pe nahi
-              Har customer dekh sakta hai ke email/WhatsApp gaya ya nahi
+              ✅ NOTIFICATION STATUS CARD - SIRF OWNER KE LIYE
+              Agar isOwner = true tabhi dikhega, warna bilkul hide
           ───────────────────────────────────────────────────────────────── */}
-          <div
-            style={{
-              background: "linear-gradient(135deg, #141414 0%, #1e1e1e 100%)",
-              border: "1px solid rgba(218,165,32,0.2)",
-              borderRadius: "14px",
-              padding: "18px 22px",
-              marginBottom: "24px",
-              boxShadow:
-                "0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.04)",
-            }}
-          >
-            {/* Card header */}
+          {isOwner && (
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                marginBottom: "14px",
+                background: "linear-gradient(135deg, #141414 0%, #1e1e1e 100%)",
+                border: "1px solid rgba(218,165,32,0.2)",
+                borderRadius: "14px",
+                padding: "18px 22px",
+                marginBottom: "24px",
+                boxShadow:
+                  "0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.04)",
               }}
             >
-              <span style={{ fontSize: "18px" }}>📬</span>
-              <div>
-                <p
-                  style={{
-                    margin: 0,
-                    fontWeight: 700,
-                    fontSize: "13px",
-                    color: "#daa520",
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Order Confirmation Sent
-                </p>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: "12px",
-                    color: "#666",
-                    fontWeight: 400,
-                  }}
-                >
-                  Notifications dispatched to:
-                </p>
-              </div>
-            </div>
-
-            {/* Email row */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "10px 14px",
-                background: "rgba(255,255,255,0.03)",
-                borderRadius: "8px",
-                marginBottom: "8px",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
+              {/* Card header */}
               <div
-                style={{ display: "flex", alignItems: "center", gap: "10px" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  marginBottom: "14px",
+                }}
               >
-                <span style={{ fontSize: "18px" }}>📧</span>
+                <span style={{ fontSize: "18px" }}>📬</span>
                 <div>
-                  <div
+                  <p
                     style={{
-                      fontSize: "11px",
-                      color: "#666",
-                      fontWeight: 600,
-                      letterSpacing: "0.04em",
+                      margin: 0,
+                      fontWeight: 700,
+                      fontSize: "13px",
+                      color: "#daa520",
+                      letterSpacing: "0.06em",
                       textTransform: "uppercase",
-                      marginBottom: "2px",
                     }}
                   >
-                    Email
-                  </div>
-                  <div
+                    Order Confirmation Sent
+                  </p>
+                  <p
                     style={{
+                      margin: 0,
                       fontSize: "12px",
-                      color: "#bbb",
-                      fontFamily: "monospace",
+                      color: "#666",
+                      fontWeight: 400,
                     }}
                   >
-                    {email}
-                  </div>
+                    Notifications dispatched to:
+                  </p>
                 </div>
               </div>
-              <NotifStatusBadge
-                sent={notifStatus.email}
-                sending={notifStatus.sending}
-              />
-            </div>
 
-            {/* WhatsApp row */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "10px 14px",
-                background: "rgba(255,255,255,0.03)",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
+              {/* Email row */}
               <div
-                style={{ display: "flex", alignItems: "center", gap: "10px" }}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "10px 14px",
+                  background: "rgba(255,255,255,0.03)",
+                  borderRadius: "8px",
+                  marginBottom: "8px",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                }}
               >
-                <span style={{ fontSize: "18px" }}>💬</span>
-                <div>
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      color: "#666",
-                      fontWeight: 600,
-                      letterSpacing: "0.04em",
-                      textTransform: "uppercase",
-                      marginBottom: "2px",
-                    }}
-                  >
-                    WhatsApp
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "12px",
-                      color: "#bbb",
-                      fontFamily: "monospace",
-                    }}
-                  >
-                    {fullPhone || "—"}
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "10px" }}
+                >
+                  <span style={{ fontSize: "18px" }}>📧</span>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "#666",
+                        fontWeight: 600,
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                        marginBottom: "2px",
+                      }}
+                    >
+                      Email
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#bbb",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {email}
+                    </div>
                   </div>
                 </div>
-              </div>
-              {fullPhone ? (
                 <NotifStatusBadge
-                  sent={notifStatus.whatsapp}
+                  sent={notifStatus.email}
                   sending={notifStatus.sending}
                 />
-              ) : (
-                <span style={{ fontSize: "12px", color: "#444" }}>
-                  No phone
-                </span>
-              )}
-            </div>
-          </div>
+              </div>
 
+              {/* WhatsApp row */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "10px 14px",
+                  background: "rgba(255,255,255,0.03)",
+                  borderRadius: "8px",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "10px" }}
+                >
+                  <span style={{ fontSize: "18px" }}>💬</span>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "#666",
+                        fontWeight: 600,
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                        marginBottom: "2px",
+                      }}
+                    >
+                      WhatsApp
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#bbb",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {fullPhone || "—"}
+                    </div>
+                  </div>
+                </div>
+                {fullPhone ? (
+                  <NotifStatusBadge
+                    sent={notifStatus.whatsapp}
+                    sending={notifStatus.sending}
+                  />
+                ) : (
+                  <span style={{ fontSize: "12px", color: "#444" }}>
+                    No phone
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Rest of the UI (Order Details Card, Timeline, etc.) continues here */}
           {/* Order Details Card */}
           <div className="os-details-card">
             <div className="os-details-title">
@@ -562,11 +570,9 @@ function OrderSuccessUI({
               </div>
               <div className="os-detail-addr-line">
                 {city}
-                {/* ✅ State name for Australian orders */}
                 {isAustralia && stateName ? `, ${stateName}` : ""}
                 {zip ? ` — ${zip}` : ""}
               </div>
-              {/* ✅ State code badge — only for Australia */}
               {isAustralia && state && (
                 <div style={{ marginTop: "4px", marginBottom: "2px" }}>
                   <span
@@ -870,15 +876,46 @@ export default function OrderSuccessPage() {
 
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [ready, setReady] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
 
-  // ✅ sending: true — page load pe spinner dikhao jab tak API respond na kare
   const [notifStatus, setNotifStatus] = useState<{
     email: boolean | null;
     whatsapp: boolean | null;
     sending: boolean;
   }>({ email: null, whatsapp: null, sending: true });
 
-  // ── Step 1: Load order data from sessionStorage ──────────────────────────────
+  // ── Step 1: Get current logged in user from Supabase ──────────────────────
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const email = session?.user?.email ?? null;
+        setCurrentUserEmail(email);
+        setIsOwner(email === OWNER_EMAIL);
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        setCurrentUserEmail(null);
+        setIsOwner(false);
+      }
+    };
+
+    fetchUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const email = session?.user?.email ?? null;
+      setCurrentUserEmail(email);
+      setIsOwner(email === OWNER_EMAIL);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // ── Step 2: Load order data from sessionStorage ──────────────────────────────
   useEffect(() => {
     const raw = sessionStorage.getItem("order_success_data");
 
@@ -896,11 +933,10 @@ export default function OrderSuccessPage() {
     }
   }, [router]);
 
-  // ── Step 2: Send notifications once order data is ready ──────────────────────
+  // ── Step 3: Send notifications once order data is ready ──────────────────────
   useEffect(() => {
     if (!orderData) return;
 
-    // ✅ Double-send guard
     const alreadySent = sessionStorage.getItem(
       `notif_sent_${orderData.orderNumber}`,
     );
@@ -921,7 +957,6 @@ export default function OrderSuccessPage() {
       phoneInfoName,
     } = orderData;
 
-    // ── Build items for notification API ──────────────────────────────────────
     const items = snapItems.map((item) => {
       const ppu = item.pieces_per_unit ?? 1;
       const pricePerPiece =
@@ -981,7 +1016,10 @@ export default function OrderSuccessPage() {
           });
 
           if (emailOk) {
-            sessionStorage.setItem(`notif_sent_${orderNumber}`, "true");
+            sessionStorage.setItem(
+              `notif_sent_${orderData.orderNumber}`,
+              "true",
+            );
           }
         } else {
           console.error("Notification API error:", result.error);
@@ -1049,6 +1087,7 @@ export default function OrderSuccessPage() {
       fullPhone={orderData.fullPhone}
       shippingAddress={orderData.shippingAddress}
       formatPrice={formatPrice}
+      isOwner={isOwner} // ✅ PASSING ISOWNER PROP
     />
   );
 }
