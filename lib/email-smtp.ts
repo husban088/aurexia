@@ -459,7 +459,7 @@ export async function sendStatusUpdateEmail(
         title: "Order Delivered",
         color: "#2e7d32",
         message:
-          "Your order has been delivered. We hope you love your purchase!",
+          "Your order has been delivered. We hope you love your purchase! As a thank you, here is an exclusive 10% discount on your next order.",
       },
       cancelled: {
         label: "CANCELLED",
@@ -549,6 +549,27 @@ export async function sendStatusUpdateEmail(
 
       ${shippingBlock}
       ${itemsBlock}
+      ${
+        status === "delivered"
+          ? `
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;margin-bottom:8px;">
+        <tr>
+          <td bgcolor="#fffbea" style="padding:24px 28px;border:2px dashed #daa520;border-radius:14px;text-align:center;">
+            <p style="margin:0 0 4px;font-size:11px;color:#888888;text-transform:uppercase;letter-spacing:2px;font-family:Arial,sans-serif;">Exclusive Offer — Just For You</p>
+            <p style="margin:0 0 16px;font-size:16px;color:#1a1a1a;font-family:Georgia,serif;font-weight:400;">🎁 Get <strong>10% OFF</strong> on your next order!</p>
+            <table cellpadding="0" cellspacing="0" border="0" align="center">
+              <tr>
+                <td bgcolor="#1a1a1a" style="padding:12px 32px;border-radius:8px;">
+                  <span style="font-size:22px;color:#daa520;font-weight:700;letter-spacing:4px;font-family:Arial,sans-serif;">DISC4U10</span>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:14px 0 0;font-size:12px;color:#666666;font-family:Arial,sans-serif;">Checkout pe yeh code use karein aur 10% bachayein.</p>
+          </td>
+        </tr>
+      </table>`
+          : ""
+      }
     `;
 
     const text = [
@@ -565,6 +586,17 @@ export async function sendStatusUpdateEmail(
       courierTrackingUrl ? `Track: ${courierTrackingUrl}` : "",
       `Total: ${displayTotal}`,
       ``,
+      ...(status === "delivered"
+        ? [
+            `━━━━━━━━━━━━━━━━━━━━━━`,
+            `EXCLUSIVE OFFER — JUST FOR YOU`,
+            `Get 10% OFF on your next order!`,
+            `Coupon Code: DISC4U10`,
+            `Checkout pe yeh code use karein aur 10% bachayein.`,
+            `━━━━━━━━━━━━━━━━━━━━━━`,
+            ``,
+          ]
+        : []),
       `tech4ru.com | info@tech4ru.com`,
     ]
       .filter(Boolean)

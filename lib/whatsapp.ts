@@ -584,6 +584,18 @@ ${displayTotal ? `💳 *TOTAL: ${displayTotal}*` : ""}
 ${itemLines}Your order has been successfully delivered! 📦🎉
 We hope you love your purchase! 🛍️
 
+━━━━━━━━━━━━━━━━━━━━━━
+🎁 EXCLUSIVE OFFER — Just for You!
+
+Get 10% discount on your next shopping!
+
+🏷️ Coupon Code:
+*DISC4U10*
+
+✂️ Copy it and use at checkout
+💰 Flat 10% off on your next order!
+━━━━━━━━━━━━━━━━━━━━━━
+
 📧 info@tech4ru.com
 🌐 tech4ru.com
 
