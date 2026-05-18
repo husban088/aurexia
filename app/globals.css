@@ -14,6 +14,8 @@
   --font-cormorant: "Cormorant Garamond", serif;
   --scrollbar-thumb: #c9a84c;
   --scrollbar-track: #1a1410;
+  /* ✅ Navbar height CSS variable — layout shift prevent karta hai */
+  --navbar-height: 64px;
 }
 
 @theme inline {
@@ -24,8 +26,7 @@
 }
 
 /* ============================================================
-   ✅ GOLDEN SCROLLBAR — Chrome, Edge, Safari, Opera
-   * selector se ALAG rakha — koi conflict nahi
+   GOLDEN SCROLLBAR — Chrome, Edge, Safari, Opera
    ============================================================ */
 
 html::-webkit-scrollbar,
@@ -74,37 +75,38 @@ html {
 }
 
 /* ============================================================
-   BOX SIZING — scrollbar properties se bilkul alag
+   BOX SIZING
    ============================================================ */
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
-  scroll-behavior: smooth !important;
+}
+
+/* ✅ scroll-behavior SIRF anchor links pe — navigation pe NAHI
+   Browser back/forward fast rehta hai */
+html {
+  scroll-behavior: auto;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
   padding: 0;
   box-sizing: inherit;
-  scroll-behavior: smooth !important;
-}
-
-html {
-  scroll-behavior: smooth;
-  overflow-x: hidden !important;
+  overflow-x: hidden;
 }
 
 /* ============================================================
-   ✅ PAGE FADE-IN — No loader needed, no delay, no layout shift
-   Page smoothly appears from top instantly
+   ✅ PAGE TRANSITION — Fast aur smooth
+   Chrome back/forward bhi smooth lagta hai
    ============================================================ */
 
 @keyframes pageFadeIn {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -113,7 +115,16 @@ html {
 }
 
 .page-fade-in {
-  animation: pageFadeIn 0.35s ease-out forwards;
+  animation: pageFadeIn 0.25s ease-out forwards;
+  /* ✅ GPU acceleration — jankiness khatam */
+  will-change: opacity, transform;
+}
+
+/* ✅ Animation ek baar ho — repeat nahi */
+@media (prefers-reduced-motion: reduce) {
+  .page-fade-in {
+    animation: none;
+  }
 }
 
 /* ============================================================
@@ -261,7 +272,7 @@ body {
   font-family: var(--font-poppins);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden !important;
+  overflow-x: hidden;
 }
 
 button {
@@ -285,57 +296,60 @@ a {
 }
 
 /* ============================================================
+   ✅ PERFORMANCE — GPU layers for animated/scrolled elements
+   ============================================================ */
+
+.navbar-sticky-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  /* GPU layer — navbar scroll flicker band */
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* ============================================================
    ADDITIONAL HELPER CLASSES
    ============================================================ */
 
 .font-poppins {
   font-family: "Poppins", sans-serif;
 }
-
 .font-poppins-thin {
   font-family: "Poppins", sans-serif;
   font-weight: 100;
 }
-
 .font-poppins-light {
   font-family: "Poppins", sans-serif;
   font-weight: 300;
 }
-
 .font-poppins-regular {
   font-family: "Poppins", sans-serif;
   font-weight: 400;
 }
-
 .font-poppins-medium {
   font-family: "Poppins", sans-serif;
   font-weight: 500;
 }
-
 .font-poppins-semibold {
   font-family: "Poppins", sans-serif;
   font-weight: 600;
 }
-
 .font-poppins-bold {
   font-family: "Poppins", sans-serif;
   font-weight: 700;
 }
-
 .font-poppins-extrabold {
   font-family: "Poppins", sans-serif;
   font-weight: 800;
 }
-
 .font-poppins-black {
   font-family: "Poppins", sans-serif;
   font-weight: 900;
 }
-
 .font-cormorant {
   font-family: "Cormorant Garamond", serif;
 }
-
 .font-mono {
   font-family: monospace;
 }

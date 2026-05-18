@@ -10,7 +10,7 @@ import AnnouncementBar from "./components/AnnouncementBar";
 import SearchSidebar from "./components/SearchSidebar";
 import CartSidebar from "./components/CartSidebar";
 import WhatsAppWidget from "./components/WhatsAppWidget";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Footer from "./components/Footer";
 import SaleBannerPopup from "./components/SaleBannerPopup";
 import { initSaleStore } from "@/lib/saleStore";
@@ -25,48 +25,73 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const { fetchCart, setOnCartOpen } = useCartStore();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const cartInitialized = useRef(false);
+  const observerRef = useRef<ResizeObserver | null>(null);
 
+  // Client mount
   useEffect(() => {
     setIsClient(true);
   }, []);
 
+  // Sale store init
   useEffect(() => {
     initSaleStore();
   }, []);
 
+  // Coupon settings fetch
   useEffect(() => {
     const { fetchCouponSettings } = useCouponStore.getState();
     fetchCouponSettings();
   }, []);
 
-  // Measure sticky navbar height — only AFTER client mounts
+  // Navbar height measure
+  const measure = useCallback(() => {
+    if (wrapperRef.current) {
+      const h = wrapperRef.current.offsetHeight;
+      if (h > 0) setStickyHeight(h);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isClient) return;
-
-    const measure = () => {
-      if (wrapperRef.current) {
-        setStickyHeight(wrapperRef.current.offsetHeight);
-      }
-    };
-
-    // Measure immediately and after a tiny paint frame
     measure();
-    const raf = requestAnimationFrame(measure);
-
-    const observer = new ResizeObserver(measure);
-    if (wrapperRef.current) observer.observe(wrapperRef.current);
+    if (observerRef.current) observerRef.current.disconnect();
+    observerRef.current = new ResizeObserver(measure);
+    if (wrapperRef.current) observerRef.current.observe(wrapperRef.current);
     window.addEventListener("resize", measure, { passive: true });
-
     return () => {
-      cancelAnimationFrame(raf);
-      observer.disconnect();
+      observerRef.current?.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [isClient]);
+  }, [isClient, measure]);
+
+  // Chrome BACK/FORWARD — hard reload
+  // bfcache se aane pe page poora fresh load hoga
+  useEffect(() => {
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        window.location.reload();
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
+
+  // Route change pe scroll top
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [pathname]);
+
+  // Sidebars band karo route change pe
+  useEffect(() => {
+    setSidebarOpen(false);
+    setSearchOpen(false);
+    setCartOpen(false);
+  }, [pathname]);
 
   const isPanelPage = pathname?.startsWith("/panel") ?? false;
   const isHomePage = pathname === "/";
 
+  // Cart init
   useEffect(() => {
     if (!isClient) return;
     if (cartInitialized.current) return;
@@ -75,6 +100,13 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     const { initialized } = useCartStore.getState();
     if (!initialized) fetchCart();
   }, [isClient, setOnCartOpen, fetchCart]);
+
+  const contentPaddingTop = isPanelPage
+    ? undefined
+    : {
+        paddingTop:
+          stickyHeight > 0 ? stickyHeight : "var(--navbar-height, 64px)",
+      };
 
   return (
     <>
@@ -102,24 +134,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         </>
       )}
 
-      {/*
-        KEY FIX: paddingTop CSS variable use karo.
-        Jab tak client mount nahi hota, navbar ka estimated height CSS var se aata hai.
-        Isse page TOP se render hoga, footer neeche rahega, koi layout shift nahi.
-      */}
-      <div
-        className="flex flex-col flex-1"
-        style={
-          isPanelPage
-            ? undefined
-            : {
-                paddingTop:
-                  stickyHeight > 0
-                    ? stickyHeight
-                    : "var(--navbar-height, 64px)",
-              }
-        }
-      >
+      <div className="flex flex-col flex-1" style={contentPaddingTop}>
         {children}
       </div>
 

@@ -8,11 +8,13 @@ import { CurrencyProvider } from "./context/CurrencyContext";
 import { LanguageProvider } from "./context/LanguageContext";
 import { getInitialCurrency } from "@/lib/get-initial-currency";
 
-// Poppins font configuration
+// ✅ Poppins — sirf zaroori weights load karo (performance)
+// Saare 9 weights ek saath mat load karo — browser slow hoga
 const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  // ✅ Sirf commonly used weights — baaki CSS fallback handle karega
+  weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],
   display: "swap",
   preload: true,
@@ -40,7 +42,15 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* ✅ Meta Pixel — Browser-side tracking */}
+        {/* ✅ DNS prefetch — Facebook pixel faster load */}
+        <link rel="dns-prefetch" href="//connect.facebook.net" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+
+        {/* ✅ Meta Pixel — afterInteractive strategy sahi hai */}
         <Script
           id="meta-pixel"
           strategy="afterInteractive"

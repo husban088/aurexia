@@ -11,14 +11,17 @@ const nextConfig = {
         hostname: "res.cloudinary.com",
       },
     ],
+    // ✅ Image optimization — faster loading
+    formats: ["image/avif", "image/webp"],
+    // ✅ Minimize layout shift from images
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
-  // Font optimization
-  optimizeFonts: true,
-  // Suppress unused preload warnings for fonts loaded via CSS variables
+
   experimental: {
-    optimizePackageImports: ["next/font", "@next/font"],
+    optimizePackageImports: ["lucide-react", "framer-motion"],
   },
-  // Add transpilePackages if needed
+
   transpilePackages: [],
 };
 

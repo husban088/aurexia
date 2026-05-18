@@ -442,46 +442,14 @@ function ProductCard({
   const [addToCartLoading, setAddToCartLoading] = useState(false);
   const { addToCart } = useCartStore();
 
-  const [liveRating, setLiveRating] = useState<number | null>(
-    product.rating != null && product.rating > 0 ? product.rating : null,
-  );
-  const [liveReviewCount, setLiveReviewCount] = useState<number | null>(
+  // ✅ Rating static se load — no per-card websocket subscription
+  // Real-time updates ki zaroorat nahi home page pe — DB se already fresh data aata hai
+  const liveRating =
+    product.rating != null && product.rating > 0 ? product.rating : null;
+  const liveReviewCount =
     product.reviews_count != null && product.reviews_count > 0
       ? product.reviews_count
-      : null,
-  );
-
-  // Real-time rating updates
-  useEffect(() => {
-    const channel = supabase
-      .channel(`fp-rating-${product.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "product_reviews",
-          filter: `product_id=eq.${product.id}`,
-        },
-        async () => {
-          const { data } = await supabase
-            .from("products")
-            .select("rating, reviews_count")
-            .eq("id", product.id)
-            .single();
-          if (data) {
-            if (data.rating != null && data.rating > 0)
-              setLiveRating(data.rating);
-            if (data.reviews_count != null && data.reviews_count > 0)
-              setLiveReviewCount(data.reviews_count);
-          }
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [product.id]);
+      : null;
 
   const colorVariants = variants.filter((v) => v.attribute_type === "color");
   const sizeVariants = variants.filter((v) => v.attribute_type === "size");

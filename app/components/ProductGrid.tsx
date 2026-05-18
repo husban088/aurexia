@@ -469,47 +469,15 @@ function ProductCardComponent({
   });
   const [addToCartLoading, setAddToCartLoading] = useState(false);
 
-  const [liveRating, setLiveRating] = useState<number | null>(
+  // ✅ Rating static — no per-card websocket (auth lock fix)
+  const liveRating =
     productData.rating != null && productData.rating > 0
       ? productData.rating
-      : null,
-  );
-  const [liveReviewCount, setLiveReviewCount] = useState<number | null>(
+      : null;
+  const liveReviewCount =
     productData.reviews_count != null && productData.reviews_count > 0
       ? productData.reviews_count
-      : null,
-  );
-
-  useEffect(() => {
-    const channel = supabase
-      .channel(`pg-rating-${productData.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "product_reviews",
-          filter: `product_id=eq.${productData.id}`,
-        },
-        async () => {
-          const { data } = await supabase
-            .from("products")
-            .select("rating, reviews_count")
-            .eq("id", productData.id)
-            .single();
-          if (data) {
-            if (data.rating != null && data.rating > 0)
-              setLiveRating(data.rating);
-            if (data.reviews_count != null && data.reviews_count > 0)
-              setLiveReviewCount(data.reviews_count);
-          }
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [productData.id]);
+      : null;
 
   const colorVariants =
     productData.variants?.filter((v) => v.attribute_type === "color") || [];

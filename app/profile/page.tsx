@@ -305,6 +305,7 @@ export default function ProfilePage() {
       const trimmed = username.trim();
       if (!trimmed) {
         setAlert({ type: "error", msg: getT("usernameEmpty", lang) });
+        setSaving(false);
         return;
       }
 
@@ -317,6 +318,7 @@ export default function ProfilePage() {
 
       if (existing) {
         setAlert({ type: "error", msg: getT("usernameTaken", lang) });
+        setSaving(false);
         return;
       }
 
@@ -350,10 +352,12 @@ export default function ProfilePage() {
     try {
       if (!newPass || newPass.length < 6) {
         setAlert({ type: "error", msg: getT("passwordShort", lang) });
+        setPassLoading(false);
         return;
       }
       if (newPass !== confirmPass) {
         setAlert({ type: "error", msg: getT("passwordMismatch", lang) });
+        setPassLoading(false);
         return;
       }
 
@@ -400,7 +404,13 @@ export default function ProfilePage() {
         <div className="pf-loading-ring">
           <div className="pf-loading-inner" />
         </div>
-        <p className="pf-loading-text">Loading Profile...</p>
+        <p className="pf-loading-text">
+          {lang === "ar"
+            ? "جار التحميل..."
+            : lang === "de"
+              ? "Laden..."
+              : "Loading Profile..."}
+        </p>
       </div>
     );
   }

@@ -126,56 +126,29 @@ async function fetchById(id: string): Promise<any | null> {
   return null;
 }
 
-/* ── Fetch by slug — uses name ilike search, much faster than fetching all ── */
+/* ── Fetch by slug — single query with broad search, no waterfall ── */
 async function fetchBySlugSearch(slug: string): Promise<any | null> {
+  const nameApprox = slug.replace(/-/g, " ").replace(/_/g, " ");
+  // Use first 2 words only — broad enough to avoid double-query fallback
+  const searchTerm = nameApprox.split(" ").slice(0, 2).join(" ");
+
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      // Convert slug back to approximate name for search
-      const nameApprox = slug.replace(/-/g, " ").replace(/_/g, " ");
-
       const { data, error } = await supabase
         .from("products")
         .select(
           "*, description, description_images, product_variants(*, description_rich, description_images, description, variant_images(*))",
         )
         .eq("is_active", true)
-        .ilike("name", `%${nameApprox.split(" ").slice(0, 3).join("%")}%`)
+        .ilike("name", `%${searchTerm}%`)
         .limit(20);
 
       if (error || !data || data.length === 0) {
-        // Fallback: broader search with first two words
-        const broadSearch = nameApprox.split(" ").slice(0, 2).join(" ");
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from("products")
-          .select(
-            "*, description, description_images, product_variants(*, description_rich, description_images, description, variant_images(*))",
-          )
-          .eq("is_active", true)
-          .ilike("name", `%${broadSearch}%`)
-          .limit(20);
-
-        if (fallbackError || !fallbackData || fallbackData.length === 0) {
-          if (attempt < 2) {
-            await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
-            continue;
-          }
-          return null;
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+          continue;
         }
-
-        const matched =
-          fallbackData.find((item: any) => slugify(item.name) === slug) ||
-          fallbackData.find(
-            (item: any) =>
-              slugify(item.name).startsWith(slug) ||
-              slug.startsWith(slugify(item.name)),
-          );
-        if (!matched) return null;
-
-        const result = processProductData(matched);
-        _productCache.set(slug, result);
-        _productCache.set(matched.id, result);
-        _productCache.set(slugify(matched.name), result);
-        return result;
+        return null;
       }
 
       const matched =
@@ -184,15 +157,10 @@ async function fetchBySlugSearch(slug: string): Promise<any | null> {
           (item: any) =>
             slugify(item.name).startsWith(slug) ||
             slug.startsWith(slugify(item.name)),
-        );
+        ) ||
+        data[0]; // best-effort if nothing exact matches
 
-      if (!matched) {
-        if (attempt < 2) {
-          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
-          continue;
-        }
-        return null;
-      }
+      if (!matched) return null;
 
       const result = processProductData(matched);
       _productCache.set(slug, result);
@@ -832,34 +800,27 @@ export default function ProductDetail() {
 
   // ── Fetch bulk pricing tiers when variant changes ──
   useEffect(() => {
-    async function fetchBulkTiers() {
-      if (!selectedVariant?.id) {
-        setBulkTiers([]);
-        setSelectedTier(null);
-        return;
-      }
-      setLoadingTiers(true);
-      try {
-        const { data, error } = await supabase
-          .from("bulk_pricing_tiers")
-          .select("*")
-          .eq("variant_id", selectedVariant.id)
-          .order("min_quantity", { ascending: true });
-        if (!error && data) {
-          setBulkTiers(data);
-          setSelectedTier(null);
-        } else {
-          setBulkTiers([]);
-          setSelectedTier(null);
-        }
-      } catch {
-        setBulkTiers([]);
-      } finally {
-        setLoadingTiers(false);
-      }
+    if (!selectedVariant?.id) {
+      setBulkTiers([]);
+      setSelectedTier(null);
+      return;
     }
-    fetchBulkTiers();
-  }, [selectedVariant]);
+    setLoadingTiers(true);
+    setSelectedTier(null);
+    supabase
+      .from("bulk_pricing_tiers")
+      .select("*")
+      .eq("variant_id", selectedVariant.id)
+      .order("min_quantity", { ascending: true })
+      .then(({ data, error }) => {
+        setBulkTiers(!error && data ? data : []);
+        setLoadingTiers(false);
+      })
+      .catch(() => {
+        setBulkTiers([]);
+        setLoadingTiers(false);
+      });
+  }, [selectedVariant?.id]);
 
   // ── Real-time rating updates ──
   useEffect(() => {
@@ -895,29 +856,21 @@ export default function ProductDetail() {
 
   // ── Fetch FAQs when product loads ──
   useEffect(() => {
-    async function fetchFAQs() {
-      const productId = (product as any)?.id;
-      if (!productId) {
-        setFaqs([]);
-        return;
-      }
-      try {
-        const { data, error } = await supabase
-          .from("product_faqs")
-          .select("id, question, answer, display_order")
-          .eq("product_id", productId)
-          .order("display_order", { ascending: true });
-        if (!error && data) {
-          setFaqs(data as ProductFAQItem[]);
-        } else {
-          setFaqs([]);
-        }
-      } catch {
-        setFaqs([]);
-      }
+    const productId = (product as any)?.id;
+    if (!productId) {
+      setFaqs([]);
+      return;
     }
-    fetchFAQs();
-  }, [product]);
+    supabase
+      .from("product_faqs")
+      .select("id, question, answer, display_order")
+      .eq("product_id", productId)
+      .order("display_order", { ascending: true })
+      .then(({ data, error }) => {
+        setFaqs(!error && data ? (data as ProductFAQItem[]) : []);
+      })
+      .catch(() => setFaqs([]));
+  }, [(product as any)?.id]);
 
   // ── IntersectionObserver for reveal animations ──
   useEffect(() => {

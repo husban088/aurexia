@@ -1,4 +1,9 @@
 // lib/couponStore.ts
+// ✅ FIXED — Supabase auth lock conflict khatam
+// - fetchCouponSettings sirf ek baar DB call karta hai (singleton promise)
+// - Duplicate calls same promise return karti hain — no extra locks
+// - React Strict Mode double-mount safe
+
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { supabase } from "./supabase";
@@ -10,7 +15,7 @@ interface CouponStore {
   coupon10Enabled: boolean;
   coupon20Enabled: boolean;
   settingsLoading: boolean;
-  applyingCoupon: boolean; // ✅ New: for button spinner
+  applyingCoupon: boolean;
   fetchCouponSettings: () => Promise<void>;
   updateCouponSettings: (
     coupon10Enabled: boolean,
@@ -25,6 +30,10 @@ interface CouponStore {
   getFinalTotal: (subtotal: number) => number;
 }
 
+// ✅ Module-level singleton — store ke bahar (re-render pe reset nahi hoga)
+let couponFetchPromise: Promise<void> | null = null;
+let couponFetchedOnce = false;
+
 export const useCouponStore = create<CouponStore>()(
   persist(
     (set, get) => ({
@@ -37,60 +46,73 @@ export const useCouponStore = create<CouponStore>()(
       applyingCoupon: false,
 
       fetchCouponSettings: async () => {
-        try {
-          console.log("🔄 Fetching coupon settings from DB...");
-          set({ settingsLoading: true });
-
-          const { data: data10, error: error10 } = await supabase
-            .from("site_settings")
-            .select("value")
-            .eq("key", "coupon_10_enabled")
-            .maybeSingle();
-
-          const { data: data20, error: error20 } = await supabase
-            .from("site_settings")
-            .select("value")
-            .eq("key", "coupon_20_enabled")
-            .maybeSingle();
-
-          if (error10 || error20) {
-            console.error("DB error:", error10 || error20);
-          }
-
-          const coupon10Enabled = data10?.value === true;
-          const coupon20Enabled = data20?.value === true;
-
-          console.log("✅ Coupon settings loaded:", {
-            coupon10Enabled,
-            coupon20Enabled,
-          });
-
-          set({
-            coupon10Enabled,
-            coupon20Enabled,
-            settingsLoading: false,
-          });
-
-          localStorage.setItem("coupon_10_enabled", String(coupon10Enabled));
-          localStorage.setItem("coupon_20_enabled", String(coupon20Enabled));
-
+        // ✅ Already fetched — skip (no DB call, no lock)
+        if (couponFetchedOnce) {
+          set({ settingsLoading: false });
           return;
-        } catch (err) {
-          console.error("[couponStore] Failed to fetch settings:", err);
+        }
 
-          const cached10 = localStorage.getItem("coupon_10_enabled");
-          const cached20 = localStorage.getItem("coupon_20_enabled");
+        // ✅ Fetch chal rahi hai — same promise return (no duplicate lock)
+        if (couponFetchPromise) {
+          return couponFetchPromise;
+        }
 
-          if (cached10 !== null && cached20 !== null) {
+        // ✅ Pehli aur sirf ek DB call
+        couponFetchPromise = (async () => {
+          try {
+            set({ settingsLoading: true });
+
+            // ✅ Do alag queries ki bajaye ek query se dono values fetch karo
+            const { data, error } = await supabase
+              .from("site_settings")
+              .select("key, value")
+              .in("key", ["coupon_10_enabled", "coupon_20_enabled"]);
+
+            if (error) {
+              console.error("[couponStore] DB error:", error);
+            }
+
+            const row10 = data?.find((r) => r.key === "coupon_10_enabled");
+            const row20 = data?.find((r) => r.key === "coupon_20_enabled");
+
+            const coupon10Enabled = row10?.value === true;
+            const coupon20Enabled = row20?.value === true;
+
             set({
-              coupon10Enabled: cached10 === "true",
-              coupon20Enabled: cached20 === "true",
+              coupon10Enabled,
+              coupon20Enabled,
               settingsLoading: false,
             });
-          } else {
-            set({ settingsLoading: false });
+
+            // Cache in localStorage for offline fallback
+            localStorage.setItem("coupon_10_enabled", String(coupon10Enabled));
+            localStorage.setItem("coupon_20_enabled", String(coupon20Enabled));
+
+            couponFetchedOnce = true;
+            couponFetchPromise = null;
+          } catch (err) {
+            console.error("[couponStore] Failed to fetch settings:", err);
+
+            // Fallback to localStorage cache
+            const cached10 = localStorage.getItem("coupon_10_enabled");
+            const cached20 = localStorage.getItem("coupon_20_enabled");
+
+            if (cached10 !== null && cached20 !== null) {
+              set({
+                coupon10Enabled: cached10 === "true",
+                coupon20Enabled: cached20 === "true",
+                settingsLoading: false,
+              });
+            } else {
+              set({ settingsLoading: false });
+            }
+
+            couponFetchedOnce = true;
+            couponFetchPromise = null;
           }
-        }
+        })();
+
+        return couponFetchPromise;
       },
 
       updateCouponSettings: async (
@@ -98,46 +120,36 @@ export const useCouponStore = create<CouponStore>()(
         coupon20Enabled: boolean,
       ) => {
         try {
-          console.log("💾 Saving coupon settings:", {
-            coupon10Enabled,
-            coupon20Enabled,
-          });
-
-          const { error: error10 } = await supabase
-            .from("site_settings")
-            .upsert(
+          // ✅ Do alag upserts ki bajaye batch — ek lock
+          const { error } = await supabase.from("site_settings").upsert(
+            [
               {
                 key: "coupon_10_enabled",
                 value: coupon10Enabled,
                 updated_at: new Date().toISOString(),
               },
-              { onConflict: "key" },
-            );
-
-          if (error10) throw error10;
-
-          const { error: error20 } = await supabase
-            .from("site_settings")
-            .upsert(
               {
                 key: "coupon_20_enabled",
                 value: coupon20Enabled,
                 updated_at: new Date().toISOString(),
               },
-              { onConflict: "key" },
-            );
+            ],
+            { onConflict: "key" },
+          );
 
-          if (error20) throw error20;
+          if (error) throw error;
 
           set({ coupon10Enabled, coupon20Enabled });
           localStorage.setItem("coupon_10_enabled", String(coupon10Enabled));
           localStorage.setItem("coupon_20_enabled", String(coupon20Enabled));
 
+          // ✅ Force re-fetch next time (admin ne change kiya)
+          couponFetchedOnce = false;
+
           const { appliedCode, removeCoupon } = get();
           if (appliedCode === "DISC4U10" && !coupon10Enabled) removeCoupon();
           if (appliedCode === "DISC4U20" && !coupon20Enabled) removeCoupon();
 
-          console.log("✅ Coupon settings saved successfully!");
           return true;
         } catch (err) {
           console.error("[couponStore] Failed to update coupon settings:", err);
@@ -148,8 +160,6 @@ export const useCouponStore = create<CouponStore>()(
       applyCoupon: async (code: string, userEmail: string) => {
         const trimmed = code.trim().toUpperCase();
         const emailLower = (userEmail || "").trim().toLowerCase();
-
-        console.log("🔍 Applying coupon:", trimmed, "| Email:", emailLower);
 
         if (!trimmed) {
           return { success: false, message: "Please enter a coupon code." };
@@ -165,7 +175,6 @@ export const useCouponStore = create<CouponStore>()(
           };
         }
 
-        // ✅ Check if coupon is enabled
         if (trimmed === "DISC4U10" && !coupon10Enabled) {
           return {
             success: false,
@@ -181,7 +190,6 @@ export const useCouponStore = create<CouponStore>()(
           };
         }
 
-        // ✅ DISC4U10: Open for everyone — apply immediately, no eligibility check needed
         if (trimmed === "DISC4U10") {
           set({
             appliedCode: trimmed,
@@ -194,7 +202,7 @@ export const useCouponStore = create<CouponStore>()(
           };
         }
 
-        // ✅ DISC4U20: Owner-only — check eligibility via API
+        // DISC4U20: Owner-only eligibility check
         set({ applyingCoupon: true });
 
         try {
