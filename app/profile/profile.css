@@ -681,11 +681,25 @@
   border-top-color: white;
   border-radius: 50%;
   animation: pf-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+.pf-spinner--red {
+  border-color: rgba(239, 68, 68, 0.2);
+  border-top-color: #ef4444;
+  width: 14px;
+  height: 14px;
 }
 @keyframes pf-spin {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Sign out disabled */
+.pf-signout-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* ── Responsive ── */

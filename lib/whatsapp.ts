@@ -376,10 +376,6 @@ export async function sendOrderWhatsApp(
 
   const displayTotal = formatPrice(total || totalPKRCalc, country);
 
-  const currencyNote = !isPKR
-    ? `\n💱 _Prices shown in ${cfg.code} (approx.)_`
-    : "";
-
   const message = `✦ T E C H 4 U ✦
 
 ✅ *Order Confirmed, ${name}!*
@@ -389,7 +385,7 @@ Thank you for choosing Tech4U. Your order has been received and will be processe
 📋 *ORDER DETAILS*
 ━━━━━━━━━━━━━━━━━━━━━━
 🔢 Order Number:  *${orderNumber}*
-💰 Total Amount:  *${displayTotal}*${currencyNote}
+💰 Total Amount:  *${displayTotal}*
 🚚 Shipping:      *FREE*
 ━━━━━━━━━━━━━━━━━━━━━━
 
@@ -738,7 +734,6 @@ export function buildConfirmedWhatsApp(
   name: string,
   orderNumber: string,
   displayTotal: string,
-  currencyNote: string,
   items?: Array<{
     name: string;
     variant?: string | null;
@@ -780,7 +775,7 @@ Thank you for choosing Tech4U. Your order has been confirmed.
 ━━━━━━━━━━━━━━━━━━━━━━
 🔢 Order Number: *${orderNumber}*
 📊 Status:       *CONFIRMED* ✅
-💰 Total Amount: *${displayTotal}*${currencyNote}
+💰 Total Amount: *${displayTotal}*
 ━━━━━━━━━━━━━━━━━━━━━━
 ${itemLines}We'll notify you here on WhatsApp when your order is shipped.
 
@@ -788,6 +783,43 @@ ${itemLines}We'll notify you here on WhatsApp when your order is shipped.
 🌐 tech4ru.com
 
 ✦ TECH4U — Luxury Redefined ✦`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// sendConfirmedWhatsApp — image + text for confirmed status
+// ✅ PAID PLAN: Image + full text in ONE message
+// ─────────────────────────────────────────────────────────────
+export async function sendConfirmedWhatsApp(
+  phoneNumber: string,
+  name: string,
+  orderNumber: string,
+  displayTotal: string,
+  items: Array<{
+    name: string;
+    variant?: string | null;
+    quantity: number;
+    price: number;
+    piecesPerUnit?: number;
+    variant_image?: string | null;
+    image?: string | null;
+    product_image?: string | null;
+  }>,
+  country: string,
+): Promise<boolean> {
+  const message = buildConfirmedWhatsApp(
+    name,
+    orderNumber,
+    displayTotal,
+    items,
+    country,
+  );
+  return sendImageThenText(
+    phoneNumber,
+    message,
+    items,
+    orderNumber,
+    "CONFIRMED ✅",
+  );
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -31,7 +31,6 @@ const subcategoryTranslations: Record<
   string,
   Record<"en" | "ar" | "de", string>
 > = {
-  // Accessories subcategories
   Chargers: { en: "Chargers", ar: "شواحن", de: "Ladegeräte" },
   Cables: { en: "Cables", ar: "كابلات", de: "Kabel" },
   "Phone Holders": {
@@ -45,7 +44,6 @@ const subcategoryTranslations: Record<
     ar: "إكسسوارات ذكية",
     de: "Intelligentes Zubehör",
   },
-  // Watches subcategories
   "Men Watches": { en: "Men Watches", ar: "ساعات رجالية", de: "Herrenuhren" },
   "Women Watches": {
     en: "Women Watches",
@@ -62,7 +60,6 @@ const subcategoryTranslations: Record<
     ar: "ساعات فاخرة",
     de: "Luxusuhren",
   },
-  // Automotive subcategories
   "Car Accessories": {
     en: "Car Accessories",
     ar: "إكسسوارات السيارة",
@@ -78,7 +75,6 @@ const subcategoryTranslations: Record<
     ar: "إكسسوارات داخلية",
     de: "Innenausstattung",
   },
-  // Home Decor subcategories
   "Wall Decor": { en: "Wall Decor", ar: "ديكور الحائط", de: "Wanddekoration" },
   Lighting: { en: "Lighting", ar: "إضاءة", de: "Beleuchtung" },
   "Kitchen Essentials": {
@@ -93,7 +89,6 @@ const subcategoryTranslations: Record<
   },
 };
 
-// Get translated subcategory name
 function getTranslatedSubcategory(
   originalName: string,
   language: SupportedLanguage,
@@ -101,7 +96,6 @@ function getTranslatedSubcategory(
   return subcategoryTranslations[originalName]?.[language] || originalName;
 }
 
-// Subcategories data (keep original names, translate dynamically)
 const categorySubcategories: Record<string, { name: string; href: string }[]> =
   {
     "/accessories": [
@@ -165,7 +159,6 @@ export default function Navbar({
     isRTLMode,
   } = useLanguage();
 
-  // ✅ FULLY TRANSLATED nav links
   const navLinks = [
     { href: "/", label: t.nav.home },
     { href: "/accessories", label: categoryLabels["/accessories"][language] },
@@ -188,10 +181,8 @@ export default function Navbar({
         if (currentY <= 10) {
           setNavVisible(true);
         } else if (currentY > lastScrollY.current) {
-          // Scrolling DOWN — hide navbar
           setNavVisible(false);
         } else {
-          // Scrolling UP — show navbar
           setNavVisible(true);
         }
         lastScrollY.current = currentY;
@@ -238,33 +229,28 @@ export default function Navbar({
     return () => subscription.unsubscribe();
   }, []);
 
-  const showPanel = userEmail === "info@tech4ru.com";
+  // ✅ OWNER CHECK - Sirf owner email pe currency dropdown show hoga
+  const isOwner = userEmail === "info@tech4ru.com";
   const authResolved = user !== undefined;
   const isSignedIn = authResolved && user !== null;
-
-  // ✅ FIXED: Sab currencies show karo (PKR bhi — sirf dropdown mein duplicate avoid)
-  const availableCurrencies = currencies;
 
   const handleCurrencySelect = (cur: (typeof currencies)[0]) => {
     setCurrency(cur);
     setCurrencyOpen(false);
 
     if (cur.code === "EUR") {
-      // EUR selected → switch to German language, hide language dropdown
       window.dispatchEvent(
         new CustomEvent("force-language-dropdown", {
           detail: { country: "DE" },
         }),
       );
     } else if (cur.code === "AED") {
-      // AED selected → show UAE language dropdown (English/Arabic)
       window.dispatchEvent(
         new CustomEvent("force-language-dropdown", {
           detail: { country: "AE" },
         }),
       );
     } else {
-      // Any other currency → English, hide language dropdown
       window.dispatchEvent(
         new CustomEvent("force-language-dropdown", {
           detail: { country: "OTHER" },
@@ -274,10 +260,7 @@ export default function Navbar({
   };
 
   const handleDropdownEnter = (href: string) => {
-    if (dropdownTimeoutRef.current) {
-      clearTimeout(dropdownTimeoutRef.current);
-      dropdownTimeoutRef.current = null;
-    }
+    if (dropdownTimeoutRef.current) clearTimeout(dropdownTimeoutRef.current);
     setOpenDropdown(href);
   };
 
@@ -286,10 +269,7 @@ export default function Navbar({
   };
 
   const handleCurrencyMouseEnter = () => {
-    if (currencyTimeoutRef.current) {
-      clearTimeout(currencyTimeoutRef.current);
-      currencyTimeoutRef.current = null;
-    }
+    if (currencyTimeoutRef.current) clearTimeout(currencyTimeoutRef.current);
     setCurrencyOpen(true);
   };
 
@@ -332,10 +312,10 @@ export default function Navbar({
       dir={isRTLMode ? "rtl" : "ltr"}
     >
       <div className="navbar-container">
-        {/* LEFT — Currency & Search */}
+        {/* LEFT — Currency (SIRF OWNER KO DIKHEGA) & Search */}
         <div className="navbar-left">
-          {/* ✅ FIXED: Currency dropdown sab users ko dikhao — showPanel condition hatai */}
-          {mounted && (
+          {/* ✅ CURRENCY DROPDOWN - SIRF OWNER EMAIL PE SHOW HOGA */}
+          {mounted && isOwner && (
             <div
               className="currency-dropdown"
               onMouseEnter={handleCurrencyMouseEnter}
@@ -358,7 +338,7 @@ export default function Navbar({
 
               {currencyOpen && (
                 <div className="currency-menu">
-                  {availableCurrencies.map((cur) => (
+                  {currencies.map((cur) => (
                     <button
                       key={cur.code}
                       className={`currency-option${currency.code === cur.code ? " active" : ""}`}
@@ -486,7 +466,7 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* BOTTOM NAV — Desktop with FULL TRANSLATIONS */}
+      {/* BOTTOM NAV — Desktop */}
       <div className="navbar-bottom desktop-only">
         <ul className="nav-links">
           {navLinks.map((link) => {
@@ -546,7 +526,7 @@ export default function Navbar({
             );
           })}
 
-          {showPanel && (
+          {isOwner && (
             <li className="nav-item">
               <a
                 href="/panel"

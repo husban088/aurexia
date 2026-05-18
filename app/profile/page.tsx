@@ -5,7 +5,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { signOutUser } from "@/lib/auth";
 import { useLanguage } from "@/app/context/LanguageContext";
 import "./profile.css";
 
@@ -162,6 +161,7 @@ export default function ProfilePage() {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [passLoading, setPassLoading] = useState(false);
+  const [signOutLoading, setSignOutLoading] = useState(false);
 
   // Load profile on mount
   useEffect(() => {
@@ -414,8 +414,24 @@ export default function ProfilePage() {
   };
 
   const handleSignOut = async () => {
-    await signOutUser();
-    window.location.href = "/signin";
+    if (signOutLoading) return;
+    setSignOutLoading(true);
+    try {
+      // Clear module-level cache immediately so stale data never shows
+      _cachedProfile = null;
+      _cacheTs = 0;
+      // Hard timeout: if signOut takes > 4s, force redirect anyway
+      const signOutTimeout = setTimeout(() => {
+        router.replace("/signin");
+      }, 4000);
+      await supabase.auth.signOut();
+      clearTimeout(signOutTimeout);
+    } catch (_) {
+      // Even on error, redirect — session is gone client-side
+    } finally {
+      setSignOutLoading(false);
+      router.replace("/signin");
+    }
   };
 
   if (loading) {
@@ -484,17 +500,25 @@ export default function ProfilePage() {
               </span>
             </div>
           </div>
-          <button className="pf-signout-btn" onClick={handleSignOut}>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
+          <button
+            className="pf-signout-btn"
+            onClick={handleSignOut}
+            disabled={signOutLoading}
+          >
+            {signOutLoading ? (
+              <span className="pf-spinner pf-spinner--red" />
+            ) : (
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            )}
             {getProfileTranslation("signOut", lang)}
           </button>
         </aside>

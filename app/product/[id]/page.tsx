@@ -22,67 +22,12 @@ import ProductFAQSection from "@/app/components/ProductFAQSection";
 import type { ProductFAQItem } from "@/app/components/ProductFAQSection";
 import { getSalePercent, applyDiscount } from "@/lib/saleStore";
 
-// ─── MODULE-LEVEL CACHE ───────────────────────────────────────────────────────
+// ─── MODULE-LEVEL IN-MEMORY CACHE ────────────────────────────────────────────
+// Pure in-memory cache — fast, no storage parsing delays, works across tabs via
+// Supabase Realtime. On fresh page load / new tab, data comes straight from
+// Supabase (fast because Realtime DB is enabled).
 const _productCache = new Map<string, any>();
 const _inFlight = new Map<string, Promise<any>>();
-
-const PD_SESSION_KEY = "pd_product_cache_v2";
-const PD_LOCAL_KEY = "pd_product_cache_local_v2";
-
-function _saveProductToSession(key: string, data: any) {
-  try {
-    // sessionStorage — same tab, fastest
-    const raw = sessionStorage.getItem(PD_SESSION_KEY);
-    const store: Record<string, any> = raw ? JSON.parse(raw) : {};
-    store[key] = data;
-    const keys = Object.keys(store);
-    if (keys.length > 20) delete store[keys[0]];
-    sessionStorage.setItem(PD_SESSION_KEY, JSON.stringify(store));
-  } catch (_) {}
-  try {
-    // localStorage — persists across tabs, reloads, browser restarts
-    const raw = localStorage.getItem(PD_LOCAL_KEY);
-    const store: Record<string, any> = raw ? JSON.parse(raw) : {};
-    store[key] = { data, ts: Date.now() };
-    const keys = Object.keys(store);
-    if (keys.length > 20) delete store[keys[0]];
-    localStorage.setItem(PD_LOCAL_KEY, JSON.stringify(store));
-  } catch (_) {}
-}
-
-function _loadProductSessionCache() {
-  // sessionStorage first
-  try {
-    const raw = sessionStorage.getItem(PD_SESSION_KEY);
-    if (raw) {
-      const store: Record<string, any> = JSON.parse(raw);
-      Object.entries(store).forEach(([key, data]) => {
-        if (!_productCache.has(key)) _productCache.set(key, data);
-      });
-    }
-  } catch (_) {}
-  // Then localStorage (accepts up to 24h old data)
-  try {
-    const raw = localStorage.getItem(PD_LOCAL_KEY);
-    if (raw) {
-      const store: Record<string, any> = JSON.parse(raw);
-      Object.entries(store).forEach(([key, entry]: [string, any]) => {
-        if (
-          entry?.data &&
-          !_productCache.has(key) &&
-          Date.now() - (entry.ts || 0) < 86400000
-        ) {
-          _productCache.set(key, entry.data);
-        }
-      });
-    }
-  } catch (_) {}
-}
-
-// Immediately restore session cache on module load
-if (typeof window !== "undefined") {
-  _loadProductSessionCache();
-}
 // ─────────────────────────────────────────────────────────────────────────────
 
 /* ── URL slug helper: "Apple Watch Ultra 2" → "apple-watch-ultra-2" ── */
@@ -160,14 +105,14 @@ function processProductData(data: any): any {
 }
 
 /* ── Fetch by ID — direct, fast, 100% reliable ── */
-async function fetchById(id: string, retries = 3): Promise<any | null> {
+async function fetchById(id: string, retries = 2): Promise<any | null> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       const timeoutPromise = new Promise<{ data: null; error: Error }>(
         (resolve) =>
           setTimeout(
             () => resolve({ data: null, error: new Error("timeout") }),
-            12000,
+            8000,
           ),
       );
       const fetchPromise = supabase
@@ -190,12 +135,10 @@ async function fetchById(id: string, retries = 3): Promise<any | null> {
       }
 
       const result = processProductData(data);
+      // Cache by ID and by slug for future navigations
       _productCache.set(id, result);
-      _saveProductToSession(id, result);
-      // Also cache by slug for future navigations
       const slug = slugify(result.name);
       _productCache.set(slug, result);
-      _saveProductToSession(slug, result);
       return result;
     } catch (err) {
       if (attempt === retries - 1) return null;
@@ -240,9 +183,6 @@ async function fetchBySlugSearch(
       _productCache.set(slug, result);
       _productCache.set(matched.id, result);
       _productCache.set(slugify(matched.name), result);
-      _saveProductToSession(slug, result);
-      _saveProductToSession(matched.id, result);
-      _saveProductToSession(slugify(matched.name), result);
       return result;
     } catch (err) {
       if (attempt === retries - 1) return null;
@@ -267,26 +207,10 @@ async function fetchProductCached(key: string): Promise<any | null> {
   return promise;
 }
 
-/* ── Invalidate all caches for a product ID/slug ── */
+/* ── Invalidate in-memory cache for a product ID/slug ── */
 function _invalidateProductCache(key: string) {
   _productCache.delete(key);
   _inFlight.delete(key);
-  try {
-    const raw = sessionStorage.getItem(PD_SESSION_KEY);
-    if (raw) {
-      const store: Record<string, any> = JSON.parse(raw);
-      delete store[key];
-      sessionStorage.setItem(PD_SESSION_KEY, JSON.stringify(store));
-    }
-  } catch (_) {}
-  try {
-    const raw = localStorage.getItem(PD_LOCAL_KEY);
-    if (raw) {
-      const store: Record<string, any> = JSON.parse(raw);
-      delete store[key];
-      localStorage.setItem(PD_LOCAL_KEY, JSON.stringify(store));
-    }
-  } catch (_) {}
 }
 
 /* ═══════════════════════════════════════════
@@ -694,24 +618,19 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!cacheKey) return;
 
-    // Re-read storage first — module-level Map can be empty after SPA navigation
-    _loadProductSessionCache();
-
     // ── Check if we're coming from edit page (refresh=1 param) ──
     const searchParams = new URLSearchParams(window.location.search);
     const forceRefresh = searchParams.get("refresh") === "1";
 
     if (forceRefresh) {
-      // Clear all caches for this product so fresh data loads
       _invalidateProductCache(cacheKey);
       if (urlId) _invalidateProductCache(urlId);
       if (urlSlug) _invalidateProductCache(urlSlug);
-      // Remove the param from URL without reload
       const newUrl = window.location.pathname;
       window.history.replaceState({}, "", newUrl);
     }
 
-    // Already cached (memory or just restored from storage)? Hydrate instantly
+    // Already in memory? Hydrate instantly — zero delay
     if (!forceRefresh && _productCache.has(cacheKey)) {
       hydrateFromData(_productCache.get(cacheKey));
       setLoading(false);
@@ -723,10 +642,9 @@ export default function ProductDetail() {
     setLoading(true);
     setNotFound(false);
 
-    // Hard timeout: if after 20s still loading, stop spinner (never stuck forever)
+    // Hard timeout: 10s max — then give up
     const hardTimeout = setTimeout(() => {
       if (!active) return;
-      // Last-chance: check cache one more time
       if (_productCache.has(cacheKey)) {
         hydrateFromData(_productCache.get(cacheKey));
         setLoading(false);
@@ -735,7 +653,7 @@ export default function ProductDetail() {
         setLoading(false);
         setNotFound(true);
       }
-    }, 20000);
+    }, 10000);
 
     fetchProductCached(cacheKey).then((data) => {
       if (!active) return;
@@ -745,29 +663,8 @@ export default function ProductDetail() {
         setLoading(false);
         setNotFound(false);
       } else {
-        // Network slow hogi — 1.5s baad retry karo pehle notFound dikhane se
-        setTimeout(() => {
-          if (!active) return;
-          // Check session cache dobara (might have loaded)
-          if (_productCache.has(cacheKey)) {
-            hydrateFromData(_productCache.get(cacheKey));
-            setLoading(false);
-            setNotFound(false);
-            return;
-          }
-          _inFlight.delete(cacheKey);
-          fetchProductCached(cacheKey).then((retryData) => {
-            if (!active) return;
-            if (retryData) {
-              hydrateFromData(retryData);
-              setLoading(false);
-              setNotFound(false);
-            } else {
-              setLoading(false);
-              setNotFound(true);
-            }
-          });
-        }, 1500);
+        setLoading(false);
+        setNotFound(true);
       }
     });
 
@@ -781,7 +678,6 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!cacheKey) return;
     function handleOnline() {
-      // Cached data hai toh foran show karo
       if (_productCache.has(cacheKey)) {
         hydrateFromData(_productCache.get(cacheKey));
         setLoading(false);
@@ -813,10 +709,6 @@ export default function ProductDetail() {
     if (!cacheKey) return;
 
     function showFromCache() {
-      // Always re-read storage first — module-level cache can be empty
-      // if the JS module was re-evaluated after SPA navigation
-      _loadProductSessionCache();
-
       // ── If returning from edit page, force fresh fetch ──
       const searchParams = new URLSearchParams(window.location.search);
       const forceRefresh = searchParams.get("refresh") === "1";
@@ -835,22 +727,17 @@ export default function ProductDetail() {
         return;
       }
 
-      // If product is already displayed on screen, do a silent background
-      // refresh — NEVER show loading spinner over visible content
+      // Product already visible on screen? Silent background refresh only
       if (!forceRefresh) {
         setProduct((currentProduct) => {
           if (currentProduct) {
-            // Already showing product — silent background refresh only
             fetchProductCached(cacheKey)
               .then((data) => {
-                if (data) {
-                  hydrateFromData(data);
-                }
+                if (data) hydrateFromData(data);
               })
               .catch(() => {});
-            return currentProduct; // keep current visible state
+            return currentProduct;
           }
-          // No product visible — show spinner and fetch
           setLoading(true);
           setNotFound(false);
           fetchProductCached(cacheKey).then((data) => {
@@ -868,7 +755,6 @@ export default function ProductDetail() {
         return;
       }
 
-      // forceRefresh=true — always show fresh data with spinner
       setLoading(true);
       setNotFound(false);
       fetchProductCached(cacheKey).then((data) => {

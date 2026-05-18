@@ -139,11 +139,11 @@ const getStockStatus = (
 
 /* ── Fetch function ── */
 async function fetchFeaturedTabData(tab: string): Promise<CachedData> {
-  // 10-second timeout so loading never gets stuck forever
+  // 6-second timeout so loading never gets stuck forever
   const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
     setTimeout(
       () => resolve({ data: null, error: new Error("timeout") }),
-      10000,
+      6000,
     ),
   );
   const fetchPromise = supabase
@@ -904,22 +904,20 @@ export default function FeaturedProducts() {
       } finally {
         if (isMounted) setIsLoading(false);
       }
-    };
 
-    loadInitial();
-
-    // Prefetch other tabs in background
-    const prefetchTimer = setTimeout(() => {
+      // Prefetch all other tabs immediately in parallel (no delay)
+      // so switching tabs is instant
       ALL_TABS.forEach((tab) => {
         if (tab !== "Accessories" && !tabCache[tab]) {
           fetchFeaturedTabData(tab).catch(() => {});
         }
       });
-    }, 1500);
+    };
+
+    loadInitial();
 
     return () => {
       isMounted = false;
-      clearTimeout(prefetchTimer);
     };
   }, []);
 

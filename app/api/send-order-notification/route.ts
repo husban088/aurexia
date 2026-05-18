@@ -2,13 +2,15 @@
 // ✅ FIXED: Currency properly converted in WhatsApp + Email
 // ✅ customerCountry → formattedTotal + formattedItems always in customer's currency
 // ✅ Items total correctly calculated (price = perUnit, piecesPerUnit = 1 from page.tsx)
+// ✅ WhatsApp CONFIRMED: image + text in ONE message via sendConfirmedWhatsApp
+// ✅ currencyNote "(approx.)" removed from WhatsApp messages
 
 import { NextRequest, NextResponse } from "next/server";
 import {
   sendOrderConfirmationEmail,
   sendOwnerOrderAlert,
 } from "@/lib/email-smtp";
-import { sendWhatsAppMessage, buildConfirmedWhatsApp } from "@/lib/whatsapp";
+import { sendConfirmedWhatsApp } from "@/lib/whatsapp";
 
 // ── Currency helpers ──────────────────────────────────────────────────────────
 const PKR_RATES: Record<
@@ -98,17 +100,12 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Currency setup ────────────────────────────────────────────────────────
-    // customerCountry comes from page.tsx as phoneInfo.name e.g. "Australia"
     const country = customerCountry || "Pakistan";
     const currencyCfg = getCurrencyForCountry(country);
-    const isPKR = currencyCfg.code === "PKR";
     const totalAmountNum = total ?? 0;
 
     // ✅ formattedTotal — in customer's currency
     const formattedTotal = formatAmount(totalAmountNum, country);
-    const currencyNote = !isPKR
-      ? `\n💱 _Amount in ${currencyCfg.code} (approx.)_`
-      : "";
     const customerPhone = phone || "";
 
     console.log(
@@ -118,8 +115,6 @@ export async function POST(req: NextRequest) {
     console.log(`🛒 Items: ${items.length}`);
 
     // ── formattedItems for email ──────────────────────────────────────────────
-    // ✅ page.tsx sends: price = perUnit PKR, piecesPerUnit = 1
-    // So: lineTotalPKR = price * piecesPerUnit * quantity = price * 1 * qty = price * qty
     const formattedItems = items.map((item: any) => {
       const ppu = item.piecesPerUnit ?? item.pieces_per_unit ?? 1;
       const perUnitPKR = item.price ?? 0;
@@ -130,7 +125,6 @@ export async function POST(req: NextRequest) {
         name: item.name ?? item.product_name ?? "Product",
         variant: item.variant ?? item.variant_name ?? null,
         quantity: qty,
-        // ✅ formattedPrice — properly converted to customer's currency
         formattedPrice: formatAmount(lineTotalPKR, country),
         pricePKR: lineTotalPKR,
         image: item.image ?? null,
@@ -139,15 +133,17 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    // ── waItems for WhatsApp builder ──────────────────────────────────────────
-    // WhatsApp builder (buildConfirmedWhatsApp) calls formatPrice(itemTotalPKR, country)
-    // internally — so pass raw PKR prices, it handles conversion itself
+    // ── waItems for WhatsApp (includes image fields for sendImageThenText) ────
     const waItems = items.map((item: any) => ({
       name: item.name ?? item.product_name ?? "Product",
       variant: item.variant ?? item.variant_name ?? null,
       quantity: item.quantity ?? 1,
-      price: item.price ?? 0, // PKR per-unit price
+      price: item.price ?? 0,
       piecesPerUnit: item.piecesPerUnit ?? item.pieces_per_unit ?? 1,
+      // ✅ image fields — sendConfirmedWhatsApp → sendImageThenText picks these
+      variant_image: item.variant_image ?? null,
+      image: item.image ?? null,
+      product_image: item.product_image ?? null,
     }));
 
     let customerEmailSent = false;
@@ -157,20 +153,18 @@ export async function POST(req: NextRequest) {
     // ── 1. WhatsApp ───────────────────────────────────────────────────────────
     if (customerPhone) {
       try {
-        // buildConfirmedWhatsApp internally formats each item price using country
-        const whatsappMsg = buildConfirmedWhatsApp(
+        // ✅ sendConfirmedWhatsApp → image + full text in ONE WhatsApp message
+        whatsappSent = await sendConfirmedWhatsApp(
+          customerPhone,
           name,
           orderNumber,
-          formattedTotal, // ✅ customer's currency e.g. "A$8.25"
-          currencyNote,
+          formattedTotal,  // e.g. "A$8.25"
           waItems,
-          country, // ✅ "Australia" → formatPrice converts each item to AUD
+          country,         // e.g. "Australia"
         );
-
-        whatsappSent = await sendWhatsAppMessage(customerPhone, whatsappMsg);
         console.log(
           whatsappSent
-            ? `✅ WhatsApp sent → ${customerPhone} (${currencyCfg.code})`
+            ? `✅ WhatsApp sent → ${customerPhone} (${currencyCfg.code}) [image+text]`
             : `❌ WhatsApp failed → ${customerPhone}`,
         );
       } catch (err: any) {
@@ -190,10 +184,10 @@ export async function POST(req: NextRequest) {
         totalAmountNum,
         shippingAddress || "",
         paymentMethod || "N/A",
-        currencyCfg.code, // ✅ "AUD"
-        formattedTotal, // ✅ "A$8.25"
-        formattedItems, // ✅ each item has formattedPrice in AUD
-        country, // ✅ "Australia"
+        currencyCfg.code,
+        formattedTotal,
+        formattedItems,
+        country,
       );
       console.log(
         customerEmailSent
@@ -232,7 +226,7 @@ export async function POST(req: NextRequest) {
       currency: currencyCfg.code,
       formattedTotal,
       phone: customerPhone || "NOT PROVIDED",
-      whatsapp: whatsappSent ? "✅" : "❌",
+      whatsapp: whatsappSent ? "✅ image+text" : "❌",
       customerEmail: customerEmailSent ? "✅" : "❌",
       ownerEmail: ownerEmailSent ? "✅" : "❌",
     });

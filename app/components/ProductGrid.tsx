@@ -154,11 +154,11 @@ async function fetchProductsWithVariants(
   query = query.order("created_at", { ascending: false });
   if (limit) query = query.limit(limit);
 
-  // 12-second timeout — never hang loading forever
+  // 7-second timeout — never hang loading forever
   const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
     setTimeout(
       () => resolve({ data: null, error: new Error("timeout") }),
-      12000,
+      7000,
     ),
   );
   const { data, error } = (await Promise.race([query, timeoutPromise])) as any;
@@ -953,7 +953,7 @@ export default function ProductGrid({
     };
 
     const channel = supabase
-      .channel("pg-products-changes")
+      .channel(`pg-products-changes-${cacheKey}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "products" },
