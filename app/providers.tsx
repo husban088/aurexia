@@ -14,8 +14,32 @@ import { useEffect, useState, useRef } from "react";
 import Footer from "./components/Footer";
 import SaleBannerPopup from "./components/SaleBannerPopup";
 import { initSaleStore } from "@/lib/saleStore";
+import { useBackForwardReload } from "@/lib/useBackForwardReload";
+
+// ✅ Smooth scroll optimization — prevents jank
+const smoothScrollBehavior = () => {
+  if (typeof window === "undefined") return;
+
+  // Optimize scroll performance
+  let ticking = false;
+  const onScroll = () => {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        document.documentElement.style.scrollBehavior = "smooth";
+        ticking = false;
+      });
+      ticking = true;
+    }
+  };
+
+  window.addEventListener("scroll", onScroll, { passive: true });
+  return () => window.removeEventListener("scroll", onScroll);
+};
 
 export default function Providers({ children }: { children: React.ReactNode }) {
+  // ✅ Add back/forward reload hook
+  useBackForwardReload();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
@@ -25,6 +49,12 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const { fetchCart, setOnCartOpen } = useCartStore();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const cartInitialized = useRef(false);
+
+  // Optimize scroll behavior
+  useEffect(() => {
+    const cleanup = smoothScrollBehavior();
+    return cleanup;
+  }, []);
 
   useEffect(() => {
     setIsClient(true);
@@ -49,11 +79,12 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Measure immediately and after a tiny paint frame
     measure();
     const raf = requestAnimationFrame(measure);
 
-    const observer = new ResizeObserver(measure);
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(measure);
+    });
     if (wrapperRef.current) observer.observe(wrapperRef.current);
     window.addEventListener("resize", measure, { passive: true });
 
@@ -102,11 +133,6 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         </>
       )}
 
-      {/*
-        KEY FIX: paddingTop CSS variable use karo.
-        Jab tak client mount nahi hota, navbar ka estimated height CSS var se aata hai.
-        Isse page TOP se render hoga, footer neeche rahega, koi layout shift nahi.
-      */}
       <div
         className="flex flex-col flex-1"
         style={

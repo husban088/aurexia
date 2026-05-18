@@ -20,6 +20,9 @@ const nextConfig = {
   },
   // Add transpilePackages if needed
   transpilePackages: [],
+  // ✅ Force full reload on navigation (fixes Chrome back/forward issues)
+  // This prevents bfcache (back-forward cache) which causes old content to show
+  crossOrigin: "anonymous",
 };
 
 module.exports = nextConfig;

@@ -6,7 +6,6 @@ import "./globals.css";
 import Providers from "./providers";
 import { CurrencyProvider } from "./context/CurrencyContext";
 import { LanguageProvider } from "./context/LanguageContext";
-// import { CurrencyCleaner } from "./components/CurrencyCleaner";
 import { getInitialCurrency } from "@/lib/get-initial-currency";
 
 // Poppins font configuration
@@ -31,8 +30,6 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Server-side currency detect — Cloudflare/Vercel CDN headers se
-  // Yeh page render hone se pehle hota hai — koi flash nahi
   const initialCurrency = await getInitialCurrency();
 
   return (
@@ -40,9 +37,10 @@ export default async function RootLayout({
       lang="en"
       dir="ltr"
       className={`${poppins.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <head>
-        {/* ===== Meta Pixel Code ===== */}
+        {/* ✅ Meta Pixel — Browser-side tracking */}
         <Script
           id="meta-pixel"
           strategy="afterInteractive"
@@ -61,9 +59,8 @@ export default async function RootLayout({
             `,
           }}
         />
-        {/* Noscript fallback for Meta Pixel */}
+        {/* ✅ Fallback for browsers with JavaScript disabled */}
         <noscript>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             height="1"
             width="1"
@@ -72,16 +69,10 @@ export default async function RootLayout({
             alt=""
           />
         </noscript>
-        {/* ===== End Meta Pixel Code ===== */}
       </head>
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <LanguageProvider>
-          {/*
-            initialCurrencyCode — server se detected country ka currency code
-            CurrencyCleaner — purana galat localStorage (auto-saved USD) clear karta hai
-          */}
           <CurrencyProvider initialCurrencyCode={initialCurrency.code}>
-            {/* <CurrencyCleaner /> */}
             <Providers>{children}</Providers>
           </CurrencyProvider>
         </LanguageProvider>

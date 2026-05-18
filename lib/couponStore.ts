@@ -1,33 +1,21 @@
 // lib/couponStore.ts
-// ✅ Coupon ONLY for: (1) customers who received "delivered" status
-//                    (2) owner (OWNER_EMAIL env — checked via API)
-// ✅ applyCoupon is now async — checks Supabase before allowing
-// ✅ Owner can always use both coupons regardless of delivered status
-
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { supabase } from "./supabase";
 
-// ============================================================
-// TYPES
-// ============================================================
 interface CouponStore {
   appliedCode: string | null;
   discountPercent: number;
   discountLabel: string;
-
-  // Coupon settings (from DB)
   coupon10Enabled: boolean;
   coupon20Enabled: boolean;
   settingsLoading: boolean;
-
-  // Actions
+  applyingCoupon: boolean; // ✅ New: for button spinner
   fetchCouponSettings: () => Promise<void>;
   updateCouponSettings: (
     coupon10Enabled: boolean,
     coupon20Enabled: boolean,
   ) => Promise<boolean>;
-  // ✅ Now async — validates against DB
   applyCoupon: (
     code: string,
     userEmail: string,
@@ -37,9 +25,6 @@ interface CouponStore {
   getFinalTotal: (subtotal: number) => number;
 }
 
-// ============================================================
-// STORE
-// ============================================================
 export const useCouponStore = create<CouponStore>()(
   persist(
     (set, get) => ({
@@ -49,23 +34,28 @@ export const useCouponStore = create<CouponStore>()(
       coupon10Enabled: false,
       coupon20Enabled: false,
       settingsLoading: true,
+      applyingCoupon: false,
 
-      // ── Fetch coupon on/off settings ────────────────────────
       fetchCouponSettings: async () => {
         try {
           console.log("🔄 Fetching coupon settings from DB...");
+          set({ settingsLoading: true });
 
-          const { data: data10 } = await supabase
+          const { data: data10, error: error10 } = await supabase
             .from("site_settings")
             .select("value")
             .eq("key", "coupon_10_enabled")
             .maybeSingle();
 
-          const { data: data20 } = await supabase
+          const { data: data20, error: error20 } = await supabase
             .from("site_settings")
             .select("value")
             .eq("key", "coupon_20_enabled")
             .maybeSingle();
+
+          if (error10 || error20) {
+            console.error("DB error:", error10 || error20);
+          }
 
           const coupon10Enabled = data10?.value === true;
           const coupon20Enabled = data20?.value === true;
@@ -75,10 +65,16 @@ export const useCouponStore = create<CouponStore>()(
             coupon20Enabled,
           });
 
-          set({ coupon10Enabled, coupon20Enabled, settingsLoading: false });
+          set({
+            coupon10Enabled,
+            coupon20Enabled,
+            settingsLoading: false,
+          });
 
           localStorage.setItem("coupon_10_enabled", String(coupon10Enabled));
           localStorage.setItem("coupon_20_enabled", String(coupon20Enabled));
+
+          return;
         } catch (err) {
           console.error("[couponStore] Failed to fetch settings:", err);
 
@@ -89,19 +85,24 @@ export const useCouponStore = create<CouponStore>()(
             set({
               coupon10Enabled: cached10 === "true",
               coupon20Enabled: cached20 === "true",
+              settingsLoading: false,
             });
+          } else {
+            set({ settingsLoading: false });
           }
-
-          set({ settingsLoading: false });
         }
       },
 
-      // ── Update coupon settings (admin panel) ────────────────
       updateCouponSettings: async (
         coupon10Enabled: boolean,
         coupon20Enabled: boolean,
       ) => {
         try {
+          console.log("💾 Saving coupon settings:", {
+            coupon10Enabled,
+            coupon20Enabled,
+          });
+
           const { error: error10 } = await supabase
             .from("site_settings")
             .upsert(
@@ -129,7 +130,6 @@ export const useCouponStore = create<CouponStore>()(
           if (error20) throw error20;
 
           set({ coupon10Enabled, coupon20Enabled });
-
           localStorage.setItem("coupon_10_enabled", String(coupon10Enabled));
           localStorage.setItem("coupon_20_enabled", String(coupon20Enabled));
 
@@ -137,7 +137,7 @@ export const useCouponStore = create<CouponStore>()(
           if (appliedCode === "DISC4U10" && !coupon10Enabled) removeCoupon();
           if (appliedCode === "DISC4U20" && !coupon20Enabled) removeCoupon();
 
-          console.log("✅ Coupon settings updated successfully!");
+          console.log("✅ Coupon settings saved successfully!");
           return true;
         } catch (err) {
           console.error("[couponStore] Failed to update coupon settings:", err);
@@ -145,7 +145,6 @@ export const useCouponStore = create<CouponStore>()(
         }
       },
 
-      // ── Apply coupon — ASYNC with DB eligibility check ──────
       applyCoupon: async (code: string, userEmail: string) => {
         const trimmed = code.trim().toUpperCase();
         const emailLower = (userEmail || "").trim().toLowerCase();
@@ -156,16 +155,8 @@ export const useCouponStore = create<CouponStore>()(
           return { success: false, message: "Please enter a coupon code." };
         }
 
-        if (!emailLower) {
-          return {
-            success: false,
-            message: "Please log in to use a coupon code.",
-          };
-        }
-
         const { coupon10Enabled, coupon20Enabled } = get();
 
-        // ── Valid codes ──────────────────────────────────────
         const validCodes = ["DISC4U10", "DISC4U20"];
         if (!validCodes.includes(trimmed)) {
           return {
@@ -174,7 +165,7 @@ export const useCouponStore = create<CouponStore>()(
           };
         }
 
-        // ── Check if code is enabled ─────────────────────────
+        // ✅ Check if coupon is enabled
         if (trimmed === "DISC4U10" && !coupon10Enabled) {
           return {
             success: false,
@@ -190,35 +181,7 @@ export const useCouponStore = create<CouponStore>()(
           };
         }
 
-        // ── Check eligibility via API ────────────────────────
-        // API checks: is owner? OR has a delivered order?
-        try {
-          const res = await fetch("/api/check-coupon-eligibility", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: emailLower }),
-          });
-
-          const data = await res.json();
-
-          if (!res.ok || !data.eligible) {
-            return {
-              success: false,
-              message:
-                data.message ||
-                "This coupon is only available for customers whose order has been delivered.",
-            };
-          }
-        } catch (err) {
-          console.error("[couponStore] Eligibility check failed:", err);
-          return {
-            success: false,
-            message:
-              "Could not verify eligibility. Please try again in a moment.",
-          };
-        }
-
-        // ── Apply ────────────────────────────────────────────
+        // ✅ DISC4U10: Open for everyone — apply immediately, no eligibility check needed
         if (trimmed === "DISC4U10") {
           set({
             appliedCode: trimmed,
@@ -231,22 +194,49 @@ export const useCouponStore = create<CouponStore>()(
           };
         }
 
-        if (trimmed === "DISC4U20") {
+        // ✅ DISC4U20: Owner-only — check eligibility via API
+        set({ applyingCoupon: true });
+
+        try {
+          const res = await fetch("/api/check-coupon-eligibility", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: emailLower, couponCode: trimmed }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok || !data.eligible) {
+            set({ applyingCoupon: false });
+            return {
+              success: false,
+              message:
+                data.message ||
+                "20% discount coupon is only available for store owner.",
+            };
+          }
+
           set({
             appliedCode: trimmed,
             discountPercent: 20,
             discountLabel: "20% Off",
+            applyingCoupon: false,
           });
           return {
             success: true,
             message: "🎉 20% discount applied successfully!",
           };
+        } catch (err) {
+          console.error("[couponStore] Eligibility check failed:", err);
+          set({ applyingCoupon: false });
+          return {
+            success: false,
+            message:
+              "Could not verify eligibility. Please try again in a moment.",
+          };
         }
-
-        return { success: false, message: "Invalid coupon code." };
       },
 
-      // ── Remove coupon ────────────────────────────────────────
       removeCoupon: () => {
         set({ appliedCode: null, discountPercent: 0, discountLabel: "" });
       },

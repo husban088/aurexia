@@ -1,3 +1,4 @@
+// app/panel/edit-product/[id]/page.tsx
 "use client";
 
 import {
@@ -9,7 +10,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import PanelNavbar from "@/app/components/PanelNavbar";
 import { supabase } from "@/lib/supabase";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { uploadToCloudinary, uploadVideoToCloudinary } from "@/lib/cloudinary";
 import { isOwner } from "@/lib/checkOwner";
 import { convertPriceToPKR, convertPriceFromPKR } from "@/lib/panelCurrency";
 import ProductDescription from "@/app/components/ProductDescription";
@@ -222,9 +223,7 @@ function ToastContainer({
       {toasts.map((t) => (
         <div
           key={t.id}
-          className={`ap-toast ap-toast--${t.type}${
-            t.exiting ? " exiting" : ""
-          }`}
+          className={`ap-toast ap-toast--${t.type}${t.exiting ? " exiting" : ""}`}
         >
           <div className="ap-toast-icon">
             {t.type === "success" && (
@@ -304,9 +303,7 @@ function StockStatusSelector({
     <div>
       <div className="ap-stock-radio-group">
         <div
-          className={`ap-stock-radio-option ${
-            value === "in_stock" ? "active-in-stock" : ""
-          }`}
+          className={`ap-stock-radio-option ${value === "in_stock" ? "active-in-stock" : ""}`}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -322,9 +319,7 @@ function StockStatusSelector({
           <span>In Stock</span>
         </div>
         <div
-          className={`ap-stock-radio-option ${
-            value === "out_of_stock" ? "active-out-stock" : ""
-          }`}
+          className={`ap-stock-radio-option ${value === "out_of_stock" ? "active-out-stock" : ""}`}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -340,9 +335,7 @@ function StockStatusSelector({
           <span>Out of Stock</span>
         </div>
         <div
-          className={`ap-stock-radio-option ${
-            value === "low_stock" ? "active-low-stock" : ""
-          }`}
+          className={`ap-stock-radio-option ${value === "low_stock" ? "active-low-stock" : ""}`}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -418,6 +411,160 @@ function StockStatusSelector({
           <span>units or less</span>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Video Uploader ───────────────────────────────────────────────────────────
+
+function VideoUploader({
+  videoUrl,
+  onVideoChange,
+  onError,
+}: {
+  videoUrl: string | null;
+  onVideoChange: (url: string | null) => void;
+  onError: (msg: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = [
+      "video/mp4",
+      "video/webm",
+      "video/ogg",
+      "video/mov",
+      "video/quicktime",
+      "video/avi",
+    ];
+    if (!validTypes.includes(file.type) && !file.type.startsWith("video/")) {
+      onError(
+        `"${file.name}" is not a valid video file. Use MP4, WebM, or MOV.`,
+      );
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+
+    const maxSize = 100 * 1024 * 1024;
+    if (file.size > maxSize) {
+      onError(`Video file is too large. Maximum size is 100MB.`);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const url = await uploadVideoToCloudinary(file);
+      onVideoChange(url);
+    } catch (err: any) {
+      onError(err.message || `Failed to upload video: ${file.name}`);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="ep-video-uploader">
+      {videoUrl ? (
+        <div className="ep-video-preview">
+          <video
+            src={videoUrl}
+            controls
+            className="ep-video-player"
+            preload="metadata"
+          />
+          <button
+            type="button"
+            className="ep-video-remove"
+            onClick={() => onVideoChange(null)}
+            title="Remove video"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+          <div className="ep-video-url-badge">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              width="12"
+              height="12"
+            >
+              <path d="M22.54 6.42A2.78 2.78 0 0 0 20.7 4.55C19.12 4 12 4 12 4s-7.12 0-8.7.55A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.3 19.45C4.88 20 12 20 12 20s7.12 0 8.7-.55a2.78 2.78 0 0 0 1.84-1.87A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
+              <polygon
+                points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"
+                fill="currentColor"
+              />
+            </svg>
+            Video uploaded ✓
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="ep-video-upload-btn"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+        >
+          {uploading ? (
+            <div className="ep-video-uploading">
+              <div
+                className="ep-spinner"
+                style={{ width: "28px", height: "28px" }}
+              />
+              <span>Uploading video...</span>
+              <span
+                style={{ fontSize: "0.65rem", color: "#8b6914", opacity: 0.7 }}
+              >
+                Large files may take a moment
+              </span>
+            </div>
+          ) : (
+            <div className="ep-video-upload-inner">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                width="32"
+                height="32"
+              >
+                <path d="M22.54 6.42A2.78 2.78 0 0 0 20.7 4.55C19.12 4 12 4 12 4s-7.12 0-8.7.55A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.3 19.45C4.88 20 12 20 12 20s7.12 0 8.7-.55a2.78 2.78 0 0 0 1.84-1.87A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
+                <polygon
+                  points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"
+                  fill="currentColor"
+                />
+              </svg>
+              <span className="ep-video-upload-title">
+                Click to Upload Product Video
+              </span>
+              <span className="ep-video-upload-sub">
+                MP4, WebM, MOV · Max 100MB · Saved to Cloudinary
+              </span>
+            </div>
+          )}
+        </button>
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="video/mp4,video/webm,video/ogg,video/mov,video/quicktime,video/avi,video/*"
+        onChange={handleFileSelect}
+        style={{ display: "none" }}
+      />
     </div>
   );
 }
@@ -561,7 +708,6 @@ function MultiImageUploader({
 
   const removeImage = (index: number) =>
     onImagesChange(images.filter((_, i) => i !== index));
-
   const MAX_IMAGES = 20;
   const canAdd = images.length < MAX_IMAGES;
 
@@ -1090,15 +1236,13 @@ function AttributeSelector({
   const { currency } = useCurrency();
 
   const convertVariantData = (v: any) => {
-    // v.images may already be a string[] (processed by loadAll),
-    // or v.variant_images may be the raw DB array — handle both
     let imageUrls: string[] = [];
     if (
       Array.isArray(v.images) &&
       v.images.length > 0 &&
       typeof v.images[0] === "string"
     ) {
-      imageUrls = v.images; // already processed
+      imageUrls = v.images;
     } else if (Array.isArray(v.variant_images) && v.variant_images.length > 0) {
       imageUrls = (v.variant_images as any[])
         .sort((a: any, b: any) => a.display_order - b.display_order)
@@ -1266,7 +1410,6 @@ function SimpleModeEditForm({
 }) {
   const { currency } = useCurrency();
   const [name, setName] = useState(initialProduct?.name || "");
-  // Load rich description from variant first, fall back to product-level
   const [description, setDescription] = useState(
     initialVariant?.description_rich ||
       initialVariant?.description ||
@@ -1279,14 +1422,14 @@ function SimpleModeEditForm({
       [],
   );
   const [brand, setBrand] = useState(initialProduct?.brand || "");
-  const [priceDisplay, setPriceDisplay] = useState(() => {
-    const pkrPrice = initialVariant?.price || 0;
-    return convertPriceFromPKR(pkrPrice, currency).toFixed(2);
-  });
-  const [originalPriceDisplay, setOriginalPriceDisplay] = useState(() => {
-    const pkrPrice = initialVariant?.original_price || 0;
-    return pkrPrice ? convertPriceFromPKR(pkrPrice, currency).toFixed(2) : "";
-  });
+  const [priceDisplay, setPriceDisplay] = useState(() =>
+    convertPriceFromPKR(initialVariant?.price || 0, currency).toFixed(2),
+  );
+  const [originalPriceDisplay, setOriginalPriceDisplay] = useState(() =>
+    initialVariant?.original_price
+      ? convertPriceFromPKR(initialVariant.original_price, currency).toFixed(2)
+      : "",
+  );
   const [condition, setCondition] = useState(
     initialProduct?.condition || "new",
   );
@@ -1308,6 +1451,9 @@ function SimpleModeEditForm({
   );
 
   const [images, setImages] = useState<string[]>(initialImages);
+  const [productVideo, setProductVideo] = useState<string | null>(
+    initialProduct?.video_url || null,
+  );
   const [faqs, setFaqs] = useState<FAQ[]>(initialFaqs);
   const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>(() =>
     initialBulkTiers.map((tier: BulkPricingTier) => ({
@@ -1375,8 +1521,6 @@ function SimpleModeEditForm({
     }
 
     setIsUpdating(true);
-
-    // ✅ FIX: Poora submit try/catch mein wrap — koi bhi error ho setIsUpdating(false) zaroor chalega
     try {
       const pricePKR = getPriceInPKR(priceDisplay);
       const originalPricePKR = originalPriceDisplay
@@ -1386,9 +1530,7 @@ function SimpleModeEditForm({
       const thresholdVal =
         stockStatus === "low_stock" ? lowStockThreshold : null;
 
-      // 1. Update product
-      // ✅ FIX: price aur original_price bhi products table mein save karo
-      //    Taake products listing page pe bhi sahi price dikhe
+      // ✅ Update product with video_url
       const { error: productError } = await supabase
         .from("products")
         .update({
@@ -1404,6 +1546,7 @@ function SimpleModeEditForm({
           currency_code: currency.code,
           price: pricePKR,
           original_price: originalPricePKR,
+          video_url: productVideo,
           updated_at: new Date().toISOString(),
         })
         .eq("id", productId);
@@ -1414,9 +1557,7 @@ function SimpleModeEditForm({
         return;
       }
 
-      // 2. Update or create variant
       let variantId = initialVariant?.id;
-
       if (variantId) {
         const { error: variantError } = await supabase
           .from("product_variants")
@@ -1434,7 +1575,6 @@ function SimpleModeEditForm({
             is_active: true,
           })
           .eq("id", variantId);
-
         if (variantError) {
           onError("Failed to update variant: " + variantError.message);
           setIsUpdating(false);
@@ -1463,7 +1603,6 @@ function SimpleModeEditForm({
           ])
           .select()
           .single();
-
         if (variantError) {
           onError("Failed to create variant: " + variantError.message);
           setIsUpdating(false);
@@ -1472,23 +1611,22 @@ function SimpleModeEditForm({
         variantId = newVariant.id;
       }
 
-      // 3. Update images
       await supabase
         .from("variant_images")
         .delete()
         .eq("variant_id", variantId);
       if (images.length > 0) {
-        const { error: imgErr } = await supabase.from("variant_images").insert(
-          images.map((url, idx) => ({
-            variant_id: variantId,
-            image_url: url,
-            display_order: idx,
-          })),
-        );
-        if (imgErr) console.error("Image save error:", imgErr);
+        await supabase
+          .from("variant_images")
+          .insert(
+            images.map((url, idx) => ({
+              variant_id: variantId,
+              image_url: url,
+              display_order: idx,
+            })),
+          );
       }
 
-      // 4. Update bulk pricing
       await supabase
         .from("bulk_pricing_tiers")
         .delete()
@@ -1515,7 +1653,6 @@ function SimpleModeEditForm({
         }
       }
 
-      // 5. Update FAQs
       await supabase.from("product_faqs").delete().eq("product_id", productId);
       if (faqs.length > 0) {
         const validFaqs = faqs.filter((f) => f.question.trim());
@@ -1534,7 +1671,6 @@ function SimpleModeEditForm({
       setIsUpdating(false);
       onSuccess();
     } catch (err) {
-      // ✅ FIX: Koi bhi unexpected error — loading hatao, user ko batao
       console.error("SimpleMode handleSubmit error:", err);
       onError(
         "An unexpected error occurred: " +
@@ -1573,7 +1709,6 @@ function SimpleModeEditForm({
                   required
                 />
               </div>
-
               <div className="ap-row">
                 <div className="ap-field">
                   <label className="ap-label">
@@ -1599,7 +1734,6 @@ function SimpleModeEditForm({
                   />
                 </div>
               </div>
-
               <div className="ap-field">
                 <label className="ap-label">Product Description</label>
                 <ProductDescription
@@ -1609,7 +1743,6 @@ function SimpleModeEditForm({
                   maxImages={20}
                 />
               </div>
-
               <div className="ap-row">
                 <div className="ap-field">
                   <label className="ap-label">Brand</label>
@@ -1632,7 +1765,6 @@ function SimpleModeEditForm({
                   </select>
                 </div>
               </div>
-
               <div className="ap-field">
                 <label className="ap-label">Stock Status</label>
                 <StockStatusSelector
@@ -1647,7 +1779,6 @@ function SimpleModeEditForm({
                   onThresholdChange={setLowStockThreshold}
                 />
               </div>
-
               {parseFloat(priceDisplay) > 0 && (
                 <div className="ap-field">
                   <label className="ap-label">
@@ -1661,7 +1792,6 @@ function SimpleModeEditForm({
                   />
                 </div>
               )}
-
               <div style={{ display: "flex", gap: "1.5rem" }}>
                 <label className="ap-check-wrap">
                   <input
@@ -1724,7 +1854,7 @@ function SimpleModeEditForm({
             </div>
             <div className="ap-card-body">
               <div
-                className="ap-img-upload"
+                className="ep-img-upload"
                 onClick={() => !uploading && fileRef.current?.click()}
               >
                 <input
@@ -1786,6 +1916,34 @@ function SimpleModeEditForm({
             </div>
           </div>
 
+          {/* ✅ VIDEO UPLOAD CARD */}
+          <div className="ap-card" style={{ marginTop: "1.5rem" }}>
+            <div className="ap-card-header">
+              <div className="ap-card-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <path d="M22.54 6.42A2.78 2.78 0 0 0 20.7 4.55C19.12 4 12 4 12 4s-7.12 0-8.7.55A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.3 19.45C4.88 20 12 20 12 20s7.12 0 8.7-.55a2.78 2.78 0 0 0 1.84-1.87A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
+                  <polygon
+                    points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"
+                    fill="currentColor"
+                  />
+                </svg>
+              </div>
+              <h3 className="ap-card-title">Product Video (Optional)</h3>
+            </div>
+            <div className="ap-card-body">
+              <VideoUploader
+                videoUrl={productVideo}
+                onVideoChange={setProductVideo}
+                onError={onError}
+              />
+            </div>
+          </div>
+
           <div className="ap-card" style={{ marginTop: "1.5rem" }}>
             <div className="ap-card-header">
               <div className="ap-card-icon">
@@ -1805,6 +1963,7 @@ function SimpleModeEditForm({
                 ["Category", tab.category],
                 ["Subcategory", tab.sub],
                 ["Images", `${images.length} uploaded`],
+                ["Video", productVideo ? "✅ Added" : "—"],
                 ["Stock", getStockLabel()],
                 ["Bulk Tiers", `${bulkTiers.length} tiers`],
                 ["FAQs", `${faqs.length} added`],
@@ -1925,16 +2084,16 @@ function DetailedModeEditForm({
   const [isActive, setIsActive] = useState(initialProduct?.is_active !== false);
   const [faqs, setFaqs] = useState<FAQ[]>(initialFaqs);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [productVideo, setProductVideo] = useState<string | null>(
+    initialProduct?.video_url || null,
+  );
   const [mainImages, setMainImages] = useState<string[]>(() => {
-    // main_images column in products table — set by add-product detailed mode
     if (
       initialProduct?.main_images &&
       Array.isArray(initialProduct.main_images) &&
       initialProduct.main_images.length > 0
-    ) {
+    )
       return initialProduct.main_images;
-    }
-    // Fallback: collect all variant images so existing images are visible in edit mode
     const allVariantImages: string[] = [];
     const seen = new Set<string>();
     for (const v of initialVariants) {
@@ -1943,16 +2102,12 @@ function DetailedModeEditForm({
         Array.isArray(v.images) &&
         v.images.length > 0 &&
         typeof v.images[0] === "string"
-      ) {
+      )
         imgs = v.images;
-      } else if (
-        Array.isArray(v.variant_images) &&
-        v.variant_images.length > 0
-      ) {
+      else if (Array.isArray(v.variant_images) && v.variant_images.length > 0)
         imgs = (v.variant_images as any[])
           .sort((a: any, b: any) => a.display_order - b.display_order)
           .map((i: any) => i.image_url);
-      }
       for (const url of imgs) {
         if (url && !seen.has(url)) {
           seen.add(url);
@@ -1978,20 +2133,17 @@ function DetailedModeEditForm({
   );
 
   const convertVariantData = (v: any) => {
-    // v.images may already be a string[] (processed by loadAll),
-    // or v.variant_images may be the raw DB array — handle both
     let imageUrls: string[] = [];
     if (
       Array.isArray(v.images) &&
       v.images.length > 0 &&
       typeof v.images[0] === "string"
-    ) {
-      imageUrls = v.images; // already processed
-    } else if (Array.isArray(v.variant_images) && v.variant_images.length > 0) {
+    )
+      imageUrls = v.images;
+    else if (Array.isArray(v.variant_images) && v.variant_images.length > 0)
       imageUrls = (v.variant_images as any[])
         .sort((a: any, b: any) => a.display_order - b.display_order)
         .map((i: any) => i.image_url);
-    }
     return {
       id: v.id,
       attributeType: v.attribute_type,
@@ -2070,11 +2222,7 @@ function DetailedModeEditForm({
     }
 
     setIsUpdating(true);
-
-    // ✅ FIX: Poora submit try/catch mein wrap — button kabhi stuck nahi hoga
     try {
-      // ✅ FIX: products table mein bhi price/original_price save karo
-      //    Lowest variant price ko base price manao
       const allPrices = allVariants.map((v) => v.price).filter((p) => p > 0);
       const allOriginalPrices = allVariants
         .map((v) => v.originalPrice)
@@ -2085,7 +2233,6 @@ function DetailedModeEditForm({
           ? Math.min(...(allOriginalPrices as number[]))
           : null;
 
-      // 1. Update product
       const { error: productError } = await supabase
         .from("products")
         .update({
@@ -2102,6 +2249,7 @@ function DetailedModeEditForm({
           currency_code: currency.code,
           price: minPrice,
           original_price: minOriginalPrice,
+          video_url: productVideo,
           updated_at: new Date().toISOString(),
         })
         .eq("id", productId);
@@ -2112,12 +2260,10 @@ function DetailedModeEditForm({
         return;
       }
 
-      // 2. Delete existing variants and their related data
       const { data: existingVariants } = await supabase
         .from("product_variants")
         .select("id")
         .eq("product_id", productId);
-
       if (existingVariants && existingVariants.length > 0) {
         const variantIds = existingVariants.map((v) => v.id);
         await supabase
@@ -2134,14 +2280,9 @@ function DetailedModeEditForm({
           .eq("product_id", productId);
       }
 
-      // 3. Insert new variants
-      // NOTE: variant.price and variant.bulkPricingTiers.tier_price are ALREADY in PKR
-      // because VariantFormItem's useEffect converts them via getPriceInPKR/convertPriceToPKR
-      // before calling onUpdate. Do NOT convert again to avoid double conversion.
       for (const variant of allVariants) {
-        const pricePKR = variant.price; // already PKR from VariantFormItem onUpdate
-        const originalPricePKR = variant.originalPrice ?? null; // already PKR
-
+        const pricePKR = variant.price;
+        const originalPricePKR = variant.originalPrice ?? null;
         const { data: variantData, error: variantError } = await supabase
           .from("product_variants")
           .insert([
@@ -2174,13 +2315,15 @@ function DetailedModeEditForm({
         }
 
         if (variant.images?.length > 0) {
-          await supabase.from("variant_images").insert(
-            variant.images.map((url: string, idx: number) => ({
-              variant_id: variantData.id,
-              image_url: url,
-              display_order: idx,
-            })),
-          );
+          await supabase
+            .from("variant_images")
+            .insert(
+              variant.images.map((url: string, idx: number) => ({
+                variant_id: variantData.id,
+                image_url: url,
+                display_order: idx,
+              })),
+            );
         }
 
         if (variant.bulkPricingTiers?.length > 0) {
@@ -2193,18 +2336,17 @@ function DetailedModeEditForm({
                 variant_id: variantData.id,
                 min_quantity: t.min_quantity,
                 max_quantity: t.max_quantity,
-                tier_price: t.tier_price, // already PKR from VariantFormItem onUpdate
+                tier_price: t.tier_price,
                 discount_percentage: t.discount_percentage,
-                discount_price: t.discount_price ?? null, // already PKR
+                discount_price: t.discount_price ?? null,
                 currency_code: currency.code,
-                base_tier_price_pkr: t.tier_price, // already PKR
+                base_tier_price_pkr: t.tier_price,
               })),
             );
           }
         }
       }
 
-      // 4. Update FAQs
       await supabase.from("product_faqs").delete().eq("product_id", productId);
       if (faqs.length > 0) {
         const validFaqs = faqs.filter((f) => f.question.trim());
@@ -2223,7 +2365,6 @@ function DetailedModeEditForm({
       setIsUpdating(false);
       onSuccess();
     } catch (err) {
-      // ✅ FIX: Koi bhi unexpected error — loading hatao, user ko batao
       console.error("DetailedMode handleSubmit error:", err);
       onError(
         "An unexpected error occurred: " +
@@ -2262,7 +2403,6 @@ function DetailedModeEditForm({
                   required
                 />
               </div>
-
               <div className="ap-field">
                 <label className="ap-label">Product Description</label>
                 <ProductDescription
@@ -2272,7 +2412,6 @@ function DetailedModeEditForm({
                   maxImages={20}
                 />
               </div>
-
               <div className="ap-row">
                 <div className="ap-field">
                   <label className="ap-label">Brand</label>
@@ -2295,7 +2434,6 @@ function DetailedModeEditForm({
                   </select>
                 </div>
               </div>
-
               <div style={{ display: "flex", gap: "1.5rem" }}>
                 <label className="ap-check-wrap">
                   <input
@@ -2445,6 +2583,34 @@ function DetailedModeEditForm({
             </div>
           </div>
 
+          {/* ✅ VIDEO UPLOAD CARD - DETAILED MODE */}
+          <div className="ap-card" style={{ marginTop: "1.5rem" }}>
+            <div className="ap-card-header">
+              <div className="ap-card-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <path d="M22.54 6.42A2.78 2.78 0 0 0 20.7 4.55C19.12 4 12 4 12 4s-7.12 0-8.7.55A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.3 19.45C4.88 20 12 20 12 20s7.12 0 8.7-.55a2.78 2.78 0 0 0 1.84-1.87A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
+                  <polygon
+                    points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"
+                    fill="currentColor"
+                  />
+                </svg>
+              </div>
+              <h3 className="ap-card-title">Product Video (Optional)</h3>
+            </div>
+            <div className="ap-card-body">
+              <VideoUploader
+                videoUrl={productVideo}
+                onVideoChange={setProductVideo}
+                onError={onError}
+              />
+            </div>
+          </div>
+
           <div className="ap-card" style={{ marginTop: "1.5rem" }}>
             <div className="ap-card-header">
               <div className="ap-card-icon">
@@ -2475,6 +2641,7 @@ function DetailedModeEditForm({
                 ],
                 ["Total Variants", totalVariants.toString()],
                 ["Main Images", `${mainImages.length} uploaded`],
+                ["Video", productVideo ? "✅ Added" : "—"],
                 ["FAQs", `${faqs.length} added`],
                 ["Currency", currency.code],
                 ["Description Images", `${descriptionImages.length} images`],
@@ -2660,6 +2827,7 @@ export default function EditProduct() {
         setProductData({
           ...prod,
           main_images: Array.isArray(prod.main_images) ? prod.main_images : [],
+          video_url: prod.video_url || null,
         });
         setFaqsData(
           (faqs || []).map((f: any) => ({
@@ -2760,34 +2928,27 @@ export default function EditProduct() {
     addToast(
       "success",
       "Product Updated",
-      `${productData.name || "Product"} has been updated successfully in ${
-        currency.code
-      }!`,
+      `${productData.name || "Product"} has been updated successfully in ${currency.code}!`,
     );
 
-    // ── Cache clear karo taake product detail page fresh data dikhaaye ──
     try {
-      // sessionStorage cache clear
       const PD_SESSION_KEY = "pd_product_cache_v2";
       const rawSession = sessionStorage.getItem(PD_SESSION_KEY);
       if (rawSession) {
         const store: Record<string, any> = JSON.parse(rawSession);
-        // Is product ki saari keys delete karo
         Object.keys(store).forEach((k) => {
           if (
             store[k]?.id === productId ||
             k === productId ||
             k.endsWith(productId)
-          ) {
+          )
             delete store[k];
-          }
         });
         sessionStorage.setItem(PD_SESSION_KEY, JSON.stringify(store));
       }
     } catch (_) {}
 
     try {
-      // localStorage cache clear
       const PD_LOCAL_KEY = "pd_product_cache_local_v2";
       const rawLocal = localStorage.getItem(PD_LOCAL_KEY);
       if (rawLocal) {
@@ -2797,9 +2958,8 @@ export default function EditProduct() {
             store[k]?.data?.id === productId ||
             k === productId ||
             k.endsWith(productId)
-          ) {
+          )
             delete store[k];
-          }
         });
         localStorage.setItem(PD_LOCAL_KEY, JSON.stringify(store));
       }
@@ -2854,7 +3014,6 @@ export default function EditProduct() {
       <PanelNavbar />
 
       <div className="ap-content">
-        {/* ── Page Header ── */}
         <div
           className="ap-page-header"
           style={{
@@ -2894,15 +3053,13 @@ export default function EditProduct() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-            </svg>
+            </svg>{" "}
             Back
           </Link>
-
           <div>
             <p className="ap-eyebrow">
-              <span className="ap-ey-line" />
-              Inventory Management — {currency.code}
-              <span className="ap-ey-line" />
+              <span className="ap-ey-line" /> Inventory Management —{" "}
+              {currency.code} <span className="ap-ey-line" />
             </p>
             <h1 className="ap-page-title">
               Edit <em>{productData.name || "Product"}</em>
@@ -2911,7 +3068,6 @@ export default function EditProduct() {
               Update product information, images, and specifications
             </p>
           </div>
-
           <button
             type="button"
             onClick={handleDelete}
@@ -2946,12 +3102,11 @@ export default function EditProduct() {
               <polyline points="3 6 5 6 21 6" />
               <path d="M19 6l-1 14H6L5 6" />
               <path d="M10 11v6M14 11v6M9 6V4h6v2" />
-            </svg>
+            </svg>{" "}
             Delete
           </button>
         </div>
 
-        {/* ── Mode Buttons ── */}
         <div className="ap-mode-buttons">
           <button
             type="button"
@@ -2994,7 +3149,6 @@ export default function EditProduct() {
           </button>
         </div>
 
-        {/* ── Category Tabs ── */}
         <div className="ap-tabs">
           {TABS.map((t, i) => (
             <button
@@ -3008,7 +3162,6 @@ export default function EditProduct() {
           ))}
         </div>
 
-        {/* ── Form ── */}
         {mode === "simple" ? (
           <SimpleModeEditForm
             key={`simple-${activeTab}`}

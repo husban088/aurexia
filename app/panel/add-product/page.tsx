@@ -715,6 +715,191 @@ function SingleImageUploader({
   );
 }
 
+// ─── Video Uploader ───────────────────────────────────────────────────────────
+// Cloudinary pe video upload — images folder ke saath hi save hogi (resource_type: video)
+function VideoUploader({
+  videoUrl,
+  onVideoChange,
+  onError,
+}: {
+  videoUrl: string | null;
+  onVideoChange: (url: string | null) => void;
+  onError: (msg: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Video format check
+    const validTypes = [
+      "video/mp4",
+      "video/webm",
+      "video/ogg",
+      "video/mov",
+      "video/quicktime",
+      "video/avi",
+      "video/x-msvideo",
+    ];
+    if (!validTypes.includes(file.type) && !file.type.startsWith("video/")) {
+      onError(
+        `"${file.name}" is not a valid video file. Use MP4, WebM, or MOV.`,
+      );
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+
+    // Size check: max 100MB
+    const maxSize = 100 * 1024 * 1024;
+    if (file.size > maxSize) {
+      onError(`Video file is too large. Maximum size is 100MB.`);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", uploadPreset!);
+      formData.append("resource_type", "video");
+      formData.append("folder", "products/videos");
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(
+          errData?.error?.message || `Upload failed (${response.status})`,
+        );
+      }
+
+      const data = await response.json();
+      onVideoChange(data.secure_url);
+    } catch (err: any) {
+      onError(err.message || `Failed to upload video: ${file.name}`);
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="ap-video-uploader">
+      {videoUrl ? (
+        <div className="ap-video-preview">
+          <video
+            src={videoUrl}
+            controls
+            className="ap-video-player"
+            preload="metadata"
+          />
+          <button
+            type="button"
+            className="ap-video-remove"
+            onClick={() => onVideoChange(null)}
+            title="Remove video"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+          <div className="ap-video-url-badge">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              width="12"
+              height="12"
+            >
+              <path d="M22.54 6.42A2.78 2.78 0 0 0 20.7 4.55C19.12 4 12 4 12 4s-7.12 0-8.7.55A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.3 19.45C4.88 20 12 20 12 20s7.12 0 8.7-.55a2.78 2.78 0 0 0 1.84-1.87A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
+              <polygon
+                points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"
+                fill="currentColor"
+              />
+            </svg>
+            Video uploaded ✓
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="ap-video-upload-btn"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+        >
+          {uploading ? (
+            <div className="ap-video-uploading">
+              <div
+                className="ap-spinner"
+                style={{ width: "28px", height: "28px" }}
+              />
+              <span>Uploading video...</span>
+              <span
+                style={{ fontSize: "0.65rem", color: "#8b6914", opacity: 0.7 }}
+              >
+                Large files may take a moment
+              </span>
+            </div>
+          ) : (
+            <div className="ap-video-upload-inner">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                width="32"
+                height="32"
+              >
+                <path d="M22.54 6.42A2.78 2.78 0 0 0 20.7 4.55C19.12 4 12 4 12 4s-7.12 0-8.7.55A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.3 19.45C4.88 20 12 20 12 20s7.12 0 8.7-.55a2.78 2.78 0 0 0 1.84-1.87A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
+                <polygon
+                  points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"
+                  fill="currentColor"
+                />
+              </svg>
+              <span className="ap-video-upload-title">
+                Click to Upload Product Video
+              </span>
+              <span className="ap-video-upload-sub">
+                MP4, WebM, MOV · Max 100MB · Saved to Cloudinary
+              </span>
+            </div>
+          )}
+        </button>
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="video/mp4,video/webm,video/ogg,video/mov,video/quicktime,video/avi,video/*"
+        onChange={handleFileSelect}
+        style={{ display: "none" }}
+      />
+    </div>
+  );
+}
+
 // ─── Color Map ────────────────────────────────────────────────────────────────
 const COLOR_MAP: Record<string, { bg: string; text: string; border: string }> =
   {
@@ -1339,6 +1524,7 @@ function SimpleModeForm({
     null,
   );
   const [images, setImages] = useState<string[]>([]);
+  const [productVideo, setProductVideo] = useState<string | null>(null);
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [bulkTiers, setBulkTiers] = useState<BulkPricingTier[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -1397,6 +1583,7 @@ function SimpleModeForm({
     setPriceDisplay("");
     setOriginalPriceDisplay("");
     setImages([]);
+    setProductVideo(null);
     setFaqs([]);
     setBulkTiers([]);
     setLowStockThreshold(null);
@@ -1456,6 +1643,7 @@ function SimpleModeForm({
         // images variant_images table mein alag se save hongi
         currency_code: currentCurrency.code,
         stock: getStockValue(),
+        video_url: productVideo || null,
       });
       console.log("✅ Product inserted:", productData.id);
       console.log("📦 Inserting variant...");
@@ -1778,6 +1966,33 @@ function SimpleModeForm({
               )}
             </div>
           </div>
+          {/* ─── Video Upload Card ─── */}
+          <div className="ap-card">
+            <div className="ap-card-header">
+              <div className="ap-card-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <path d="M22.54 6.42A2.78 2.78 0 0 0 20.7 4.55C19.12 4 12 4 12 4s-7.12 0-8.7.55A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.3 19.45C4.88 20 12 20 12 20s7.12 0 8.7-.55a2.78 2.78 0 0 0 1.84-1.87A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
+                  <polygon
+                    points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"
+                    fill="currentColor"
+                  />
+                </svg>
+              </div>
+              <h3 className="ap-card-title">Product Video (Optional)</h3>
+            </div>
+            <div className="ap-card-body">
+              <VideoUploader
+                videoUrl={productVideo}
+                onVideoChange={setProductVideo}
+                onError={onError}
+              />
+            </div>
+          </div>
           <div className="ap-card">
             <div className="ap-card-header">
               <div className="ap-card-icon">
@@ -1869,6 +2084,9 @@ function DetailedModeForm({
   // ✅ Track karo ki kon si variant image kahan hai main gallery mein
   // { attributeValue: imageUrl } map
   const variantImageMapRef = useRef<Record<string, string>>({});
+
+  // ✅ Product Video
+  const [productVideo, setProductVideo] = useState<string | null>(null);
 
   const mainImagesUploading = useRef(false);
   const mainFileRef = useRef<HTMLInputElement>(null);
@@ -1973,6 +2191,7 @@ function DetailedModeForm({
     setCapacityVariants([]);
     setFaqs([]);
     setMainImages([]);
+    setProductVideo(null);
     variantImageMapRef.current = {};
   };
 
@@ -2063,6 +2282,7 @@ function DetailedModeForm({
         currency_code: currentCurrency.code,
         // ✅ Main images (variant images + manually added images)
         main_images: mainImages,
+        video_url: productVideo || null,
       });
       console.log("✅ Product inserted:", productData.id);
 
@@ -2487,6 +2707,34 @@ function DetailedModeForm({
             </div>
           </div>
 
+          {/* ─── Video Upload Card (Detailed Mode) ─── */}
+          <div className="ap-card">
+            <div className="ap-card-header">
+              <div className="ap-card-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <path d="M22.54 6.42A2.78 2.78 0 0 0 20.7 4.55C19.12 4 12 4 12 4s-7.12 0-8.7.55A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.3 19.45C4.88 20 12 20 12 20s7.12 0 8.7-.55a2.78 2.78 0 0 0 1.84-1.87A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
+                  <polygon
+                    points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"
+                    fill="currentColor"
+                  />
+                </svg>
+              </div>
+              <h3 className="ap-card-title">Product Video (Optional)</h3>
+            </div>
+            <div className="ap-card-body">
+              <VideoUploader
+                videoUrl={productVideo}
+                onVideoChange={setProductVideo}
+                onError={onError}
+              />
+            </div>
+          </div>
+
           {/* Attributes */}
           <div className="ap-card">
             <div className="ap-card-header">
@@ -2627,6 +2875,7 @@ function DetailedModeForm({
                   } auto-synced`,
                 ],
                 ["FAQs", `${faqs.length} added`],
+                ["Video", productVideo ? "✅ Added" : "—"],
                 ["Currency", currency.code],
               ].map(([k, v]) => (
                 <div

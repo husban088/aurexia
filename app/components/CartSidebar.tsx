@@ -109,11 +109,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const lang = language;
 
   const [mounted, setMounted] = useState(false);
-  const [couponInput, setCouponInput] = useState("");
-  const [couponMessage, setCouponMessage] = useState<{
-    text: string;
-    success: boolean;
-  } | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [userEmail, setUserEmail] = useState("");
 
@@ -153,35 +148,17 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     getDiscountAmount,
     getFinalTotal,
     fetchCouponSettings,
+    coupon10Enabled,
+    settingsLoading,
   } = useCouponStore();
 
   const discountAmountPKR = getDiscountAmount(subtotalPKR);
   const shippingPKR = 0;
   const totalPKR = getFinalTotal(subtotalPKR) + shippingPKR;
 
-  // ✅ async — waits for DB eligibility check before showing result
-  const handleApplyCoupon = async () => {
-    if (!couponInput.trim()) {
-      setCouponMessage({ text: "Please enter a coupon code.", success: false });
-      return;
-    }
-    const result = await applyCoupon(couponInput, userEmail);
-    setCouponMessage({ text: result.message, success: result.success });
-    if (result.success) {
-      setCouponInput("");
-    }
-  };
-
+  // ✅ Remove coupon manually if needed
   const handleRemoveCoupon = () => {
     removeCoupon();
-    setCouponMessage(null);
-    setCouponInput("");
-  };
-
-  const handleCouponKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      handleApplyCoupon();
-    }
   };
 
   useEffect(() => {
@@ -210,6 +187,15 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
       fetchCouponSettings();
     }
   }, [isOpen, mounted, fetchCouponSettings]);
+
+  // ✅ Auto-apply DISC4U10 when sidebar opens — silently, no input needed
+  useEffect(() => {
+    if (!isOpen || !mounted || settingsLoading) return;
+    if (appliedCode) return; // already applied
+    if (!coupon10Enabled) return; // disabled by admin
+    // Apply silently — DISC4U10 is open for everyone
+    applyCoupon("DISC4U10", userEmail);
+  }, [isOpen, mounted, settingsLoading, coupon10Enabled, appliedCode]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -602,6 +588,38 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
         {cartUnitCount > 0 && (
           <div className="cs-footer">
             <div className="cs-summary">
+              {/* ✅ Coupon applied badge — auto-applied, no input shown */}
+              {appliedCode && (
+                <div className="cs-coupon-applied-bar">
+                  <div className="cs-coupon-badge-wrap">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      width="13"
+                      height="13"
+                    >
+                      <polyline
+                        points="20 6 9 17 4 12"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <span>
+                      <strong>{appliedCode}</strong> — {discountLabel}
+                    </span>
+                  </div>
+                  <button
+                    className="cs-coupon-remove-btn"
+                    onClick={handleRemoveCoupon}
+                    aria-label="Remove coupon"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
               <div className="cs-summary-row">
                 <span>
                   {getCartSidebarTranslation("subtotal", lang)} ({totalPieces}{" "}
@@ -674,6 +692,39 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
         )}
 
         <style jsx>{`
+          .cs-coupon-applied-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            padding: 0.45rem 0.75rem;
+            margin-bottom: 0.6rem;
+            background: rgba(46, 125, 50, 0.1);
+            border: 1px solid rgba(46, 125, 50, 0.25);
+            border-radius: 8px;
+          }
+          .cs-coupon-badge-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: #2e7d32;
+            font-size: 0.75rem;
+            flex: 1;
+          }
+          .cs-coupon-remove-btn {
+            background: none;
+            border: 1px solid rgba(180, 0, 0, 0.25);
+            border-radius: 5px;
+            color: #c62828;
+            font-size: 0.65rem;
+            cursor: pointer;
+            padding: 0.2rem 0.45rem;
+            line-height: 1;
+            transition: background 0.2s;
+          }
+          .cs-coupon-remove-btn:hover {
+            background: rgba(180, 0, 0, 0.08);
+          }
           .cs-item-breakdown {
             font-size: 0.65rem;
             color: #888;

@@ -38,7 +38,6 @@ function clearCachedAuth() {
   } catch {}
 }
 
-// Supabase localStorage se directly session email nikalo — synchronous, instant
 function getEmailFromLocalStorage(): string | null {
   try {
     for (let i = 0; i < localStorage.length; i++) {
@@ -79,14 +78,18 @@ export default function PanelLayout({
   const pathname = usePathname();
   const bgVerifyDone = useRef(false);
 
-  // No "loading" state — directly true ya false
-  const [authorized, setAuthorized] = useState<boolean>(() =>
-    isAuthorizedSync(),
-  );
+  // ── HYDRATION-SAFE: always start with null (= "not yet checked")
+  // Server renders null, client also renders null initially — no mismatch.
+  // useEffect immediately resolves this to true/false before first paint.
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Already authorized — background verify karo silently
-    if (authorized) {
+    // Sync check from localStorage/sessionStorage — runs immediately on mount
+    const syncAuth = isAuthorizedSync();
+
+    if (syncAuth) {
+      setAuthorized(true);
+      // Background async verification to confirm session is still valid
       if (!bgVerifyDone.current) {
         bgVerifyDone.current = true;
         supabase.auth
@@ -99,17 +102,17 @@ export default function PanelLayout({
                 "/signin?redirectTo=" + encodeURIComponent(pathname),
               );
             } else {
-              setCachedAuth(); // refresh timestamp
+              setCachedAuth();
             }
           })
           .catch(() => {
-            // Network error — authorized rehne do
+            // Network error — stay authorized
           });
       }
       return;
     }
 
-    // Not authorized sync — async check karo
+    // Not found in localStorage — do async check
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
@@ -118,12 +121,14 @@ export default function PanelLayout({
           setAuthorized(true);
         } else {
           clearCachedAuth();
+          setAuthorized(false);
           window.location.replace(
             "/signin?redirectTo=" + encodeURIComponent(pathname),
           );
         }
       })
       .catch(() => {
+        setAuthorized(false);
         window.location.replace(
           "/signin?redirectTo=" + encodeURIComponent(pathname),
         );
@@ -131,7 +136,7 @@ export default function PanelLayout({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // BFCache — Chrome back/forward button
+  // BFCache — browser back/forward button
   useEffect(() => {
     function handlePageShow(e: PageTransitionEvent) {
       if (!e.persisted) return;
@@ -147,7 +152,10 @@ export default function PanelLayout({
     return () => window.removeEventListener("pageshow", handlePageShow);
   }, [pathname]);
 
-  // Authorized — foran children, zero delay, zero spinner
+  // null = still checking — render nothing (same on server and client)
+  if (authorized === null) return null;
+
+  // Authorized — show children
   if (authorized) {
     return (
       <div className="panel-content" style={{ paddingTop: "0px" }}>
@@ -156,6 +164,6 @@ export default function PanelLayout({
     );
   }
 
-  // Unauthorized — null return karo (redirect hoga turant)
+  // Not authorized — redirect is happening, render nothing
   return null;
 }

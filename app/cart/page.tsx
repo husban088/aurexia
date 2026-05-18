@@ -1,4 +1,4 @@
-// app/cart/page.tsx - WITH COUPON CODE SYSTEM + RTL + TRANSLATIONS
+// app/cart/page.tsx - WITH COUPON CODE SYSTEM + SPINNER LOADER
 "use client";
 
 import { useEffect, useState } from "react";
@@ -14,28 +14,21 @@ import { supabase } from "@/lib/supabase";
    TRANSLATIONS
 ═══════════════════════════════════════════ */
 const cartPageTranslations = {
-  // Page Header
   yourSelection: { en: "Your Selection", ar: "اختيارك", de: "Ihre Auswahl" },
   yourCart: { en: "Your Cart", ar: "سلة التسوق", de: "Ihr Warenkorb" },
   item: { en: "Item", ar: "عنصر", de: "Artikel" },
   items: { en: "Items", ar: "عناصر", de: "Artikel" },
   itemsInCart: { en: "in Cart", ar: "في السلة", de: "im Warenkorb" },
-
-  // Shipping
   freeShipping: {
     en: "Free Shipping",
     ar: "شحن مجاني",
     de: "Kostenloser Versand",
   },
-
-  // Loading
   loadingCart: {
     en: "Loading your cart...",
     ar: "جاري تحميل سلة التسوق...",
     de: "Ihr Warenkorb wird geladen...",
   },
-
-  // Empty State
   emptyTitle: {
     en: "Your cart is empty",
     ar: "سلة التسوق فارغة",
@@ -51,15 +44,11 @@ const cartPageTranslations = {
     ar: "استكشف المجموعات",
     de: "Kollektionen entdecken",
   },
-
-  // Continue Shopping
   continueShopping: {
     en: "Continue Shopping",
     ar: "مواصلة التسوق",
     de: "Weiter einkaufen",
   },
-
-  // Coupon
   haveCoupon: {
     en: "Have a coupon code?",
     ar: "هل لديك رمز خصم؟",
@@ -72,8 +61,6 @@ const cartPageTranslations = {
   },
   apply: { en: "Apply", ar: "تطبيق", de: "Anwenden" },
   discountPercentOff: { en: "off", ar: "خصم", de: "Rabatt" },
-
-  // Order Summary
   orderSummary: {
     en: "Order Summary",
     ar: "ملخص الطلب",
@@ -83,15 +70,11 @@ const cartPageTranslations = {
   discount: { en: "Discount", ar: "خصم", de: "Rabatt" },
   shipping: { en: "Shipping", ar: "الشحن", de: "Versand" },
   total: { en: "Total", ar: "الإجمالي", de: "Gesamt" },
-
-  // Buttons
   proceedToCheckout: {
     en: "Proceed to Checkout",
     ar: "المتابعة للدفع",
     de: "Zur Kasse gehen",
   },
-
-  // Trust Badges
   secureCheckout: { en: "Secure Checkout", ar: "دفع آمن", de: "Sichere Kasse" },
   thirtyDayReturns: {
     en: "30-Day Returns",
@@ -108,8 +91,6 @@ const cartPageTranslations = {
     ar: "شحن مجاني",
     de: "Kostenloser Versand",
   },
-
-  // Stock status
   outOfStock: { en: "Out of Stock", ar: "غير متوفر", de: "Nicht auf Lager" },
   lowStock: {
     en: "Low Stock",
@@ -118,8 +99,6 @@ const cartPageTranslations = {
   },
   lowStockLeft: { en: "left", ar: "متبقي", de: "vorrätig" },
   inStock: { en: "In Stock", ar: "متوفر", de: "Auf Lager" },
-
-  // Item details
   pieces: { en: "pcs", ar: "قطعة", de: "Stk" },
   pcsTotal: { en: "pcs total", ar: "قطعة إجمالي", de: "Stk insgesamt" },
   unit: { en: "unit", ar: "وحدة", de: "Einheit" },
@@ -150,7 +129,6 @@ export default function Cart() {
     getSubtotal,
     getCartCount,
   } = useCartStore();
-
   const { formatPrice, currency, loading: currencyLoading } = useCurrency();
 
   const {
@@ -162,6 +140,10 @@ export default function Cart() {
     getDiscountAmount,
     getFinalTotal,
     fetchCouponSettings,
+    coupon10Enabled,
+    coupon20Enabled,
+    settingsLoading,
+    applyingCoupon,
   } = useCouponStore();
 
   const [couponInput, setCouponInput] = useState("");
@@ -169,10 +151,10 @@ export default function Cart() {
     text: string;
     success: boolean;
   } | null>(null);
-
   const [isHydrated, setIsHydrated] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [settingsRefreshed, setSettingsRefreshed] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -186,11 +168,17 @@ export default function Cart() {
     }
   }, [isMounted, initialized, items.length, fetchCart]);
 
+  // ✅ Fetch coupon settings
   useEffect(() => {
-    fetchCouponSettings();
+    const loadSettings = async () => {
+      console.log("🔄 Cart page: Fetching coupon settings...");
+      await fetchCouponSettings();
+      setSettingsRefreshed(true);
+    };
+    loadSettings();
   }, [fetchCouponSettings]);
 
-  // ✅ Get logged-in user email for coupon eligibility check
+  // ✅ Get logged-in user email
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserEmail(session?.user?.email || "");
@@ -199,17 +187,17 @@ export default function Cart() {
 
   const subtotalPKR = getSubtotal();
   const cartCount = getCartCount();
-
   const discountAmountPKR = getDiscountAmount(subtotalPKR);
   const shippingPKR = 0;
   const totalPKR = getFinalTotal(subtotalPKR) + shippingPKR;
 
-  // ✅ async — waits for DB eligibility check before showing result
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) {
       setCouponMessage({ text: "Please enter a coupon code.", success: false });
       return;
     }
+
+    console.log("🔄 Applying coupon with userEmail:", userEmail);
     const result = await applyCoupon(couponInput, userEmail);
     setCouponMessage({ text: result.message, success: result.success });
     if (result.success) {
@@ -257,7 +245,6 @@ export default function Cart() {
         <div className="cart-ambient" aria-hidden="true" />
         <div className="cart-corner cart-corner--tl" aria-hidden="true" />
         <div className="cart-corner cart-corner--tr" aria-hidden="true" />
-
         <div className="cart-wrap">
           <div className="cart-page-header">
             <p className="cart-eyebrow">
@@ -393,7 +380,6 @@ export default function Cart() {
 
                 const displayImage =
                   item.variant_image || product.images?.[0] || null;
-
                 const tierLabel = ppu > 1 ? ` (${ppu}-Piece)` : "";
                 const variantSuffix =
                   item.variant_name && item.variant_name !== "Standard"
@@ -418,10 +404,6 @@ export default function Cart() {
                   if (isLowStock)
                     return `${getCartPageTranslation("lowStock", lang)} (${rawStock} ${getCartPageTranslation("lowStockLeft", lang)})`;
                   return getCartPageTranslation("inStock", lang);
-                };
-
-                const handleRemoveClick = async () => {
-                  await removeFromCart(item.id);
                 };
 
                 return (
@@ -563,7 +545,7 @@ export default function Cart() {
 
                     <button
                       className="cart-item-remove"
-                      onClick={handleRemoveClick}
+                      onClick={() => removeFromCart(item.id)}
                       aria-label={`Remove ${product.name}`}
                     >
                       <svg
@@ -628,13 +610,38 @@ export default function Cart() {
                       }}
                       onKeyDown={handleCouponKeyDown}
                       maxLength={20}
+                      disabled={applyingCoupon}
                     />
                     <button
                       className="cart-coupon-btn"
                       onClick={handleApplyCoupon}
-                      disabled={!couponInput.trim()}
+                      disabled={!couponInput.trim() || applyingCoupon}
                     >
-                      {getCartPageTranslation("apply", lang)}
+                      {applyingCoupon ? (
+                        <span
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                          }}
+                        >
+                          <span
+                            className="cart-btn-spinner"
+                            style={{
+                              width: "14px",
+                              height: "14px",
+                              border: "2px solid rgba(255,255,255,0.2)",
+                              borderTopColor: "#fff",
+                              borderRadius: "50%",
+                              animation: "spin 0.6s linear infinite",
+                              display: "inline-block",
+                            }}
+                          ></span>
+                          Applying...
+                        </span>
+                      ) : (
+                        getCartPageTranslation("apply", lang)
+                      )}
                     </button>
                   </div>
                 ) : (
@@ -782,10 +789,20 @@ export default function Cart() {
           display: flex;
           gap: 0.5rem;
           align-items: center;
+          flex-wrap: wrap;
+        }
+        @media (max-width: 480px) {
+          .cart-coupon-row {
+            flex-direction: column;
+          }
+          .cart-coupon-row .cart-coupon-input,
+          .cart-coupon-row .cart-coupon-btn {
+            width: 100%;
+          }
         }
         .cart-coupon-input {
           flex: 1;
-          background: rgba(255, 255, 255, 0.05);
+          background: rgba(0, 0, 0, 0.03);
           border: 1px solid rgba(218, 165, 32, 0.3);
           border-radius: 6px;
           padding: 0.5rem 0.75rem;
@@ -816,13 +833,17 @@ export default function Cart() {
           cursor: pointer;
           transition: all 0.2s;
           white-space: nowrap;
+          min-width: 80px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
         .cart-coupon-btn:hover:not(:disabled) {
           background: rgba(218, 165, 32, 0.25);
           border-color: rgba(218, 165, 32, 0.7);
         }
         .cart-coupon-btn:disabled {
-          opacity: 0.4;
+          opacity: 0.6;
           cursor: not-allowed;
         }
         .cart-coupon-applied {
@@ -830,6 +851,7 @@ export default function Cart() {
           align-items: center;
           justify-content: space-between;
           gap: 0.5rem;
+          flex-wrap: wrap;
         }
         .cart-coupon-badge {
           display: flex;
@@ -887,6 +909,11 @@ export default function Cart() {
         .free-shipping-text {
           color: #2e7d32;
           font-weight: 500;
+        }
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
         }
       `}</style>
     </div>

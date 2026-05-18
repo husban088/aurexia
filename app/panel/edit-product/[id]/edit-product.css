@@ -1110,3 +1110,133 @@
     justify-content: center;
   }
 }
+
+/* Add to edit-product.css at the end */
+
+/* ── Video Uploader Styles ── */
+.ep-video-uploader {
+  width: 100%;
+}
+
+.ep-video-upload-btn {
+  width: 100%;
+  min-height: 140px;
+  border: 2px dashed rgba(218, 165, 32, 0.4);
+  border-radius: 12px;
+  background: rgba(218, 165, 32, 0.03);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+  padding: 1.5rem;
+}
+
+.ep-video-upload-btn:hover:not(:disabled) {
+  border-color: rgba(218, 165, 32, 0.7);
+  background: rgba(218, 165, 32, 0.07);
+}
+
+.ep-video-upload-btn:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.ep-video-upload-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #8b6914;
+}
+
+.ep-video-upload-title {
+  font-family: var(--ep-sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #8b6914;
+}
+
+.ep-video-upload-sub {
+  font-family: var(--ep-sans);
+  font-size: 0.65rem;
+  color: #aaa;
+  letter-spacing: 0.04em;
+}
+
+.ep-video-uploading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #8b6914;
+  font-family: var(--ep-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.ep-video-preview {
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(218, 165, 32, 0.3);
+  background: #000;
+}
+
+.ep-video-player {
+  width: 100%;
+  max-height: 320px;
+  display: block;
+  border-radius: 10px;
+  object-fit: contain;
+  background: #000;
+}
+
+.ep-video-remove {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.95);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.ep-video-remove:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+}
+
+.ep-video-remove svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ep-video-url-badge {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(139, 105, 20, 0.9);
+  color: #fff;
+  font-family: var(--ep-sans);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+}

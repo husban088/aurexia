@@ -14,7 +14,7 @@ export function isOwner(email: string | null | undefined): boolean {
   const result = normalizedEmail === normalizedOwner;
 
   console.log(
-    `🔍 isOwner Result: ${result} (${normalizedEmail} === ${normalizedOwner})`
+    `🔍 isOwner Result: ${result} (${normalizedEmail} === ${normalizedOwner})`,
   );
 
   return result;

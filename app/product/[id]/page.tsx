@@ -1,10 +1,5 @@
 "use client";
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// PRODUCT DETAILS PAGE — Module-level cache
-// Har baar back/forward pe Supabase call nahi hogi — data instantly dikhega
-// ═══════════════════════════════════════════════════════════════════════════════
-
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -21,16 +16,14 @@ import DescriptionModal from "@/app/components/DescriptionModal";
 import ProductFAQSection from "@/app/components/ProductFAQSection";
 import type { ProductFAQItem } from "@/app/components/ProductFAQSection";
 import { getSalePercent, applyDiscount } from "@/lib/saleStore";
+import ProductVideoSection from "@/app/components/ProductVideoSection";
 
 // ─── MODULE-LEVEL IN-MEMORY CACHE ────────────────────────────────────────────
-// Pure in-memory cache — fast, no storage parsing delays, works across tabs via
-// Supabase Realtime. On fresh page load / new tab, data comes straight from
-// Supabase (fast because Realtime DB is enabled).
+// Only stores successful, non-null fetches. Never caches errors or nulls.
 const _productCache = new Map<string, any>();
 const _inFlight = new Map<string, Promise<any>>();
 // ─────────────────────────────────────────────────────────────────────────────
 
-/* ── URL slug helper: "Apple Watch Ultra 2" → "apple-watch-ultra-2" ── */
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -41,24 +34,13 @@ function slugify(name: string): string {
     .substring(0, 60);
 }
 
-/* ── Extract product ID from URL param ──
-   URL format:  /product/product-name--UUID
-   OR:          /product/UUID  (old format, still supported)
-   OR:          /product/product-name  (slug only — fallback to slug search)
-*/
 function extractIdFromSlug(raw: string): { id: string | null; slug: string } {
   if (!raw) return { id: null, slug: "" };
-
-  // UUID regex pattern
   const uuidRe =
     /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-
-  // Case 1: entire string is UUID
   if (uuidRe.test(raw) && raw.trim().length === 36) {
     return { id: raw.trim(), slug: raw.trim() };
   }
-
-  // Case 2: "slug--UUID" format (double dash separator)
   const doubleDashIdx = raw.lastIndexOf("--");
   if (doubleDashIdx !== -1) {
     const possibleId = raw.slice(doubleDashIdx + 2);
@@ -66,9 +48,6 @@ function extractIdFromSlug(raw: string): { id: string | null; slug: string } {
       return { id: possibleId, slug: raw.slice(0, doubleDashIdx) };
     }
   }
-
-  // Case 3: last segment after last "-" might be start of UUID (split URL)
-  // Handle: params.slug = ["product-name", "uuid"] for [...slug] folder
   const uuidMatch = raw.match(uuidRe);
   if (uuidMatch) {
     return {
@@ -76,12 +55,9 @@ function extractIdFromSlug(raw: string): { id: string | null; slug: string } {
       slug: raw.replace(uuidMatch[0], "").replace(/-+$/, ""),
     };
   }
-
-  // Case 4: pure slug, no UUID — will fall back to slug-based search
   return { id: null, slug: raw };
 }
 
-/* ── Process raw supabase product data ── */
 function processProductData(data: any): any {
   const variants = (data.product_variants || []).map((variant: any) => {
     const variantImages = (variant.variant_images || [])
@@ -98,21 +74,20 @@ function processProductData(data: any): any {
   return {
     ...data,
     product_variants: variants,
-    // Explicitly preserve these so they survive any type-casting
     _description: data.description || "",
     _description_images: data.description_images || [],
   };
 }
 
-/* ── Fetch by ID — direct, fast, 100% reliable ── */
-async function fetchById(id: string, retries = 2): Promise<any | null> {
-  for (let attempt = 0; attempt < retries; attempt++) {
+/* ── Fetch by ID — 15s timeout, 3 retries ── */
+async function fetchById(id: string): Promise<any | null> {
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const timeoutPromise = new Promise<{ data: null; error: Error }>(
         (resolve) =>
           setTimeout(
             () => resolve({ data: null, error: new Error("timeout") }),
-            8000,
+            15000,
           ),
       );
       const fetchPromise = supabase
@@ -123,52 +98,86 @@ async function fetchById(id: string, retries = 2): Promise<any | null> {
         .eq("id", id)
         .eq("is_active", true)
         .single();
+
       const { data, error } = (await Promise.race([
         fetchPromise,
         timeoutPromise,
       ])) as any;
 
       if (error || !data) {
-        if (attempt === retries - 1) return null;
-        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
-        continue;
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+          continue;
+        }
+        return null;
       }
 
       const result = processProductData(data);
-      // Cache by ID and by slug for future navigations
+      // Only cache on success
       _productCache.set(id, result);
-      const slug = slugify(result.name);
-      _productCache.set(slug, result);
+      _productCache.set(slugify(result.name), result);
       return result;
-    } catch (err) {
-      if (attempt === retries - 1) return null;
-      await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+    } catch {
+      if (attempt < 2) {
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      }
     }
   }
   return null;
 }
 
-/* ── Fetch by slug — fallback when no UUID in URL ── */
-async function fetchBySlugSearch(
-  slug: string,
-  retries = 3,
-): Promise<any | null> {
-  for (let attempt = 0; attempt < retries; attempt++) {
+/* ── Fetch by slug — uses name ilike search, much faster than fetching all ── */
+async function fetchBySlugSearch(slug: string): Promise<any | null> {
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
+      // Convert slug back to approximate name for search
+      const nameApprox = slug.replace(/-/g, " ").replace(/_/g, " ");
+
       const { data, error } = await supabase
         .from("products")
         .select(
           "*, description, description_images, product_variants(*, description_rich, description_images, description, variant_images(*))",
         )
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .ilike("name", `%${nameApprox.split(" ").slice(0, 3).join("%")}%`)
+        .limit(20);
 
-      if (error || !data) {
-        if (attempt === retries - 1) return null;
-        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
-        continue;
+      if (error || !data || data.length === 0) {
+        // Fallback: broader search with first two words
+        const broadSearch = nameApprox.split(" ").slice(0, 2).join(" ");
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("products")
+          .select(
+            "*, description, description_images, product_variants(*, description_rich, description_images, description, variant_images(*))",
+          )
+          .eq("is_active", true)
+          .ilike("name", `%${broadSearch}%`)
+          .limit(20);
+
+        if (fallbackError || !fallbackData || fallbackData.length === 0) {
+          if (attempt < 2) {
+            await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+            continue;
+          }
+          return null;
+        }
+
+        const matched =
+          fallbackData.find((item: any) => slugify(item.name) === slug) ||
+          fallbackData.find(
+            (item: any) =>
+              slugify(item.name).startsWith(slug) ||
+              slug.startsWith(slugify(item.name)),
+          );
+        if (!matched) return null;
+
+        const result = processProductData(matched);
+        _productCache.set(slug, result);
+        _productCache.set(matched.id, result);
+        _productCache.set(slugify(matched.name), result);
+        return result;
       }
 
-      // Try exact match first, then startsWith for truncated slugs
       const matched =
         data.find((item: any) => slugify(item.name) === slug) ||
         data.find(
@@ -177,22 +186,29 @@ async function fetchBySlugSearch(
             slug.startsWith(slugify(item.name)),
         );
 
-      if (!matched) return null;
+      if (!matched) {
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+          continue;
+        }
+        return null;
+      }
 
       const result = processProductData(matched);
       _productCache.set(slug, result);
       _productCache.set(matched.id, result);
       _productCache.set(slugify(matched.name), result);
       return result;
-    } catch (err) {
-      if (attempt === retries - 1) return null;
-      await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+    } catch {
+      if (attempt < 2) {
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      }
     }
   }
   return null;
 }
 
-/* ── Unified cached fetch ── */
+/* ── Unified cached fetch — never caches null ── */
 async function fetchProductCached(key: string): Promise<any | null> {
   if (_productCache.has(key)) return _productCache.get(key)!;
   if (_inFlight.has(key)) return _inFlight.get(key)!;
@@ -207,7 +223,6 @@ async function fetchProductCached(key: string): Promise<any | null> {
   return promise;
 }
 
-/* ── Invalidate in-memory cache for a product ID/slug ── */
 function _invalidateProductCache(key: string) {
   _productCache.delete(key);
   _inFlight.delete(key);
@@ -270,7 +285,7 @@ function useToast() {
 }
 
 /* ═══════════════════════════════════════════
-   STAR COMPONENT
+   STAR COMPONENTS
 ═══════════════════════════════════════════ */
 function StarIcon({
   filled,
@@ -322,14 +337,8 @@ function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
   );
 }
 
-// Helper function to render HTML content safely
-const createMarkup = (html: string) => {
-  return { __html: html };
-};
+const createMarkup = (html: string) => ({ __html: html });
 
-/* ═══════════════════════════════════════════
-   TRUNCATE PRODUCT NAME
-═══════════════════════════════════════════ */
 const truncateProductName = (name: string, maxLength: number = 60): string => {
   if (name.length <= maxLength) return name;
   return name.substring(0, maxLength).trim() + "...";
@@ -469,33 +478,24 @@ const categoryLabel: Record<string, string> = {
 
 /* ═══════════════════════════════════════════
    MAIN PAGE
-═══════════════════════════════════════════ */
+═════════════════════════════════════════════ */
 export default function ProductDetail() {
   const params = useParams();
   const router = useRouter();
 
-  // ── Flexible routing — works with ALL Next.js folder structures ──
-  // app/product/[slug]/page.tsx      → params.slug = "name--uuid"
-  // app/product/[...slug]/page.tsx   → params.slug = ["name--uuid"] or ["name", "uuid"]
-  // app/product/[id]/page.tsx        → params.id = "uuid"
   const rawParams = params as any;
   const rawKey: string = (() => {
     if (rawParams?.id) return (rawParams.id as string).toLowerCase();
     if (!rawParams?.slug) return "";
     if (Array.isArray(rawParams.slug)) {
-      // [...slug] — could be ["name--uuid"] or ["name", "uuid"]
-      const joined = rawParams.slug.join("--");
-      return joined.toLowerCase();
+      return rawParams.slug.join("--").toLowerCase();
     }
     return (rawParams.slug as string).toLowerCase();
   })();
 
-  // Extract ID (if present in URL) or use as slug
   const { id: urlId, slug: urlSlug } = extractIdFromSlug(rawKey);
-  // cacheKey: prefer ID for cache lookup (more stable), fallback to raw
   const cacheKey = urlId || rawKey;
 
-  // ── Sync-init from cache — instant render if already cached ──
   const [product, setProduct] = useState<Product | null>(() =>
     cacheKey ? (_productCache.get(cacheKey) ?? null) : null,
   );
@@ -508,7 +508,6 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(() =>
     cacheKey ? !_productCache.has(cacheKey) : true,
   );
-  // notFound: SIRF tab true hoga jab fetch mukammal ho aur data na aaye
   const [notFound, setNotFound] = useState(false);
   const [qty, setQty] = useState(1);
   const [wishlist, setWishlist] = useState(false);
@@ -531,40 +530,25 @@ export default function ProductDetail() {
   const { addToCart } = useCartStore();
   const { formatPrice, currency } = useCurrency();
 
-  // ── Sale discount state (client-only, localStorage se) ──
   const [activeSalePercent, setActiveSalePercent] = useState<number | null>(
     null,
   );
-
   useEffect(() => {
     setActiveSalePercent(getSalePercent());
   }, []);
 
-  // ── If cache already had the product, hydrate instantly ──
-  useEffect(() => {
-    if (!cacheKey) return;
-    const cached = _productCache.get(cacheKey);
-    if (cached) {
-      hydrateFromData(cached);
-      setLoading(false);
-      setNotFound(false);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Helper: hydrate all state from a product data object ──
-  function hydrateFromData(productData: any) {
+  // ── Hydrate all state from a product data object ──
+  const hydrateFromData = useCallback((productData: any) => {
     setProduct(productData);
     setNotFound(false);
     setLiveRating(productData.rating || null);
     setLiveReviewCount(productData.reviews_count || null);
 
-    // ✅ Description: product level pehle, phir pehle variant ki description_rich
     const productDesc =
       productData._description || productData.description || "";
     const productDescImages =
       productData._description_images || productData.description_images || [];
 
-    // Agar product level description nahi hai toh kisi bhi variant se lo
     const fallbackVariant = (productData.product_variants || []).find(
       (v: any) => v.description_rich || v.description,
     );
@@ -612,13 +596,23 @@ export default function ProductDetail() {
       setVariants([]);
       setSelectedVariant(null);
     }
-  }
+  }, []);
+
+  // ── If cache already had the product, hydrate instantly ──
+  useEffect(() => {
+    if (!cacheKey) return;
+    const cached = _productCache.get(cacheKey);
+    if (cached) {
+      hydrateFromData(cached);
+      setLoading(false);
+      setNotFound(false);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Main fetch effect ──
   useEffect(() => {
     if (!cacheKey) return;
 
-    // ── Check if we're coming from edit page (refresh=1 param) ──
     const searchParams = new URLSearchParams(window.location.search);
     const forceRefresh = searchParams.get("refresh") === "1";
 
@@ -626,11 +620,9 @@ export default function ProductDetail() {
       _invalidateProductCache(cacheKey);
       if (urlId) _invalidateProductCache(urlId);
       if (urlSlug) _invalidateProductCache(urlSlug);
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, "", newUrl);
+      window.history.replaceState({}, "", window.location.pathname);
     }
 
-    // Already in memory? Hydrate instantly — zero delay
     if (!forceRefresh && _productCache.has(cacheKey)) {
       hydrateFromData(_productCache.get(cacheKey));
       setLoading(false);
@@ -642,7 +634,7 @@ export default function ProductDetail() {
     setLoading(true);
     setNotFound(false);
 
-    // Hard timeout: 10s max — then give up
+    // Hard timeout: 18s max — generous enough for any network
     const hardTimeout = setTimeout(() => {
       if (!active) return;
       if (_productCache.has(cacheKey)) {
@@ -653,7 +645,7 @@ export default function ProductDetail() {
         setLoading(false);
         setNotFound(true);
       }
-    }, 10000);
+    }, 18000);
 
     fetchProductCached(cacheKey).then((data) => {
       if (!active) return;
@@ -663,8 +655,21 @@ export default function ProductDetail() {
         setLoading(false);
         setNotFound(false);
       } else {
-        setLoading(false);
-        setNotFound(true);
+        // Retry once after 2 seconds before giving up
+        setTimeout(async () => {
+          if (!active) return;
+          _invalidateProductCache(cacheKey);
+          const retryData = await fetchProductCached(cacheKey);
+          if (!active) return;
+          if (retryData) {
+            hydrateFromData(retryData);
+            setLoading(false);
+            setNotFound(false);
+          } else {
+            setLoading(false);
+            setNotFound(true);
+          }
+        }, 2000);
       }
     });
 
@@ -674,7 +679,7 @@ export default function ProductDetail() {
     };
   }, [cacheKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Wifi reconnect: agar notFound tha aur dobara online ho jaayein toh retry ──
+  // ── Wifi reconnect retry ──
   useEffect(() => {
     if (!cacheKey) return;
     function handleOnline() {
@@ -702,22 +707,20 @@ export default function ProductDetail() {
     }
     window.addEventListener("online", handleOnline);
     return () => window.removeEventListener("online", handleOnline);
-  }, [cacheKey, notFound, product, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cacheKey, notFound, product, loading, hydrateFromData]);
 
-  // ── visibilitychange + pageshow + popstate: back/forward, tab switch ──
+  // ── Back/forward navigation, tab switch, popstate ──
   useEffect(() => {
     if (!cacheKey) return;
 
     function showFromCache() {
-      // ── If returning from edit page, force fresh fetch ──
       const searchParams = new URLSearchParams(window.location.search);
       const forceRefresh = searchParams.get("refresh") === "1";
       if (forceRefresh) {
         _invalidateProductCache(cacheKey);
         if (urlId) _invalidateProductCache(urlId);
         if (urlSlug) _invalidateProductCache(urlSlug);
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, "", newUrl);
+        window.history.replaceState({}, "", window.location.pathname);
       }
 
       if (!forceRefresh && _productCache.has(cacheKey)) {
@@ -727,61 +730,37 @@ export default function ProductDetail() {
         return;
       }
 
-      // Product already visible on screen? Silent background refresh only
-      if (!forceRefresh) {
-        setProduct((currentProduct) => {
-          if (currentProduct) {
-            fetchProductCached(cacheKey)
-              .then((data) => {
-                if (data) hydrateFromData(data);
-              })
-              .catch(() => {});
-            return currentProduct;
-          }
-          setLoading(true);
-          setNotFound(false);
-          fetchProductCached(cacheKey).then((data) => {
-            if (data) {
-              hydrateFromData(data);
-              setLoading(false);
-              setNotFound(false);
-            } else {
-              setLoading(false);
-              setNotFound(true);
-            }
-          });
-          return null;
-        });
-        return;
-      }
-
-      setLoading(true);
-      setNotFound(false);
-      fetchProductCached(cacheKey).then((data) => {
-        if (data) {
-          hydrateFromData(data);
-          setLoading(false);
-          setNotFound(false);
-        } else {
-          setLoading(false);
-          setNotFound(true);
+      setProduct((currentProduct) => {
+        if (currentProduct && !forceRefresh) {
+          // Product already visible — silent background refresh
+          fetchProductCached(cacheKey)
+            .then((data) => {
+              if (data) hydrateFromData(data);
+            })
+            .catch(() => {});
+          return currentProduct;
         }
+        setLoading(true);
+        setNotFound(false);
+        fetchProductCached(cacheKey).then((data) => {
+          if (data) {
+            hydrateFromData(data);
+            setLoading(false);
+            setNotFound(false);
+          } else {
+            setLoading(false);
+            setNotFound(true);
+          }
+        });
+        return null;
       });
     }
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") showFromCache();
     };
-
-    // pageshow fires on bfcache restore (browser back/forward)
-    const handlePageShow = (_e: PageTransitionEvent) => {
-      showFromCache();
-    };
-
-    // popstate fires on Next.js SPA back/forward navigation
-    const handlePopState = () => {
-      showFromCache();
-    };
+    const handlePageShow = (_e: PageTransitionEvent) => showFromCache();
+    const handlePopState = () => showFromCache();
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("pageshow", handlePageShow);
@@ -792,18 +771,48 @@ export default function ProductDetail() {
       window.removeEventListener("pageshow", handlePageShow);
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [cacheKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cacheKey, hydrateFromData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Real-time product updates — invalidates cache when admin edits ──
+  useEffect(() => {
+    const productId = (product as any)?.id;
+    if (!productId) return;
+
+    const channel = supabase
+      .channel(`pd-product-changes-${productId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "products",
+          filter: `id=eq.${productId}`,
+        },
+        () => {
+          // Invalidate cache and silently refresh
+          _invalidateProductCache(productId);
+          _invalidateProductCache(cacheKey);
+          fetchProductCached(cacheKey)
+            .then((data) => {
+              if (data) hydrateFromData(data);
+            })
+            .catch(() => {});
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [(product as any)?.id, cacheKey, hydrateFromData]);
 
   // ── Update description/images when product loads ──
   useEffect(() => {
     if (product) {
       const p = product as any;
-      // Product level description pehle
       const productDesc = p._description || p.description || "";
       const productDescImages =
         p._description_images || p.description_images || [];
-
-      // Fallback: agar product level description nahi toh variant se lo
       const fallbackVariant = (p.product_variants || []).find(
         (v: any) => v.description_rich || v.description,
       );
@@ -816,7 +825,6 @@ export default function ProductDetail() {
         productDescImages.length > 0
           ? productDescImages
           : fallbackVariant?.description_images || [];
-
       setCurrentDescription(finalDesc);
       setCurrentDescriptionImages(finalDescImages);
     }
@@ -844,8 +852,7 @@ export default function ProductDetail() {
           setBulkTiers([]);
           setSelectedTier(null);
         }
-      } catch (err) {
-        console.error("Error fetching bulk tiers:", err);
+      } catch {
         setBulkTiers([]);
       } finally {
         setLoadingTiers(false);
@@ -854,7 +861,7 @@ export default function ProductDetail() {
     fetchBulkTiers();
   }, [selectedVariant]);
 
-  // ── Realtime rating updates ──
+  // ── Real-time rating updates ──
   useEffect(() => {
     const productId = (product as any)?.id;
     if (!productId) return;
@@ -905,8 +912,7 @@ export default function ProductDetail() {
         } else {
           setFaqs([]);
         }
-      } catch (err) {
-        console.error("Error fetching FAQs:", err);
+      } catch {
         setFaqs([]);
       }
     }
@@ -953,19 +959,14 @@ export default function ProductDetail() {
   const currentPrice = getCurrentPrice();
   const currentPerPiecePrice = getPerPiecePrice();
 
-  // ── Original price display — same logic as QuickView ──
-  // unitPrice = single piece ka actual price (sale se pehle)
   const rawVariantPrice = selectedVariant?.price || product?.price || 0;
   const singlePieceOriginal =
     (selectedVariant as any)?.original_price ||
     (product as any)?.original_price ||
     0;
 
-  // getOriginalPriceDisplay: QuickView se 1:1 match
   const getOriginalPriceDisplay = (): number => {
     if (selectedTier) {
-      // Tier selected: cut price = single piece price × quantity
-      // (jo customer akele pieces kharidta toh itna lagta)
       const unitPrice = activeSalePercent
         ? applyDiscount(rawVariantPrice, activeSalePercent)
         : rawVariantPrice;
@@ -973,37 +974,32 @@ export default function ProductDetail() {
       if (totalOriginal > selectedTier.tier_price) return totalOriginal;
       return 0;
     }
-    // No tier: sale active hai toh variant actual price as original
     if (activeSalePercent && rawVariantPrice > 0) return rawVariantPrice;
     return singlePieceOriginal;
   };
 
   const currentOriginalPrice = getOriginalPriceDisplay();
 
-  // Discount percentage — per-piece comparison (QuickView style)
   const getDiscountPercentage = (): number => {
     if (selectedTier) {
-      // Per-piece saving vs single-unit price
       const unitPrice = activeSalePercent
         ? applyDiscount(rawVariantPrice, activeSalePercent)
         : rawVariantPrice;
       const perPiece = selectedTier.tier_price / selectedTier.min_quantity;
-      if (unitPrice > perPiece)
+      if (unitPrice > 0 && perPiece < unitPrice)
         return Math.round(((unitPrice - perPiece) / unitPrice) * 100);
       return 0;
     }
-    if (activeSalePercent) return activeSalePercent;
-    if (singlePieceOriginal > currentPerPiecePrice)
+    if (activeSalePercent && activeSalePercent > 0) return activeSalePercent;
+    if (singlePieceOriginal > 0 && rawVariantPrice < singlePieceOriginal)
       return Math.round(
-        ((singlePieceOriginal - currentPerPiecePrice) / singlePieceOriginal) *
-          100,
+        ((singlePieceOriginal - rawVariantPrice) / singlePieceOriginal) * 100,
       );
     return 0;
   };
 
   const discount = getDiscountPercentage();
 
-  // savings: per-piece saving (for "You save X" display)
   const savings = (() => {
     if (selectedTier) {
       const unitPrice = activeSalePercent
@@ -1016,6 +1012,7 @@ export default function ProductDetail() {
       ? currentOriginalPrice - currentPerPiecePrice
       : 0;
   })();
+
   const currentStock = selectedVariant?.stock || product?.stock || 0;
   const stockClass =
     currentStock === 0 ? "out" : currentStock < 5 ? "low" : "in";
@@ -1136,7 +1133,6 @@ export default function ProductDetail() {
             gap: 10px;
             margin-top: 4px;
           }
-          /* Responsive skeleton */
           @media (max-width: 1024px) {
             .pd-skel-grid {
               grid-template-columns: 1fr;
@@ -1156,7 +1152,6 @@ export default function ProductDetail() {
         `}</style>
 
         <div className="pd-skel-wrap">
-          {/* Breadcrumb skeleton */}
           <div
             style={{
               display: "flex",
@@ -1174,11 +1169,8 @@ export default function ProductDetail() {
             ))}
           </div>
 
-          {/* Main grid */}
           <div className="pd-skel-grid">
-            {/* Gallery column */}
             <div className="pd-skel-gallery">
-              {/* Main image */}
               <div
                 className="pd-skel"
                 style={{
@@ -1188,7 +1180,6 @@ export default function ProductDetail() {
                   marginBottom: 10,
                 }}
               />
-              {/* Thumbnail strip — one horizontal row */}
               <div className="pd-skel-thumbs">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <div
@@ -1205,16 +1196,11 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            {/* Info column */}
             <div className="pd-skel-info">
-              {/* Brand */}
               <div className="pd-skel" style={{ width: "30%", height: 11 }} />
-              {/* Title */}
               <div className="pd-skel" style={{ width: "90%", height: 26 }} />
               <div className="pd-skel" style={{ width: "70%", height: 26 }} />
-              {/* Rating */}
               <div className="pd-skel" style={{ width: "45%", height: 16 }} />
-              {/* Divider */}
               <div
                 style={{
                   height: 1,
@@ -1222,14 +1208,11 @@ export default function ProductDetail() {
                   borderRadius: 1,
                 }}
               />
-              {/* Price */}
               <div
                 className="pd-skel"
                 style={{ width: "50%", height: 40, borderRadius: 10 }}
               />
-              {/* Variant label */}
               <div className="pd-skel" style={{ width: "25%", height: 13 }} />
-              {/* Variant tags */}
               <div className="pd-skel-tags">
                 {[1, 2, 3, 4].map((i) => (
                   <div
@@ -1239,9 +1222,7 @@ export default function ProductDetail() {
                   />
                 ))}
               </div>
-              {/* Stock */}
               <div className="pd-skel" style={{ width: "28%", height: 14 }} />
-              {/* Qty + add to cart */}
               <div className="pd-skel-actions">
                 <div
                   className="pd-skel"
@@ -1256,12 +1237,10 @@ export default function ProductDetail() {
                   style={{ width: 52, height: 52, borderRadius: 10 }}
                 />
               </div>
-              {/* Buy now */}
               <div
                 className="pd-skel"
                 style={{ width: "100%", height: 52, borderRadius: 10 }}
               />
-              {/* Trust badges row */}
               <div className="pd-skel-tags" style={{ marginTop: 8 }}>
                 {[1, 2, 3].map((i) => (
                   <div
@@ -1279,15 +1258,13 @@ export default function ProductDetail() {
   }
 
   if (!product) {
-    // Wifi off/on retry button dikhao
     if (notFound) {
       return (
         <div style={{ padding: "4rem", textAlign: "center", color: "#fff" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
           <h2 style={{ marginBottom: 8 }}>Product not found</h2>
           <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 24 }}>
-            Product mil nahi raha. Check karein ke ID sahi hai ya dobara try
-            karein.
+            This product could not be found. Please check the link or try again.
           </p>
           <div
             style={{
@@ -1324,7 +1301,7 @@ export default function ProductDetail() {
                 fontSize: 14,
               }}
             >
-              🔄 Dobara Try Karein
+              🔄 Try Again
             </button>
             <a
               href="/"
@@ -1338,13 +1315,12 @@ export default function ProductDetail() {
                 fontSize: 14,
               }}
             >
-              ← Shopping Continue Karein
+              ← Continue Shopping
             </a>
           </div>
         </div>
       );
     }
-    // Loading chal rahi hai — skeleton dikhao (notFound false hai)
     return null;
   }
 
@@ -1388,9 +1364,7 @@ export default function ProductDetail() {
 
         <div className="pd-grid">
           {/* ── GALLERY ── */}
-          {/* allVariantImages: sab variants ki saari images ek flat deduped array mein */}
           {(() => {
-            // mainImages = product.main_images (set in detailed mode add-product)
             const mainImgs: string[] = (product as any)?.main_images || [];
             return (
               <ProductGallery
@@ -1473,7 +1447,6 @@ export default function ProductDetail() {
 
             {/* ── Variant Selectors ── */}
             {Object.entries(variantsByType).map(([type, typeVariants]) => {
-              // Find the selected variant for this type
               const selectedForType = typeVariants.find(
                 (v) => v.id === selectedVariant?.id,
               );
@@ -1657,6 +1630,12 @@ export default function ProductDetail() {
           </div>
         </div>
 
+        {/* ── VIDEO SECTION ── */}
+        <ProductVideoSection
+          videoUrl={(product as any)?.video_url || null}
+          productName={product.name}
+        />
+
         {/* ── TABS SECTION ── */}
         <div className="pd-tabs-section">
           <div className="pd-tab-bar">
@@ -1676,7 +1655,6 @@ export default function ProductDetail() {
             ))}
           </div>
 
-          {/* Description Tab */}
           {activeTab === "description" && (
             <div className="pd-tab-panel">
               <div className="pd-description-full">
@@ -1692,7 +1670,6 @@ export default function ProductDetail() {
                 )}
               </div>
 
-              {/* Description Images Gallery */}
               {currentDescriptionImages &&
                 currentDescriptionImages.length > 0 && (
                   <div className="pd-desc-images-section">
@@ -1725,7 +1702,6 @@ export default function ProductDetail() {
             </div>
           )}
 
-          {/* Shipping & Returns Tab */}
           {activeTab === "shipping" && (
             <div className="pd-tab-panel">
               <div className="pd-shipping-content">

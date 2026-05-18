@@ -3,7 +3,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useCurrency } from "@/app/context/CurrencyContext";
-import { useCouponStore } from "@/lib/couponStore"; // ✅ Import coupon store
+import { useCouponStore } from "@/lib/couponStore";
+import { supabase } from "@/lib/supabase";
 import "./CartSummary.css";
 
 interface CartItem {
@@ -38,7 +39,6 @@ interface CartSummaryProps {
   total: number;
   cartCount: number;
   formatPrice?: (price: number) => string;
-  userEmail?: string; // ✅ needed for coupon eligibility check
 }
 
 export default function CartSummary({
@@ -48,7 +48,6 @@ export default function CartSummary({
   total,
   cartCount,
   formatPrice: propFormatPrice,
-  userEmail = "", // ✅ email for coupon eligibility
 }: CartSummaryProps) {
   const {
     formatPrice: contextFormatPrice,
@@ -59,7 +58,14 @@ export default function CartSummary({
   const formatPrice = propFormatPrice || contextFormatPrice;
   const currencyCode = currency?.code || "PKR";
 
-  // ✅ Coupon store
+  const [userEmail, setUserEmail] = useState("");
+  const [couponInput, setCouponInput] = useState("");
+  const [couponMessage, setCouponMessage] = useState<{
+    text: string;
+    success: boolean;
+  } | null>(null);
+  const [settingsRefreshed, setSettingsRefreshed] = useState(false);
+
   const {
     appliedCode,
     discountPercent,
@@ -68,32 +74,52 @@ export default function CartSummary({
     removeCoupon,
     getDiscountAmount,
     getFinalTotal,
-    fetchCouponSettings, // ✅ Added fetchCouponSettings
+    fetchCouponSettings,
+    coupon10Enabled,
+    coupon20Enabled,
+    settingsLoading,
   } = useCouponStore();
 
-  // ✅ Refresh coupon settings when component mounts
+  // ✅ Force fetch coupon settings on component mount
   useEffect(() => {
-    fetchCouponSettings();
+    const loadSettings = async () => {
+      console.log("🔄 CartSummary: Fetching coupon settings...");
+      await fetchCouponSettings();
+      setSettingsRefreshed(true);
+      console.log(
+        "✅ CartSummary: Settings loaded - 10%:",
+        coupon10Enabled,
+        "20%:",
+        coupon20Enabled,
+      );
+    };
+    loadSettings();
   }, [fetchCouponSettings]);
 
-  // ✅ Coupon UI state
-  const [couponInput, setCouponInput] = useState("");
-  const [couponMessage, setCouponMessage] = useState<{
-    text: string;
-    success: boolean;
-  } | null>(null);
+  // ✅ Get logged-in user email for owner check
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserEmail(session?.user?.email || "");
+      console.log(
+        "📧 User email from auth:",
+        session?.user?.email || "not logged in",
+      );
+    });
+  }, []);
 
-  // ✅ Calculate discounted totals
   const discountAmountPKR = getDiscountAmount(subtotal);
-  const finalShipping = 0; // Free shipping always
+  const finalShipping = 0;
   const finalTotal = getFinalTotal(subtotal) + finalShipping;
 
-  // ✅ Handle coupon apply — async, passes userEmail for DB eligibility check
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) {
       setCouponMessage({ text: "Please enter a coupon code.", success: false });
       return;
     }
+
+    console.log("🔄 Applying coupon with userEmail:", userEmail);
+    console.log("🔄 Current coupon settings - 10% enabled:", coupon10Enabled);
+
     const result = await applyCoupon(couponInput, userEmail);
     setCouponMessage({ text: result.message, success: result.success });
     if (result.success) {
@@ -101,19 +127,47 @@ export default function CartSummary({
     }
   };
 
-  // ✅ Handle coupon remove
   const handleRemoveCoupon = () => {
     removeCoupon();
     setCouponMessage(null);
     setCouponInput("");
   };
 
-  // ✅ Handle Enter key
   const handleCouponKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       handleApplyCoupon();
     }
   };
+
+  // Show loading while fetching settings
+  if (settingsLoading && !settingsRefreshed) {
+    return (
+      <div className="cs-summary-card">
+        <div style={{ textAlign: "center", padding: "2rem" }}>
+          <div
+            className="loader-spinner"
+            style={{
+              margin: "0 auto 1rem",
+              width: "30px",
+              height: "30px",
+              border: "2px solid rgba(218,165,32,0.2)",
+              borderTopColor: "#daa520",
+              borderRadius: "50%",
+              animation: "spin 0.6s linear infinite",
+            }}
+          ></div>
+          <p>Loading coupon settings...</p>
+        </div>
+        <style jsx>{`
+          @keyframes spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div className="cs-summary-card">
@@ -128,6 +182,7 @@ export default function CartSummary({
         <span className="cs-ey-line" />
       </p>
 
+      {/* Items list */}
       <ul className="cs-summary-items">
         {items.slice(0, 3).map((item) => {
           const product = item.product ?? {
@@ -217,7 +272,7 @@ export default function CartSummary({
         </div>
       )}
 
-      {/* ✅ COUPON CODE SECTION - NEW */}
+      {/* ✅ COUPON CODE SECTION */}
       <div className="cs-coupon-section">
         <p className="cs-coupon-label">Have a coupon code?</p>
 
@@ -293,7 +348,6 @@ export default function CartSummary({
           <span>{formatPrice(subtotal)}</span>
         </div>
 
-        {/* ✅ Discount row - only when coupon applied */}
         {appliedCode && discountAmountPKR > 0 && (
           <div className="cs-summary-row cs-summary-row--discount">
             <span>
@@ -305,7 +359,6 @@ export default function CartSummary({
           </div>
         )}
 
-        {/* ✅ Shipping row - Always Free */}
         <div className="cs-summary-row">
           <span>Shipping</span>
           <span className="free-shipping-text">Free</span>
@@ -313,14 +366,12 @@ export default function CartSummary({
 
         <div className="cs-summary-divider" />
 
-        {/* ✅ Total row - with discount applied */}
         <div className="cs-summary-row cs-summary-total">
           <span>Total ({currencyCode})</span>
           <span className="total-amount">{formatPrice(finalTotal)}</span>
         </div>
       </div>
 
-      {/* ✅ Free Shipping Perks Message */}
       <div className="free-shipping-banner">
         <svg
           viewBox="0 0 24 24"
@@ -358,9 +409,7 @@ export default function CartSummary({
         </div>
       </div>
 
-      {/* ✅ Coupon CSS Styles */}
       <style jsx>{`
-        /* === COUPON SECTION === */
         .cs-coupon-section {
           margin: 1rem 0 1.25rem;
           padding: 0.85rem 1rem;
@@ -431,7 +480,6 @@ export default function CartSummary({
           cursor: not-allowed;
         }
 
-        /* Applied coupon badge */
         .cs-coupon-applied {
           display: flex;
           align-items: center;
@@ -467,7 +515,6 @@ export default function CartSummary({
           background: rgba(180, 0, 0, 0.08);
         }
 
-        /* Success message - GREEN */
         .cs-coupon-success {
           margin: 0.6rem 0 0;
           padding: 0.5rem 0.75rem;
@@ -479,7 +526,6 @@ export default function CartSummary({
           line-height: 1.5;
         }
 
-        /* Error message - RED */
         .cs-coupon-error {
           margin: 0.6rem 0 0;
           padding: 0.5rem 0.75rem;
@@ -491,7 +537,6 @@ export default function CartSummary({
           line-height: 1.5;
         }
 
-        /* Discount row */
         .cs-summary-row--discount {
           color: #2e7d32;
         }
@@ -504,6 +549,21 @@ export default function CartSummary({
         .free-shipping-text {
           color: #2e7d32;
           font-weight: 500;
+        }
+
+        .loader-spinner {
+          width: 30px;
+          height: 30px;
+          border: 2px solid rgba(218, 165, 32, 0.2);
+          border-top-color: #daa520;
+          border-radius: 50%;
+          animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
         }
       `}</style>
     </div>

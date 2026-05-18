@@ -139,96 +139,101 @@ const getStockStatus = (
 
 /* ── Fetch function ── */
 async function fetchFeaturedTabData(tab: string): Promise<CachedData> {
-  // 6-second timeout so loading never gets stuck forever
-  const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
-    setTimeout(
-      () => resolve({ data: null, error: new Error("timeout") }),
-      6000,
-    ),
-  );
-  const fetchPromise = supabase
-    .from("products")
-    .select("*, product_variants(*, variant_images(*))")
-    .eq("is_active", true)
-    .eq("is_featured", true)
-    .eq("category", tab)
-    .order("created_at", { ascending: false });
+  // 15-second timeout — generous enough for cold Supabase starts
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-  const { data: productsData, error } = (await Promise.race([
-    fetchPromise,
-    timeoutPromise,
-  ])) as any;
+  try {
+    const { data: productsData, error } = await supabase
+      .from("products")
+      .select("*, product_variants(*, variant_images(*))")
+      .eq("is_active", true)
+      .eq("is_featured", true)
+      .eq("category", tab)
+      .order("created_at", { ascending: false });
 
-  if (error || !productsData || productsData.length === 0) {
-    const empty: CachedData = {
+    clearTimeout(timeoutId);
+
+    if (error || !productsData || productsData.length === 0) {
+      // IMPORTANT: do NOT cache empty/error results — let the next call retry
+      return {
+        products: [],
+        variantsMap: {},
+        variantImagesMap: {},
+      };
+    }
+
+    const formattedProducts: FeaturedProduct[] = productsData.map(
+      (item: any) => ({
+        id: item.id,
+        name: item.name,
+        brand: item.brand || undefined,
+        description: item.description || undefined,
+        category: item.category,
+        subcategory: item.subcategory,
+        condition: item.condition || "new",
+        is_featured: item.is_featured || false,
+        is_active: item.is_active || true,
+        rating:
+          item.rating != null && item.rating > 0 ? item.rating : undefined,
+        reviews_count:
+          item.reviews_count != null && item.reviews_count > 0
+            ? item.reviews_count
+            : undefined,
+      }),
+    );
+
+    const variantsByProduct: Record<string, ProductVariant[]> = {};
+    const variantImagesMap: VariantImagesMap = {};
+
+    productsData.forEach((product: any) => {
+      const variants = product.product_variants || [];
+      variantsByProduct[product.id] = variants.map((variant: any) => ({
+        id: variant.id,
+        product_id: variant.product_id,
+        attribute_type: variant.attribute_type,
+        attribute_value: variant.attribute_value,
+        price: variant.price,
+        original_price: variant.original_price,
+        description: variant.description,
+        stock: variant.stock,
+        low_stock_threshold: variant.low_stock_threshold,
+        images: [],
+        stockStatus: getStockStatus(variant.stock, variant.low_stock_threshold),
+      }));
+
+      variants.forEach((variant: any) => {
+        const images = (variant.variant_images || [])
+          .sort((a: any, b: any) => a.display_order - b.display_order)
+          .map((img: any) => img.image_url);
+        if (images.length > 0) variantImagesMap[variant.id] = images;
+      });
+    });
+
+    const result: CachedData = {
+      products: formattedProducts,
+      variantsMap: variantsByProduct,
+      variantImagesMap,
+      fetchedAt: Date.now(),
+    };
+
+    // Only cache when we have real products
+    tabCache[tab] = result;
+    return result;
+  } catch {
+    clearTimeout(timeoutId);
+    // Never cache errors — always let the next call try again
+    return {
       products: [],
       variantsMap: {},
       variantImagesMap: {},
-      fetchedAt: Date.now(),
     };
-    tabCache[tab] = empty;
-    return empty;
   }
-
-  const formattedProducts: FeaturedProduct[] = productsData.map(
-    (item: any) => ({
-      id: item.id,
-      name: item.name,
-      brand: item.brand || undefined,
-      description: item.description || undefined,
-      category: item.category,
-      subcategory: item.subcategory,
-      condition: item.condition || "new",
-      is_featured: item.is_featured || false,
-      is_active: item.is_active || true,
-      rating: item.rating != null && item.rating > 0 ? item.rating : undefined,
-      reviews_count:
-        item.reviews_count != null && item.reviews_count > 0
-          ? item.reviews_count
-          : undefined,
-    }),
-  );
-
-  const variantsByProduct: Record<string, ProductVariant[]> = {};
-  const variantImagesMap: VariantImagesMap = {};
-
-  productsData.forEach((product: any) => {
-    const variants = product.product_variants || [];
-    variantsByProduct[product.id] = variants.map((variant: any) => ({
-      id: variant.id,
-      product_id: variant.product_id,
-      attribute_type: variant.attribute_type,
-      attribute_value: variant.attribute_value,
-      price: variant.price,
-      original_price: variant.original_price,
-      description: variant.description,
-      stock: variant.stock,
-      low_stock_threshold: variant.low_stock_threshold,
-      images: [],
-      stockStatus: getStockStatus(variant.stock, variant.low_stock_threshold),
-    }));
-
-    variants.forEach((variant: any) => {
-      const images = (variant.variant_images || [])
-        .sort((a: any, b: any) => a.display_order - b.display_order)
-        .map((img: any) => img.image_url);
-      if (images.length > 0) variantImagesMap[variant.id] = images;
-    });
-  });
-
-  const result: CachedData = {
-    products: formattedProducts,
-    variantsMap: variantsByProduct,
-    variantImagesMap,
-    fetchedAt: Date.now(),
-  };
-  tabCache[tab] = result;
-  return result;
 }
 
 const ALL_TABS = ["Accessories", "Watches", "Automotive", "Home Decor"];
 
-// ── Module-level in-memory cache — survives React re-mounts, back/forward nav ──
+// Module-level cache — only holds successful non-empty results
 const tabCache: Record<string, CachedData> = {};
 
 /* ─────────────────────────────────────────────────────────────
@@ -691,7 +696,7 @@ function ProductCard({
             className="fp-icon-btn fp-icon-btn--cart"
             onClick={handleAddToCart}
             aria-label="Add to Cart"
-            disabled={isOutOfStock || addToCartLoading}
+            disabled={addToCartLoading || isOutOfStock}
           >
             {addToCartLoading ? (
               <LoadingSpinner size={18} />
@@ -803,14 +808,14 @@ function ProductCard({
 }
 
 /* ─────────────────────────────────────────────────────────────
-   MAIN FEATURED PRODUCTS COMPONENT - FIXED
+   MAIN FEATURED PRODUCTS COMPONENT
 ───────────────────────────────────────────────────────────── */
 export default function FeaturedProducts() {
   const [activeTab, setActiveTab] = useState("Accessories");
   const activeTabRef = useRef("Accessories");
   const { language, isRTLMode } = useLanguage();
 
-  // Init from cache immediately — no loading flash if already cached
+  // Init from cache immediately — no loading flash if already cached with products
   const [products, setProducts] = useState<FeaturedProduct[]>(
     () => tabCache["Accessories"]?.products || [],
   );
@@ -820,9 +825,9 @@ export default function FeaturedProducts() {
   const [variantImagesMap, setVariantImagesMap] = useState<
     Record<string, string[]>
   >(() => tabCache["Accessories"]?.variantImagesMap || {});
-  // If already cached, start with isLoading false
+  // Only skip loading if we have real cached products
   const [isLoading, setIsLoading] = useState(
-    () => !tabCache["Accessories"]?.products?.length,
+    () => !(tabCache["Accessories"]?.products?.length > 0),
   );
 
   const [quickViewProduct, setQuickViewProduct] =
@@ -842,12 +847,12 @@ export default function FeaturedProducts() {
   const nextRef = useRef<HTMLButtonElement>(null);
   const swiperRef = useRef<SwiperType | null>(null);
 
-  // ✅ FIXED: loadProductsForTab NEVER sets isLoading=true when we already have products
-  // This prevents skeleton from showing on tab switch / back navigation
+  // loadProductsForTab — only uses cache when it has actual products
   const loadProductsForTab = useCallback(
     async (tab: string, forceRefresh = false) => {
-      // If we have cached data, show it immediately — NO loading state
-      if (tabCache[tab] && !forceRefresh) {
+      // Only use cache if it has real products AND we're not forcing refresh
+      const cachedHasProducts = (tabCache[tab]?.products?.length ?? 0) > 0;
+      if (cachedHasProducts && !forceRefresh) {
         const cached = tabCache[tab];
         setProducts(cached.products);
         setVariantsMap(cached.variantsMap);
@@ -857,12 +862,11 @@ export default function FeaturedProducts() {
         return cached;
       }
 
-      // ✅ FIXED: forceRefresh with existing data = SILENT update, never show skeleton
-      const hasExistingProducts = tabCache[tab]?.products?.length > 0;
+      // Show loading only if we have no existing products for this tab
+      const hasExistingProducts = (tabCache[tab]?.products?.length ?? 0) > 0;
       if (!hasExistingProducts) {
         setIsLoading(true);
       }
-      // If hasExistingProducts, we silently update WITHOUT showing skeleton
 
       try {
         const data = await fetchFeaturedTabData(tab);
@@ -883,12 +887,14 @@ export default function FeaturedProducts() {
     [],
   );
 
-  // Initial load
+  // Initial load — fetches on every mount, retries if empty
   useEffect(() => {
     let isMounted = true;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
     const loadInitial = async () => {
-      const alreadyCached = !!tabCache["Accessories"]?.products?.length;
+      const alreadyCached =
+        (tabCache["Accessories"]?.products?.length ?? 0) > 0;
       if (!alreadyCached) setIsLoading(true);
 
       try {
@@ -898,6 +904,21 @@ export default function FeaturedProducts() {
           setVariantsMap(data.variantsMap);
           setVariantImagesMap(data.variantImagesMap);
           setSwiperKey((prev) => prev + 1);
+
+          // If we got empty results, retry once after 2 seconds
+          if (data.products.length === 0) {
+            retryTimer = setTimeout(async () => {
+              if (!isMounted) return;
+              const retryData = await fetchFeaturedTabData("Accessories");
+              if (isMounted && retryData.products.length > 0) {
+                setProducts(retryData.products);
+                setVariantsMap(retryData.variantsMap);
+                setVariantImagesMap(retryData.variantImagesMap);
+                setSwiperKey((prev) => prev + 1);
+              }
+              if (isMounted) setIsLoading(false);
+            }, 2000);
+          }
         }
       } catch (error) {
         console.error("Error loading initial products:", error);
@@ -905,10 +926,9 @@ export default function FeaturedProducts() {
         if (isMounted) setIsLoading(false);
       }
 
-      // Prefetch all other tabs immediately in parallel (no delay)
-      // so switching tabs is instant
+      // Prefetch all other tabs in background
       ALL_TABS.forEach((tab) => {
-        if (tab !== "Accessories" && !tabCache[tab]) {
+        if (tab !== "Accessories" && !(tabCache[tab]?.products?.length > 0)) {
           fetchFeaturedTabData(tab).catch(() => {});
         }
       });
@@ -918,6 +938,7 @@ export default function FeaturedProducts() {
 
     return () => {
       isMounted = false;
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, []);
 
@@ -949,8 +970,9 @@ export default function FeaturedProducts() {
           if (!shouldRefresh) return;
 
           if (affectedCategory && ALL_TABS.includes(affectedCategory)) {
+            // Invalidate cache for this category so it re-fetches
+            delete tabCache[affectedCategory];
             if (activeTabRef.current === affectedCategory) {
-              // ✅ Silent refresh — no skeleton since we have existing products
               await loadProductsForTab(affectedCategory, true);
             }
           }
@@ -963,14 +985,11 @@ export default function FeaturedProducts() {
     };
   }, [loadProductsForTab]);
 
-  // ✅ FIXED: Visibility change — ALWAYS silent, never show skeleton
-  // Previously this called loadProductsForTab(tab, true) when no cache —
-  // that set isLoading=true and showed skeleton every time user switched Chrome tabs
+  // Visibility change — silent background refresh, never show skeleton
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         const tab = activeTabRef.current;
-        // ALWAYS do a silent background refresh — never touch isLoading
         fetchFeaturedTabData(tab)
           .then((data) => {
             if (activeTabRef.current === tab && data.products.length > 0) {
@@ -979,7 +998,7 @@ export default function FeaturedProducts() {
               setVariantImagesMap(data.variantImagesMap);
             }
           })
-          .catch(() => {}); // silent — never break visible UI
+          .catch(() => {});
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -988,18 +1007,18 @@ export default function FeaturedProducts() {
     };
   }, []);
 
-  // Handle page show (back/forward navigation — bfcache)
+  // Back/forward navigation (bfcache pageshow)
   useEffect(() => {
     const handlePageShow = (_e: PageTransitionEvent) => {
       const tab = activeTabRef.current;
-      if (tabCache[tab]?.products?.length) {
+      if ((tabCache[tab]?.products?.length ?? 0) > 0) {
         const cached = tabCache[tab];
         setProducts(cached.products);
         setVariantsMap(cached.variantsMap);
         setVariantImagesMap(cached.variantImagesMap);
         setIsLoading(false);
         setSwiperKey((prev) => prev + 1);
-        // Silent background refresh — never show skeleton
+        // Silent background refresh
         fetchFeaturedTabData(tab)
           .then((data) => {
             if (activeTabRef.current === tab && data.products.length > 0) {
@@ -1010,7 +1029,7 @@ export default function FeaturedProducts() {
           })
           .catch(() => {});
       } else {
-        // Only show loading if we truly have no data at all
+        // No cached data — do a full load
         loadProductsForTab(tab, false);
       }
     };

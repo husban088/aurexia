@@ -154,11 +154,11 @@ async function fetchProductsWithVariants(
   query = query.order("created_at", { ascending: false });
   if (limit) query = query.limit(limit);
 
-  // 7-second timeout — never hang loading forever
+  // 15-second timeout — generous for Supabase cold starts
   const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
     setTimeout(
       () => resolve({ data: null, error: new Error("timeout") }),
-      7000,
+      15000,
     ),
   );
   const { data, error } = (await Promise.race([query, timeoutPromise])) as any;
@@ -716,27 +716,40 @@ function ProductCardComponent({
             </svg>
           </div>
         )}
+        <div className="pg-card-badges">
+          {productData.condition === "new" && !totalDiscount && (
+            <span className="pg-badge pg-badge--new">New</span>
+          )}
+          {isLowStock && (
+            <span className="pg-badge pg-badge--low">Low Stock</span>
+          )}
+          {totalDiscount && totalDiscount > 0 ? (
+            <span className="pg-badge pg-badge--sale">-{totalDiscount}%</span>
+          ) : null}
+        </div>
         <div className="pg-icon-buttons">
-          <button
-            className="pg-icon-btn pg-icon-btn--view"
-            onClick={handleQuickViewClick}
-            aria-label="Quick View"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
+          {onQuickView && (
+            <button
+              className="pg-icon-btn pg-icon-btn--view"
+              onClick={handleQuickViewClick}
+              aria-label="Quick View"
             >
-              <circle cx="12" cy="12" r="3" />
-              <path d="M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10z" />
-            </svg>
-          </button>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path d="M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10z" />
+              </svg>
+            </button>
+          )}
           <button
             className="pg-icon-btn pg-icon-btn--cart"
             onClick={handleAddToCartClick}
             aria-label="Add to Cart"
-            disabled={isOutOfStock || addToCartLoading}
+            disabled={addToCartLoading || isOutOfStock}
           >
             {addToCartLoading ? (
               <LoadingSpinner size={18} />
@@ -755,6 +768,7 @@ function ProductCardComponent({
           </button>
         </div>
       </div>
+
       <div className="pg-card-body" dir={isRTL ? "rtl" : "ltr"}>
         {productData.brand && (
           <p className="pg-card-brand">{productData.brand}</p>
@@ -766,9 +780,6 @@ function ProductCardComponent({
           <span className="pg-card-price">{displaySalePrice}</span>
           {displayOriginalPrice && (
             <span className="pg-card-orig">{displayOriginalPrice}</span>
-          )}
-          {totalDiscount && totalDiscount > 0 && (
-            <span className="pg-card-discount">-{totalDiscount}%</span>
           )}
         </div>
         <div className="pg-card-rating">
@@ -844,7 +855,7 @@ function ProductCardComponent({
   );
 }
 
-// ─── Module-level product cache — instant display on back/forward nav ────────
+// ─── Module-level product cache — only stores successful non-empty results ────
 const pgCache: Record<string, { data: ExtendedProduct[]; fetchedAt: number }> =
   {};
 
@@ -868,11 +879,12 @@ export default function ProductGrid({
   const { language, isRTLMode } = useLanguage();
   const cacheKey = getPgCacheKey(category, subcategory, limit, featured);
 
-  const [products, setProducts] = useState<ExtendedProduct[]>(
-    () => pgCache[cacheKey]?.data || [],
+  // Only hydrate from cache if it has real products
+  const [products, setProducts] = useState<ExtendedProduct[]>(() =>
+    pgCache[cacheKey]?.data?.length > 0 ? pgCache[cacheKey].data : [],
   );
   const [loading, setLoading] = useState(
-    () => !pgCache[cacheKey]?.data?.length,
+    () => !(pgCache[cacheKey]?.data?.length > 0),
   );
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
@@ -898,6 +910,7 @@ export default function ProductGrid({
   // Load products on mount and when dependencies change
   useEffect(() => {
     let isMounted = true;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     const key = getPgCacheKey(category, subcategory, limit, featured);
 
     const loadProducts = async (silent = false) => {
@@ -910,18 +923,40 @@ export default function ProductGrid({
           featured,
         );
         if (isMounted) {
-          pgCache[key] = { data, fetchedAt: Date.now() };
-          setProducts(data);
+          if (data.length > 0) {
+            // Only cache non-empty results
+            pgCache[key] = { data, fetchedAt: Date.now() };
+            setProducts(data);
+          } else if (!silent) {
+            // Empty result — retry once after 2 seconds
+            retryTimer = setTimeout(async () => {
+              if (!isMounted) return;
+              const retryData = await fetchProductsWithVariants(
+                category,
+                subcategory,
+                limit,
+                featured,
+              );
+              if (isMounted) {
+                if (retryData.length > 0) {
+                  pgCache[key] = { data: retryData, fetchedAt: Date.now() };
+                  setProducts(retryData);
+                }
+                setLoading(false);
+              }
+            }, 2000);
+            return; // Don't set loading false yet — retry handles it
+          }
         }
       } catch (error) {
         console.error("Error loading products:", error);
       } finally {
-        if (isMounted) setLoading(false);
+        if (isMounted && !retryTimer) setLoading(false);
       }
     };
 
-    // If already cached, show instantly
-    if (pgCache[key]?.data?.length) {
+    // If already cached with products, show instantly
+    if (pgCache[key]?.data?.length > 0) {
       setProducts(pgCache[key].data);
       setLoading(false);
       // Silent background refresh only if cache is older than 2 minutes
@@ -935,6 +970,7 @@ export default function ProductGrid({
 
     return () => {
       isMounted = false;
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [category, subcategory, limit, featured]);
 
@@ -948,8 +984,10 @@ export default function ProductGrid({
         limit,
         featured,
       );
-      pgCache[key] = { data, fetchedAt: Date.now() };
-      setProducts(data);
+      if (data.length > 0) {
+        pgCache[key] = { data, fetchedAt: Date.now() };
+        setProducts(data);
+      }
     };
 
     const channel = supabase
@@ -976,8 +1014,8 @@ export default function ProductGrid({
     const key = getPgCacheKey(category, subcategory, limit, featured);
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        // Show cached data immediately — no loading state change
-        if (pgCache[key]?.data?.length) {
+        // Show cached data immediately if we have it
+        if (pgCache[key]?.data?.length > 0) {
           setProducts(pgCache[key].data);
         }
         // Silent background refresh — never block UI
@@ -988,7 +1026,7 @@ export default function ProductGrid({
               setProducts(data);
             }
           })
-          .catch(() => {}); // never break visible content
+          .catch(() => {});
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -1002,7 +1040,7 @@ export default function ProductGrid({
     const key = getPgCacheKey(category, subcategory, limit, featured);
     const handlePageShow = (_e: PageTransitionEvent) => {
       // Show cached data immediately — no loading spinner
-      if (pgCache[key]?.data?.length) {
+      if (pgCache[key]?.data?.length > 0) {
         setProducts(pgCache[key].data);
         setLoading(false);
       }

@@ -1,5 +1,3 @@
-// app/profile/page.tsx (Replace with this)
-
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -123,17 +121,15 @@ const profileTranslations = {
   },
 };
 
-const getProfileTranslation = (
+const getT = (
   key: keyof typeof profileTranslations,
   lang: "en" | "ar" | "de",
-): string => {
-  return (
-    profileTranslations[key]?.[lang] || profileTranslations[key]?.en || key
-  );
-};
+): string =>
+  profileTranslations[key]?.[lang] || profileTranslations[key]?.en || key;
 
-// ── Module-level profile cache — instant display on re-visits, tab switches ──
-// Survives SPA navigation and component re-mounts
+// ── Module-level profile cache — survives SPA navigation, not SSR ──
+// IMPORTANT: these are module-level so they are undefined on the server.
+// They must only be read inside useEffect / event handlers (client-only).
 let _cachedProfile: ProfileData | null = null;
 let _cacheTs = 0;
 const PROFILE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -143,14 +139,12 @@ export default function ProfilePage() {
   const { language, isRTLMode } = useLanguage();
   const lang = language;
 
-  const [profile, setProfile] = useState<ProfileData | null>(
-    () => _cachedProfile,
-  );
-  const [loading, setLoading] = useState(() => !_cachedProfile);
+  // ── HYDRATION-SAFE: all initial values are static (same on server & client).
+  // Module-level cache is only read in useEffect — never in useState initializer.
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"info" | "security">("info");
-  const [username, setUsername] = useState(
-    () => _cachedProfile?.username || "",
-  );
+  const [username, setUsername] = useState("");
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState<{
     type: "error" | "success";
@@ -162,139 +156,6 @@ export default function ProfilePage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [passLoading, setPassLoading] = useState(false);
   const [signOutLoading, setSignOutLoading] = useState(false);
-
-  // Load profile on mount
-  useEffect(() => {
-    let isMounted = true;
-
-    // If cache is fresh (< 5min), show immediately and skip fetch
-    if (_cachedProfile && Date.now() - _cacheTs < PROFILE_CACHE_TTL) {
-      setProfile(_cachedProfile);
-      setUsername(_cachedProfile.username);
-      setLoading(false);
-    }
-
-    async function loadProfile(force = false) {
-      // Use cache if still fresh and not forced
-      if (
-        !force &&
-        _cachedProfile &&
-        Date.now() - _cacheTs < PROFILE_CACHE_TTL
-      ) {
-        if (isMounted) {
-          setProfile(_cachedProfile);
-          setUsername(_cachedProfile.username);
-          setLoading(false);
-        }
-        return;
-      }
-
-      if (!_cachedProfile) setLoading(true);
-
-      // 10-second hard timeout so loading never hangs forever
-      const hardTimeout = setTimeout(() => {
-        if (isMounted && !_cachedProfile) setLoading(false);
-      }, 10000);
-
-      try {
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-        clearTimeout(hardTimeout);
-
-        if (userError || !user) {
-          if (isMounted) {
-            if (!_cachedProfile) setLoading(false);
-            router.replace("/signin?redirectTo=/profile");
-          }
-          return;
-        }
-
-        let { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-
-        if (profileError || !profileData) {
-          const { data: newProfile, error: insertError } = await supabase
-            .from("profiles")
-            .insert({
-              id: user.id,
-              username:
-                user.user_metadata?.username ||
-                user.email?.split("@")[0] ||
-                "user",
-              email: user.email || "",
-            })
-            .select()
-            .single();
-
-          if (insertError || !newProfile) {
-            profileData = {
-              id: user.id,
-              username:
-                user.user_metadata?.username ||
-                user.email?.split("@")[0] ||
-                "user",
-              email: user.email || "",
-              created_at: user.created_at || new Date().toISOString(),
-              updated_at:
-                user.updated_at || user.created_at || new Date().toISOString(),
-            };
-          } else {
-            profileData = newProfile;
-          }
-        }
-
-        // Update module-level cache
-        _cachedProfile = profileData;
-        _cacheTs = Date.now();
-
-        if (isMounted) {
-          setProfile(profileData);
-          setUsername(profileData.username);
-          setLoading(false);
-        }
-      } catch (err) {
-        clearTimeout(hardTimeout);
-        if (isMounted && !_cachedProfile) setLoading(false);
-      }
-    }
-
-    loadProfile();
-
-    // Handle online/offline — retry only if no data showing
-    const handleOnline = () => {
-      if (!_cachedProfile) loadProfile(true);
-    };
-
-    // Handle tab visibility change — show cache instantly, refresh silently
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        if (_cachedProfile && isMounted) {
-          setProfile(_cachedProfile);
-          setUsername(_cachedProfile.username);
-          setLoading(false);
-          // Silent background refresh if cache older than 5min
-          if (Date.now() - _cacheTs > PROFILE_CACHE_TTL) {
-            loadProfile(true);
-          }
-        } else {
-          loadProfile(true);
-        }
-      }
-    };
-
-    window.addEventListener("online", handleOnline);
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => {
-      isMounted = false;
-      window.removeEventListener("online", handleOnline);
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  }, [router]);
 
   const getInitials = (name: string) =>
     name?.slice(0, 2)?.toUpperCase() || "??";
@@ -310,6 +171,130 @@ export default function ProfilePage() {
     }
   };
 
+  const applyProfile = useCallback((data: ProfileData) => {
+    setProfile(data);
+    setUsername(data.username);
+    setLoading(false);
+  }, []);
+
+  // ── Main profile loader ──
+  const loadProfile = useCallback(
+    async (force = false) => {
+      // Use cache if fresh and not forced
+      if (
+        !force &&
+        _cachedProfile &&
+        Date.now() - _cacheTs < PROFILE_CACHE_TTL
+      ) {
+        applyProfile(_cachedProfile);
+        return;
+      }
+
+      if (!_cachedProfile) setLoading(true);
+
+      const hardTimeout = setTimeout(() => {
+        if (!_cachedProfile) setLoading(false);
+      }, 12000);
+
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+        clearTimeout(hardTimeout);
+
+        if (userError || !user) {
+          if (!_cachedProfile) setLoading(false);
+          router.replace("/signin?redirectTo=/profile");
+          return;
+        }
+
+        let { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError || !profileData) {
+          // Profile doesn't exist yet — create it
+          const { data: newProfile, error: insertError } = await supabase
+            .from("profiles")
+            .insert({
+              id: user.id,
+              username:
+                user.user_metadata?.username ||
+                user.email?.split("@")[0] ||
+                "user",
+              email: user.email || "",
+            })
+            .select()
+            .single();
+
+          profileData =
+            !insertError && newProfile
+              ? newProfile
+              : {
+                  id: user.id,
+                  username:
+                    user.user_metadata?.username ||
+                    user.email?.split("@")[0] ||
+                    "user",
+                  email: user.email || "",
+                  created_at: user.created_at || new Date().toISOString(),
+                  updated_at:
+                    user.updated_at ||
+                    user.created_at ||
+                    new Date().toISOString(),
+                };
+        }
+
+        _cachedProfile = profileData;
+        _cacheTs = Date.now();
+        applyProfile(profileData);
+      } catch {
+        clearTimeout(hardTimeout);
+        if (!_cachedProfile) setLoading(false);
+      }
+    },
+    [router, applyProfile],
+  );
+
+  // ── On mount: read cache first (client-only), then fetch if needed ──
+  useEffect(() => {
+    // Reading _cachedProfile here is safe — this runs only on the client
+    if (_cachedProfile && Date.now() - _cacheTs < PROFILE_CACHE_TTL) {
+      applyProfile(_cachedProfile);
+    } else {
+      loadProfile(false);
+    }
+
+    const handleOnline = () => {
+      if (!_cachedProfile) loadProfile(true);
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        if (_cachedProfile) {
+          applyProfile(_cachedProfile);
+          // Silent background refresh if cache is stale
+          if (Date.now() - _cacheTs > PROFILE_CACHE_TTL) {
+            loadProfile(true);
+          }
+        } else {
+          loadProfile(true);
+        }
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [loadProfile, applyProfile]);
+
+  // ── Save username ──
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
@@ -319,11 +304,7 @@ export default function ProfilePage() {
     try {
       const trimmed = username.trim();
       if (!trimmed) {
-        setAlert({
-          type: "error",
-          msg: getProfileTranslation("usernameEmpty", lang),
-        });
-        setSaving(false);
+        setAlert({ type: "error", msg: getT("usernameEmpty", lang) });
         return;
       }
 
@@ -335,11 +316,7 @@ export default function ProfilePage() {
         .maybeSingle();
 
       if (existing) {
-        setAlert({
-          type: "error",
-          msg: getProfileTranslation("usernameTaken", lang),
-        });
-        setSaving(false);
+        setAlert({ type: "error", msg: getT("usernameTaken", lang) });
         return;
       }
 
@@ -351,25 +328,20 @@ export default function ProfilePage() {
         .single();
 
       if (error) throw error;
-      // Update module-level cache so re-visits show fresh data
+
       _cachedProfile = updated;
       _cacheTs = Date.now();
       setProfile(updated);
       setUsername(updated.username);
-      setAlert({
-        type: "success",
-        msg: getProfileTranslation("updateSuccess", lang),
-      });
-    } catch (err) {
-      setAlert({
-        type: "error",
-        msg: getProfileTranslation("updateFailed", lang),
-      });
+      setAlert({ type: "success", msg: getT("updateSuccess", lang) });
+    } catch {
+      setAlert({ type: "error", msg: getT("updateFailed", lang) });
     } finally {
       setSaving(false);
     }
   };
 
+  // ── Change password ──
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setAlert(null);
@@ -377,19 +349,11 @@ export default function ProfilePage() {
 
     try {
       if (!newPass || newPass.length < 6) {
-        setAlert({
-          type: "error",
-          msg: getProfileTranslation("passwordShort", lang),
-        });
-        setPassLoading(false);
+        setAlert({ type: "error", msg: getT("passwordShort", lang) });
         return;
       }
       if (newPass !== confirmPass) {
-        setAlert({
-          type: "error",
-          msg: getProfileTranslation("passwordMismatch", lang),
-        });
-        setPassLoading(false);
+        setAlert({ type: "error", msg: getT("passwordMismatch", lang) });
         return;
       }
 
@@ -398,42 +362,38 @@ export default function ProfilePage() {
 
       setNewPass("");
       setConfirmPass("");
-      setAlert({
-        type: "success",
-        msg: getProfileTranslation("passwordChangeSuccess", lang),
-      });
+      setAlert({ type: "success", msg: getT("passwordChangeSuccess", lang) });
     } catch (err: any) {
       setAlert({
         type: "error",
-        msg:
-          err?.message || getProfileTranslation("passwordChangeFailed", lang),
+        msg: err?.message || getT("passwordChangeFailed", lang),
       });
     } finally {
       setPassLoading(false);
     }
   };
 
+  // ── Sign out ──
   const handleSignOut = async () => {
     if (signOutLoading) return;
     setSignOutLoading(true);
     try {
-      // Clear module-level cache immediately so stale data never shows
       _cachedProfile = null;
       _cacheTs = 0;
-      // Hard timeout: if signOut takes > 4s, force redirect anyway
       const signOutTimeout = setTimeout(() => {
         router.replace("/signin");
       }, 4000);
       await supabase.auth.signOut();
       clearTimeout(signOutTimeout);
-    } catch (_) {
-      // Even on error, redirect — session is gone client-side
+    } catch {
+      // Even on error, redirect
     } finally {
       setSignOutLoading(false);
       router.replace("/signin");
     }
   };
 
+  // ── Loading skeleton ──
   if (loading) {
     return (
       <div className="pf-loading" dir={isRTLMode ? "rtl" : "ltr"}>
@@ -451,6 +411,7 @@ export default function ProfilePage() {
     <div className="pf-root" dir={isRTLMode ? "rtl" : "ltr"}>
       <div className="pf-grain" aria-hidden="true" />
       <div className="pf-container">
+        {/* ── Sidebar ── */}
         <aside className="pf-aside">
           <div className="pf-avatar-wrap">
             <div className="pf-avatar-ring">
@@ -464,7 +425,7 @@ export default function ProfilePage() {
           <div className="pf-aside-info">
             <p className="pf-aside-eyebrow">
               <span className="pf-ey-line" />
-              {getProfileTranslation("member", lang)}
+              {getT("member", lang)}
               <span className="pf-ey-line" />
             </p>
             <h2 className="pf-aside-name">{profile.username}</h2>
@@ -473,28 +434,20 @@ export default function ProfilePage() {
           </div>
           <div className="pf-aside-meta">
             <div className="pf-meta-item">
-              <span className="pf-meta-label">
-                {getProfileTranslation("status", lang)}
-              </span>
+              <span className="pf-meta-label">{getT("status", lang)}</span>
               <span className="pf-meta-value">
                 <span className="pf-dot" />
-                <span className="pf-meta-active">
-                  {getProfileTranslation("active", lang)}
-                </span>
+                <span className="pf-meta-active">{getT("active", lang)}</span>
               </span>
             </div>
             <div className="pf-meta-item">
-              <span className="pf-meta-label">
-                {getProfileTranslation("joined", lang)}
-              </span>
+              <span className="pf-meta-label">{getT("joined", lang)}</span>
               <span className="pf-meta-value">
                 {formatDate(profile.created_at)}
               </span>
             </div>
             <div className="pf-meta-item">
-              <span className="pf-meta-label">
-                {getProfileTranslation("updated", lang)}
-              </span>
+              <span className="pf-meta-label">{getT("updated", lang)}</span>
               <span className="pf-meta-value">
                 {formatDate(profile.updated_at)}
               </span>
@@ -519,23 +472,21 @@ export default function ProfilePage() {
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
             )}
-            {getProfileTranslation("signOut", lang)}
+            {getT("signOut", lang)}
           </button>
         </aside>
 
+        {/* ── Main content ── */}
         <main className="pf-main">
           <div className="pf-main-header">
             <p className="pf-main-eyebrow">
               <span className="pf-ey-line" />
-              {getProfileTranslation("yourAccount", lang)}
+              {getT("yourAccount", lang)}
             </p>
             <h1 className="pf-main-title">
-              {getProfileTranslation("myProfile", lang)}{" "}
-              <em>{getProfileTranslation("profileEm", lang)}</em>
+              {getT("myProfile", lang)} <em>{getT("profileEm", lang)}</em>
             </h1>
-            <p className="pf-main-sub">
-              {getProfileTranslation("manageInfo", lang)}
-            </p>
+            <p className="pf-main-sub">{getT("manageInfo", lang)}</p>
           </div>
 
           <div className="pf-tabs">
@@ -555,7 +506,7 @@ export default function ProfilePage() {
                 <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
-              {getProfileTranslation("profileInfo", lang)}
+              {getT("profileInfo", lang)}
             </button>
             <button
               className={`pf-tab${activeTab === "security" ? " pf-tab--active" : ""}`}
@@ -573,7 +524,7 @@ export default function ProfilePage() {
                 <rect x="3" y="11" width="18" height="11" rx="2" />
                 <path d="M7 11V7a5 5 0 0110 0v4" />
               </svg>
-              {getProfileTranslation("security", lang)}
+              {getT("security", lang)}
             </button>
           </div>
 
@@ -601,13 +552,12 @@ export default function ProfilePage() {
             </div>
           )}
 
+          {/* ── Profile Info Tab ── */}
           {activeTab === "info" && (
             <form className="pf-form" onSubmit={handleSaveProfile} noValidate>
               <div className="pf-form-grid">
                 <div className="pf-field">
-                  <label className="pf-label">
-                    {getProfileTranslation("username", lang)}
-                  </label>
+                  <label className="pf-label">{getT("username", lang)}</label>
                   <div className="pf-input-wrap">
                     <span className="pf-input-icon" aria-hidden="true">
                       <svg
@@ -625,17 +575,14 @@ export default function ProfilePage() {
                       className="pf-input"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder={getProfileTranslation(
-                        "usernamePlaceholder",
-                        lang,
-                      )}
+                      placeholder={getT("usernamePlaceholder", lang)}
                       autoComplete="username"
                     />
                   </div>
                 </div>
                 <div className="pf-field">
                   <label className="pf-label">
-                    {getProfileTranslation("emailAddress", lang)}
+                    {getT("emailAddress", lang)}
                   </label>
                   <div className="pf-input-wrap">
                     <span className="pf-input-icon" aria-hidden="true">
@@ -660,7 +607,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="pf-field">
                   <label className="pf-label">
-                    {getProfileTranslation("memberSince", lang)}
+                    {getT("memberSince", lang)}
                   </label>
                   <div className="pf-input-wrap">
                     <span className="pf-input-icon" aria-hidden="true">
@@ -699,14 +646,14 @@ export default function ProfilePage() {
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
-                {getProfileTranslation("emailNote", lang)}
+                {getT("emailNote", lang)}
               </p>
               <button type="submit" className="pf-save-btn" disabled={saving}>
                 {saving ? (
                   <span className="pf-spinner" />
                 ) : (
                   <>
-                    {getProfileTranslation("saveChanges", lang)}
+                    {getT("saveChanges", lang)}
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -725,6 +672,7 @@ export default function ProfilePage() {
             </form>
           )}
 
+          {/* ── Security Tab ── */}
           {activeTab === "security" && (
             <form
               className="pf-form"
@@ -734,7 +682,7 @@ export default function ProfilePage() {
               <div className="pf-form-grid pf-form-grid--single">
                 <div className="pf-field">
                   <label className="pf-label">
-                    {getProfileTranslation("newPassword", lang)}
+                    {getT("newPassword", lang)}
                   </label>
                   <div className="pf-input-wrap">
                     <span className="pf-input-icon" aria-hidden="true">
@@ -751,10 +699,7 @@ export default function ProfilePage() {
                     <input
                       type={showNew ? "text" : "password"}
                       className="pf-input"
-                      placeholder={getProfileTranslation(
-                        "passwordPlaceholder",
-                        lang,
-                      )}
+                      placeholder={getT("passwordPlaceholder", lang)}
                       value={newPass}
                       onChange={(e) => setNewPass(e.target.value)}
                       minLength={6}
@@ -788,7 +733,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="pf-field">
                   <label className="pf-label">
-                    {getProfileTranslation("confirmPassword", lang)}
+                    {getT("confirmPassword", lang)}
                   </label>
                   <div className="pf-input-wrap">
                     <span className="pf-input-icon" aria-hidden="true">
@@ -805,10 +750,7 @@ export default function ProfilePage() {
                     <input
                       type={showConfirm ? "text" : "password"}
                       className="pf-input"
-                      placeholder={getProfileTranslation(
-                        "passwordPlaceholder",
-                        lang,
-                      )}
+                      placeholder={getT("passwordPlaceholder", lang)}
                       value={confirmPass}
                       onChange={(e) => setConfirmPass(e.target.value)}
                       minLength={6}
@@ -854,7 +796,7 @@ export default function ProfilePage() {
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
-                {getProfileTranslation("passwordNote", lang)}
+                {getT("passwordNote", lang)}
               </p>
               <button
                 type="submit"
@@ -865,7 +807,7 @@ export default function ProfilePage() {
                   <span className="pf-spinner" />
                 ) : (
                   <>
-                    {getProfileTranslation("updatePassword", lang)}
+                    {getT("updatePassword", lang)}
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
