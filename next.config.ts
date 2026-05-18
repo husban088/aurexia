@@ -1,5 +1,6 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
@@ -12,17 +13,12 @@ const nextConfig = {
       },
     ],
   },
-  // Font optimization
-  optimizeFonts: true,
   // Suppress unused preload warnings for fonts loaded via CSS variables
   experimental: {
     optimizePackageImports: ["next/font", "@next/font"],
   },
-  // Add transpilePackages if needed
-  transpilePackages: [],
   // ✅ Force full reload on navigation (fixes Chrome back/forward issues)
-  // This prevents bfcache (back-forward cache) which causes old content to show
   crossOrigin: "anonymous",
 };
 
-module.exports = nextConfig;
+export default nextConfig;
