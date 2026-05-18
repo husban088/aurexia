@@ -807,19 +807,21 @@ export default function ProductDetail() {
     }
     setLoadingTiers(true);
     setSelectedTier(null);
-    supabase
-      .from("bulk_pricing_tiers")
-      .select("*")
-      .eq("variant_id", selectedVariant.id)
-      .order("min_quantity", { ascending: true })
-      .then(({ data, error }) => {
+    const variantId = selectedVariant.id;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("bulk_pricing_tiers")
+          .select("*")
+          .eq("variant_id", variantId)
+          .order("min_quantity", { ascending: true });
         setBulkTiers(!error && data ? data : []);
-        setLoadingTiers(false);
-      })
-      .catch(() => {
+      } catch {
         setBulkTiers([]);
+      } finally {
         setLoadingTiers(false);
-      });
+      }
+    })();
   }, [selectedVariant?.id]);
 
   // ── Real-time rating updates ──
@@ -861,15 +863,19 @@ export default function ProductDetail() {
       setFaqs([]);
       return;
     }
-    supabase
-      .from("product_faqs")
-      .select("id, question, answer, display_order")
-      .eq("product_id", productId)
-      .order("display_order", { ascending: true })
-      .then(({ data, error }) => {
+    const id = productId;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("product_faqs")
+          .select("id, question, answer, display_order")
+          .eq("product_id", id)
+          .order("display_order", { ascending: true });
         setFaqs(!error && data ? (data as ProductFAQItem[]) : []);
-      })
-      .catch(() => setFaqs([]));
+      } catch {
+        setFaqs([]);
+      }
+    })();
   }, [(product as any)?.id]);
 
   // ── IntersectionObserver for reveal animations ──
