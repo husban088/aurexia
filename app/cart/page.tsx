@@ -8,6 +8,7 @@ import { useCouponStore } from "@/lib/couponStore";
 import "./cart.css";
 import { useCurrency } from "../context/CurrencyContext";
 import { useLanguage } from "../context/LanguageContext";
+import { supabase } from "@/lib/supabase";
 
 /* ═══════════════════════════════════════════
    TRANSLATIONS
@@ -171,6 +172,7 @@ export default function Cart() {
 
   const [isHydrated, setIsHydrated] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
     setIsMounted(true);
@@ -188,6 +190,13 @@ export default function Cart() {
     fetchCouponSettings();
   }, [fetchCouponSettings]);
 
+  // ✅ Get logged-in user email for coupon eligibility check
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserEmail(session?.user?.email || "");
+    });
+  }, []);
+
   const subtotalPKR = getSubtotal();
   const cartCount = getCartCount();
 
@@ -195,12 +204,13 @@ export default function Cart() {
   const shippingPKR = 0;
   const totalPKR = getFinalTotal(subtotalPKR) + shippingPKR;
 
-  const handleApplyCoupon = () => {
+  // ✅ async — waits for DB eligibility check before showing result
+  const handleApplyCoupon = async () => {
     if (!couponInput.trim()) {
       setCouponMessage({ text: "Please enter a coupon code.", success: false });
       return;
     }
-    const result = applyCoupon(couponInput);
+    const result = await applyCoupon(couponInput, userEmail);
     setCouponMessage({ text: result.message, success: result.success });
     if (result.success) {
       setCouponInput("");

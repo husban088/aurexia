@@ -7,6 +7,7 @@ import { useCouponStore } from "@/lib/couponStore";
 import "./cartsidebar.css";
 import { useCurrency } from "../context/CurrencyContext";
 import { useLanguage } from "../context/LanguageContext";
+import { supabase } from "@/lib/supabase";
 
 interface CartSidebarProps {
   isOpen: boolean;
@@ -114,6 +115,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     success: boolean;
   } | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
 
   const items = useCartStore((state) => state.items);
   const loading = useCartStore((state) => state.loading);
@@ -157,12 +159,13 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const shippingPKR = 0;
   const totalPKR = getFinalTotal(subtotalPKR) + shippingPKR;
 
-  const handleApplyCoupon = () => {
+  // ✅ async — waits for DB eligibility check before showing result
+  const handleApplyCoupon = async () => {
     if (!couponInput.trim()) {
       setCouponMessage({ text: "Please enter a coupon code.", success: false });
       return;
     }
-    const result = applyCoupon(couponInput);
+    const result = await applyCoupon(couponInput, userEmail);
     setCouponMessage({ text: result.message, success: result.success });
     if (result.success) {
       setCouponInput("");
@@ -187,6 +190,13 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // ✅ Get logged-in user email for coupon eligibility check
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserEmail(session?.user?.email || "");
+    });
   }, []);
 
   useEffect(() => {

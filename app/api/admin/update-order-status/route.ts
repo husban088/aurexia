@@ -4,8 +4,9 @@
 // ✅ processing removed from admin panel
 // ✅ Currency by customer country in all emails + WhatsApp
 // ✅ PAID PLAN: Product image sent with WhatsApp for ALL statuses
-// ✅ NEW: When status = "delivered", customer email saved to
-//         delivered_customers table → unlocks coupon codes for them
+// ✅ When status = "delivered", customer email saved to
+//    delivered_customers table → unlocks coupon codes for them
+// ✅ TypeScript fix: delivered_customers upsert uses (supabase as any) to bypass missing generated types
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -81,21 +82,27 @@ function getClient() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-// ── NEW: Save delivered customer email so they can use coupons ────────────────
+// ── Save delivered customer email so they can use coupons ─────────────────────
+// ✅ FIX: Cast supabase to `any` so TypeScript doesn't complain about
+//    delivered_customers table not being in the auto-generated DB types.
+//    The table exists in the DB — this is purely a types file mismatch.
 async function saveDeliveredCustomer(
-  supabase: ReturnType<typeof createClient>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
   email: string,
   orderNumber: string,
 ): Promise<void> {
   try {
-    const { error } = await supabase.from("delivered_customers").upsert(
-      {
-        email: email.trim().toLowerCase(),
-        order_number: orderNumber,
-        delivered_at: new Date().toISOString(),
-      },
-      { onConflict: "email,order_number" }, // ignore duplicate
-    );
+    const { error } = await (supabase as any)
+      .from("delivered_customers")
+      .upsert(
+        {
+          email: email.trim().toLowerCase(),
+          order_number: orderNumber,
+          delivered_at: new Date().toISOString(),
+        },
+        { onConflict: "email,order_number" },
+      );
 
     if (error) {
       console.error("❌ saveDeliveredCustomer DB error:", error.message);
@@ -152,7 +159,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ Only 3 valid statuses — confirmed and processing removed from admin
+    // ✅ Only 3 valid statuses
     const validStatuses = ["shipped", "delivered", "cancelled"];
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
@@ -188,7 +195,7 @@ export async function POST(req: NextRequest) {
       updatePayload.shipped_at = new Date().toISOString();
     }
 
-    const { error: dbError } = await supabase
+    const { error: dbError } = await (supabase as any)
       .from("orders")
       .update(updatePayload)
       .eq("id", orderId);
@@ -198,7 +205,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: dbError.message }, { status: 500 });
     }
 
-    // ── ✅ NEW: Save delivered customer for coupon eligibility ─────────────────
+    // ── Save delivered customer for coupon eligibility ────────────────────────
     if (status === "delivered" && customerEmail) {
       await saveDeliveredCustomer(supabase, customerEmail, orderNumber);
     }
@@ -220,7 +227,7 @@ export async function POST(req: NextRequest) {
       product_image: item.product_image || null,
     }));
 
-    // ── WhatsApp items — raw PKR + image fields ───────────────────────────────
+    // ── WhatsApp items ────────────────────────────────────────────────────────
     const waItems = items.map((item: any) => ({
       name: item.product_name || item.name || "Product",
       variant: item.variant_name || null,
@@ -382,7 +389,6 @@ export async function POST(req: NextRequest) {
       hasImages: waItems.some(
         (i: any) => i.variant_image || i.image || i.product_image,
       ),
-      // ✅ Log coupon eligibility saved
       couponEligibilitySaved: status === "delivered" ? "✅" : "n/a",
     });
 

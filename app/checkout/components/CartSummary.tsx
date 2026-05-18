@@ -38,6 +38,7 @@ interface CartSummaryProps {
   total: number;
   cartCount: number;
   formatPrice?: (price: number) => string;
+  userEmail?: string; // ✅ needed for coupon eligibility check
 }
 
 export default function CartSummary({
@@ -47,6 +48,7 @@ export default function CartSummary({
   total,
   cartCount,
   formatPrice: propFormatPrice,
+  userEmail = "", // ✅ email for coupon eligibility
 }: CartSummaryProps) {
   const {
     formatPrice: contextFormatPrice,
@@ -86,13 +88,13 @@ export default function CartSummary({
   const finalShipping = 0; // Free shipping always
   const finalTotal = getFinalTotal(subtotal) + finalShipping;
 
-  // ✅ Handle coupon apply
-  const handleApplyCoupon = () => {
+  // ✅ Handle coupon apply — async, passes userEmail for DB eligibility check
+  const handleApplyCoupon = async () => {
     if (!couponInput.trim()) {
       setCouponMessage({ text: "Please enter a coupon code.", success: false });
       return;
     }
-    const result = applyCoupon(couponInput);
+    const result = await applyCoupon(couponInput, userEmail);
     setCouponMessage({ text: result.message, success: result.success });
     if (result.success) {
       setCouponInput("");
