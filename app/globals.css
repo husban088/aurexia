@@ -12,18 +12,6 @@
     "Poppins", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
     sans-serif;
   --font-cormorant: "Cormorant Garamond", serif;
-
-  /*
-    ✅ KEY FIX: Navbar ka estimated height yahan define karo.
-    Jab JS load nahi hua hota, providers.tsx yeh value use karta hai paddingTop ke liye.
-    Isse page HAMESHA top se start hoga — koi layout shift nahi, footer pehle nahi dikhega.
-
-    Apni actual navbar height yahan set karo (AnnouncementBar + Navbar mila ke).
-    Agar AnnouncementBar ~40px + Navbar ~64px = ~104px total hai toh yahi rakho.
-  */
-  --navbar-height: 104px;
-
-  /* ── Golden Scrollbar Colors ── */
   --scrollbar-thumb: #c9a84c;
   --scrollbar-track: #1a1410;
 }
@@ -109,53 +97,6 @@ html {
 }
 
 /* ============================================================
-   🚀 PERFORMANCE OPTIMIZATIONS
-   Smooth scrolling + GPU acceleration
-   ============================================================ */
-
-/* Optimize scroll performance */
-html {
-  scroll-behavior: smooth !important;
-  -webkit-overflow-scrolling: touch;
-  overflow-x: hidden !important;
-  /* GPU acceleration */
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  perspective: 1000px;
-}
-
-/* Optimize animation performance */
-* {
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Will-change for smooth animations */
-.pd-root,
-.fp-root,
-.co-root,
-.cart-root {
-  will-change: transform;
-}
-
-/* Prevent layout shifts */
-img,
-video {
-  content-visibility: auto;
-}
-
-/* Lazy load images smoothly */
-img {
-  transition: opacity 0.2s ease-in-out;
-}
-
-/* Disable smooth scroll on mobile for better performance */
-@media (max-width: 768px) {
-  html {
-    scroll-behavior: auto !important;
-  }
-}
-
-/* ============================================================
    ✅ PAGE FADE-IN — No loader needed, no delay, no layout shift
    Page smoothly appears from top instantly
    ============================================================ */
@@ -163,7 +104,7 @@ img {
 @keyframes pageFadeIn {
   from {
     opacity: 0;
-    transform: translateY(0);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -172,7 +113,7 @@ img {
 }
 
 .page-fade-in {
-  animation: pageFadeIn 0.2s ease-out forwards;
+  animation: pageFadeIn 0.35s ease-out forwards;
 }
 
 /* ============================================================
@@ -476,27 +417,4 @@ body.rtl .fp-card-price,
 [dir="rtl"] .fp-card-price {
   text-align: right;
   direction: rtl;
-}
-
-/* ============================================================
-   SCROLLBAR PERFORMANCE OPTIMIZATION (Duplicate removed, kept clean)
-   ============================================================ */
-
-/* Optimize scrollbar performance - already defined above, keeping only essential */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #1a1410;
-}
-
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #e0b84e 0%, #c9a84c 40%, #b4912f 100%);
-  border-radius: 6px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #f0cc6a 0%, #e0b84e 40%, #c9a84c 100%);
 }
