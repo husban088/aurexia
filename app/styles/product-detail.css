@@ -3,7 +3,7 @@
    Light theme — matching featured products page
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Russo+One&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 /* ── CSS Variables (Light Theme) ── */
 :root {
@@ -25,8 +25,8 @@
   --pd-grey: #444444;
   --pd-grey-dim: #666666;
   --pd-light-bg: #ffffff;
-  --pd-serif: "Russo One", sans-serif;
-  --pd-sans: "Russo One", sans-serif;
+  --pd-serif: var(--font-goldman), "Goldman", system-ui, sans-serif;
+  --pd-sans: var(--font-goldman), "Goldman", system-ui, sans-serif;
   --pd-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
   --pd-ease-fast: 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   --pd-nav-h: 68px;
@@ -1141,7 +1141,7 @@
          RICH TEXT DESCRIPTION STYLES
       ═══════════════════════════════════════════ */
 .pd-description-rich {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.9rem;
   line-height: 1.7;
   color: #1a1a1a;
@@ -1159,7 +1159,7 @@
 .pd-description-rich h4,
 .pd-description-rich h5,
 .pd-description-rich h6 {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-weight: 500;
   margin: 1rem 0 0.75rem;
   color: #1a1a1a;
@@ -1712,14 +1712,14 @@
   flex: 1;
 }
 .dm-modal-title h2 {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.4rem;
   font-weight: 500;
   color: #1a1a1a;
   margin: 0;
 }
 .dm-modal-title p {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 500;
   letter-spacing: 0.2em;
@@ -1767,7 +1767,7 @@
   border-radius: 10px;
 }
 .dm-description-content {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 1rem;
   line-height: 1.8;
   color: #2d2d2d;
@@ -1787,7 +1787,7 @@
   background: transparent;
   border: 1px solid rgba(218, 165, 32, 0.3);
   border-radius: 40px;
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.15em;

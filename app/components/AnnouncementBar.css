@@ -170,7 +170,7 @@
 }
 
 .announcement-text {
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-weight: 700;
   font-size: clamp(0.75rem, 4vw, 0.9rem);
   letter-spacing: 0.12em;
@@ -191,7 +191,7 @@
 }
 
 .announcement-subtext {
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-weight: 500;
   font-size: clamp(0.6rem, 3vw, 1rem);
   color: rgba(255, 255, 255, 0.75);

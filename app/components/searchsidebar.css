@@ -111,7 +111,7 @@
 }
 
 .ss-label-text {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.18em;
@@ -120,7 +120,7 @@
 }
 
 .ss-title {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 2rem;
   font-weight: 500;
   color: #1a1a1a;
@@ -193,7 +193,7 @@
   background: transparent;
   border: none;
   padding: 0.6rem 2rem 0.6rem 2rem;
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.9rem;
   font-weight: 500;
   color: #1a1a1a;
@@ -289,7 +289,7 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.2em;
@@ -309,7 +309,7 @@
   background: #f5f0e8;
   border: 1px solid rgba(218, 165, 32, 0.15);
   color: #444444;
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.75rem;
   font-weight: 500;
   letter-spacing: 0.04em;
@@ -360,7 +360,7 @@
   border: none;
   padding: 0.65rem 0.6rem;
   color: #444444;
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.82rem;
   font-weight: 500;
   letter-spacing: 0.03em;
@@ -422,7 +422,7 @@
   border-radius: 12px;
   padding: 0.85rem 1rem;
   color: #444444;
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.82rem;
   font-weight: 500;
   letter-spacing: 0.03em;
@@ -481,7 +481,7 @@
 
 /* Results */
 .ss-results-label {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.78rem;
   font-weight: 500;
   color: #666666;
@@ -513,7 +513,7 @@
 }
 
 .ss-no-results p {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.85rem;
   font-weight: 500;
   color: #666666;
@@ -533,7 +533,7 @@
 }
 
 .ss-footer p {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.65rem;
   font-weight: 500;
   color: #999999;
@@ -549,7 +549,7 @@
   border-radius: 4px;
   padding: 0.1em 0.45em;
   font-size: 0.65rem;
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   color: #8b6914;
 }
 
@@ -611,7 +611,7 @@
 .ss-clear-recent {
   background: transparent;
   border: none;
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.55rem;
   font-weight: 500;
   letter-spacing: 0.1em;
@@ -648,7 +648,7 @@
 }
 
 .ss-loading p {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.7rem;
   color: #666666;
 }
@@ -717,7 +717,7 @@
 }
 
 .ss-result-brand {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.5rem;
   font-weight: 600;
   letter-spacing: 0.15em;
@@ -726,20 +726,20 @@
 }
 
 .ss-result-name {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.85rem;
   font-weight: 500;
   color: #1a1a1a;
 }
 
 .ss-result-category {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.55rem;
   color: #999999;
 }
 
 .ss-result-price {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.85rem;
   font-weight: 600;
   color: #8b6914;
@@ -773,7 +773,7 @@
   background: transparent;
   border: 1px solid rgba(218, 165, 32, 0.2);
   border-radius: 40px;
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.15em;
@@ -854,14 +854,14 @@
 }
 
 .ss-featured-name {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.8rem;
   font-weight: 500;
   color: #1a1a1a;
 }
 
 .ss-featured-price {
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.85rem;
   font-weight: 600;
   color: #8b6914;

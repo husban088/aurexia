@@ -29,7 +29,7 @@
   background: rgba(218, 165, 32, 0.06);
   border: 1px solid rgba(218, 165, 32, 0.2);
   border-radius: 40px;
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.12em;
@@ -79,7 +79,7 @@
   border: none;
   border-radius: 40px;
   cursor: pointer;
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.65rem;
   font-weight: 600;
   color: #999;
@@ -113,7 +113,7 @@
   transform: translateX(-50%);
   background: #1a1a1a;
   color: #daa520;
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.5rem;
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -139,7 +139,7 @@
   background: white;
   border: 1px solid rgba(218, 165, 32, 0.2);
   border-radius: 40px;
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -165,7 +165,7 @@
 
 /* Result Count */
 .grid-result-count {
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 400;
   color: #999;

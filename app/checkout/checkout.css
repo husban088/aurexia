@@ -3,7 +3,7 @@
    Fully Responsive · Luxury Design · Premium Animations
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Russo+One&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Josefin+Sans:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 :root {
   --co-gold: #daa520;
@@ -17,8 +17,8 @@
   --co-grey: #444444;
   --co-grey-light: #666666;
   --co-grey-dark: #999999;
-  --co-serif: "Russo One", sans-serif;
-  --co-sans: "Josefin Sans", sans-serif;
+  --co-serif: "Goldman", system-ui, sans-serif;
+  --co-sans: "Goldman", system-ui, sans-serif;
   --co-ease: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
   --co-ease-bounce: 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
   --co-gold-gradient: linear-gradient(135deg, #daa520, #f0c040);

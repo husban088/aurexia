@@ -2,7 +2,7 @@
    OrderSuccess.css — Luxury Order Confirmation Page
    ══════════════════════════════════════════════════════════ */
 
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Playfair+Display:ital,wght@0,700;1,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 /* ── Variables ── */
 :root {
@@ -21,9 +21,9 @@
   --os-shadow-gold: 0 8px 40px rgba(218, 165, 32, 0.15);
   --os-radius: 20px;
   --os-radius-sm: 12px;
-  --os-font-display: "Cormorant Garamond", serif;
-  --os-font-accent: "Playfair Display", serif;
-  --os-font-body: "DM Sans", sans-serif;
+  --os-font-display: "Goldman", system-ui, sans-serif;
+  --os-font-accent: "Goldman", system-ui, sans-serif;
+  --os-font-body: "Goldman", system-ui, sans-serif;
 }
 
 /* ── Root ── */
@@ -352,7 +352,7 @@
   gap: 12px;
 }
 .os-order-num {
-  font-family: "Courier New", monospace;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--os-gold-light);

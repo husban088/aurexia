@@ -1,4 +1,5 @@
-/* ── Google Fonts — Poppins and fallbacks ── */
+/* ── Google Fonts — Goldman, Poppins and fallbacks ── */
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&display=swap");
 
@@ -8,6 +9,7 @@
 :root {
   --background: #f5f0e8;
   --foreground: #f5f0e8;
+  --font-goldman: "Goldman", system-ui, sans-serif;
   --font-poppins:
     "Poppins", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
     sans-serif;
@@ -128,7 +130,7 @@ body {
 }
 
 /* ============================================================
-   POPPINS FONT - MAIN FONT FOR ENTIRE PROJECT
+   GOLDMAN FONT - PRIMARY FONT FOR ENTIRE WEBSITE
    ============================================================ */
 
 body,
@@ -163,7 +165,8 @@ label,
 .fp-root,
 .pg-root,
 .rp-root {
-  font-family: var(--font-poppins);
+  font-family: var(--font-goldman);
+  font-weight: 500;
 }
 
 code,
@@ -178,7 +181,7 @@ h1,
 .h1,
 .page-title,
 .hero-title {
-  font-family: var(--font-poppins);
+  font-family: var(--font-goldman);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -186,7 +189,7 @@ h1,
 h2,
 .h2,
 .section-title {
-  font-family: var(--font-poppins);
+  font-family: var(--font-goldman);
   font-weight: 700;
   letter-spacing: -0.01em;
 }
@@ -194,23 +197,23 @@ h2,
 h3,
 .h3,
 .card-title {
-  font-family: var(--font-poppins);
-  font-weight: 600;
+  font-family: var(--font-goldman);
+  font-weight: 700;
 }
 
 button,
 .btn,
 .cta-button {
-  font-family: var(--font-poppins);
-  font-weight: 600;
+  font-family: var(--font-goldman);
+  font-weight: 700;
   letter-spacing: 0.03em;
 }
 
 .nav-links a,
 .navbar a,
 .menu-item {
-  font-family: var(--font-poppins);
-  font-weight: 500;
+  font-family: var(--font-goldman);
+  font-weight: 400;
   letter-spacing: 0.05em;
 }
 
@@ -218,15 +221,15 @@ button,
 .product-title,
 .fp-card-name,
 .pg-card-name {
-  font-family: var(--font-poppins);
-  font-weight: 600;
+  font-family: var(--font-goldman);
+  font-weight: 700;
 }
 
 .price,
 .product-price,
 .fp-card-price,
 .pg-card-price {
-  font-family: var(--font-poppins);
+  font-family: var(--font-goldman);
   font-weight: 700;
 }
 
@@ -234,7 +237,7 @@ label,
 input,
 textarea,
 select {
-  font-family: var(--font-poppins);
+  font-family: var(--font-goldman);
 }
 
 .small-text,
@@ -242,14 +245,14 @@ select {
 .eyebrow,
 .badge,
 .stock-status {
-  font-family: var(--font-poppins);
+  font-family: var(--font-goldman);
   font-weight: 400;
   letter-spacing: 0.05em;
 }
 
 .footer-text,
 .copyright {
-  font-family: var(--font-poppins);
+  font-family: var(--font-goldman);
   font-weight: 400;
 }
 
@@ -269,10 +272,12 @@ var,
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-poppins);
+  font-family: var(--font-goldman);
+  font-weight: 500;
+  font-style: normal;
+  overflow-x: hidden !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
 }
 
 button {
@@ -312,6 +317,21 @@ a {
    ADDITIONAL HELPER CLASSES
    ============================================================ */
 
+/* Goldman helpers */
+.font-goldman {
+  font-family: "Goldman", system-ui, sans-serif;
+  font-weight: 500;
+}
+.font-goldman-regular {
+  font-family: "Goldman", system-ui, sans-serif;
+  font-weight: 400;
+}
+.font-goldman-bold {
+  font-family: "Goldman", system-ui, sans-serif;
+  font-weight: 700;
+}
+
+/* Poppins helpers (backup / override use ke liye) */
 .font-poppins {
   font-family: "Poppins", sans-serif;
 }
@@ -347,6 +367,7 @@ a {
   font-family: "Poppins", sans-serif;
   font-weight: 900;
 }
+
 .font-cormorant {
   font-family: "Cormorant Garamond", serif;
 }

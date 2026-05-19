@@ -1,7 +1,7 @@
 /* app/track-order/track-order.css */
 /* Tech4U — Order Tracking Page - Light Theme (Matching Signup Page) */
 
-@import url("https://fonts.googleapis.com/css2?family=Russo+One&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 /* ─── Variables ─────────────────────────────────────────────────────────── */
 :root {
@@ -20,8 +20,8 @@
   --trk-text-light: #444444;
   --trk-text-grey: #666666;
   --trk-text-gold: #8b6914;
-  --trk-serif: "Russo One", sans-serif;
-  --trk-sans: "Russo One", sans-serif;
+  --trk-serif: "Goldman", system-ui, sans-serif;
+  --trk-sans: "Goldman", system-ui, sans-serif;
   --trk-ease: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
   --trk-success: #22c55e;
   --trk-error: #ef4444;

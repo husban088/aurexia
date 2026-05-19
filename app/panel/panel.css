@@ -2,7 +2,7 @@
    PANEL PAGE  ·  panel.css
    Light/Luxury theme with Larger Fonts
    ============================================================ */
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 :root {
   --p-gold: #daa520;
@@ -18,8 +18,8 @@
   --p-text-secondary: #444444;
   --p-text-muted: #666666;
   --p-text-light: #999999;
-  --p-serif: "Poppins", sans-serif;
-  --p-sans: "Poppins", sans-serif;
+  --p-serif: "Goldman", system-ui, sans-serif;
+  --p-sans: "Goldman", system-ui, sans-serif;
   --p-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
   --p-nav-h: 68px;
 }
@@ -1135,7 +1135,9 @@
 .p-product-card-enhanced:hover {
   transform: translateY(-4px);
   border-color: rgba(218, 165, 32, 0.3);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(218, 165, 32, 0.1);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(218, 165, 32, 0.1);
 }
 
 /* Product Image Wrapper */

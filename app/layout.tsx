@@ -1,6 +1,6 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
+import { Poppins, Goldman } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Providers from "./providers";
@@ -8,16 +8,24 @@ import { CurrencyProvider } from "./context/CurrencyContext";
 import { LanguageProvider } from "./context/LanguageContext";
 import { getInitialCurrency } from "@/lib/get-initial-currency";
 
-// ✅ Poppins — sirf zaroori weights load karo (performance)
-// Saare 9 weights ek saath mat load karo — browser slow hoga
+// ✅ Goldman — primary font for entire website
+const goldman = Goldman({
+  variable: "--font-goldman",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  display: "swap",
+  preload: true,
+  fallback: ["system-ui", "sans-serif"],
+});
+
+// ✅ Poppins — kept as backup/secondary font
 const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
-  // ✅ Sirf commonly used weights — baaki CSS fallback handle karega
   weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],
   display: "swap",
-  preload: true,
+  preload: false,
   fallback: ["Segoe UI", "system-ui", "sans-serif"],
 });
 
@@ -38,7 +46,7 @@ export default async function RootLayout({
     <html
       lang="en"
       dir="ltr"
-      className={`${poppins.variable} h-full antialiased`}
+      className={`${goldman.variable} ${poppins.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

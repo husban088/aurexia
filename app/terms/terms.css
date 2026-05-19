@@ -3,7 +3,7 @@
    Premium Light Theme — Matching Privacy Policy
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Russo+One&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 :root {
   --tos-gold: #daa520;
@@ -20,8 +20,8 @@
   --tos-text-light: #444444;
   --tos-text-grey: #666666;
   --tos-text-gold: #8b6914;
-  --tos-serif: "Russo One", sans-serif;
-  --tos-sans: "Russo One", sans-serif;
+  --tos-serif: "Goldman", system-ui, sans-serif;
+  --tos-sans: "Goldman", system-ui, sans-serif;
   --tos-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -116,7 +116,9 @@
   padding: 2rem 1.5rem 5rem;
   opacity: 0;
   transform: translateY(24px);
-  transition: opacity 0.6s var(--tos-ease), transform 0.6s var(--tos-ease);
+  transition:
+    opacity 0.6s var(--tos-ease),
+    transform 0.6s var(--tos-ease);
 }
 .tos-container.visible {
   opacity: 1;

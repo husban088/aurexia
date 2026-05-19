@@ -4,7 +4,7 @@
    Matches FeaturedProducts design exactly
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Jost:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 /* ── Design Tokens ── */
 :root {
@@ -23,8 +23,8 @@
   --rp-ink: #111111;
   --rp-ink-soft: #333333;
   --rp-ink-muted: #777777;
-  --rp-serif: "Cormorant Garamond", Georgia, serif;
-  --rp-sans: "Jost", sans-serif;
+  --rp-serif: "Goldman", system-ui, sans-serif;
+  --rp-sans: "Goldman", system-ui, sans-serif;
   --rp-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --rp-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }

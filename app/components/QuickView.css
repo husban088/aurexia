@@ -171,7 +171,7 @@
   left: 1rem;
   background: #dc2626;
   color: white;
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.78rem;
   font-weight: 700;
   padding: 0.25rem 0.7rem;
@@ -193,7 +193,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.3em;
@@ -208,7 +208,7 @@
 }
 
 .qv-brand {
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.22em;
@@ -218,7 +218,7 @@
 }
 
 .qv-title {
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.8rem;
   font-weight: 500;
   color: #0a0a0a;
@@ -234,14 +234,14 @@
 }
 
 .qv-price {
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.8rem;
   font-weight: 600;
   color: var(--fp-gold);
 }
 
 .qv-orig {
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.9rem;
   font-weight: 400;
   color: rgba(0, 0, 0, 0.4);
@@ -249,7 +249,7 @@
 }
 
 .qv-desc {
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.85rem;
   font-weight: 400;
   line-height: 1.6;
@@ -261,7 +261,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.7rem;
   font-weight: 500;
 }
@@ -296,7 +296,7 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.65rem;
   font-weight: 500;
   color: #666;
@@ -328,7 +328,7 @@
   background: var(--fp-gold);
   border: none;
   border-radius: 40px;
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.15em;
@@ -363,7 +363,7 @@
   background: transparent;
   border: 1px solid var(--fp-border);
   border-radius: 40px;
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.15em;
@@ -385,7 +385,7 @@
   justify-content: center;
   gap: 0.5rem;
   margin-top: 0.5rem;
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.7rem;
   font-weight: 500;
   letter-spacing: 0.12em;
@@ -468,7 +468,7 @@
 
 .qv-attr-label {
   display: block;
-  font-family: var(--fp-sans, "Poppins", sans-serif);
+  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
   font-size: 0.55rem;
   font-weight: 600;
   letter-spacing: 0.15em;
@@ -488,7 +488,7 @@
   background: rgba(218, 165, 32, 0.08);
   border: 1px solid rgba(218, 165, 32, 0.15);
   border-radius: 20px;
-  font-family: var(--fp-sans, "Poppins", sans-serif);
+  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
   font-size: 0.6rem;
   font-weight: 500;
   color: #444;
@@ -503,7 +503,7 @@
   background: rgba(218, 165, 32, 0.08);
   border: 1px solid rgba(218, 165, 32, 0.15);
   border-radius: 30px;
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.65rem;
   font-weight: 500;
   color: #444;
@@ -543,13 +543,13 @@
 }
 
 .qv-per-piece-label {
-  font-family: var(--fp-sans, "Poppins", sans-serif);
+  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
   font-size: 0.65rem;
   color: #666666;
 }
 
 .qv-per-piece-saving {
-  font-family: var(--fp-sans, "Poppins", sans-serif);
+  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
   font-size: 0.6rem;
   font-weight: 600;
   color: #22c55e;
@@ -648,7 +648,7 @@
 }
 
 .qv-bulk-tier-qty {
-  font-family: var(--fp-sans, "Poppins", sans-serif);
+  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
   font-size: 0.7rem;
   font-weight: 700;
   color: #1a1a1a;
@@ -658,27 +658,27 @@
 }
 
 .qv-bulk-tier-price {
-  font-family: var(--fp-serif, "Poppins", sans-serif);
+  font-family: var(--fp-serif, "Goldman", system-ui, sans-serif);
   font-size: 1rem;
   font-weight: 700;
   color: #8b6914;
 }
 
 .qv-bulk-tier-perpiece {
-  font-family: var(--fp-sans, "Poppins", sans-serif);
+  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
   font-size: 0.6rem;
   color: #666666;
 }
 
 .qv-bulk-tier-saving {
-  font-family: var(--fp-sans, "Poppins", sans-serif);
+  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
   font-size: 0.55rem;
   font-weight: 600;
   color: #22c55e;
 }
 
 .qv-bulk-tier-discount {
-  font-family: var(--fp-sans, "Poppins", sans-serif);
+  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
   font-size: 0.55rem;
   font-weight: 700;
   color: #f59e0b;
@@ -700,7 +700,7 @@
 }
 
 .qv-qty-label {
-  font-family: var(--fp-sans, "Poppins", sans-serif);
+  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -709,7 +709,7 @@
 }
 
 .qv-qty-value {
-  font-family: var(--fp-sans, "Poppins", sans-serif);
+  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
   font-size: 0.7rem;
   font-weight: 700;
   color: #1a1a1a;
@@ -720,7 +720,7 @@
 }
 
 .qv-qty-total {
-  font-family: var(--fp-serif, "Poppins", sans-serif);
+  font-family: var(--fp-serif, "Goldman", system-ui, sans-serif);
   font-size: 0.85rem;
   font-weight: 700;
   color: #8b6914;
@@ -779,7 +779,7 @@
 .qv-qty-val {
   min-width: 36px;
   text-align: center;
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.85rem;
   font-weight: 700;
   color: #1a1a1a;
@@ -844,7 +844,7 @@
 
 .qv-desc-label {
   flex: 1;
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.12em;
@@ -869,7 +869,7 @@
 }
 
 .qv-desc-preview {
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.7rem;
   line-height: 1.5;
   color: #666;
@@ -965,7 +965,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.55rem;
   font-weight: 600;
   letter-spacing: 0.3em;
@@ -981,7 +981,7 @@
 }
 
 .qv-desc-modal-title {
-  font-family: "Cormorant Garamond", serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.8rem;
   font-weight: 500;
   color: #1a1a1a;
@@ -1009,7 +1009,7 @@
 }
 
 .qv-desc-modal-content {
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.85rem;
   line-height: 1.7;
   color: #444;
@@ -1037,7 +1037,7 @@
 .qv-desc-modal-content h1,
 .qv-desc-modal-content h2,
 .qv-desc-modal-content h3 {
-  font-family: "Cormorant Garamond", serif;
+  font-family: "Goldman", system-ui, sans-serif;
   margin: 1rem 0 0.5rem;
   color: #1a1a1a;
 }
@@ -1061,14 +1061,14 @@
 }
 
 .qv-rating-value {
-  font-family: var(--fp-sans, "Josefin Sans", sans-serif);
+  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
   font-size: 0.7rem;
   font-weight: 600;
   color: #daa520;
 }
 
 .qv-rating-count {
-  font-family: var(--fp-sans, "Josefin Sans", sans-serif);
+  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
   font-size: 0.6rem;
   color: #888;
 }
@@ -1092,7 +1092,7 @@
   border: 1px solid rgba(220, 38, 38, 0.25);
   border-radius: 20px;
   color: #dc2626;
-  font-family: var(--fp-sans, "Josefin Sans", sans-serif);
+  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
   font-size: 0.55rem;
   font-weight: 500;
   cursor: pointer;
