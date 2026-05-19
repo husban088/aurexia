@@ -7,7 +7,6 @@ import { useCouponStore } from "@/lib/couponStore";
 import "./cartsidebar.css";
 import { useCurrency } from "../context/CurrencyContext";
 import { useLanguage } from "../context/LanguageContext";
-import { supabase } from "@/lib/supabase";
 
 interface CartSidebarProps {
   isOpen: boolean;
@@ -110,7 +109,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
   const [mounted, setMounted] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [userEmail, setUserEmail] = useState("");
 
   const items = useCartStore((state) => state.items);
   const loading = useCartStore((state) => state.loading);
@@ -143,13 +141,10 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     appliedCode,
     discountPercent,
     discountLabel,
-    applyCoupon,
     removeCoupon,
     getDiscountAmount,
     getFinalTotal,
     fetchCouponSettings,
-    coupon10Enabled,
-    settingsLoading,
   } = useCouponStore();
 
   const discountAmountPKR = getDiscountAmount(subtotalPKR);
@@ -169,13 +164,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     setMounted(true);
   }, []);
 
-  // ✅ Get logged-in user email for coupon eligibility check
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserEmail(session?.user?.email || "");
-    });
-  }, []);
-
   useEffect(() => {
     if (isOpen && !initialized && mounted) {
       fetchCart();
@@ -187,15 +175,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
       fetchCouponSettings();
     }
   }, [isOpen, mounted, fetchCouponSettings]);
-
-  // ✅ Auto-apply DISC4U10 when sidebar opens — silently, no input needed
-  useEffect(() => {
-    if (!isOpen || !mounted || settingsLoading) return;
-    if (appliedCode) return; // already applied
-    if (!coupon10Enabled) return; // disabled by admin
-    // Apply silently — DISC4U10 is open for everyone
-    applyCoupon("DISC4U10", userEmail);
-  }, [isOpen, mounted, settingsLoading, coupon10Enabled, appliedCode]);
 
   useEffect(() => {
     if (!mounted) return;

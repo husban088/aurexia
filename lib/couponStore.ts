@@ -247,6 +247,19 @@ export const useCouponStore = create<CouponStore>()(
 
       removeCoupon: () => {
         set({ appliedCode: null, discountPercent: 0, discountLabel: "" });
+        // ✅ Persist storage bhi clear karo — warna reload pe wapas aa jata hai
+        try {
+          const stored = localStorage.getItem("coupon-storage");
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed?.state) {
+              parsed.state.appliedCode = null;
+              parsed.state.discountPercent = 0;
+              parsed.state.discountLabel = "";
+              localStorage.setItem("coupon-storage", JSON.stringify(parsed));
+            }
+          }
+        } catch (_) {}
       },
 
       getDiscountAmount: (subtotal: number) => {
