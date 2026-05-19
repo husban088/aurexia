@@ -866,53 +866,48 @@ export default function ProductGrid({
     setColumns(4);
   }, []);
 
-  // Load products on mount and when dependencies change
+  // ✅ Load products — no isMounted, always clears loading, never sets empty
   useEffect(() => {
-    let isMounted = true;
     const key = getPgCacheKey(category, subcategory, limit, featured);
 
-    // If already cached with products, show instantly + silent background refresh
-    if (pgCache[key]?.data?.length > 0) {
+    // Cache hit — show instantly, silent background refresh
+    if ((pgCache[key]?.data?.length ?? 0) > 0) {
       setProducts(pgCache[key].data);
       setLoading(false);
-      // Only refresh if cache older than 2 minutes
+      // Refresh only if cache is older than 3 minutes
       const cacheAge = Date.now() - (pgCache[key].fetchedAt || 0);
-      if (cacheAge > 120000) {
+      if (cacheAge > 180000) {
         fetchProductsWithVariants(category, subcategory, limit, featured)
           .then((data) => {
-            if (isMounted && data.length > 0) {
+            if (data.length > 0) {
               pgCache[key] = { data, fetchedAt: Date.now() };
               setProducts(data);
             }
           })
           .catch(() => {});
       }
-      return () => {
-        isMounted = false;
-      };
+      return;
     }
 
-    // No cache — fetch fresh, always clear loading in finally
+    // No cache — fresh fetch
     setLoading(true);
     fetchProductsWithVariants(category, subcategory, limit, featured)
       .then((data) => {
-        if (!isMounted) return;
+        // ✅ Only update if we got real products — never overwrite with empty
         if (data.length > 0) {
           pgCache[key] = { data, fetchedAt: Date.now() };
           setProducts(data);
         }
       })
-      .catch((error) => {
-        console.error("Error loading products:", error);
-      })
+      .catch(() => {})
       .finally(() => {
-        // ALWAYS stop loading — skeleton never gets stuck
-        if (isMounted) setLoading(false);
+        // ✅ ALWAYS stop loading — skeleton never stuck
+        setLoading(false);
       });
 
-    return () => {
-      isMounted = false;
-    };
+    // ✅ Safety net — if loading stuck > 5s, force clear
+    const safetyTimer = setTimeout(() => setLoading(false), 5000);
+    return () => clearTimeout(safetyTimer);
   }, [category, subcategory, limit, featured]);
 
   // Real-time updates for product changes
@@ -950,30 +945,29 @@ export default function ProductGrid({
     };
   }, [category, subcategory, limit, featured]);
 
-  // Handle page visibility change (tab switch back)
+  // ✅ Tab switch back — show cached products instantly, refresh silently
   useEffect(() => {
     const key = getPgCacheKey(category, subcategory, limit, featured);
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        // Show cached data immediately if we have it
-        if (pgCache[key]?.data?.length > 0) {
-          setProducts(pgCache[key].data);
-        }
-        // Silent background refresh — never block UI
-        fetchProductsWithVariants(category, subcategory, limit, featured)
-          .then((data) => {
-            if (data.length > 0) {
-              pgCache[key] = { data, fetchedAt: Date.now() };
-              setProducts(data);
-            }
-          })
-          .catch(() => {});
+      if (document.visibilityState !== "visible") return;
+      // Always restore cache immediately — no flicker, no skeleton
+      if ((pgCache[key]?.data?.length ?? 0) > 0) {
+        setProducts(pgCache[key].data);
+        setLoading(false);
       }
+      // Silent background refresh
+      fetchProductsWithVariants(category, subcategory, limit, featured)
+        .then((data) => {
+          if (data.length > 0) {
+            pgCache[key] = { data, fetchedAt: Date.now() };
+            setProducts(data);
+          }
+        })
+        .catch(() => {});
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
+    return () =>
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
   }, [category, subcategory, limit, featured]);
 
   // Handle back/forward navigation (bfcache pageshow)
@@ -1130,12 +1124,15 @@ export default function ProductGrid({
     (v) => v !== "All",
   ).length;
 
+  // ✅ Show skeleton while loading — never show empty text prematurely
   if (loading && products.length === 0) {
     const skeletonCount = limit ?? 8;
     return (
       <>
         <style>{`@keyframes pg-spin { to { transform: rotate(360deg); } } @keyframes pg-skeleton-pulse { 0%,100%{opacity:1} 50%{opacity:.4} }`}</style>
-        <div className="pg-grid">
+        <div
+          className={`pg-grid${columns ? ` pg-grid--cols-${columns}` : " pg-grid--cols-4"}`}
+        >
           {Array.from({ length: skeletonCount }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
@@ -1144,52 +1141,30 @@ export default function ProductGrid({
     );
   }
 
-  if (filteredAndSorted.length === 0 && products.length > 0) {
+  // ✅ Search/filter returned no results — show inline message inside grid, not a full-page empty
+  if (filteredAndSorted.length === 0 && products.length > 0 && search) {
     return (
       <div className="pg-empty">
-        <div className="pg-empty-icon">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="M21 21l-4.35-4.35" />
-          </svg>
-        </div>
-        <p className="pg-empty-title">
-          {getPgTranslation("noProductsTitle", language)}
-        </p>
-        <p className="pg-empty-sub">
-          {search
-            ? `${getPgTranslation("noResultsSub", language)} "${search}"`
-            : getPgTranslation("noProductsSub", language)}
+        <p
+          className="pg-empty-title"
+          style={{ opacity: 0.5, fontSize: "0.9rem" }}
+        >
+          {getPgTranslation("noResultsSub", language)} &ldquo;{search}&rdquo;
         </p>
       </div>
     );
   }
 
-  if (products.length === 0 && !loading) {
+  // ✅ If products are empty but still loading, show skeleton (safety net)
+  if (products.length === 0 && loading) {
+    const skeletonCount = limit ?? 8;
     return (
-      <div className="pg-empty">
-        <div className="pg-empty-icon">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="M21 21l-4.35-4.35" />
-          </svg>
-        </div>
-        <p className="pg-empty-title">
-          {getPgTranslation("noProductsTitle", language)}
-        </p>
-        <p className="pg-empty-sub">
-          {getPgTranslation("noProductsSub", language)}
-        </p>
+      <div
+        className={`pg-grid${columns ? ` pg-grid--cols-${columns}` : " pg-grid--cols-4"}`}
+      >
+        {Array.from({ length: skeletonCount }).map((_, i) => (
+          <SkeletonCard key={i} />
+        ))}
       </div>
     );
   }

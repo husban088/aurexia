@@ -764,6 +764,7 @@ export default function FeaturedProducts() {
   const activeTabRef = useRef("Accessories");
   const { language, isRTLMode } = useLanguage();
 
+  // ✅ Initialize directly from cache — no waiting, no hydration tricks
   const [products, setProducts] = useState<FeaturedProduct[]>(
     () => tabCache["Accessories"]?.products || [],
   );
@@ -773,8 +774,9 @@ export default function FeaturedProducts() {
   const [variantImagesMap, setVariantImagesMap] = useState<
     Record<string, string[]>
   >(() => tabCache["Accessories"]?.variantImagesMap || {});
+  // ✅ isLoading = true only if cache is empty
   const [isLoading, setIsLoading] = useState(
-    () => !(tabCache["Accessories"]?.products?.length > 0),
+    () => (tabCache["Accessories"]?.products?.length ?? 0) === 0,
   );
 
   const [quickViewProduct, setQuickViewProduct] =
@@ -794,9 +796,12 @@ export default function FeaturedProducts() {
   const nextRef = useRef<HTMLButtonElement>(null);
   const swiperRef = useRef<SwiperType | null>(null);
 
+  // ✅ Core loader — always sets isLoading false in finally, no exceptions
   const loadProductsForTab = useCallback(
     async (tab: string, forceRefresh = false) => {
       const cachedHasProducts = (tabCache[tab]?.products?.length ?? 0) > 0;
+
+      // Use cache immediately — no loading flash
       if (cachedHasProducts && !forceRefresh) {
         const cached = tabCache[tab];
         setProducts(cached.products);
@@ -804,87 +809,69 @@ export default function FeaturedProducts() {
         setVariantImagesMap(cached.variantImagesMap);
         setIsLoading(false);
         setSwiperKey((prev) => prev + 1);
-        return cached;
+        return;
       }
 
-      if (!cachedHasProducts) setIsLoading(true);
+      // Only show skeleton if truly no data
+      if (!cachedHasProducts) {
+        setIsLoading(true);
+      }
 
       try {
         const data = await fetchFeaturedTabData(tab);
+        // Only update if user is still on same tab
         if (activeTabRef.current === tab) {
           setProducts(data.products);
           setVariantsMap(data.variantsMap);
           setVariantImagesMap(data.variantImagesMap);
-          setSwiperKey((prev) => prev + 1);
+          if (data.products.length > 0) setSwiperKey((prev) => prev + 1);
         }
-        return data;
-      } catch (error) {
-        console.error(`Error loading products for tab ${tab}:`, error);
-        return null;
+      } catch {
+        // Silent fail — never leave skeleton stuck
       } finally {
-        // Always stop loading — never leave skeleton stuck
-        setIsLoading(false);
+        // ✅ ALWAYS clear loading — this is the fix for stuck skeletons
+        if (activeTabRef.current === tab) {
+          setIsLoading(false);
+        }
       }
     },
     [],
   );
 
-  // Initial load — reliable pattern (no stuck skeleton)
+  // ✅ Initial mount — fast fetch, no isMounted complexity
   useEffect(() => {
-    let isMounted = true;
+    const tab = "Accessories";
+    const alreadyCached = (tabCache[tab]?.products?.length ?? 0) > 0;
 
-    const loadInitial = async () => {
-      const alreadyCached =
-        (tabCache["Accessories"]?.products?.length ?? 0) > 0;
+    if (alreadyCached) {
+      // Already showing from state init — just bump swiper key
+      setSwiperKey((prev) => prev + 1);
+      setIsLoading(false);
+      // Silent background refresh (no loading state change)
+      fetchFeaturedTabData(tab)
+        .then((data) => {
+          if (activeTabRef.current === tab && data.products.length > 0) {
+            setProducts(data.products);
+            setVariantsMap(data.variantsMap);
+            setVariantImagesMap(data.variantImagesMap);
+          }
+        })
+        .catch(() => {});
+    } else {
+      // No cache — load with skeleton
+      loadProductsForTab(tab);
+    }
 
-      if (alreadyCached) {
-        setProducts(tabCache["Accessories"].products);
-        setVariantsMap(tabCache["Accessories"].variantsMap);
-        setVariantImagesMap(tabCache["Accessories"].variantImagesMap);
-        setIsLoading(false);
-        setSwiperKey((prev) => prev + 1);
-        // Silent background refresh
-        fetchFeaturedTabData("Accessories")
-          .then((data) => {
-            if (isMounted && data.products.length > 0) {
-              setProducts(data.products);
-              setVariantsMap(data.variantsMap);
-              setVariantImagesMap(data.variantImagesMap);
-            }
-          })
-          .catch(() => {});
-      } else {
-        setIsLoading(true);
-        try {
-          const data = await fetchFeaturedTabData("Accessories");
-          if (!isMounted) return;
-          setProducts(data.products);
-          setVariantsMap(data.variantsMap);
-          setVariantImagesMap(data.variantImagesMap);
-          if (data.products.length > 0) setSwiperKey((prev) => prev + 1);
-        } catch {
-          // ignore errors silently
-        } finally {
-          // ALWAYS clear loading — skeleton never gets stuck
-          if (isMounted) setIsLoading(false);
-        }
+    // Prefetch all other tabs silently — so tab switches feel instant
+    ALL_TABS.filter((t) => t !== tab).forEach((otherTab) => {
+      if ((tabCache[otherTab]?.products?.length ?? 0) === 0) {
+        fetchFeaturedTabData(otherTab).catch(() => {});
       }
-
-      // Prefetch other tabs in background (non-blocking)
-      const otherTabs = ALL_TABS.filter(
-        (t) => t !== "Accessories" && !(tabCache[t]?.products?.length > 0),
-      );
-      Promise.allSettled(otherTabs.map((tab) => fetchFeaturedTabData(tab)));
-    };
-
-    loadInitial();
-
-    return () => {
-      isMounted = false;
-    };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Handle tab change
+  // ✅ Tab change — instant from cache or fast fetch
   const handleTabChange = useCallback(
     async (tab: string) => {
       if (tab === activeTab) return;
@@ -895,27 +882,25 @@ export default function FeaturedProducts() {
     [activeTab, loadProductsForTab],
   );
 
-  // Real-time updates — only fires when admin changes product in DB
+  // ✅ Realtime DB changes — only refreshes affected tab
   useEffect(() => {
     const channel = supabase
-      .channel("fp-featured-products-changes")
+      .channel("fp-realtime-v2")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "products" },
-        async (payload: any) => {
+        (payload: any) => {
           const record = payload.new || payload.old || {};
           const affectedCategory = record.category;
           const isFeaturedNew = payload.new?.is_featured ?? false;
           const isFeaturedOld = payload.old?.is_featured ?? false;
-          const shouldRefresh = isFeaturedNew || isFeaturedOld;
-
-          if (!shouldRefresh) return;
-
-          if (affectedCategory && ALL_TABS.includes(affectedCategory)) {
-            delete tabCache[affectedCategory];
-            if (activeTabRef.current === affectedCategory) {
-              await loadProductsForTab(affectedCategory, true);
-            }
+          if (!isFeaturedNew && !isFeaturedOld) return;
+          if (!affectedCategory || !ALL_TABS.includes(affectedCategory)) return;
+          // Invalidate cache for this category
+          delete tabCache[affectedCategory];
+          // Refresh silently if it's the active tab
+          if (activeTabRef.current === affectedCategory) {
+            loadProductsForTab(affectedCategory, true);
           }
         },
       )
@@ -926,63 +911,68 @@ export default function FeaturedProducts() {
     };
   }, [loadProductsForTab]);
 
-  // Visibility change — silent background refresh
+  // ✅ Tab visibility fix — when user switches browser tabs and comes back
+  // ONLY does silent refresh — NEVER changes isLoading to true
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        const tab = activeTabRef.current;
-        fetchFeaturedTabData(tab)
-          .then((data) => {
-            if (activeTabRef.current === tab && data.products.length > 0) {
-              setProducts(data.products);
-              setVariantsMap(data.variantsMap);
-              setVariantImagesMap(data.variantImagesMap);
-            }
-          })
-          .catch(() => {});
+      if (document.visibilityState !== "visible") return;
+      const tab = activeTabRef.current;
+      // Always show current cached products immediately (no flicker)
+      if ((tabCache[tab]?.products?.length ?? 0) > 0) {
+        setProducts(tabCache[tab].products);
+        setVariantsMap(tabCache[tab].variantsMap);
+        setVariantImagesMap(tabCache[tab].variantImagesMap);
+        setIsLoading(false);
       }
+      // Then silently refresh in background
+      fetchFeaturedTabData(tab)
+        .then((data) => {
+          if (activeTabRef.current === tab && data.products.length > 0) {
+            setProducts(data.products);
+            setVariantsMap(data.variantsMap);
+            setVariantImagesMap(data.variantImagesMap);
+          }
+        })
+        .catch(() => {});
     };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
+    return () =>
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
   }, []);
 
-  // Back/forward navigation (bfcache pageshow)
+  // ✅ pageshow — handles bfcache (back/forward), always shows products
   useEffect(() => {
-    const handlePageShow = (_e: PageTransitionEvent) => {
+    const handlePageShow = () => {
       const tab = activeTabRef.current;
       if ((tabCache[tab]?.products?.length ?? 0) > 0) {
-        const cached = tabCache[tab];
-        setProducts(cached.products);
-        setVariantsMap(cached.variantsMap);
-        setVariantImagesMap(cached.variantImagesMap);
+        setProducts(tabCache[tab].products);
+        setVariantsMap(tabCache[tab].variantsMap);
+        setVariantImagesMap(tabCache[tab].variantImagesMap);
         setIsLoading(false);
         setSwiperKey((prev) => prev + 1);
-        // Silent background refresh
-        fetchFeaturedTabData(tab)
-          .then((data) => {
-            if (activeTabRef.current === tab && data.products.length > 0) {
-              setProducts(data.products);
-              setVariantsMap(data.variantsMap);
-              setVariantImagesMap(data.variantImagesMap);
-            }
-          })
-          .catch(() => {});
       } else {
-        loadProductsForTab(tab, false);
+        loadProductsForTab(tab);
       }
     };
     window.addEventListener("pageshow", handlePageShow);
     return () => window.removeEventListener("pageshow", handlePageShow);
   }, [loadProductsForTab]);
 
-  // Update swiper when products change
+  // ✅ Safety net — if somehow isLoading stuck for >4s, force clear it
+  useEffect(() => {
+    if (!isLoading) return;
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
+  // Swiper update when products arrive
   useEffect(() => {
     if (swiperRef.current && products.length > 0) {
-      setTimeout(() => {
-        swiperRef.current?.update();
-      }, 50);
+      const t = setTimeout(() => swiperRef.current?.update(), 50);
+      return () => clearTimeout(t);
     }
   }, [products]);
 
@@ -1106,8 +1096,19 @@ export default function FeaturedProducts() {
               ))}
             </div>
           ) : products.length === 0 ? (
-            <div className="fp-empty">
-              <p>{getFpTranslation("emptyTitle", language)}</p>
+            // ✅ Products not yet loaded — show skeleton instead of empty text
+            <div
+              className="fp-skeleton-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: "1px",
+                paddingBottom: "3.5rem",
+              }}
+            >
+              {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
             </div>
           ) : (
             <Swiper
