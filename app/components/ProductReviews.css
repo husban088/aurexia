@@ -5,7 +5,7 @@
    Fully responsive: Desktop 3 cards | Tablet 2 | Mobile 1
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Josefin+Sans:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 /* ── CSS Variables ── */
 .pr-section {
@@ -27,8 +27,8 @@
   --pr-shadow-lg: 0 25px 50px rgba(212, 175, 55, 0.18);
   --pr-success: #16a34a;
   --pr-error: #dc2626;
-  --pr-serif: "Playfair Display", serif;
-  --pr-sans: "Josefin Sans", sans-serif;
+  --pr-serif: "Goldman", system-ui, sans-serif;
+  --pr-sans: "Goldman", system-ui, sans-serif;
 
   /* Form / light area variables */
   --pr-form-bg: #ffffff;

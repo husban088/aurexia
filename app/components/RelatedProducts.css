@@ -494,7 +494,7 @@
 
 .rp-rating-count {
   font-family: var(--rp-sans);
-  font-size: 0.58rem;
+  font-size: 0.75rem;
   color: var(--rp-ink-muted);
 }
 

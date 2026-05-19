@@ -654,7 +654,7 @@ function RelatedProductCard({
             liveReviewCount !== null &&
             liveReviewCount > 0 && (
               <>
-                <StarDisplay rating={liveRating} size={11} />
+                <StarDisplay rating={liveRating} size={17} />
                 <span className="rp-rating-count">({liveReviewCount})</span>
               </>
             )}
