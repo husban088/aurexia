@@ -359,7 +359,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 1.5rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -382,6 +382,7 @@
   text-decoration: none;
   color: inherit;
   box-shadow: 0 2px 14px rgba(0, 0, 0, 0.04);
+  height: 100%;
 }
 
 .pg-card::after {
@@ -499,8 +500,8 @@
   justify-content: space-between;
   gap: 0.5rem;
   z-index: 4;
-  transform: translateY(6px);
-  opacity: 0;
+  transform: translateY(0);
+  opacity: 1;
   transition:
     transform 0.35s var(--pg-ease-out),
     opacity 0.3s ease;
@@ -664,9 +665,9 @@
   gap: 0.45rem;
   margin: 0 0 0.3rem;
   flex-wrap: wrap;
-  min-height: 1.8rem;
-  height: 1.8rem;
-  max-height: 1.8rem;
+  min-height: 2rem;
+  height: 2rem;
+  max-height: 2rem;
   overflow: hidden;
 }
 
@@ -710,7 +711,7 @@
 }
 
 .pg-card-rating-count {
-  font-size: 10px;
+  font-size: 17px;
   color: rgba(0, 0, 0, 0.5);
   font-weight: 400;
 }
@@ -828,11 +829,13 @@
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  min-height: 0.9rem;
+  height: 28px;
+  min-height: 28px;
+  max-height: 28px;
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  margin-top: 2px;
+  margin: 0;
 }
 
 .pg-card-stock::before {
@@ -1152,6 +1155,10 @@
   .pg-card-line {
     transition: none;
     animation: none;
+  }
+  .pg-icon-buttons {
+    opacity: 1;
+    transform: none;
   }
   .pg-card:hover .pg-icon-buttons {
     opacity: 1;

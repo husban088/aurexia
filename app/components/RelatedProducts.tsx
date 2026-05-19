@@ -529,12 +529,16 @@ function RelatedProductCard({
   };
 
   return (
-    <div
-      onClick={() => {
-        window.location.href = `/product/${product.id}`;
-      }}
+    <a
+      href={`/product/${product.name
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, "")
+        .replace(/[\s_]+/g, "-")
+        .replace(/-+/g, "-")
+        .substring(0, 60)}--${product.id}`}
       className="rp-card"
-      style={{ cursor: "pointer" }}
+      style={{ cursor: "pointer", textDecoration: "none", color: "inherit" }}
     >
       <div
         className="rp-card-img"
@@ -574,8 +578,33 @@ function RelatedProductCard({
           )}
         </div>
 
-        {/* Quick Action Buttons */}
+        {/* Quick Action Buttons — Cart + Quick View both always visible */}
         <div className="rp-icon-buttons">
+          <button
+            className="rp-icon-btn rp-icon-btn--view"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.location.href = `/product/${product.name
+                .toLowerCase()
+                .trim()
+                .replace(/[^\w\s-]/g, "")
+                .replace(/[\s_]+/g, "-")
+                .replace(/-+/g, "-")
+                .substring(0, 60)}--${product.id}`;
+            }}
+            aria-label="Quick View"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path d="M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10z" />
+            </svg>
+          </button>
           <button
             className="rp-icon-btn rp-icon-btn--cart"
             onClick={handleAddToCartClick}
@@ -602,7 +631,7 @@ function RelatedProductCard({
 
       {/* Card Body */}
       <div className="rp-card-body">
-        {product.brand && <p className="rp-card-brand">{product.brand}</p>}
+        <p className="rp-card-brand">{product.brand || "\u00A0"}</p>
         <h3 className="rp-card-name" title={product.name}>
           {truncatedName}
         </h3>
@@ -678,7 +707,7 @@ function RelatedProductCard({
       </div>
 
       <div className="rp-card-line" />
-    </div>
+    </a>
   );
 }
 

@@ -257,7 +257,7 @@ function StarIcon({ filled, size = 11 }: { filled: boolean; size?: number }) {
   );
 }
 
-function StarDisplay({ rating, size = 11 }: { rating: number; size?: number }) {
+function StarDisplay({ rating, size = 17 }: { rating: number; size?: number }) {
   return (
     <div style={{ display: "flex", gap: "2px" }}>
       {[1, 2, 3, 4, 5].map((i) => (
@@ -731,9 +731,7 @@ function ProductCardComponent({
       </div>
 
       <div className="pg-card-body" dir={isRTL ? "rtl" : "ltr"}>
-        {productData.brand && (
-          <p className="pg-card-brand">{productData.brand}</p>
-        )}
+        <p className="pg-card-brand">{productData.brand || "\u00A0"}</p>
         <h3 className="pg-card-name" title={productData.name}>
           {truncatedName}
         </h3>
@@ -748,7 +746,7 @@ function ProductCardComponent({
             liveReviewCount !== null &&
             liveReviewCount > 0 && (
               <>
-                <StarDisplay rating={liveRating} size={11} />
+                <StarDisplay rating={liveRating} size={17} />
                 <span className="pg-card-rating-count">
                   ({liveReviewCount})
                 </span>

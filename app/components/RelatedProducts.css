@@ -126,6 +126,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1.5rem;
+  align-items: stretch;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -145,6 +146,7 @@
     box-shadow 0.5s var(--rp-ease-out),
     border-color 0.4s ease;
   width: 100%;
+  height: 100%;
   text-decoration: none;
   color: inherit;
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
@@ -314,10 +316,15 @@
 .rp-icon-buttons {
   position: absolute;
   bottom: 0.8rem;
+  left: 0.8rem;
   right: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   z-index: 4;
-  transform: translateY(6px);
-  opacity: 0;
+  transform: translateY(0);
+  opacity: 1;
   transition:
     transform 0.35s var(--rp-ease-out),
     opacity 0.3s ease;
@@ -608,10 +615,13 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  min-height: 1rem;
+  height: 28px;
+  min-height: 28px;
+  max-height: 28px;
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  margin: 0;
 }
 
 .rp-card-stock::before {
@@ -919,6 +929,10 @@
   .rp-card-line {
     transition: none;
     animation: none;
+  }
+  .rp-icon-buttons {
+    opacity: 1;
+    transform: none;
   }
   .rp-card:hover .rp-icon-buttons {
     opacity: 1;

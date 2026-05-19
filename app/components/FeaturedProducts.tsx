@@ -666,7 +666,7 @@ function ProductCard({
       </div>
 
       <div className="fp-card-body" dir={isRTL ? "rtl" : "ltr"}>
-        {product.brand && <p className="fp-card-brand">{product.brand}</p>}
+        <p className="fp-card-brand">{product.brand || "\u00A0"}</p>
         <h3 className="fp-card-name" title={product.name}>
           {truncateProductName(product.name, 45)}
         </h3>
@@ -684,7 +684,7 @@ function ProductCard({
             liveReviewCount !== null &&
             liveReviewCount > 0 && (
               <>
-                <StarDisplay rating={liveRating} size={11} />
+                <StarDisplay rating={liveRating} size={17} />
                 <span className="fp-card-rating-count">
                   ({liveReviewCount})
                 </span>

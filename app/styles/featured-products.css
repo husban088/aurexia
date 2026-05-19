@@ -499,8 +499,8 @@
   justify-content: space-between;
   gap: 0.5rem;
   z-index: 4;
-  transform: translateY(6px);
-  opacity: 0;
+  transform: translateY(0);
+  opacity: 1;
   transition:
     transform 0.35s var(--fp-ease-out),
     opacity 0.3s ease;
@@ -656,9 +656,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
-  min-height: 28px;
-  max-height: 28px;
+  height: 35px;
+  min-height: 35px;
+  max-height: 35px;
   margin: 0;
   /* Always visible div, content inside is conditional */
 }
@@ -670,7 +670,7 @@
 }
 
 .fp-card-rating-count {
-  font-size: 11px;
+  font-size: 17px;
   color: rgba(0, 0, 0, 0.55);
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -1284,6 +1284,10 @@
   .fp-view-all::before {
     transition: none;
     animation: none;
+  }
+  .fp-icon-buttons {
+    opacity: 1;
+    transform: none;
   }
   .fp-card:hover .fp-icon-buttons {
     opacity: 1;
