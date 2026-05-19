@@ -129,6 +129,7 @@ const slidesConfig = [
     ghostHref: "/lookbook",
     imageSrc: "/banner1.jpg",
     placeholderClass: "hero-ph-1",
+    accentColor: "#daa520",
   },
   {
     id: 2,
@@ -139,6 +140,7 @@ const slidesConfig = [
     ghostHref: "/accessories",
     imageSrc: "/banner2.webp",
     placeholderClass: "hero-ph-2",
+    accentColor: "#daa520",
   },
   {
     id: 3,
@@ -149,6 +151,7 @@ const slidesConfig = [
     ghostHref: "/catalogue",
     imageSrc: "/banner3.webp",
     placeholderClass: "hero-ph-3",
+    accentColor: "#daa520",
   },
   {
     id: 4,
@@ -159,6 +162,7 @@ const slidesConfig = [
     ghostHref: "/auto-collection",
     imageSrc: "/banner4.png",
     placeholderClass: "hero-ph-4",
+    accentColor: "#daa520",
   },
 ];
 
@@ -221,6 +225,86 @@ function loadSwiperCDN(): Promise<void> {
 }
 
 // ─────────────────────────────────────────────────────────────
+// MAGNETIC CURSOR HOOK
+// ─────────────────────────────────────────────────────────────
+function useMagneticEffect(strength = 0.3) {
+  const ref = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = (e.clientX - cx) * strength;
+      const dy = (e.clientY - cy) * strength;
+      el.style.transform = `translateY(-50%) translate(${dx}px, ${dy}px) scale(1.08)`;
+    };
+
+    const handleMouseLeave = () => {
+      el.style.transform = "translateY(-50%) translate(0,0) scale(1)";
+    };
+
+    el.addEventListener("mousemove", handleMouseMove);
+    el.addEventListener("mouseleave", handleMouseLeave);
+
+    return () => {
+      el.removeEventListener("mousemove", handleMouseMove);
+      el.removeEventListener("mouseleave", handleMouseLeave);
+    };
+  }, [strength]);
+
+  return ref;
+}
+
+// ─────────────────────────────────────────────────────────────
+// PARTICLE SPARKS COMPONENT (decorative gold particles)
+// ─────────────────────────────────────────────────────────────
+function GoldParticles() {
+  return (
+    <div className="hero-particles" aria-hidden="true">
+      {Array.from({ length: 18 }).map((_, i) => (
+        <span key={i} className={`hero-particle hero-particle-${i + 1}`} />
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// SLIDE NUMBER TICKER ANIMATION
+// ─────────────────────────────────────────────────────────────
+function SlideCounter({
+  current,
+  total,
+  visible,
+}: {
+  current: number;
+  total: number;
+  visible: boolean;
+}) {
+  return (
+    <div
+      className="hero-counter"
+      aria-hidden="true"
+      style={{ visibility: visible ? "visible" : "hidden" }}
+    >
+      <div className="hero-counter-inner">
+        <span className="hero-counter-num">0{current}</span>
+        <div className="hero-counter-track">
+          <div
+            className="hero-counter-progress"
+            style={{ width: `${(current / total) * 100}%` }}
+          />
+        </div>
+        <span className="hero-counter-total">0{total}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // STATIC SLIDES COMPONENT
 // ─────────────────────────────────────────────────────────────
 function StaticSlides({
@@ -234,66 +318,135 @@ function StaticSlides({
     <>
       {slidesConfig.map((slide) => (
         <div key={slide.id} className="swiper-slide">
-          {slide.imageSrc ? (
-            <Image
-              src={slide.imageSrc}
-              alt={`${headingLine1Translations[slide.type][language]}${headingItalicTranslations[slide.type][language]} banner`}
-              fill
-              className="hero-slide-img"
-              priority={slide.id === 1}
-              sizes="100vw"
-              quality={85}
-              suppressHydrationWarning
-            />
-          ) : (
-            <div
-              className={`hero-slide-placeholder ${slide.placeholderClass}`}
-              role="img"
-              aria-label={`${headingLine1Translations[slide.type][language]}${headingItalicTranslations[slide.type][language]} background`}
-            />
-          )}
+          {/* Parallax image wrapper */}
+          <div className="hero-img-parallax">
+            {slide.imageSrc ? (
+              <Image
+                src={slide.imageSrc}
+                alt={`${headingLine1Translations[slide.type][language]}${headingItalicTranslations[slide.type][language]} banner`}
+                fill
+                className="hero-slide-img"
+                priority={slide.id === 1}
+                sizes="100vw"
+                quality={85}
+                suppressHydrationWarning
+              />
+            ) : (
+              <div
+                className={`hero-slide-placeholder ${slide.placeholderClass}`}
+                role="img"
+                aria-label={`${headingLine1Translations[slide.type][language]}${headingItalicTranslations[slide.type][language]} background`}
+              />
+            )}
+          </div>
 
+          {/* Layered overlays for depth */}
           <div className="hero-slide-overlay" aria-hidden="true" />
+          <div className="hero-slide-overlay-vignette" aria-hidden="true" />
+          <div className="hero-noise-overlay" aria-hidden="true" />
+
+          {/* Decorative geometric lines */}
+          <div className="hero-geo-lines" aria-hidden="true">
+            <span className="hero-geo-h" />
+            <span className="hero-geo-v" />
+          </div>
 
           <div className="hero-slide-content" dir={isRTL ? "rtl" : "ltr"}>
-            <p className="hero-badge">{badgeTexts[slide.type][language]}</p>
+            {/* Eyebrow badge */}
+            <div className="hero-badge-wrap">
+              <p className="hero-badge">
+                <span className="hero-badge-dot" />
+                {badgeTexts[slide.type][language]}
+                <span className="hero-badge-dot" />
+              </p>
+            </div>
 
+            {/* Main heading with letter-reveal effect */}
             <h2 className="hero-heading">
-              {headingLine1Translations[slide.type][language]}
-              <em>{headingItalicTranslations[slide.type][language]}</em>
+              <span className="hero-heading-line1">
+                {headingLine1Translations[slide.type][language]}
+              </span>
+              <em className="hero-heading-em">
+                {headingItalicTranslations[slide.type][language]}
+              </em>
             </h2>
 
-            <div className="hero-divider" aria-hidden="true" />
+            {/* Animated ornamental divider */}
+            <div className="hero-divider" aria-hidden="true">
+              <span className="hero-divider-gem" />
+            </div>
 
             <p className="hero-para">{paraTexts[slide.type][language]}</p>
 
+            {/* CTA buttons */}
             <div className="hero-btn-wrap">
               <Link
                 href={slide.ctaHref}
                 className="hero-btn-primary"
                 prefetch={false}
               >
-                {ctaLabels[slide.ctaKey][language]}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path
-                    d="M5 12h14M12 5l7 7-7 7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+                <span className="hero-btn-primary-bg" aria-hidden="true" />
+                <span className="hero-btn-label">
+                  {ctaLabels[slide.ctaKey][language]}
+                </span>
+                <span className="hero-btn-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path
+                      d="M5 12h14M12 5l7 7-7 7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
               </Link>
+
               <Link
                 href={slide.ghostHref}
                 className="hero-btn-ghost"
                 prefetch={false}
               >
-                {ctaLabels[slide.ghostKey][language]}
+                <span className="hero-btn-ghost-fill" aria-hidden="true" />
+                <span className="hero-btn-label">
+                  {ctaLabels[slide.ghostKey][language]}
+                </span>
               </Link>
             </div>
           </div>
         </div>
       ))}
     </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// NAV BUTTON — with magnetic hover
+// ─────────────────────────────────────────────────────────────
+function NavButton({
+  direction,
+  onClick,
+}: {
+  direction: "prev" | "next";
+  onClick: () => void;
+}) {
+  const ref = useMagneticEffect(0.25);
+
+  return (
+    <button
+      ref={ref}
+      className={`hero-nav-btn hero-nav-${direction}`}
+      onClick={onClick}
+      aria-label={direction === "prev" ? "Previous slide" : "Next slide"}
+      type="button"
+    >
+      <span className="hero-nav-ripple" aria-hidden="true" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        {direction === "prev" ? (
+          <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        ) : (
+          <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+        )}
+      </svg>
+    </button>
   );
 }
 
@@ -308,8 +461,54 @@ export default function HeroSection() {
   const containerRef = useRef<HTMLDivElement>(null);
   const swiperInstanceRef = useRef<any>(null);
   const initAttempted = useRef(false);
-  const prevBtnRef = useRef<HTMLButtonElement>(null);
-  const nextBtnRef = useRef<HTMLButtonElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // ── Custom cursor tracking ──
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const cursor = section.querySelector<HTMLDivElement>(".hero-cursor");
+    const cursorDot = section.querySelector<HTMLDivElement>(".hero-cursor-dot");
+    if (!cursor || !cursorDot) return;
+
+    let raf: number;
+    let tx = 0, ty = 0, cx = 0, cy = 0;
+
+    const onMove = (e: MouseEvent) => {
+      tx = e.clientX;
+      ty = e.clientY;
+    };
+
+    const tick = () => {
+      cx += (tx - cx) * 0.12;
+      cy += (ty - cy) * 0.12;
+      cursor.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`;
+      cursorDot.style.transform = `translate(${tx}px, ${ty}px) translate(-50%, -50%)`;
+      raf = requestAnimationFrame(tick);
+    };
+
+    const onEnter = () => {
+      cursor.classList.add("hero-cursor--visible");
+      cursorDot.classList.add("hero-cursor--visible");
+    };
+    const onLeave = () => {
+      cursor.classList.remove("hero-cursor--visible");
+      cursorDot.classList.remove("hero-cursor--visible");
+    };
+
+    section.addEventListener("mousemove", onMove);
+    section.addEventListener("mouseenter", onEnter);
+    section.addEventListener("mouseleave", onLeave);
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      section.removeEventListener("mousemove", onMove);
+      section.removeEventListener("mouseenter", onEnter);
+      section.removeEventListener("mouseleave", onLeave);
+      cancelAnimationFrame(raf);
+    };
+  }, [isClient]);
 
   useEffect(() => {
     setIsClient(true);
@@ -334,7 +533,7 @@ export default function HeroSection() {
         {
           effect: "fade",
           fadeEffect: { crossFade: true },
-          speed: 1300,
+          speed: 1400,
           autoplay: {
             delay: 6500,
             disableOnInteraction: false,
@@ -348,10 +547,6 @@ export default function HeroSection() {
           pagination: {
             el: containerRef.current.querySelector(".hero-pagination"),
             clickable: true,
-          },
-          navigation: {
-            nextEl: nextBtnRef.current,
-            prevEl: prevBtnRef.current,
           },
           on: {
             realIndexChange: (swiper: any) => {
@@ -368,7 +563,6 @@ export default function HeroSection() {
 
   useEffect(() => {
     if (!isClient) return;
-
     let cancelled = false;
 
     loadSwiperCDN().then(() => {
@@ -393,17 +587,13 @@ export default function HeroSection() {
 
   useEffect(() => {
     if (!isClient || !swiperInstanceRef.current) return;
-
     let resizeTimeout: NodeJS.Timeout;
     const handleResize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
-        if (swiperInstanceRef.current) {
-          swiperInstanceRef.current.update();
-        }
+        if (swiperInstanceRef.current) swiperInstanceRef.current.update();
       }, 150);
     };
-
     window.addEventListener("resize", handleResize);
     return () => {
       window.removeEventListener("resize", handleResize);
@@ -416,63 +606,55 @@ export default function HeroSection() {
 
   return (
     <section
+      ref={sectionRef}
       className="hero-section"
       aria-label="Hero banner"
       dir={isRTLMode ? "rtl" : "ltr"}
       suppressHydrationWarning
     >
-      <div className="hero-corner-tl" aria-hidden="true" />
-      <div className="hero-corner-tr" aria-hidden="true" />
-      <div className="hero-corner-bl" aria-hidden="true" />
-      <div className="hero-corner-br" aria-hidden="true" />
+      {/* ── Custom luxury cursor ── */}
+      <div className="hero-cursor" aria-hidden="true">
+        <span className="hero-cursor-ring" />
+      </div>
+      <div className="hero-cursor-dot" aria-hidden="true" />
 
-      <div
-        className="hero-counter"
-        aria-hidden="true"
-        style={{ visibility: isClient ? "visible" : "hidden" }}
-      >
-        <span className="hero-counter-num">0{currentSlide}</span>
-        <span className="hero-counter-line" />
-        <span>0{slidesConfig.length}</span>
+      {/* ── Gold floating particles ── */}
+      <GoldParticles />
+
+      {/* ── Corner brackets ── */}
+      <div className="hero-corner-tl" aria-hidden="true">
+        <span /><span />
+      </div>
+      <div className="hero-corner-tr" aria-hidden="true">
+        <span /><span />
+      </div>
+      <div className="hero-corner-bl" aria-hidden="true">
+        <span /><span />
+      </div>
+      <div className="hero-corner-br" aria-hidden="true">
+        <span /><span />
       </div>
 
+      {/* ── Slide counter ── */}
+      <SlideCounter
+        current={currentSlide}
+        total={slidesConfig.length}
+        visible={isClient}
+      />
+
+      {/* ── Scroll hint ── */}
       <div className="hero-scroll-hint" aria-hidden="true">
-        <span>Scroll</span>
-        <div className="hero-scroll-line" />
+        <span className="hero-scroll-text">Scroll</span>
+        <div className="hero-scroll-track">
+          <div className="hero-scroll-line" />
+        </div>
       </div>
 
-      <button
-        ref={prevBtnRef}
-        className="hero-nav-btn hero-nav-prev"
-        onClick={goPrev}
-        aria-label="Previous slide"
-        type="button"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path
-            d="M15 18l-6-6 6-6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+      {/* ── Nav buttons (magnetic) ── */}
+      <NavButton direction="prev" onClick={goPrev} />
+      <NavButton direction="next" onClick={goNext} />
 
-      <button
-        ref={nextBtnRef}
-        className="hero-nav-btn hero-nav-next"
-        onClick={goNext}
-        aria-label="Next slide"
-        type="button"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path
-            d="M9 18l6-6-6-6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-
+      {/* ── Swiper ── */}
       <div
         ref={containerRef}
         className="hero-swiper swiper"

@@ -79,47 +79,42 @@ function processProductData(data: any): any {
   };
 }
 
-/* ── Fetch by ID — 15s timeout, 3 retries ── */
+/* ── Fetch by ID — 10s timeout, 3 retries ── */
 async function fetchById(id: string): Promise<any | null> {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const timeoutPromise = new Promise<{ data: null; error: Error }>(
-        (resolve) =>
+      const fetchResult = await Promise.race([
+        supabase
+          .from("products")
+          .select(
+            "*, description, description_images, product_variants(*, description_rich, description_images, description, variant_images(*))",
+          )
+          .eq("id", id)
+          .eq("is_active", true)
+          .single(),
+        new Promise<{ data: null; error: Error }>((resolve) =>
           setTimeout(
             () => resolve({ data: null, error: new Error("timeout") }),
-            15000,
+            10000,
           ),
-      );
-      const fetchPromise = supabase
-        .from("products")
-        .select(
-          "*, description, description_images, product_variants(*, description_rich, description_images, description, variant_images(*))",
-        )
-        .eq("id", id)
-        .eq("is_active", true)
-        .single();
+        ),
+      ]);
 
-      const { data, error } = (await Promise.race([
-        fetchPromise,
-        timeoutPromise,
-      ])) as any;
+      const { data, error } = fetchResult as any;
 
-      if (error || !data) {
-        if (attempt < 2) {
-          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
-          continue;
-        }
-        return null;
+      if (!error && data) {
+        const result = processProductData(data);
+        _productCache.set(id, result);
+        _productCache.set(slugify(result.name), result);
+        return result;
       }
 
-      const result = processProductData(data);
-      // Only cache on success
-      _productCache.set(id, result);
-      _productCache.set(slugify(result.name), result);
-      return result;
+      if (attempt < 2) {
+        await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+      }
     } catch {
       if (attempt < 2) {
-        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
       }
     }
   }
@@ -176,14 +171,18 @@ async function fetchBySlugSearch(slug: string): Promise<any | null> {
   return null;
 }
 
-/* ── Unified cached fetch — never caches null ── */
+/* ── Unified cached fetch — never caches null results or failed promises ── */
 async function fetchProductCached(key: string): Promise<any | null> {
+  // Return from cache immediately if available
   if (_productCache.has(key)) return _productCache.get(key)!;
+
+  // If already in-flight, wait for that same promise
   if (_inFlight.has(key)) return _inFlight.get(key)!;
 
   const { id, slug } = extractIdFromSlug(key);
 
   const promise = (id ? fetchById(id) : fetchBySlugSearch(slug)).finally(() => {
+    // Always remove from in-flight when done — whether success or null
     _inFlight.delete(key);
   });
 
@@ -602,7 +601,7 @@ export default function ProductDetail() {
     setLoading(true);
     setNotFound(false);
 
-    // Hard timeout: 18s max — generous enough for any network
+    // Hard timeout: 12s max — if fetch takes longer, show notFound
     const hardTimeout = setTimeout(() => {
       if (!active) return;
       if (_productCache.has(cacheKey)) {
@@ -613,33 +612,49 @@ export default function ProductDetail() {
         setLoading(false);
         setNotFound(true);
       }
-    }, 18000);
+    }, 12000);
 
-    fetchProductCached(cacheKey).then((data) => {
-      if (!active) return;
-      clearTimeout(hardTimeout);
-      if (data) {
-        hydrateFromData(data);
-        setLoading(false);
-        setNotFound(false);
-      } else {
-        // Retry once after 2 seconds before giving up
-        setTimeout(async () => {
-          if (!active) return;
-          _invalidateProductCache(cacheKey);
-          const retryData = await fetchProductCached(cacheKey);
-          if (!active) return;
-          if (retryData) {
-            hydrateFromData(retryData);
-            setLoading(false);
-            setNotFound(false);
-          } else {
-            setLoading(false);
-            setNotFound(true);
-          }
-        }, 2000);
+    const doFetch = async () => {
+      try {
+        const data = await fetchProductCached(cacheKey);
+        if (!active) return; // component unmounted — do nothing
+        clearTimeout(hardTimeout);
+        if (data) {
+          hydrateFromData(data);
+          setLoading(false);
+          setNotFound(false);
+          return;
+        }
+        // First attempt returned null — retry once after 1.5s
+        await new Promise((r) => setTimeout(r, 1500));
+        if (!active) return;
+        _invalidateProductCache(cacheKey);
+        const retryData = await fetchProductCached(cacheKey);
+        if (!active) return;
+        if (retryData) {
+          hydrateFromData(retryData);
+          setLoading(false);
+          setNotFound(false);
+        } else {
+          setLoading(false);
+          setNotFound(true);
+        }
+      } catch {
+        if (!active) return;
+        clearTimeout(hardTimeout);
+        // Check cache one last time before giving up (in case parallel fetch succeeded)
+        if (_productCache.has(cacheKey)) {
+          hydrateFromData(_productCache.get(cacheKey));
+          setLoading(false);
+          setNotFound(false);
+        } else {
+          setLoading(false);
+          setNotFound(true);
+        }
       }
-    });
+    };
+
+    doFetch();
 
     return () => {
       active = false;

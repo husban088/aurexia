@@ -154,14 +154,7 @@ async function fetchProductsWithVariants(
   query = query.order("created_at", { ascending: false });
   if (limit) query = query.limit(limit);
 
-  // 15-second timeout — generous for Supabase cold starts
-  const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
-    setTimeout(
-      () => resolve({ data: null, error: new Error("timeout") }),
-      15000,
-    ),
-  );
-  const { data, error } = (await Promise.race([query, timeoutPromise])) as any;
+  const { data, error } = await query;
   if (error || !data) return [];
 
   const typePriority: Record<string, number> = {
@@ -878,67 +871,49 @@ export default function ProductGrid({
   // Load products on mount and when dependencies change
   useEffect(() => {
     let isMounted = true;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     const key = getPgCacheKey(category, subcategory, limit, featured);
 
-    const loadProducts = async (silent = false) => {
-      if (!silent) setLoading(true);
-      try {
-        const data = await fetchProductsWithVariants(
-          category,
-          subcategory,
-          limit,
-          featured,
-        );
-        if (isMounted) {
-          if (data.length > 0) {
-            // Only cache non-empty results
-            pgCache[key] = { data, fetchedAt: Date.now() };
-            setProducts(data);
-          } else if (!silent) {
-            // Empty result — retry once after 2 seconds
-            retryTimer = setTimeout(async () => {
-              if (!isMounted) return;
-              const retryData = await fetchProductsWithVariants(
-                category,
-                subcategory,
-                limit,
-                featured,
-              );
-              if (isMounted) {
-                if (retryData.length > 0) {
-                  pgCache[key] = { data: retryData, fetchedAt: Date.now() };
-                  setProducts(retryData);
-                }
-                setLoading(false);
-              }
-            }, 2000);
-            return; // Don't set loading false yet — retry handles it
-          }
-        }
-      } catch (error) {
-        console.error("Error loading products:", error);
-      } finally {
-        if (isMounted && !retryTimer) setLoading(false);
-      }
-    };
-
-    // If already cached with products, show instantly
+    // If already cached with products, show instantly + silent background refresh
     if (pgCache[key]?.data?.length > 0) {
       setProducts(pgCache[key].data);
       setLoading(false);
-      // Silent background refresh only if cache is older than 2 minutes
+      // Only refresh if cache older than 2 minutes
       const cacheAge = Date.now() - (pgCache[key].fetchedAt || 0);
       if (cacheAge > 120000) {
-        loadProducts(true);
+        fetchProductsWithVariants(category, subcategory, limit, featured)
+          .then((data) => {
+            if (isMounted && data.length > 0) {
+              pgCache[key] = { data, fetchedAt: Date.now() };
+              setProducts(data);
+            }
+          })
+          .catch(() => {});
       }
-    } else {
-      loadProducts(false);
+      return () => {
+        isMounted = false;
+      };
     }
+
+    // No cache — fetch fresh, always clear loading in finally
+    setLoading(true);
+    fetchProductsWithVariants(category, subcategory, limit, featured)
+      .then((data) => {
+        if (!isMounted) return;
+        if (data.length > 0) {
+          pgCache[key] = { data, fetchedAt: Date.now() };
+          setProducts(data);
+        }
+      })
+      .catch((error) => {
+        console.error("Error loading products:", error);
+      })
+      .finally(() => {
+        // ALWAYS stop loading — skeleton never gets stuck
+        if (isMounted) setLoading(false);
+      });
 
     return () => {
       isMounted = false;
-      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [category, subcategory, limit, featured]);
 
