@@ -167,20 +167,17 @@ const slidesConfig = [
 ];
 
 // ─────────────────────────────────────────────────────────────
-// SWIPER CDN LOADER
+// SWIPER CDN LOADER — no module-level cache (bfcache safe)
 // ─────────────────────────────────────────────────────────────
-let swiperCDNLoaded = false;
-let swiperCDNLoading: Promise<void> | null = null;
-
 function loadSwiperCDN(): Promise<void> {
-  if (typeof window !== "undefined" && (window as any).Swiper) {
-    swiperCDNLoaded = true;
-    return Promise.resolve();
-  }
-  if (swiperCDNLoaded) return Promise.resolve();
-  if (swiperCDNLoading) return swiperCDNLoading;
+  return new Promise<void>((resolve) => {
+    // Already loaded
+    if (typeof window !== "undefined" && (window as any).Swiper) {
+      resolve();
+      return;
+    }
 
-  swiperCDNLoading = new Promise<void>((resolve) => {
+    // Inject CSS if not there
     if (!document.querySelector("link[data-hero-swiper-css]")) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
@@ -190,15 +187,14 @@ function loadSwiperCDN(): Promise<void> {
       document.head.appendChild(link);
     }
 
+    // If script already injected, poll for Swiper
     if (document.querySelector("script[data-hero-swiper-js]")) {
       const poll = setInterval(() => {
         if ((window as any).Swiper) {
           clearInterval(poll);
-          swiperCDNLoaded = true;
-          swiperCDNLoading = null;
           resolve();
         }
-      }, 50);
+      }, 30);
       setTimeout(() => {
         clearInterval(poll);
         resolve();
@@ -206,22 +202,14 @@ function loadSwiperCDN(): Promise<void> {
       return;
     }
 
+    // Inject script fresh
     const script = document.createElement("script");
     script.src = "https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js";
     script.setAttribute("data-hero-swiper-js", "1");
-    script.onload = () => {
-      swiperCDNLoaded = true;
-      swiperCDNLoading = null;
-      resolve();
-    };
-    script.onerror = () => {
-      swiperCDNLoading = null;
-      resolve();
-    };
+    script.onload = () => resolve();
+    script.onerror = () => resolve();
     document.head.appendChild(script);
   });
-
-  return swiperCDNLoading;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -260,7 +248,7 @@ function useMagneticEffect(strength = 0.3) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// PARTICLE SPARKS COMPONENT (decorative gold particles)
+// PARTICLE SPARKS COMPONENT
 // ─────────────────────────────────────────────────────────────
 function GoldParticles() {
   return (
@@ -273,7 +261,7 @@ function GoldParticles() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// SLIDE NUMBER TICKER ANIMATION
+// SLIDE NUMBER TICKER
 // ─────────────────────────────────────────────────────────────
 function SlideCounter({
   current,
@@ -305,7 +293,7 @@ function SlideCounter({
 }
 
 // ─────────────────────────────────────────────────────────────
-// STATIC SLIDES COMPONENT
+// STATIC SLIDES
 // ─────────────────────────────────────────────────────────────
 function StaticSlides({
   language,
@@ -318,7 +306,6 @@ function StaticSlides({
     <>
       {slidesConfig.map((slide) => (
         <div key={slide.id} className="swiper-slide">
-          {/* Parallax image wrapper */}
           <div className="hero-img-parallax">
             {slide.imageSrc ? (
               <Image
@@ -340,19 +327,16 @@ function StaticSlides({
             )}
           </div>
 
-          {/* Layered overlays for depth */}
           <div className="hero-slide-overlay" aria-hidden="true" />
           <div className="hero-slide-overlay-vignette" aria-hidden="true" />
           <div className="hero-noise-overlay" aria-hidden="true" />
 
-          {/* Decorative geometric lines */}
           <div className="hero-geo-lines" aria-hidden="true">
             <span className="hero-geo-h" />
             <span className="hero-geo-v" />
           </div>
 
           <div className="hero-slide-content" dir={isRTL ? "rtl" : "ltr"}>
-            {/* Eyebrow badge */}
             <div className="hero-badge-wrap">
               <p className="hero-badge">
                 <span className="hero-badge-dot" />
@@ -361,7 +345,6 @@ function StaticSlides({
               </p>
             </div>
 
-            {/* Main heading with letter-reveal effect */}
             <h2 className="hero-heading">
               <span className="hero-heading-line1">
                 {headingLine1Translations[slide.type][language]}
@@ -371,14 +354,12 @@ function StaticSlides({
               </em>
             </h2>
 
-            {/* Animated ornamental divider */}
             <div className="hero-divider" aria-hidden="true">
               <span className="hero-divider-gem" />
             </div>
 
             <p className="hero-para">{paraTexts[slide.type][language]}</p>
 
-            {/* CTA buttons */}
             <div className="hero-btn-wrap">
               <Link
                 href={slide.ctaHref}
@@ -441,9 +422,17 @@ function NavButton({
       <span className="hero-nav-ripple" aria-hidden="true" />
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
         {direction === "prev" ? (
-          <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M15 18l-6-6 6-6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         ) : (
-          <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M9 18l6-6-6-6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         )}
       </svg>
     </button>
@@ -451,19 +440,17 @@ function NavButton({
 }
 
 // ─────────────────────────────────────────────────────────────
-// MAIN HERO SECTION COMPONENT
+// INNER HERO — remounts on bfcache via key prop
 // ─────────────────────────────────────────────────────────────
-export default function HeroSection() {
-  const [isClient, setIsClient] = useState(false);
+function HeroInner() {
   const [currentSlide, setCurrentSlide] = useState(1);
   const { language, isRTLMode } = useLanguage();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const swiperInstanceRef = useRef<any>(null);
-  const initAttempted = useRef(false);
   const sectionRef = useRef<HTMLElement>(null);
 
-  // ── Custom cursor tracking ──
+  // Custom cursor tracking
   useEffect(() => {
     const section = sectionRef.current;
     if (!section) return;
@@ -473,13 +460,15 @@ export default function HeroSection() {
     if (!cursor || !cursorDot) return;
 
     let raf: number;
-    let tx = 0, ty = 0, cx = 0, cy = 0;
+    let tx = 0,
+      ty = 0,
+      cx = 0,
+      cy = 0;
 
     const onMove = (e: MouseEvent) => {
       tx = e.clientX;
       ty = e.clientY;
     };
-
     const tick = () => {
       cx += (tx - cx) * 0.12;
       cy += (ty - cy) * 0.12;
@@ -487,7 +476,6 @@ export default function HeroSection() {
       cursorDot.style.transform = `translate(${tx}px, ${ty}px) translate(-50%, -50%)`;
       raf = requestAnimationFrame(tick);
     };
-
     const onEnter = () => {
       cursor.classList.add("hero-cursor--visible");
       cursorDot.classList.add("hero-cursor--visible");
@@ -508,69 +496,60 @@ export default function HeroSection() {
       section.removeEventListener("mouseleave", onLeave);
       cancelAnimationFrame(raf);
     };
-  }, [isClient]);
-
-  useEffect(() => {
-    setIsClient(true);
   }, []);
 
-  const initSwiper = useCallback(() => {
-    if (typeof window === "undefined") return;
-    if (initAttempted.current) return;
-    if (!(window as any).Swiper) return;
-    if (!containerRef.current) return;
-
-    if (swiperInstanceRef.current?.destroy) {
-      try {
-        swiperInstanceRef.current.destroy(true, true);
-      } catch (e) {}
-      swiperInstanceRef.current = null;
-    }
-
-    try {
-      swiperInstanceRef.current = new (window as any).Swiper(
-        containerRef.current,
-        {
-          effect: "fade",
-          fadeEffect: { crossFade: true },
-          speed: 1400,
-          autoplay: {
-            delay: 6500,
-            disableOnInteraction: false,
-            pauseOnMouseEnter: true,
-          },
-          loop: true,
-          grabCursor: true,
-          touchRatio: 1,
-          touchAngle: 45,
-          simulateTouch: true,
-          pagination: {
-            el: containerRef.current.querySelector(".hero-pagination"),
-            clickable: true,
-          },
-          on: {
-            realIndexChange: (swiper: any) => {
-              setCurrentSlide((swiper.realIndex ?? 0) + 1);
-            },
-          },
-        },
-      );
-      initAttempted.current = true;
-    } catch (err) {
-      console.error("Hero Swiper initialization error:", err);
-    }
-  }, []);
-
+  // Swiper init
   useEffect(() => {
-    if (!isClient) return;
     let cancelled = false;
 
     loadSwiperCDN().then(() => {
-      if (!cancelled) {
-        setTimeout(() => {
-          if (!cancelled) initSwiper();
-        }, 100);
+      if (cancelled) return;
+      if (!containerRef.current) return;
+
+      // Destroy any stale instance
+      if (swiperInstanceRef.current?.destroy) {
+        try {
+          swiperInstanceRef.current.destroy(true, true);
+        } catch (e) {}
+        swiperInstanceRef.current = null;
       }
+
+      setTimeout(() => {
+        if (cancelled || !containerRef.current) return;
+        if (!(window as any).Swiper) return;
+
+        try {
+          swiperInstanceRef.current = new (window as any).Swiper(
+            containerRef.current,
+            {
+              effect: "fade",
+              fadeEffect: { crossFade: true },
+              speed: 1400,
+              autoplay: {
+                delay: 6500,
+                disableOnInteraction: false,
+                pauseOnMouseEnter: true,
+              },
+              loop: true,
+              grabCursor: true,
+              touchRatio: 1,
+              touchAngle: 45,
+              simulateTouch: true,
+              pagination: {
+                el: containerRef.current.querySelector(".hero-pagination"),
+                clickable: true,
+              },
+              on: {
+                realIndexChange: (swiper: any) => {
+                  setCurrentSlide((swiper.realIndex ?? 0) + 1);
+                },
+              },
+            },
+          );
+        } catch (err) {
+          console.error("Hero Swiper init error:", err);
+        }
+      }, 100);
     });
 
     return () => {
@@ -581,25 +560,31 @@ export default function HeroSection() {
         } catch (e) {}
         swiperInstanceRef.current = null;
       }
-      initAttempted.current = false;
     };
-  }, [isClient, initSwiper]);
+  }, []);
 
+  // Resize + visibility
   useEffect(() => {
-    if (!isClient || !swiperInstanceRef.current) return;
     let resizeTimeout: NodeJS.Timeout;
     const handleResize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
-        if (swiperInstanceRef.current) swiperInstanceRef.current.update();
+        swiperInstanceRef.current?.update();
       }, 150);
     };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        swiperInstanceRef.current?.autoplay?.start();
+      }
+    };
     window.addEventListener("resize", handleResize);
+    document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       window.removeEventListener("resize", handleResize);
+      document.removeEventListener("visibilitychange", handleVisibility);
       clearTimeout(resizeTimeout);
     };
-  }, [isClient]);
+  }, []);
 
   const goPrev = () => swiperInstanceRef.current?.slidePrev();
   const goNext = () => swiperInstanceRef.current?.slideNext();
@@ -612,37 +597,36 @@ export default function HeroSection() {
       dir={isRTLMode ? "rtl" : "ltr"}
       suppressHydrationWarning
     >
-      {/* ── Custom luxury cursor ── */}
       <div className="hero-cursor" aria-hidden="true">
         <span className="hero-cursor-ring" />
       </div>
       <div className="hero-cursor-dot" aria-hidden="true" />
 
-      {/* ── Gold floating particles ── */}
       <GoldParticles />
 
-      {/* ── Corner brackets ── */}
       <div className="hero-corner-tl" aria-hidden="true">
-        <span /><span />
+        <span />
+        <span />
       </div>
       <div className="hero-corner-tr" aria-hidden="true">
-        <span /><span />
+        <span />
+        <span />
       </div>
       <div className="hero-corner-bl" aria-hidden="true">
-        <span /><span />
+        <span />
+        <span />
       </div>
       <div className="hero-corner-br" aria-hidden="true">
-        <span /><span />
+        <span />
+        <span />
       </div>
 
-      {/* ── Slide counter ── */}
       <SlideCounter
         current={currentSlide}
         total={slidesConfig.length}
-        visible={isClient}
+        visible={true}
       />
 
-      {/* ── Scroll hint ── */}
       <div className="hero-scroll-hint" aria-hidden="true">
         <span className="hero-scroll-text">Scroll</span>
         <div className="hero-scroll-track">
@@ -650,11 +634,9 @@ export default function HeroSection() {
         </div>
       </div>
 
-      {/* ── Nav buttons (magnetic) ── */}
       <NavButton direction="prev" onClick={goPrev} />
       <NavButton direction="next" onClick={goNext} />
 
-      {/* ── Swiper ── */}
       <div
         ref={containerRef}
         className="hero-swiper swiper"
@@ -663,7 +645,6 @@ export default function HeroSection() {
         <div className="swiper-wrapper">
           <StaticSlides language={language} isRTL={isRTLMode} />
         </div>
-
         <div
           className="hero-pagination swiper-pagination"
           suppressHydrationWarning
@@ -671,4 +652,12 @@ export default function HeroSection() {
       </div>
     </section>
   );
+}
+
+// ─────────────────────────────────────────────────────────────
+// MAIN EXPORT
+// bfcache remount is handled by providers.tsx (shellKey)
+// ─────────────────────────────────────────────────────────────
+export default function HeroSection() {
+  return <HeroInner />;
 }

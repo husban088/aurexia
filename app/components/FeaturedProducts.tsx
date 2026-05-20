@@ -137,8 +137,14 @@ const getStockStatus = (
   return "in_stock";
 };
 
-/* ── Fetch function ── */
-async function fetchFeaturedTabData(tab: string): Promise<CachedData> {
+/* ── Fetch function with retry — ERR_CONNECTION_CLOSED pe 3 baar try karo ── */
+async function fetchFeaturedTabData(
+  tab: string,
+  attempt = 0,
+): Promise<CachedData> {
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 600; // ms
+
   try {
     const { data: productsData, error } = await supabase
       .from("products")
@@ -148,7 +154,16 @@ async function fetchFeaturedTabData(tab: string): Promise<CachedData> {
       .eq("category", tab)
       .order("created_at", { ascending: false });
 
-    if (error || !productsData || productsData.length === 0) {
+    if (error) {
+      // Network error — retry karo
+      if (attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAY * (attempt + 1)));
+        return fetchFeaturedTabData(tab, attempt + 1);
+      }
+      return { products: [], variantsMap: {}, variantImagesMap: {} };
+    }
+
+    if (!productsData || productsData.length === 0) {
       return { products: [], variantsMap: {}, variantImagesMap: {} };
     }
 
@@ -209,6 +224,11 @@ async function fetchFeaturedTabData(tab: string): Promise<CachedData> {
     tabCache[tab] = result;
     return result;
   } catch {
+    // Exception — retry karo
+    if (attempt < MAX_RETRIES) {
+      await new Promise((r) => setTimeout(r, RETRY_DELAY * (attempt + 1)));
+      return fetchFeaturedTabData(tab, attempt + 1);
+    }
     return { products: [], variantsMap: {}, variantImagesMap: {} };
   }
 }
@@ -941,18 +961,31 @@ export default function FeaturedProducts() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
-  // ✅ pageshow — handles bfcache (back/forward), always shows products
+  // ✅ pageshow — bfcache (back/forward) fix
+  // e.persisted = true matlab page bfcache se aaya
+  // Is case mein Supabase connections closed hain (ERR_CONNECTION_CLOSED)
+  // Isliye tabCache clear karo aur fresh fetch karo retry ke saath
   useEffect(() => {
-    const handlePageShow = () => {
+    const handlePageShow = (e: PageTransitionEvent) => {
       const tab = activeTabRef.current;
-      if ((tabCache[tab]?.products?.length ?? 0) > 0) {
-        setProducts(tabCache[tab].products);
-        setVariantsMap(tabCache[tab].variantsMap);
-        setVariantImagesMap(tabCache[tab].variantImagesMap);
-        setIsLoading(false);
-        setSwiperKey((prev) => prev + 1);
+      if (e.persisted) {
+        // ✅ bfcache se aaya — cache stale hai, Supabase connection closed
+        // Sare tabs ka cache clear karo
+        ALL_TABS.forEach((t) => delete tabCache[t]);
+        // Skeleton dikhao aur fresh fetch karo (retry logic ke saath)
+        setIsLoading(true);
+        loadProductsForTab(tab, true);
       } else {
-        loadProductsForTab(tab);
+        // Normal page load — cache se ya fetch karo
+        if ((tabCache[tab]?.products?.length ?? 0) > 0) {
+          setProducts(tabCache[tab].products);
+          setVariantsMap(tabCache[tab].variantsMap);
+          setVariantImagesMap(tabCache[tab].variantImagesMap);
+          setIsLoading(false);
+          setSwiperKey((prev) => prev + 1);
+        } else {
+          loadProductsForTab(tab);
+        }
       }
     };
     window.addEventListener("pageshow", handlePageShow);

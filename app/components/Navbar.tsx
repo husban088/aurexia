@@ -142,7 +142,7 @@ export default function Navbar({
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const [currentPath, setCurrentPath] = useState("");
+  const pathname = usePathname();
   const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currencyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -171,7 +171,6 @@ export default function Navbar({
 
   useEffect(() => {
     setMounted(true);
-    setCurrentPath(window.location.pathname);
     const handleScroll = () => {
       if (scrollTicking.current) return;
       scrollTicking.current = true;
@@ -190,7 +189,10 @@ export default function Navbar({
       });
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -281,31 +283,8 @@ export default function Navbar({
     window.location.href = href;
   };
 
-  if (!mounted) {
-    return (
-      <nav className="navbar">
-        <div className="navbar-container">
-          <div className="navbar-center">
-            <a
-              href="/"
-              className="navbar-logo"
-              onClick={(e) => {
-                e.preventDefault();
-                navigateTo("/");
-              }}
-            >
-              <img
-                src="/nav__logo.png"
-                alt="TECH4U"
-                className="navbar-logo-img"
-              />
-            </a>
-          </div>
-        </div>
-      </nav>
-    );
-  }
-
+  // ✅ NO mounted gate — navbar always renders fully
+  // bfcache (browser back/forward) pe bhi complete navbar dikhta hai
   return (
     <nav
       className={`navbar${scrolled ? " scrolled" : ""}${navVisible ? "" : " navbar-hidden"}`}
@@ -471,7 +450,7 @@ export default function Navbar({
         <ul className="nav-links">
           {navLinks.map((link) => {
             const hasDropdown = categorySubcategories[link.href];
-            const isActive = currentPath === link.href;
+            const isActive = pathname === link.href;
             return (
               <li
                 key={link.href}
@@ -511,7 +490,7 @@ export default function Navbar({
                       <a
                         key={sub.href}
                         href={sub.href}
-                        className={`dropdown-item${currentPath === sub.href ? " active" : ""}`}
+                        className={`dropdown-item${pathname === sub.href ? " active" : ""}`}
                         onClick={(e) => {
                           e.preventDefault();
                           navigateTo(sub.href);
@@ -530,7 +509,7 @@ export default function Navbar({
             <li className="nav-item">
               <a
                 href="/panel"
-                className={currentPath === "/panel" ? "active" : ""}
+                className={pathname === "/panel" ? "active" : ""}
                 onClick={(e) => {
                   e.preventDefault();
                   window.location.href = "/panel";

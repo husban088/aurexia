@@ -58,7 +58,7 @@ export default async function RootLayout({
           crossOrigin="anonymous"
         />
 
-        {/* ✅ Meta Pixel — afterInteractive strategy sahi hai */}
+        {/* ✅ Meta Pixel */}
         <Script
           id="meta-pixel"
           strategy="afterInteractive"

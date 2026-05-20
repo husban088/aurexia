@@ -10,27 +10,19 @@ import "./explore-aurexia.css";
    COMPLETE TRANSLATIONS FOR ALL CATEGORIES
 ────────────────────────────────────────── */
 
-// Category translations
 const categoryTranslations = {
-  // Labels
   labelMen: { en: "Men's", ar: "رجالي", de: "Herren" },
   labelWomen: { en: "Women's", ar: "نسائي", de: "Damen" },
   labelMobile: { en: "Mobile", ar: "جوال", de: "Mobil" },
   labelHome: { en: "Home", ar: "المنزل", de: "Zuhause" },
-
-  // Titles
   titleGentleman: { en: "Gentleman's", ar: "الأناقة", de: "Gentleman" },
   titleFeminine: { en: "Feminine", ar: "الأنوثة", de: "Weiblich" },
   titleTech: { en: "Tech", ar: "تقنية", de: "Technik" },
   titleLiving: { en: "Living", ar: "المعيشة", de: "Wohnen" },
-
-  // Title Italic
   italicTimepieces: { en: " Timepieces", ar: " الزمنية", de: " Zeitmesser" },
   italicElegance: { en: " Elegance", ar: " الرقي", de: " Eleganz" },
   italicAccessories: { en: " Accessories", ar: " الإكسسوارات", de: " Zubehör" },
   italicDecor: { en: " Décor", ar: " الديكور", de: " Dekor" },
-
-  // Subtitles
   subGentleman: {
     en: "Precision. Power. Legacy.",
     ar: "دقة. قوة. إرث.",
@@ -51,8 +43,6 @@ const categoryTranslations = {
     ar: "جو. فن. مساحة.",
     de: "Atmosphäre. Kunst. Raum.",
   },
-
-  // Paragraphs
   paraMen: {
     en: "Crafted for the man who moves the world. Surgical steel, sapphire crystal — worn on the wrist of ambition.",
     ar: "مصممة للرجل الذي يحرك العالم. فولاذ جراحي، كريستال ياقوتي — يرتديها معصم الطموح.",
@@ -73,8 +63,6 @@ const categoryTranslations = {
     ar: "قطع منسقة تحول الجدران الأربعة إلى ملاذ. أشياء حرفية تتحدث بلغة الصمت.",
     de: "Kuratierte Stücke, die vier Wände in ein Heiligtum verwandeln. Kunsthandwerkliche Objekte, die in der Sprache der Stille sprechen.",
   },
-
-  // CTAs
   ctaMen: {
     en: "Explore Men's Watches",
     ar: "استكشف ساعات الرجال",
@@ -91,13 +79,9 @@ const categoryTranslations = {
     de: "Zubehör kaufen",
   },
   ctaHome: { en: "Discover Décor", ar: "اكتشف الديكور", de: "Dekor entdecken" },
-
-  // Tags
   tagWatches: { en: "Watches", ar: "ساعات", de: "Uhren" },
   tagAccessories: { en: "Accessories", ar: "إكسسوارات", de: "Zubehör" },
   tagDecor: { en: "Décor", ar: "ديكور", de: "Dekor" },
-
-  // Section texts
   eyebrowText: {
     en: "Curated Collections",
     ar: "مجموعات منسقة",
@@ -112,7 +96,6 @@ const categoryTranslations = {
   },
 };
 
-// Category data with translation keys
 const categories = [
   {
     id: 1,
@@ -182,20 +165,15 @@ function getTranslation(
 }
 
 /* ──────────────────────────────────────────
-   SWIPER CDN LOADER
+   SWIPER CDN LOADER — no module-level cache (bfcache safe)
 ────────────────────────────────────────── */
-let swiperCDNLoaded = false;
-let swiperCDNLoading: Promise<void> | null = null;
-
 function loadSwiperCDN(): Promise<void> {
-  if (typeof window !== "undefined" && (window as any).Swiper) {
-    swiperCDNLoaded = true;
-    return Promise.resolve();
-  }
-  if (swiperCDNLoaded) return Promise.resolve();
-  if (swiperCDNLoading) return swiperCDNLoading;
+  return new Promise<void>((resolve) => {
+    if (typeof window !== "undefined" && (window as any).Swiper) {
+      resolve();
+      return;
+    }
 
-  swiperCDNLoading = new Promise<void>((resolve) => {
     if (!document.querySelector("link[data-ea-swiper-css]")) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
@@ -209,11 +187,9 @@ function loadSwiperCDN(): Promise<void> {
       const poll = setInterval(() => {
         if ((window as any).Swiper) {
           clearInterval(poll);
-          swiperCDNLoaded = true;
-          swiperCDNLoading = null;
           resolve();
         }
-      }, 50);
+      }, 30);
       setTimeout(() => {
         clearInterval(poll);
         resolve();
@@ -224,23 +200,14 @@ function loadSwiperCDN(): Promise<void> {
     const script = document.createElement("script");
     script.src = "https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js";
     script.setAttribute("data-ea-swiper-js", "1");
-    script.onload = () => {
-      swiperCDNLoaded = true;
-      swiperCDNLoading = null;
-      resolve();
-    };
-    script.onerror = () => {
-      swiperCDNLoading = null;
-      resolve();
-    };
+    script.onload = () => resolve();
+    script.onerror = () => resolve();
     document.head.appendChild(script);
   });
-
-  return swiperCDNLoading;
 }
 
 /* ──────────────────────────────────────────
-   CARD COMPONENT with RTL support
+   CARD COMPONENT
 ────────────────────────────────────────── */
 function CategoryCard({
   cat,
@@ -262,7 +229,8 @@ function CategoryCard({
   return (
     <article
       className="ea-card"
-      style={{ "--ea-accent": cat.accentColor } as React.CSSProperties}
+      style={{ "--accent": cat.accentColor } as React.CSSProperties}
+      dir={isRTL ? "rtl" : "ltr"}
     >
       <div className="ea-card-img-wrap">
         {cat.imageSrc ? (
@@ -271,34 +239,27 @@ function CategoryCard({
             alt={`${title}${italic}`}
             fill
             className="ea-card-img"
-            priority
-            sizes="(max-width: 640px) 92vw, (max-width: 1200px) 46vw, 33vw"
-            quality={85}
-            suppressHydrationWarning
+            sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            quality={80}
           />
         ) : (
-          <div
-            className={`ea-card-placeholder ${cat.placeholderClass}`}
-            role="img"
-            aria-label={`${title}${italic}`}
-          />
+          <div className={`ea-card-placeholder ${cat.placeholderClass}`} />
         )}
-        <div className="ea-card-overlay-base" aria-hidden="true" />
-        <div className="ea-card-overlay-hover" aria-hidden="true" />
-        <span className="ea-card-tag">{tag}</span>
-        <span className="ea-card-label" aria-hidden="true">
-          {label}
-        </span>
+        <div className="ea-card-img-overlay" />
       </div>
 
-      <div className="ea-card-body" dir={isRTL ? "rtl" : "ltr"}>
+      <span className="ea-card-tag">{tag}</span>
+      <span className="ea-card-label">{label}</span>
+
+      <div className="ea-card-body">
         <p className="ea-card-sub">{sub}</p>
         <h3 className="ea-card-title">
           {title}
           <em>{italic}</em>
         </h3>
-        <div className="ea-card-divider" aria-hidden="true" />
+        <div className="ea-card-divider" />
         <p className="ea-card-para">{para}</p>
+
         <Link href={cat.href} className="ea-card-cta" prefetch={false}>
           <span>{ctaLabel}</span>
           <svg
@@ -323,7 +284,7 @@ function CategoryCard({
 }
 
 /* ──────────────────────────────────────────
-   STATIC SLIDES RENDER
+   STATIC SLIDES
 ────────────────────────────────────────── */
 function StaticSlides({
   language,
@@ -344,10 +305,9 @@ function StaticSlides({
 }
 
 /* ──────────────────────────────────────────
-   MAIN COMPONENT
+   INNER COMPONENT — remounts on bfcache via key prop
 ────────────────────────────────────────── */
-export default function ExploreAurexia() {
-  const [isClient, setIsClient] = useState(false);
+function ExploreInner() {
   const { language, isRTLMode } = useLanguage();
 
   const swiperRef = useRef<HTMLDivElement>(null);
@@ -355,80 +315,78 @@ export default function ExploreAurexia() {
   const nextBtnRef = useRef<HTMLButtonElement>(null);
   const paginationRef = useRef<HTMLDivElement>(null);
   const swiperInstRef = useRef<any>(null);
-  const initAttempted = useRef(false);
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const initSwiper = useCallback(() => {
-    if (typeof window === "undefined") return;
-    if (initAttempted.current) return;
-    if (!(window as any).Swiper) return;
-    if (
-      !swiperRef.current ||
-      !prevBtnRef.current ||
-      !nextBtnRef.current ||
-      !paginationRef.current
-    )
-      return;
-
-    if (swiperInstRef.current) {
-      try {
-        swiperInstRef.current.destroy(true, true);
-      } catch (e) {}
-      swiperInstRef.current = null;
-    }
-
-    try {
-      swiperInstRef.current = new (window as any).Swiper(swiperRef.current, {
-        slidesPerView: 1,
-        spaceBetween: 20,
-        centeredSlides: false,
-        breakpoints: {
-          480: { slidesPerView: 1.3, spaceBetween: 20 },
-          640: { slidesPerView: 1.6, spaceBetween: 24 },
-          900: { slidesPerView: 2.2, spaceBetween: 28 },
-          1200: { slidesPerView: 3, spaceBetween: 32 },
-          1440: { slidesPerView: 3, spaceBetween: 36 },
-        },
-        grabCursor: true,
-        touchRatio: 1,
-        touchAngle: 45,
-        simulateTouch: true,
-        touchStartPreventDefault: false,
-        loop: true,
-        autoplay: {
-          delay: 3800,
-          disableOnInteraction: false,
-          pauseOnMouseEnter: true,
-        },
-        speed: 900,
-        navigation: { nextEl: nextBtnRef.current, prevEl: prevBtnRef.current },
-        pagination: {
-          el: paginationRef.current,
-          clickable: true,
-          dynamicBullets: true,
-        },
-        observer: true,
-        observeParents: true,
-        resizeObserver: true,
-      });
-      initAttempted.current = true;
-    } catch (err) {
-      console.error("Swiper initialization error:", err);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isClient) return;
     let cancelled = false;
+
     loadSwiperCDN().then(() => {
-      if (!cancelled)
-        setTimeout(() => {
-          if (!cancelled) initSwiper();
-        }, 100);
+      if (cancelled) return;
+      if (
+        !swiperRef.current ||
+        !prevBtnRef.current ||
+        !nextBtnRef.current ||
+        !paginationRef.current
+      )
+        return;
+
+      // Destroy stale instance
+      if (swiperInstRef.current) {
+        try {
+          swiperInstRef.current.destroy(true, true);
+        } catch (e) {}
+        swiperInstRef.current = null;
+      }
+
+      setTimeout(() => {
+        if (cancelled) return;
+        if (!swiperRef.current || !(window as any).Swiper) return;
+
+        try {
+          swiperInstRef.current = new (window as any).Swiper(
+            swiperRef.current,
+            {
+              slidesPerView: 1,
+              spaceBetween: 20,
+              centeredSlides: false,
+              breakpoints: {
+                480: { slidesPerView: 1.3, spaceBetween: 20 },
+                640: { slidesPerView: 1.6, spaceBetween: 24 },
+                900: { slidesPerView: 2.2, spaceBetween: 28 },
+                1200: { slidesPerView: 3, spaceBetween: 32 },
+                1440: { slidesPerView: 3, spaceBetween: 36 },
+              },
+              grabCursor: true,
+              touchRatio: 1,
+              touchAngle: 45,
+              simulateTouch: true,
+              touchStartPreventDefault: false,
+              loop: true,
+              autoplay: {
+                delay: 3800,
+                disableOnInteraction: false,
+                pauseOnMouseEnter: true,
+              },
+              speed: 900,
+              navigation: {
+                nextEl: nextBtnRef.current,
+                prevEl: prevBtnRef.current,
+              },
+              pagination: {
+                el: paginationRef.current,
+                clickable: true,
+                dynamicBullets: true,
+              },
+              observer: true,
+              observeParents: true,
+              resizeObserver: true,
+            },
+          );
+        } catch (err) {
+          console.error("ExploreAurexia Swiper init error:", err);
+        }
+      }, 100);
     });
+
     return () => {
       cancelled = true;
       if (swiperInstRef.current) {
@@ -437,17 +395,16 @@ export default function ExploreAurexia() {
         } catch (e) {}
         swiperInstRef.current = null;
       }
-      initAttempted.current = false;
     };
-  }, [isClient, initSwiper]);
+  }, []);
 
+  // Resize handler
   useEffect(() => {
-    if (!isClient || !swiperInstRef.current) return;
     let resizeTimeout: NodeJS.Timeout;
     const handleResize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
-        if (swiperInstRef.current) swiperInstRef.current.update();
+        swiperInstRef.current?.update();
       }, 150);
     };
     window.addEventListener("resize", handleResize);
@@ -455,7 +412,7 @@ export default function ExploreAurexia() {
       window.removeEventListener("resize", handleResize);
       clearTimeout(resizeTimeout);
     };
-  }, [isClient]);
+  }, []);
 
   const goPrev = () => swiperInstRef.current?.slidePrev();
   const goNext = () => swiperInstRef.current?.slideNext();
@@ -557,4 +514,12 @@ export default function ExploreAurexia() {
       </div>
     </section>
   );
+}
+
+/* ──────────────────────────────────────────
+   MAIN EXPORT
+   bfcache remount is handled by providers.tsx (shellKey)
+────────────────────────────────────────── */
+export default function ExploreAurexia() {
+  return <ExploreInner />;
 }
