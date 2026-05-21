@@ -913,17 +913,30 @@ export default function ProductDetail() {
       ? variantImagesMap[selectedVariant.id]
       : (product as any)?.images || [];
 
+  // ── Raw base price (before any sale discount) ──
+  const rawVariantPrice = selectedVariant?.price || product?.price || 0;
+
+  // ── Sale-discounted unit price (single piece) ──
+  const saleUnitPrice = activeSalePercent
+    ? applyDiscount(rawVariantPrice, activeSalePercent)
+    : rawVariantPrice;
+
+  // ── Original single-piece price set by admin ──
+  const singlePieceOriginal =
+    (selectedVariant as any)?.original_price ||
+    (product as any)?.original_price ||
+    0;
+
   const getCurrentPrice = (): number => {
+    // When a bulk tier is selected, tier_price is the TOTAL for min_quantity pieces
     if (selectedTier) return selectedTier.tier_price;
-    const base = selectedVariant?.price || product?.price || 0;
-    return activeSalePercent ? applyDiscount(base, activeSalePercent) : base;
+    return saleUnitPrice;
   };
 
   const getPerPiecePrice = (): number => {
     if (selectedTier)
       return selectedTier.tier_price / selectedTier.min_quantity;
-    const base = selectedVariant?.price || product?.price || 0;
-    return activeSalePercent ? applyDiscount(base, activeSalePercent) : base;
+    return saleUnitPrice;
   };
 
   const getQuantityToAdd = (): number => {
@@ -933,21 +946,15 @@ export default function ProductDetail() {
   const currentPrice = getCurrentPrice();
   const currentPerPiecePrice = getPerPiecePrice();
 
-  const rawVariantPrice = selectedVariant?.price || product?.price || 0;
-  const singlePieceOriginal =
-    (selectedVariant as any)?.original_price ||
-    (product as any)?.original_price ||
-    0;
-
   const getOriginalPriceDisplay = (): number => {
     if (selectedTier) {
-      const unitPrice = activeSalePercent
-        ? applyDiscount(rawVariantPrice, activeSalePercent)
-        : rawVariantPrice;
-      const totalOriginal = unitPrice * selectedTier.min_quantity;
-      if (totalOriginal > selectedTier.tier_price) return totalOriginal;
+      // Original total = sale unit price × quantity (what they'd pay without bulk discount)
+      // This correctly shows the saving from the bulk tier on top of the sale price
+      const totalWithoutBulk = saleUnitPrice * selectedTier.min_quantity;
+      if (totalWithoutBulk > selectedTier.tier_price) return totalWithoutBulk;
       return 0;
     }
+    // No tier: compare against admin original_price or raw variant price (pre-sale)
     if (activeSalePercent && rawVariantPrice > 0) return rawVariantPrice;
     return singlePieceOriginal;
   };
@@ -956,12 +963,10 @@ export default function ProductDetail() {
 
   const getDiscountPercentage = (): number => {
     if (selectedTier) {
-      const unitPrice = activeSalePercent
-        ? applyDiscount(rawVariantPrice, activeSalePercent)
-        : rawVariantPrice;
+      // Discount % = how much cheaper per piece vs the sale unit price
       const perPiece = selectedTier.tier_price / selectedTier.min_quantity;
-      if (unitPrice > 0 && perPiece < unitPrice)
-        return Math.round(((unitPrice - perPiece) / unitPrice) * 100);
+      if (saleUnitPrice > 0 && perPiece < saleUnitPrice)
+        return Math.round(((saleUnitPrice - perPiece) / saleUnitPrice) * 100);
       return 0;
     }
     if (activeSalePercent && activeSalePercent > 0) return activeSalePercent;
@@ -976,14 +981,14 @@ export default function ProductDetail() {
 
   const savings = (() => {
     if (selectedTier) {
-      const unitPrice = activeSalePercent
-        ? applyDiscount(rawVariantPrice, activeSalePercent)
-        : rawVariantPrice;
+      // Saving per piece vs buying at the sale unit price
       const perPiece = selectedTier.tier_price / selectedTier.min_quantity;
-      return Math.max(0, unitPrice - perPiece);
+      return Math.max(0, saleUnitPrice - perPiece);
     }
-    return currentOriginalPrice > currentPerPiecePrice
-      ? currentOriginalPrice - currentPerPiecePrice
+    // No tier: saving vs original price
+    const origPrice = currentOriginalPrice > 0 ? currentOriginalPrice : 0;
+    return origPrice > currentPerPiecePrice
+      ? origPrice - currentPerPiecePrice
       : 0;
   })();
 
@@ -1030,7 +1035,9 @@ export default function ProductDetail() {
       is_active: product.is_active,
       images: currentImages,
       price: currentPerPiecePrice,
-      original_price: currentOriginalPrice,
+      original_price: selectedTier
+        ? saleUnitPrice // per-piece original when bulk selected
+        : currentOriginalPrice,
       stock: currentStock,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -1467,14 +1474,7 @@ export default function ProductDetail() {
             {bulkTiers.length > 0 && !loadingTiers && (
               <BulkPricingSelector
                 tiers={bulkTiers}
-                unitPrice={
-                  activeSalePercent
-                    ? applyDiscount(
-                        selectedVariant?.price || (product as any).price || 0,
-                        activeSalePercent,
-                      )
-                    : selectedVariant?.price || (product as any).price || 0
-                }
+                unitPrice={saleUnitPrice}
                 onSelect={setSelectedTier}
                 selectedTier={selectedTier}
                 formatPrice={formatPrice}
