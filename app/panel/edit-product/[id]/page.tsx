@@ -199,6 +199,114 @@ const TABS = [
   },
 ];
 
+// ─── Raw Fetch DB Helpers (no Supabase client — never hangs) ─────────────────
+// Yeh bilkul add-product page jaisi helpers hain — tab-switch ke baad bhi kaam karti hain
+
+const SB_URL = () => process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SB_KEY = () => process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+async function epUpdate(table: string, id: string, body: object) {
+  const res = await fetch(`${SB_URL()}/rest/v1/${table}?id=eq.${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SB_KEY(),
+      Authorization: `Bearer ${SB_KEY()}`,
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = Array.isArray(data)
+      ? data[0]?.message
+      : data?.message || data?.error || JSON.stringify(data);
+    throw new Error(`${table} update failed (${res.status}): ${msg}`);
+  }
+  return Array.isArray(data) ? data[0] : data;
+}
+
+async function epInsert(table: string, body: object) {
+  const res = await fetch(`${SB_URL()}/rest/v1/${table}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SB_KEY(),
+      Authorization: `Bearer ${SB_KEY()}`,
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = Array.isArray(data)
+      ? data[0]?.message
+      : data?.message || data?.error || JSON.stringify(data);
+    throw new Error(`${table} insert failed (${res.status}): ${msg}`);
+  }
+  return Array.isArray(data) ? data[0] : data;
+}
+
+async function epInsertMany(table: string, body: object[]) {
+  if (body.length === 0) return;
+  const res = await fetch(`${SB_URL()}/rest/v1/${table}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SB_KEY(),
+      Authorization: `Bearer ${SB_KEY()}`,
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    console.error(`${table} bulk insert error:`, data);
+  }
+}
+
+async function epDeleteWhere(table: string, column: string, value: string) {
+  await fetch(`${SB_URL()}/rest/v1/${table}?${column}=eq.${value}`, {
+    method: "DELETE",
+    headers: {
+      apikey: SB_KEY(),
+      Authorization: `Bearer ${SB_KEY()}`,
+    },
+  });
+}
+
+async function epDeleteWhereIn(
+  table: string,
+  column: string,
+  values: string[],
+) {
+  if (values.length === 0) return;
+  const inList = `(${values.join(",")})`;
+  await fetch(`${SB_URL()}/rest/v1/${table}?${column}=in.${inList}`, {
+    method: "DELETE",
+    headers: {
+      apikey: SB_KEY(),
+      Authorization: `Bearer ${SB_KEY()}`,
+    },
+  });
+}
+
+async function epSelect(table: string, filter: string, select = "*") {
+  const res = await fetch(
+    `${SB_URL()}/rest/v1/${table}?${filter}&select=${select}`,
+    {
+      headers: {
+        apikey: SB_KEY(),
+        Authorization: `Bearer ${SB_KEY()}`,
+      },
+    },
+  );
+  const data = await res.json().catch(() => []);
+  return Array.isArray(data) ? data : [];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function detectStockStatus(
   stock: number,
   lowStockThreshold: number | null,
@@ -1519,6 +1627,7 @@ function SimpleModeEditForm({
       onError("Product name and price are required");
       return;
     }
+    if (isUpdating) return;
 
     setIsUpdating(true);
     try {
@@ -1530,61 +1639,49 @@ function SimpleModeEditForm({
       const thresholdVal =
         stockStatus === "low_stock" ? lowStockThreshold : null;
 
-      // ✅ Update product with video_url
-      const { error: productError } = await supabase
-        .from("products")
-        .update({
-          name: name.trim(),
-          description: description,
-          description_images: descriptionImages,
-          category: tab.category,
-          subcategory: tab.sub,
-          brand: brand.trim() || null,
-          condition,
-          is_featured: isFeatured,
-          is_active: isActive,
-          currency_code: currency.code,
-          price: pricePKR,
-          original_price: originalPricePKR,
-          video_url: productVideo,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", productId);
+      // ─── STEP 1: Product update — direct fetch, kabhi hang nahi hoga ─────
+      await epUpdate("products", productId, {
+        name: name.trim(),
+        description: description,
+        description_images: descriptionImages,
+        category: tab.category,
+        subcategory: tab.sub,
+        brand: brand.trim() || null,
+        condition,
+        is_featured: isFeatured,
+        is_active: isActive,
+        currency_code: currency.code,
+        price: pricePKR,
+        original_price: originalPricePKR,
+        video_url: productVideo,
+        updated_at: new Date().toISOString(),
+      });
 
-      if (productError) {
-        onError("Failed to update product: " + productError.message);
-        setIsUpdating(false);
-        return;
-      }
+      // ─── STEP 2: Success immediately — button unlock, redirect ────────────
+      setIsUpdating(false);
+      onSuccess();
 
-      let variantId = initialVariant?.id;
-      if (variantId) {
-        const { error: variantError } = await supabase
-          .from("product_variants")
-          .update({
-            price: pricePKR,
-            original_price: originalPricePKR,
-            description_rich: description,
-            description_images: descriptionImages,
-            description: description ? description.substring(0, 500) : null,
-            stock: stockVal,
-            low_stock_threshold: thresholdVal,
-            currency_code: currency.code,
-            base_price_pkr: pricePKR,
-            base_original_price_pkr: originalPricePKR,
-            is_active: true,
-          })
-          .eq("id", variantId);
-        if (variantError) {
-          onError("Failed to update variant: " + variantError.message);
-          setIsUpdating(false);
-          return;
-        }
-      } else {
-        const { data: newVariant, error: variantError } = await supabase
-          .from("product_variants")
-          .insert([
-            {
+      // ─── STEP 3: Variant + Images + Tiers + FAQs — background mein ───────
+      (async () => {
+        try {
+          let variantId = initialVariant?.id;
+
+          if (variantId) {
+            await epUpdate("product_variants", variantId, {
+              price: pricePKR,
+              original_price: originalPricePKR,
+              description_rich: description,
+              description_images: descriptionImages,
+              description: description ? description.substring(0, 500) : null,
+              stock: stockVal,
+              low_stock_threshold: thresholdVal,
+              currency_code: currency.code,
+              base_price_pkr: pricePKR,
+              base_original_price_pkr: originalPricePKR,
+              is_active: true,
+            });
+          } else {
+            const newVariant = await epInsert("product_variants", {
               product_id: productId,
               attribute_type: "standard",
               attribute_value: "Standard",
@@ -1599,83 +1696,76 @@ function SimpleModeEditForm({
               currency_code: currency.code,
               base_price_pkr: pricePKR,
               base_original_price_pkr: originalPricePKR,
-            },
-          ])
-          .select()
-          .single();
-        if (variantError) {
-          onError("Failed to create variant: " + variantError.message);
-          setIsUpdating(false);
-          return;
+            });
+            if (newVariant?.id) variantId = newVariant.id;
+          }
+
+          if (variantId) {
+            // Images refresh
+            await epDeleteWhere("variant_images", "variant_id", variantId);
+            if (images.length > 0) {
+              await epInsertMany(
+                "variant_images",
+                images.map((url, idx) => ({
+                  variant_id: variantId,
+                  image_url: url,
+                  display_order: idx,
+                })),
+              );
+            }
+
+            // Bulk tiers refresh
+            await epDeleteWhere("bulk_pricing_tiers", "variant_id", variantId);
+            const validTiers = bulkTiers.filter(
+              (t) => t.min_quantity && t.tier_price,
+            );
+            if (validTiers.length > 0) {
+              await epInsertMany(
+                "bulk_pricing_tiers",
+                validTiers.map((t) => ({
+                  variant_id: variantId,
+                  min_quantity: t.min_quantity,
+                  max_quantity: t.max_quantity,
+                  tier_price: convertPriceToPKR(t.tier_price, currency),
+                  discount_percentage: t.discount_percentage,
+                  discount_price: t.discount_price
+                    ? convertPriceToPKR(t.discount_price, currency)
+                    : null,
+                  currency_code: currency.code,
+                  base_tier_price_pkr: convertPriceToPKR(
+                    t.tier_price,
+                    currency,
+                  ),
+                })),
+              );
+            }
+          }
+
+          // FAQs refresh
+          await epDeleteWhere("product_faqs", "product_id", productId);
+          const validFaqs = faqs.filter((f) => f.question.trim());
+          if (validFaqs.length > 0) {
+            await epInsertMany(
+              "product_faqs",
+              validFaqs.map((f, idx) => ({
+                product_id: productId,
+                question: f.question.trim(),
+                answer: f.answer.trim() || null,
+                display_order: idx,
+              })),
+            );
+          }
+        } catch (bgErr) {
+          console.error("Background simple update error:", bgErr);
         }
-        variantId = newVariant.id;
-      }
-
-      await supabase
-        .from("variant_images")
-        .delete()
-        .eq("variant_id", variantId);
-      if (images.length > 0) {
-        await supabase
-          .from("variant_images")
-          .insert(
-            images.map((url, idx) => ({
-              variant_id: variantId,
-              image_url: url,
-              display_order: idx,
-            })),
-          );
-      }
-
-      await supabase
-        .from("bulk_pricing_tiers")
-        .delete()
-        .eq("variant_id", variantId);
-      if (bulkTiers.length > 0) {
-        const validTiers = bulkTiers.filter(
-          (t) => t.min_quantity && t.tier_price,
-        );
-        if (validTiers.length > 0) {
-          await supabase.from("bulk_pricing_tiers").insert(
-            validTiers.map((t) => ({
-              variant_id: variantId,
-              min_quantity: t.min_quantity,
-              max_quantity: t.max_quantity,
-              tier_price: convertPriceToPKR(t.tier_price, currency),
-              discount_percentage: t.discount_percentage,
-              discount_price: t.discount_price
-                ? convertPriceToPKR(t.discount_price, currency)
-                : null,
-              currency_code: currency.code,
-              base_tier_price_pkr: convertPriceToPKR(t.tier_price, currency),
-            })),
-          );
-        }
-      }
-
-      await supabase.from("product_faqs").delete().eq("product_id", productId);
-      if (faqs.length > 0) {
-        const validFaqs = faqs.filter((f) => f.question.trim());
-        if (validFaqs.length > 0) {
-          await supabase.from("product_faqs").insert(
-            validFaqs.map((f, idx) => ({
-              product_id: productId,
-              question: f.question.trim(),
-              answer: f.answer.trim() || null,
-              display_order: idx,
-            })),
-          );
-        }
-      }
-
-      setIsUpdating(false);
-      onSuccess();
+      })();
     } catch (err) {
       console.error("SimpleMode handleSubmit error:", err);
       onError(
         "An unexpected error occurred: " +
           (err instanceof Error ? err.message : String(err)),
       );
+    } finally {
       setIsUpdating(false);
     }
   };
@@ -2220,6 +2310,7 @@ function DetailedModeEditForm({
       );
       return;
     }
+    if (isUpdating) return;
 
     setIsUpdating(true);
     try {
@@ -2233,143 +2324,137 @@ function DetailedModeEditForm({
           ? Math.min(...(allOriginalPrices as number[]))
           : null;
 
-      const { error: productError } = await supabase
-        .from("products")
-        .update({
-          name: name.trim(),
-          description: description,
-          description_images: descriptionImages,
-          main_images: mainImages,
-          category: tab.category,
-          subcategory: tab.sub,
-          brand: brand.trim() || null,
-          condition,
-          is_featured: isFeatured,
-          is_active: isActive,
-          currency_code: currency.code,
-          price: minPrice,
-          original_price: minOriginalPrice,
-          video_url: productVideo,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", productId);
+      // ─── STEP 1: Product update — direct fetch, kabhi hang nahi hoga ─────
+      await epUpdate("products", productId, {
+        name: name.trim(),
+        description: description,
+        description_images: descriptionImages,
+        main_images: mainImages,
+        category: tab.category,
+        subcategory: tab.sub,
+        brand: brand.trim() || null,
+        condition,
+        is_featured: isFeatured,
+        is_active: isActive,
+        currency_code: currency.code,
+        price: minPrice,
+        original_price: minOriginalPrice,
+        video_url: productVideo,
+        updated_at: new Date().toISOString(),
+      });
 
-      if (productError) {
-        onError("Failed to update product: " + productError.message);
-        setIsUpdating(false);
-        return;
-      }
+      // ─── STEP 2: Success immediately — button unlock, redirect ────────────
+      setIsUpdating(false);
+      onSuccess();
 
-      const { data: existingVariants } = await supabase
-        .from("product_variants")
-        .select("id")
-        .eq("product_id", productId);
-      if (existingVariants && existingVariants.length > 0) {
-        const variantIds = existingVariants.map((v) => v.id);
-        await supabase
-          .from("variant_images")
-          .delete()
-          .in("variant_id", variantIds);
-        await supabase
-          .from("bulk_pricing_tiers")
-          .delete()
-          .in("variant_id", variantIds);
-        await supabase
-          .from("product_variants")
-          .delete()
-          .eq("product_id", productId);
-      }
+      // ─── STEP 3: Variants + Images + Tiers + FAQs — background mein ──────
+      (async () => {
+        try {
+          // Purane variants fetch karo aur sab delete karo
+          const existingVariants = await epSelect(
+            "product_variants",
+            `product_id=eq.${productId}`,
+            "id",
+          );
+          if (existingVariants.length > 0) {
+            const variantIds = existingVariants.map((v: any) => v.id);
+            await epDeleteWhereIn("variant_images", "variant_id", variantIds);
+            await epDeleteWhereIn(
+              "bulk_pricing_tiers",
+              "variant_id",
+              variantIds,
+            );
+            await epDeleteWhere("product_variants", "product_id", productId);
+          }
 
-      for (const variant of allVariants) {
-        const pricePKR = variant.price;
-        const originalPricePKR = variant.originalPrice ?? null;
-        const { data: variantData, error: variantError } = await supabase
-          .from("product_variants")
-          .insert([
-            {
-              product_id: productId,
-              attribute_type: variant.attributeType,
-              attribute_value: variant.attributeValue,
-              price: pricePKR,
-              original_price: originalPricePKR,
-              description_rich: variant.description || "",
-              description_images: variant.descriptionImages || [],
-              description: variant.description
-                ? variant.description.substring(0, 500)
-                : null,
-              stock: variant.stock,
-              low_stock_threshold: variant.lowStockThreshold,
-              is_active: true,
-              currency_code: currency.code,
-              base_price_pkr: pricePKR,
-              base_original_price_pkr: originalPricePKR,
-            },
-          ])
-          .select()
-          .single();
+          // Nayi variants insert karo ek ek karke
+          for (const variant of allVariants) {
+            const pricePKR = variant.price;
+            const originalPricePKR = variant.originalPrice ?? null;
 
-        if (variantError) {
-          onError("Failed to save variant: " + variantError.message);
-          setIsUpdating(false);
-          return;
-        }
+            let variantData: any;
+            try {
+              variantData = await epInsert("product_variants", {
+                product_id: productId,
+                attribute_type: variant.attributeType,
+                attribute_value: variant.attributeValue,
+                price: pricePKR,
+                original_price: originalPricePKR,
+                description_rich: variant.description || "",
+                description_images: variant.descriptionImages || [],
+                description: variant.description
+                  ? variant.description.substring(0, 500)
+                  : null,
+                stock: variant.stock,
+                low_stock_threshold: variant.lowStockThreshold,
+                is_active: true,
+                currency_code: currency.code,
+                base_price_pkr: pricePKR,
+                base_original_price_pkr: originalPricePKR,
+              });
+            } catch (varErr) {
+              console.error("Variant insert error:", varErr);
+              continue;
+            }
 
-        if (variant.images?.length > 0) {
-          await supabase
-            .from("variant_images")
-            .insert(
-              variant.images.map((url: string, idx: number) => ({
-                variant_id: variantData.id,
-                image_url: url,
+            if (variantData?.id && variant.images?.length > 0) {
+              await epInsertMany(
+                "variant_images",
+                variant.images.map((url: string, idx: number) => ({
+                  variant_id: variantData.id,
+                  image_url: url,
+                  display_order: idx,
+                })),
+              );
+            }
+
+            if (variantData?.id && variant.bulkPricingTiers?.length > 0) {
+              const validTiers = variant.bulkPricingTiers.filter(
+                (t: BulkPricingTier) => t.min_quantity && t.tier_price,
+              );
+              if (validTiers.length > 0) {
+                await epInsertMany(
+                  "bulk_pricing_tiers",
+                  validTiers.map((t: BulkPricingTier) => ({
+                    variant_id: variantData.id,
+                    min_quantity: t.min_quantity,
+                    max_quantity: t.max_quantity,
+                    tier_price: t.tier_price,
+                    discount_percentage: t.discount_percentage,
+                    discount_price: t.discount_price ?? null,
+                    currency_code: currency.code,
+                    base_tier_price_pkr: t.tier_price,
+                  })),
+                );
+              }
+            }
+          }
+
+          // FAQs refresh
+          await epDeleteWhere("product_faqs", "product_id", productId);
+          const validFaqs = faqs.filter((f) => f.question.trim());
+          if (validFaqs.length > 0) {
+            await epInsertMany(
+              "product_faqs",
+              validFaqs.map((f, idx) => ({
+                product_id: productId,
+                question: f.question.trim(),
+                answer: f.answer.trim() || null,
                 display_order: idx,
               })),
             );
-        }
-
-        if (variant.bulkPricingTiers?.length > 0) {
-          const validTiers = variant.bulkPricingTiers.filter(
-            (t: BulkPricingTier) => t.min_quantity && t.tier_price,
-          );
-          if (validTiers.length > 0) {
-            await supabase.from("bulk_pricing_tiers").insert(
-              validTiers.map((t: BulkPricingTier) => ({
-                variant_id: variantData.id,
-                min_quantity: t.min_quantity,
-                max_quantity: t.max_quantity,
-                tier_price: t.tier_price,
-                discount_percentage: t.discount_percentage,
-                discount_price: t.discount_price ?? null,
-                currency_code: currency.code,
-                base_tier_price_pkr: t.tier_price,
-              })),
-            );
           }
+        } catch (bgErr) {
+          console.error("Background detailed update error:", bgErr);
         }
-      }
-
-      await supabase.from("product_faqs").delete().eq("product_id", productId);
-      if (faqs.length > 0) {
-        const validFaqs = faqs.filter((f) => f.question.trim());
-        if (validFaqs.length > 0) {
-          await supabase.from("product_faqs").insert(
-            validFaqs.map((f, idx) => ({
-              product_id: productId,
-              question: f.question.trim(),
-              answer: f.answer.trim() || null,
-              display_order: idx,
-            })),
-          );
-        }
-      }
-
-      setIsUpdating(false);
-      onSuccess();
+      })();
     } catch (err) {
       console.error("DetailedMode handleSubmit error:", err);
       onError(
         "An unexpected error occurred: " +
           (err instanceof Error ? err.message : String(err)),
       );
+    } finally {
       setIsUpdating(false);
     }
   };
