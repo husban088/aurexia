@@ -6,22 +6,15 @@ import { useEffect } from "react";
 export function CurrencyCleaner() {
   useEffect(() => {
     try {
-      // ✅ SIRF tab clear karo agar user ne MANUALLY select nahi kiya
+      // ✅ ONLY clear stale data if user never manually selected a currency
+      // AND the stored currency is not PKR (PKR is valid for Pakistan users)
       const userSelected = localStorage.getItem("currencyUserSelected");
-
-      if (userSelected !== "true") {
-        // Clean old auto-detected data only
-        const currentPref = localStorage.getItem("preferredCurrency");
-
-        // Agar PKR hai toh clear karo (auto-detected hoga)
-        if (currentPref === "PKR") {
-          localStorage.removeItem("preferredCurrency");
-          document.cookie =
-            "preferredCurrency=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-        }
-
-        // NEVER clear currencyUserSelected flag here
+      if (userSelected === "true") {
+        // User manually picked — never touch their preference
+        return;
       }
+      // If no user selection, do nothing — let CurrencyContext auto-detect
+      // Do NOT remove PKR — Pakistan users should see PKR immediately
     } catch (e) {
       console.error("CurrencyCleaner error:", e);
     }

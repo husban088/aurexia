@@ -1023,6 +1023,8 @@ export default function ProductDetail() {
   function handleAddToCart() {
     if (!product || currentStock === 0) return;
     const quantityToAdd = getQuantityToAdd();
+    // When a bulk tier is selected, pieces_per_unit = tier min_quantity and quantity = 1 unit
+    const piecesPerUnit = selectedTier ? selectedTier.min_quantity : 1;
     const productToAdd = {
       id: product.id,
       name: product.name,
@@ -1042,7 +1044,7 @@ export default function ProductDetail() {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    addToCart(productToAdd, selectedVariant, quantityToAdd);
+    addToCart(productToAdd, selectedVariant, quantityToAdd, piecesPerUnit);
     if (selectedTier) {
       showToast(
         `${quantityToAdd} × ${product.name} (bulk) added to cart`,

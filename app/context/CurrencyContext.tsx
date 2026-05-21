@@ -197,8 +197,9 @@ export function CurrencyProvider({
     // ✅ Always fetch live rates in background for accurate prices
     applyRates(currentCode);
 
-    // ✅ If server already gave us a non-PK currency, skip client detection entirely
-    if (initialCurrencyCode && initialCurrencyCode !== "PKR") {
+    // ✅ If server already gave us ANY currency (including PKR), skip client detection
+    // Server headers (Cloudflare/Vercel) are the most reliable source
+    if (initialCurrencyCode) {
       // Server already detected the country correctly — no client API calls needed
       return;
     }
@@ -224,7 +225,7 @@ export function CurrencyProvider({
 
       try {
         localStorage.setItem("preferredCurrency", detected.code);
-        document.cookie = `preferredCurrency=${detected.code}; path=/; max-age=3600; SameSite=Lax`;
+        document.cookie = `preferredCurrency=${detected.code}; path=/; max-age=31536000; SameSite=Lax`;
       } catch {}
     };
 

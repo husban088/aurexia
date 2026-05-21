@@ -89,7 +89,7 @@ export const currencies: Currency[] = [
   },
   {
     code: "PKR",
-    symbol: "₨",
+    symbol: "Rs.",
     name: "Pakistani Rupee",
     rate: 1, // Base currency
     flag: "🇵🇰",
@@ -213,6 +213,8 @@ export function formatPrice(priceInPKR: number, currency: Currency): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+  // PKR: "Rs. 1,234.00" — space after symbol; others: "$1,234.00"
+  if (currency.code === "PKR") return `${currency.symbol} ${formatted}`;
   return `${currency.symbol}${formatted}`;
 }
 

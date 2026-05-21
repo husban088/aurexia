@@ -465,9 +465,13 @@ export const useCartStore = create<CartStore>()(
               const variantName = variant
                 ? variant.attribute_value
                 : "Standard";
-              const variantPrice = variant?.price ?? product.price ?? 0;
+              // ✅ Always use product.price — caller sets it to the correct
+              // per-piece price (sale price or bulk-tier per-piece price).
+              // Falling back to variant?.price would use the raw DB price and
+              // show the wrong (un-discounted) price in the cart.
+              const variantPrice = product.price ?? variant?.price ?? 0;
               const variantOriginalPrice =
-                variant?.original_price ?? product.original_price ?? undefined;
+                product.original_price ?? variant?.original_price ?? undefined;
 
               const rawStock =
                 variant != null
