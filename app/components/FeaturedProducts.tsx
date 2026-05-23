@@ -318,6 +318,7 @@ function VariantThumbnails({
   getVariantImage: (variantId: string) => string | null;
   isRTL: boolean;
 }) {
+  const { language: vtLang } = useLanguage();
   if (!variants || variants.length === 0) return null;
 
   const getIcon = () => {
@@ -336,6 +337,20 @@ function VariantThumbnails({
   };
 
   const getTypeLabel = () => {
+    if (vtLang === "de") {
+      switch (type) {
+        case "color":
+          return "Farben";
+        case "size":
+          return "Größen";
+        case "material":
+          return "Materialien";
+        case "capacity":
+          return "Kapazitäten";
+        default:
+          return type;
+      }
+    }
     switch (type) {
       case "color":
         return "Colors";
@@ -428,6 +443,7 @@ function ProductCard({
 }) {
   // ✅ useCurrency never blocks rendering — currency is always available immediately
   const { formatPrice } = useCurrency();
+  const { language: cardLang } = useLanguage();
   const router = useRouter();
 
   const [isHovered, setIsHovered] = useState(false);
@@ -498,6 +514,11 @@ function ProductCard({
   const currentStock = selectedVariant?.stock || 0;
 
   const getStockLabel = () => {
+    if (cardLang === "de") {
+      if (isOutOfStock) return "Nicht auf Lager";
+      if (isLowStock) return `Nur noch ${currentStock} vorrätig`;
+      return "Auf Lager";
+    }
     if (isOutOfStock) return "Out of Stock";
     if (isLowStock) return `Only ${currentStock} left`;
     return "In Stock";
@@ -634,10 +655,14 @@ function ProductCard({
         )}
         <div className="fp-card-badges">
           {product.condition === "new" && !totalDiscount && (
-            <span className="fp-badge fp-badge--new">New</span>
+            <span className="fp-badge fp-badge--new">
+              {cardLang === "de" ? "Neu" : "New"}
+            </span>
           )}
           {isLowStock && (
-            <span className="fp-badge fp-badge--low">Low Stock</span>
+            <span className="fp-badge fp-badge--low">
+              {cardLang === "de" ? "Wenig Bestand" : "Low Stock"}
+            </span>
           )}
         </div>
         <div className="fp-icon-buttons">
@@ -1193,7 +1218,9 @@ export default function FeaturedProducts() {
             >
               <span>
                 {getFpTranslation("viewAllPrefix", language)}
-                {activeTabData?.label || activeTab}
+                {fpTranslations.tabs[
+                  activeTab as keyof typeof fpTranslations.tabs
+                ]?.[language] || activeTab}
               </span>
               <svg
                 viewBox="0 0 24 24"

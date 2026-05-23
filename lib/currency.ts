@@ -161,7 +161,7 @@ const countryToCurrency: Record<string, string> = {
   CA: "CAD",
   MX: "USD",
   GB: "GBP",
-  DE: "EUR",
+  DE: "EUR", // Germany → EUR ✅
   FR: "EUR",
   IT: "EUR",
   ES: "EUR",
@@ -185,12 +185,12 @@ const countryToCurrency: Record<string, string> = {
   BD: "USD",
   LK: "USD",
   NP: "USD",
-  AE: "AED",
-  SA: "SAR",
-  QA: "AED",
-  KW: "AED",
-  OM: "AED",
-  BH: "AED",
+  AE: "AED", // Dubai/UAE → AED ✅ (English, no Arabic)
+  SA: "SAR", // Saudi Arabia → SAR ✅
+  QA: "AED", // Qatar → AED
+  KW: "AED", // Kuwait → AED
+  OM: "AED", // Oman → AED
+  BH: "AED", // Bahrain → AED
   ZA: "USD",
   NG: "USD",
 };

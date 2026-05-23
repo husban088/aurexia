@@ -103,6 +103,94 @@ export default function ShippingSection({
   const phoneInfo = phoneMap[currency.code] || phoneMap["USD"];
   const isAustralia = currency.code === "AUD";
 
+  // ✅ Country-specific placeholders — currency se detect hota hai
+  const placeholderMap: Record<
+    string,
+    {
+      firstName: string;
+      lastName: string;
+      city: string;
+      zip: string;
+      address: string;
+      apartment: string;
+    }
+  > = {
+    PKR: {
+      firstName: "Ali",
+      lastName: "Khan",
+      city: "Lahore",
+      zip: "54000",
+      address: "House 12, Street 5, Gulberg",
+      apartment: "Block B, Flat 3",
+    },
+    USD: {
+      firstName: "John",
+      lastName: "Doe",
+      city: "New York",
+      zip: "10001",
+      address: "123 Main Street",
+      apartment: "Apt 4B",
+    },
+    GBP: {
+      firstName: "James",
+      lastName: "Smith",
+      city: "London",
+      zip: "SW1A 1AA",
+      address: "10 Downing Street",
+      apartment: "Flat 2A",
+    },
+    EUR: {
+      firstName: "Lukas",
+      lastName: "Müller",
+      city: "Berlin",
+      zip: "10115",
+      address: "Unter den Linden 5",
+      apartment: "Wohnung 3",
+    },
+    AUD: {
+      firstName: "Liam",
+      lastName: "Wilson",
+      city: "Sydney",
+      zip: "2000",
+      address: "42 George Street",
+      apartment: "Unit 7",
+    },
+    CAD: {
+      firstName: "Ethan",
+      lastName: "Brown",
+      city: "Toronto",
+      zip: "M5V 2T6",
+      address: "100 King Street West",
+      apartment: "Suite 200",
+    },
+    AED: {
+      firstName: "Ahmed",
+      lastName: "Al Maktoum",
+      city: "Dubai",
+      zip: "00000",
+      address: "Sheikh Zayed Road, Business Bay",
+      apartment: "Office 15, Tower 2",
+    },
+    SAR: {
+      firstName: "Mohammed",
+      lastName: "Al Saud",
+      city: "Riyadh",
+      zip: "12271",
+      address: "King Fahd Road, Al Olaya",
+      apartment: "Floor 3, Building A",
+    },
+    INR: {
+      firstName: "Arjun",
+      lastName: "Sharma",
+      city: "Mumbai",
+      zip: "400001",
+      address: "14 MG Road, Colaba",
+      apartment: "Flat 6C",
+    },
+  };
+
+  const ph = placeholderMap[currency.code] || placeholderMap["USD"];
+
   const isFieldFilled = (value: string) => value.trim().length > 0;
 
   // Get selected state label for display
@@ -131,7 +219,7 @@ export default function ShippingSection({
             <input
               type="text"
               className="ss-input"
-              placeholder="John"
+              placeholder={ph.firstName}
               value={form.firstName}
               onChange={setFormField("firstName")}
               onFocus={() => setFocused("firstName")}
@@ -160,7 +248,7 @@ export default function ShippingSection({
             <input
               type="text"
               className="ss-input"
-              placeholder="Doe"
+              placeholder={ph.lastName}
               value={form.lastName}
               onChange={setFormField("lastName")}
               onFocus={() => setFocused("lastName")}
@@ -254,7 +342,7 @@ export default function ShippingSection({
             <input
               type="text"
               className="ss-input"
-              placeholder="House number and street name"
+              placeholder={ph.address}
               value={form.address}
               onChange={setFormField("address")}
               onFocus={() => setFocused("address")}
@@ -281,7 +369,7 @@ export default function ShippingSection({
             <input
               type="text"
               className="ss-input"
-              placeholder="Apt, Suite, Unit, Building"
+              placeholder={ph.apartment}
               value={form.apartment}
               onChange={setFormField("apartment")}
               onFocus={() => setFocused("apartment")}
@@ -304,7 +392,7 @@ export default function ShippingSection({
             <input
               type="text"
               className="ss-input"
-              placeholder={isAustralia ? "Sydney" : "New York"}
+              placeholder={ph.city}
               value={form.city}
               onChange={setFormField("city")}
               onFocus={() => setFocused("city")}
@@ -398,7 +486,7 @@ export default function ShippingSection({
             <input
               type="text"
               className="ss-input"
-              placeholder={isAustralia ? "2000" : "10001"}
+              placeholder={ph.zip}
               value={form.zip}
               onChange={setFormField("zip")}
               onFocus={() => setFocused("zip")}

@@ -241,15 +241,17 @@ export default function Navbar({
     setCurrencyOpen(false);
 
     if (cur.code === "EUR") {
+      // Germany → German language + show dropdown
       window.dispatchEvent(
         new CustomEvent("force-language-dropdown", {
           detail: { country: "DE" },
         }),
       );
     } else if (cur.code === "AED") {
+      // Dubai/UAE → English only, NO Arabic, NO language dropdown
       window.dispatchEvent(
         new CustomEvent("force-language-dropdown", {
-          detail: { country: "AE" },
+          detail: { country: "OTHER" }, // "OTHER" = English, no dropdown
         }),
       );
     } else {

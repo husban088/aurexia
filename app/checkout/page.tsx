@@ -498,7 +498,7 @@ export default function Checkout() {
         pieces_per_unit: ppu,
         name: (product as any).name,
         variant: item.variant_name || null,
-        piecesPerUnit: 1,
+        piecesPerUnit: ppu, // ✅ FIXED: actual pieces_per_unit use hoga, not hardcoded 1
         pricePKR: lineTotalPKR,
         image: imageUrl,
       };
@@ -580,7 +580,10 @@ export default function Checkout() {
         paymentMethod:
           paymentMethod === "card" ? "Credit/Debit Card (Stripe)" : "PayPal",
         currency: currency.code,
-        customerCountry: phoneInfo.name,
+        customerCountry:
+          phoneInfo.name === "Europe"
+            ? "Germany" // ✅ FIXED: "Europe" → "Germany" taake EUR currency sahi match ho
+            : phoneInfo.name,
       }),
     }).catch((err) => console.error("notification background error:", err));
 

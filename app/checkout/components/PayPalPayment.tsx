@@ -278,18 +278,9 @@ export default function PayPalPayment({
     setIsProcessing(true);
     setProcessingMessage("Payment approved! Completing your order...");
 
-    // ✅ Save to sessionStorage BEFORE calling onSuccess — prevents checkout flash
+    // ✅ Pehle capture karo — DB mein record bane
     try {
-      sessionStorage.setItem("payment_just_completed", "true");
-      sessionStorage.setItem("payment_order_number", orderNumber);
-    } catch (e) {}
-
-    // ✅ Call onSuccess immediately — redirect to order-success, don't wait for API
-    onSuccess();
-
-    // Background: try to capture and save order
-    try {
-      await fetch("/api/capture-paypal-order", {
+      const captureRes = await fetch("/api/capture-paypal-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -301,10 +292,29 @@ export default function PayPalPayment({
           total: safeConvertedAmount,
         }),
       });
+
+      const captureData = await captureRes.json();
+
+      if (!captureRes.ok || !captureData.success) {
+        console.error("PayPal capture failed:", captureData);
+        // PayPal ne approve kar diya — DB fail ho bhi jaye to user ko success dikhao
+        // Lekin log zaroor karo taake manually fix kar sako
+      } else {
+        console.log("✅ PayPal capture successful:", captureData.captureId);
+      }
     } catch (error) {
-      // Non-blocking — order is already approved by PayPal
-      console.warn("PayPal capture API error (non-blocking):", error);
+      // Network error — PayPal approved hai, capture fail — log karo
+      console.error("PayPal capture network error:", error);
     }
+
+    // ✅ SessionStorage save karo BEFORE onSuccess
+    try {
+      sessionStorage.setItem("payment_just_completed", "true");
+      sessionStorage.setItem("payment_order_number", orderNumber);
+    } catch (e) {}
+
+    // ✅ AB onSuccess call karo — capture ho chuka hai
+    onSuccess();
   };
 
   const handlePayPalError = (err: any) => {

@@ -40,7 +40,15 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const initialCurrency = await getInitialCurrency();
+  // getInitialCurrency() returns { currency, source } OR null
+  // null = no CDN header found → client-side detection will run
+  const initialResult = await getInitialCurrency();
+
+  // Pass code only when actually detected — null triggers client-side detection
+  // "user" source = user manually picked, always pass it
+  // "server" source = CDN detected, always pass it
+  // null = unknown, pass undefined so client detects properly
+  const initialCurrencyCode = initialResult?.currency.code ?? undefined;
 
   return (
     <html
@@ -90,7 +98,12 @@ export default async function RootLayout({
       </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <LanguageProvider>
-          <CurrencyProvider initialCurrencyCode={initialCurrency.code}>
+          {/*
+            initialCurrencyCode:
+            - string (e.g. "EUR", "AED", "PKR") = server/user detected → skip client detection
+            - undefined = no detection → client will run IP-based detection
+          */}
+          <CurrencyProvider initialCurrencyCode={initialCurrencyCode}>
             <Providers>{children}</Providers>
           </CurrencyProvider>
         </LanguageProvider>

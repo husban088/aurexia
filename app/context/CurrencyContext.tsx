@@ -36,6 +36,7 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(
 const PKR =
   staticCurrencies.find((c) => c.code === "PKR") ?? staticCurrencies[0];
 
+// ─── Read user's manual preference from localStorage ─────────────────
 function getUserPref(): Currency | null {
   try {
     if (typeof window === "undefined") return null;
@@ -49,6 +50,7 @@ function getUserPref(): Currency | null {
   }
 }
 
+// ─── Save user's manual selection to localStorage + cookie ───────────
 function saveUserPref(code: string) {
   try {
     localStorage.setItem("preferredCurrency", code);
@@ -58,11 +60,10 @@ function saveUserPref(code: string) {
   } catch {}
 }
 
-// ─── Server-side country detection (most reliable) ───────────────────
+// ─── Server-side country detection via our API route ─────────────────
 async function detectCountryViaServer(): Promise<string | null> {
   try {
     const controller = new AbortController();
-    // ✅ Reduced timeout: 3s instead of 5s — faster fallback
     const timeoutId = setTimeout(() => controller.abort(), 3000);
     const res = await fetch("/api/detect-country", {
       signal: controller.signal,
@@ -78,9 +79,8 @@ async function detectCountryViaServer(): Promise<string | null> {
   }
 }
 
-// ─── Client-side IP fallback ─────────────────────────────────────────
+// ─── Client-side IP detection — race all APIs, first winner used ─────
 async function detectCountryClientSide(): Promise<string> {
-  // ✅ Run all APIs in parallel — first one to succeed wins (race)
   const apis = [
     { url: "https://api.country.is/", parser: (d: any) => d.country },
     { url: "https://ipapi.co/json/", parser: (d: any) => d.country_code },
@@ -91,13 +91,14 @@ async function detectCountryClientSide(): Promise<string> {
     { url: "https://ipwho.is/", parser: (d: any) => d.country_code },
   ];
 
-  const racePromise = new Promise<string>((resolve) => {
+  return new Promise<string>((resolve) => {
     let settled = false;
     let pending = apis.length;
 
     apis.forEach(({ url, parser }) => {
       const controller = new AbortController();
       const tid = setTimeout(() => controller.abort(), 3000);
+
       fetch(url, { signal: controller.signal })
         .then((r) => r.json())
         .then((d) => {
@@ -113,13 +114,11 @@ async function detectCountryClientSide(): Promise<string> {
         })
         .finally(() => {
           pending--;
-          // All failed — default to PK
+          // All APIs failed — fall back to PK
           if (!settled && pending === 0) resolve("PK");
         });
     });
   });
-
-  return racePromise;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -128,45 +127,39 @@ export function CurrencyProvider({
   initialCurrencyCode,
 }: {
   children: React.ReactNode;
+  // string = server detected (CDN header) or user preference from cookie
+  // undefined = no server detection — client will detect
   initialCurrencyCode?: string;
 }) {
-  // ✅ KEY FIX: Start with server-detected currency immediately (no PKR flash)
-  // initialCurrencyCode comes from layout.tsx via getInitialCurrency() — server-side
-  const getInitialCurrency = (): Currency => {
-    // Priority 1: User manual preference in localStorage
-    if (typeof window !== "undefined") {
-      try {
-        const userSelected = localStorage.getItem("currencyUserSelected");
-        if (userSelected === "true") {
-          const code = localStorage.getItem("preferredCurrency");
-          if (code) {
-            const found = staticCurrencies.find((c) => c.code === code);
-            if (found) return found;
-          }
-        }
-      } catch {}
-    }
-    // Priority 2: Server-detected from Cloudflare/Vercel headers
+  // ── Determine starting currency (runs on client mount) ──────────────
+  const getStartingCurrency = (): Currency => {
+    // Priority 1: User's manual localStorage preference (highest priority)
+    const userPref = getUserPref();
+    if (userPref) return userPref;
+
+    // Priority 2: Server-detected via CDN headers (Cloudflare/Vercel)
+    // initialCurrencyCode is undefined when no CDN header was found
     if (initialCurrencyCode) {
       const found = staticCurrencies.find(
         (c) => c.code === initialCurrencyCode,
       );
       if (found) return found;
     }
+
+    // Priority 3: Show PKR while client detection runs
     return PKR;
   };
 
   const [liveCurrencies, setLiveCurrencies] =
     useState<Currency[]>(staticCurrencies);
-  // ✅ Start with correct currency immediately — no loading flash
-  const [currency, setCurrencyState] = useState<Currency>(getInitialCurrency);
-  // ✅ loading = false by default since we already have a currency
-  // Only set true if we need to do client-side detection (no server currency)
+  const [currency, setCurrencyState] = useState<Currency>(getStartingCurrency);
   const [loading, setLoading] = useState(false);
   const detectionDone = useRef(false);
 
+  // ── User manually picks a currency ──────────────────────────────────
   const setCurrency = useCallback(
     (newCurrency: Currency) => {
+      // Use live rate version if available
       const live =
         liveCurrencies.find((c) => c.code === newCurrency.code) ?? newCurrency;
       setCurrencyState(live);
@@ -175,65 +168,98 @@ export function CurrencyProvider({
     [liveCurrencies],
   );
 
-  // ✅ Apply live rates in background — never blocks UI
+  // ── Fetch live rates in background — never blocks UI ────────────────
   const applyRates = useCallback((currCode: string) => {
     fetchLiveRates()
       .then((rates) => {
         if (!rates) return;
         const updated = applyLiveRates(rates);
         setLiveCurrencies(updated);
+        // Update current currency with live rate too
         const updatedCurr = updated.find((c) => c.code === currCode);
         if (updatedCurr) setCurrencyState(updatedCurr);
       })
       .catch(() => {});
   }, []);
 
+  // ── Main detection effect — runs once on mount ───────────────────────
   useEffect(() => {
     if (detectionDone.current) return;
     detectionDone.current = true;
 
     const currentCode = currency.code;
 
-    // ✅ Always fetch live rates in background for accurate prices
+    // Always fetch live rates for accurate prices (background, non-blocking)
     applyRates(currentCode);
 
-    // ✅ If server already gave us ANY currency (including PKR), skip client detection
-    // Server headers (Cloudflare/Vercel) are the most reliable source
-    if (initialCurrencyCode) {
-      // Server already detected the country correctly — no client API calls needed
+    // ✅ FIXED: Only skip client detection if server ACTUALLY detected
+    // initialCurrencyCode = undefined means no CDN header → MUST run client detection
+    // initialCurrencyCode = "PKR" could mean user is in Pakistan (server detected)
+    //   OR it could be a fallback — but now get-initial-currency returns null for fallback
+    //   so if we receive "PKR" here, server genuinely detected Pakistan ✅
+    if (initialCurrencyCode !== undefined) {
+      // Server already determined the currency — trust it, skip client APIs
+      // This covers: user cookie, Cloudflare header, Vercel header, AWS header
+      console.log("✅ Using server-detected currency:", initialCurrencyCode);
       return;
     }
 
-    // ✅ User manually selected — respect their choice, skip detection
+    // ✅ User manually selected in this session — respect their choice
     if (typeof window !== "undefined") {
       try {
-        if (localStorage.getItem("currencyUserSelected") === "true") return;
+        if (localStorage.getItem("currencyUserSelected") === "true") {
+          console.log("✅ Using user localStorage preference");
+          return;
+        }
       } catch {}
     }
 
-    // ✅ Need client-side detection — server didn't detect (no CDN headers)
+    // ✅ No server detection, no user preference → run client-side detection
+    // This handles: local dev, shared hosting, no CDN setup
     const detect = async () => {
-      // Try server first (3s timeout), then race all client APIs in parallel
-      let country = await detectCountryViaServer();
-      if (!country) {
-        country = await detectCountryClientSide();
-      }
-
-      const detected = getCurrencyByCountry(country);
-      setCurrencyState(detected);
-      applyRates(detected.code);
-
+      setLoading(true);
       try {
-        localStorage.setItem("preferredCurrency", detected.code);
-        document.cookie = `preferredCurrency=${detected.code}; path=/; max-age=31536000; SameSite=Lax`;
-      } catch {}
+        // Try our server API first (reads CDN headers on server)
+        let country = await detectCountryViaServer();
+
+        // If server API also fails, race all external IP APIs
+        if (!country) {
+          country = await detectCountryClientSide();
+        }
+
+        const detected = getCurrencyByCountry(country);
+        console.log(`🌍 Client detected: ${country} → ${detected.code}`);
+
+        setCurrencyState(detected);
+        applyRates(detected.code);
+
+        // Sync language dropdown for Germany users
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("force-language-dropdown", {
+              detail: { country: country === "DE" ? "DE" : "OTHER" },
+            }),
+          );
+        }
+
+        // Save auto-detected currency (NOT as user preference — no "currencyUserSelected")
+        try {
+          localStorage.setItem("preferredCurrency", detected.code);
+          document.cookie = `preferredCurrency=${detected.code}; path=/; max-age=31536000; SameSite=Lax`;
+        } catch {}
+      } finally {
+        setLoading(false);
+      }
     };
 
     detect();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Force re-detect (e.g. user clicks "detect my currency") ─────────
   const refreshCurrency = useCallback(async () => {
     detectionDone.current = false;
+
+    // Clear auto-detected preference (but NOT user manual selection)
     try {
       if (
         typeof window !== "undefined" &&
@@ -245,12 +271,16 @@ export function CurrencyProvider({
       }
     } catch {}
 
-    detectionDone.current = false;
-    let country = await detectCountryViaServer();
-    if (!country) country = await detectCountryClientSide();
-    const detected = getCurrencyByCountry(country);
-    setCurrencyState(detected);
-    applyRates(detected.code);
+    setLoading(true);
+    try {
+      let country = await detectCountryViaServer();
+      if (!country) country = await detectCountryClientSide();
+      const detected = getCurrencyByCountry(country);
+      setCurrencyState(detected);
+      applyRates(detected.code);
+    } finally {
+      setLoading(false);
+    }
   }, [applyRates]);
 
   const convert = useCallback(

@@ -1,9 +1,9 @@
 // app/api/send-order-notification/route.ts
 // ✅ FIXED: Currency properly converted in WhatsApp + Email
+// ✅ EUR rate synced with currency.ts (0.003049)
+// ✅ AED rate synced with currency.ts (0.013082)
+// ✅ "Europe" key added as safety fallback → EUR
 // ✅ customerCountry → formattedTotal + formattedItems always in customer's currency
-// ✅ Items total correctly calculated (price = perUnit, piecesPerUnit = 1 from page.tsx)
-// ✅ WhatsApp CONFIRMED: image + text in ONE message via sendConfirmedWhatsApp
-// ✅ currencyNote "(approx.)" removed from WhatsApp messages
 
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -13,36 +13,42 @@ import {
 import { sendConfirmedWhatsApp } from "@/lib/whatsapp";
 
 // ── Currency helpers ──────────────────────────────────────────────────────────
+// ✅ FIXED: All rates synced with currency.ts (May 2026 open market rates)
 const PKR_RATES: Record<
   string,
   { symbol: string; rate: number; code: string }
 > = {
   Pakistan: { symbol: "₨", rate: 1, code: "PKR" },
-  "United States": { symbol: "$", rate: 0.0036, code: "USD" },
-  USA: { symbol: "$", rate: 0.0036, code: "USD" },
-  US: { symbol: "$", rate: 0.0036, code: "USD" },
-  "United Kingdom": { symbol: "£", rate: 0.0028, code: "GBP" },
-  UK: { symbol: "£", rate: 0.0028, code: "GBP" },
-  GB: { symbol: "£", rate: 0.0028, code: "GBP" },
-  England: { symbol: "£", rate: 0.0028, code: "GBP" },
-  Australia: { symbol: "A$", rate: 0.0055, code: "AUD" },
-  AU: { symbol: "A$", rate: 0.0055, code: "AUD" },
-  Canada: { symbol: "C$", rate: 0.0049, code: "CAD" },
-  CA: { symbol: "C$", rate: 0.0049, code: "CAD" },
-  "United Arab Emirates": { symbol: "AED", rate: 0.013, code: "AED" },
-  UAE: { symbol: "AED", rate: 0.013, code: "AED" },
-  AE: { symbol: "AED", rate: 0.013, code: "AED" },
-  Dubai: { symbol: "AED", rate: 0.013, code: "AED" },
-  "Saudi Arabia": { symbol: "﷼", rate: 0.013, code: "SAR" },
-  SA: { symbol: "﷼", rate: 0.013, code: "SAR" },
-  KSA: { symbol: "﷼", rate: 0.013, code: "SAR" },
-  India: { symbol: "₹", rate: 0.3, code: "INR" },
-  IN: { symbol: "₹", rate: 0.3, code: "INR" },
-  Germany: { symbol: "€", rate: 0.0033, code: "EUR" },
-  France: { symbol: "€", rate: 0.0033, code: "EUR" },
-  Italy: { symbol: "€", rate: 0.0033, code: "EUR" },
-  Spain: { symbol: "€", rate: 0.0033, code: "EUR" },
-  Netherlands: { symbol: "€", rate: 0.0033, code: "EUR" },
+  "United States": { symbol: "$", rate: 0.003584, code: "USD" }, // 1 USD = 279 PKR
+  USA: { symbol: "$", rate: 0.003584, code: "USD" },
+  US: { symbol: "$", rate: 0.003584, code: "USD" },
+  "United Kingdom": { symbol: "£", rate: 0.002639, code: "GBP" }, // 1 GBP = 379 PKR
+  UK: { symbol: "£", rate: 0.002639, code: "GBP" },
+  GB: { symbol: "£", rate: 0.002639, code: "GBP" },
+  England: { symbol: "£", rate: 0.002639, code: "GBP" },
+  Australia: { symbol: "A$", rate: 0.005, code: "AUD" }, // 1 AUD = 200 PKR
+  AU: { symbol: "A$", rate: 0.005, code: "AUD" },
+  Canada: { symbol: "C$", rate: 0.004878, code: "CAD" }, // 1 CAD = 205 PKR
+  CA: { symbol: "C$", rate: 0.004878, code: "CAD" },
+  "United Arab Emirates": { symbol: "AED ", rate: 0.013082, code: "AED" }, // 1 AED = 76.45 PKR ✅ FIXED
+  UAE: { symbol: "AED ", rate: 0.013082, code: "AED" },
+  AE: { symbol: "AED ", rate: 0.013082, code: "AED" },
+  Dubai: { symbol: "AED ", rate: 0.013082, code: "AED" },
+  "Saudi Arabia": { symbol: "﷼", rate: 0.013357, code: "SAR" }, // 1 SAR = 74.87 PKR
+  SA: { symbol: "﷼", rate: 0.013357, code: "SAR" },
+  KSA: { symbol: "﷼", rate: 0.013357, code: "SAR" },
+  India: { symbol: "₹", rate: 0.298507, code: "INR" }, // 1 INR = 3.35 PKR
+  IN: { symbol: "₹", rate: 0.298507, code: "INR" },
+  // ✅ FIXED: EUR rate synced + "Europe" key added as safety net
+  Germany: { symbol: "€", rate: 0.003049, code: "EUR" }, // 1 EUR = 328 PKR
+  Europe: { symbol: "€", rate: 0.003049, code: "EUR" }, // ✅ NEW: safety fallback
+  France: { symbol: "€", rate: 0.003049, code: "EUR" },
+  Italy: { symbol: "€", rate: 0.003049, code: "EUR" },
+  Spain: { symbol: "€", rate: 0.003049, code: "EUR" },
+  Netherlands: { symbol: "€", rate: 0.003049, code: "EUR" },
+  Austria: { symbol: "€", rate: 0.003049, code: "EUR" },
+  Belgium: { symbol: "€", rate: 0.003049, code: "EUR" },
+  Portugal: { symbol: "€", rate: 0.003049, code: "EUR" },
 };
 
 function getCurrencyForCountry(country: string) {
@@ -133,14 +139,13 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    // ── waItems for WhatsApp (includes image fields for sendImageThenText) ────
+    // ── waItems for WhatsApp ──────────────────────────────────────────────────
     const waItems = items.map((item: any) => ({
       name: item.name ?? item.product_name ?? "Product",
       variant: item.variant ?? item.variant_name ?? null,
       quantity: item.quantity ?? 1,
       price: item.price ?? 0,
       piecesPerUnit: item.piecesPerUnit ?? item.pieces_per_unit ?? 1,
-      // ✅ image fields — sendConfirmedWhatsApp → sendImageThenText picks these
       variant_image: item.variant_image ?? null,
       image: item.image ?? null,
       product_image: item.product_image ?? null,
@@ -153,14 +158,13 @@ export async function POST(req: NextRequest) {
     // ── 1. WhatsApp ───────────────────────────────────────────────────────────
     if (customerPhone) {
       try {
-        // ✅ sendConfirmedWhatsApp → image + full text in ONE WhatsApp message
         whatsappSent = await sendConfirmedWhatsApp(
           customerPhone,
           name,
           orderNumber,
-          formattedTotal,  // e.g. "A$8.25"
+          formattedTotal,
           waItems,
-          country,         // e.g. "Australia"
+          country,
         );
         console.log(
           whatsappSent

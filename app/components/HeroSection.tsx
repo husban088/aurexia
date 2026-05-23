@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/app/context/LanguageContext";
@@ -41,11 +41,7 @@ const badgeTexts: Record<string, Record<"en" | "ar" | "de", string>> = {
     ar: "إكسسوارات تقنية فاخرة",
     de: "Premium Tech-Zubehör",
   },
-  decor: {
-    en: "Curated Living",
-    ar: "معيشة منسقة",
-    de: "Kuratiertes Wohnen",
-  },
+  decor: { en: "Curated Living", ar: "معيشة منسقة", de: "Kuratiertes Wohnen" },
   automotive: {
     en: "Premium Automotive Gear",
     ar: "معدات سيارات فاخرة",
@@ -92,11 +88,7 @@ const ctaLabels: Record<string, Record<"en" | "ar" | "de", string>> = {
     ar: "تسوق الإكسسوارات",
     de: "Zubehör kaufen",
   },
-  browseAll: {
-    en: "Browse All",
-    ar: "تصفح الكل",
-    de: "Alle durchsuchen",
-  },
+  browseAll: { en: "Browse All", ar: "تصفح الكل", de: "Alle durchsuchen" },
   discoverDecor: {
     en: "Discover Décor",
     ar: "اكتشف الديكور",
@@ -171,13 +163,10 @@ const slidesConfig = [
 // ─────────────────────────────────────────────────────────────
 function loadSwiperCDN(): Promise<void> {
   return new Promise<void>((resolve) => {
-    // Already loaded
     if (typeof window !== "undefined" && (window as any).Swiper) {
       resolve();
       return;
     }
-
-    // Inject CSS if not there
     if (!document.querySelector("link[data-hero-swiper-css]")) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
@@ -186,8 +175,6 @@ function loadSwiperCDN(): Promise<void> {
       link.setAttribute("data-hero-swiper-css", "1");
       document.head.appendChild(link);
     }
-
-    // If script already injected, poll for Swiper
     if (document.querySelector("script[data-hero-swiper-js]")) {
       const poll = setInterval(() => {
         if ((window as any).Swiper) {
@@ -201,8 +188,6 @@ function loadSwiperCDN(): Promise<void> {
       }, 5000);
       return;
     }
-
-    // Inject script fresh
     const script = document.createElement("script");
     script.src = "https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js";
     script.setAttribute("data-hero-swiper-js", "1");
@@ -210,41 +195,6 @@ function loadSwiperCDN(): Promise<void> {
     script.onerror = () => resolve();
     document.head.appendChild(script);
   });
-}
-
-// ─────────────────────────────────────────────────────────────
-// MAGNETIC CURSOR HOOK
-// ─────────────────────────────────────────────────────────────
-function useMagneticEffect(strength = 0.3) {
-  const ref = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = el.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const dx = (e.clientX - cx) * strength;
-      const dy = (e.clientY - cy) * strength;
-      el.style.transform = `translateY(-50%) translate(${dx}px, ${dy}px) scale(1.08)`;
-    };
-
-    const handleMouseLeave = () => {
-      el.style.transform = "translateY(-50%) translate(0,0) scale(1)";
-    };
-
-    el.addEventListener("mousemove", handleMouseMove);
-    el.addEventListener("mouseleave", handleMouseLeave);
-
-    return () => {
-      el.removeEventListener("mousemove", handleMouseMove);
-      el.removeEventListener("mouseleave", handleMouseLeave);
-    };
-  }, [strength]);
-
-  return ref;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -400,7 +350,7 @@ function StaticSlides({
 }
 
 // ─────────────────────────────────────────────────────────────
-// NAV BUTTON — with magnetic hover
+// NAV BUTTON — clean, no magnetic effect, no ripple circle
 // ─────────────────────────────────────────────────────────────
 function NavButton({
   direction,
@@ -409,17 +359,13 @@ function NavButton({
   direction: "prev" | "next";
   onClick: () => void;
 }) {
-  const ref = useMagneticEffect(0.25);
-
   return (
     <button
-      ref={ref}
       className={`hero-nav-btn hero-nav-${direction}`}
       onClick={onClick}
       aria-label={direction === "prev" ? "Previous slide" : "Next slide"}
       type="button"
     >
-      <span className="hero-nav-ripple" aria-hidden="true" />
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
         {direction === "prev" ? (
           <path
@@ -450,54 +396,6 @@ function HeroInner() {
   const swiperInstanceRef = useRef<any>(null);
   const sectionRef = useRef<HTMLElement>(null);
 
-  // Custom cursor tracking
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-
-    const cursor = section.querySelector<HTMLDivElement>(".hero-cursor");
-    const cursorDot = section.querySelector<HTMLDivElement>(".hero-cursor-dot");
-    if (!cursor || !cursorDot) return;
-
-    let raf: number;
-    let tx = 0,
-      ty = 0,
-      cx = 0,
-      cy = 0;
-
-    const onMove = (e: MouseEvent) => {
-      tx = e.clientX;
-      ty = e.clientY;
-    };
-    const tick = () => {
-      cx += (tx - cx) * 0.12;
-      cy += (ty - cy) * 0.12;
-      cursor.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`;
-      cursorDot.style.transform = `translate(${tx}px, ${ty}px) translate(-50%, -50%)`;
-      raf = requestAnimationFrame(tick);
-    };
-    const onEnter = () => {
-      cursor.classList.add("hero-cursor--visible");
-      cursorDot.classList.add("hero-cursor--visible");
-    };
-    const onLeave = () => {
-      cursor.classList.remove("hero-cursor--visible");
-      cursorDot.classList.remove("hero-cursor--visible");
-    };
-
-    section.addEventListener("mousemove", onMove);
-    section.addEventListener("mouseenter", onEnter);
-    section.addEventListener("mouseleave", onLeave);
-    raf = requestAnimationFrame(tick);
-
-    return () => {
-      section.removeEventListener("mousemove", onMove);
-      section.removeEventListener("mouseenter", onEnter);
-      section.removeEventListener("mouseleave", onLeave);
-      cancelAnimationFrame(raf);
-    };
-  }, []);
-
   // Swiper init
   useEffect(() => {
     let cancelled = false;
@@ -506,7 +404,6 @@ function HeroInner() {
       if (cancelled) return;
       if (!containerRef.current) return;
 
-      // Destroy any stale instance
       if (swiperInstanceRef.current?.destroy) {
         try {
           swiperInstanceRef.current.destroy(true, true);
@@ -531,7 +428,7 @@ function HeroInner() {
                 pauseOnMouseEnter: true,
               },
               loop: true,
-              grabCursor: true,
+              grabCursor: false,
               touchRatio: 1,
               touchAngle: 45,
               simulateTouch: true,
@@ -597,11 +494,6 @@ function HeroInner() {
       dir={isRTLMode ? "rtl" : "ltr"}
       suppressHydrationWarning
     >
-      <div className="hero-cursor" aria-hidden="true">
-        <span className="hero-cursor-ring" />
-      </div>
-      <div className="hero-cursor-dot" aria-hidden="true" />
-
       <GoldParticles />
 
       <div className="hero-corner-tl" aria-hidden="true">
@@ -656,7 +548,6 @@ function HeroInner() {
 
 // ─────────────────────────────────────────────────────────────
 // MAIN EXPORT
-// bfcache remount is handled by providers.tsx (shellKey)
 // ─────────────────────────────────────────────────────────────
 export default function HeroSection() {
   return <HeroInner />;

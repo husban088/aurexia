@@ -1,12 +1,13 @@
 // app/api/admin/update-order-status/route.ts
 // ✅ Only 3 status buttons: shipped | delivered | cancelled
 // ✅ confirmed is handled by send-order-notification (on checkout)
-// ✅ processing removed from admin panel
 // ✅ Currency by customer country in all emails + WhatsApp
 // ✅ PAID PLAN: Product image sent with WhatsApp for ALL statuses
 // ✅ When status = "delivered", customer email saved to
 //    delivered_customers table → unlocks coupon codes for them
-// ✅ TypeScript fix: delivered_customers upsert uses (supabase as any) to bypass missing generated types
+// ✅ FIXED: Currency symbols corrected (£ € ₹ instead of text)
+// ✅ FIXED: EUR rate 0.003049, AED rate 0.013082 (synced with currency.ts)
+// ✅ FIXED: "Europe" key added as safety fallback
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -18,36 +19,41 @@ import {
 import { sendStatusUpdateEmail, sendOwnerStatusAlert } from "@/lib/email-smtp";
 
 // ── Currency helpers ──────────────────────────────────────────────────────────
+// ✅ FIXED: All rates + symbols synced with currency.ts (May 2026 open market)
 const PKR_RATES: Record<
   string,
   { symbol: string; rate: number; code: string }
 > = {
-  Pakistan: { symbol: "Rs.", rate: 1, code: "PKR" },
-  "United States": { symbol: "$", rate: 0.0036, code: "USD" },
-  USA: { symbol: "$", rate: 0.0036, code: "USD" },
-  US: { symbol: "$", rate: 0.0036, code: "USD" },
-  "United Kingdom": { symbol: "GBP", rate: 0.0028, code: "GBP" },
-  UK: { symbol: "GBP", rate: 0.0028, code: "GBP" },
-  GB: { symbol: "GBP", rate: 0.0028, code: "GBP" },
-  England: { symbol: "GBP", rate: 0.0028, code: "GBP" },
-  Australia: { symbol: "A$", rate: 0.0055, code: "AUD" },
-  AU: { symbol: "A$", rate: 0.0055, code: "AUD" },
-  Canada: { symbol: "C$", rate: 0.0049, code: "CAD" },
-  CA: { symbol: "C$", rate: 0.0049, code: "CAD" },
-  "United Arab Emirates": { symbol: "AED", rate: 0.013, code: "AED" },
-  UAE: { symbol: "AED", rate: 0.013, code: "AED" },
-  AE: { symbol: "AED", rate: 0.013, code: "AED" },
-  Dubai: { symbol: "AED", rate: 0.013, code: "AED" },
-  "Saudi Arabia": { symbol: "SAR", rate: 0.013, code: "SAR" },
-  SA: { symbol: "SAR", rate: 0.013, code: "SAR" },
-  KSA: { symbol: "SAR", rate: 0.013, code: "SAR" },
-  India: { symbol: "Rs", rate: 0.3, code: "INR" },
-  IN: { symbol: "Rs", rate: 0.3, code: "INR" },
-  Germany: { symbol: "EUR", rate: 0.0033, code: "EUR" },
-  France: { symbol: "EUR", rate: 0.0033, code: "EUR" },
-  Italy: { symbol: "EUR", rate: 0.0033, code: "EUR" },
-  Spain: { symbol: "EUR", rate: 0.0033, code: "EUR" },
-  Netherlands: { symbol: "EUR", rate: 0.0033, code: "EUR" },
+  Pakistan: { symbol: "Rs. ", rate: 1, code: "PKR" },
+  "United States": { symbol: "$", rate: 0.003584, code: "USD" }, // 1 USD = 279 PKR
+  USA: { symbol: "$", rate: 0.003584, code: "USD" },
+  US: { symbol: "$", rate: 0.003584, code: "USD" },
+  "United Kingdom": { symbol: "£", rate: 0.002639, code: "GBP" }, // ✅ FIXED: £ not "GBP"
+  UK: { symbol: "£", rate: 0.002639, code: "GBP" },
+  GB: { symbol: "£", rate: 0.002639, code: "GBP" },
+  England: { symbol: "£", rate: 0.002639, code: "GBP" },
+  Australia: { symbol: "A$", rate: 0.005, code: "AUD" }, // 1 AUD = 200 PKR
+  AU: { symbol: "A$", rate: 0.005, code: "AUD" },
+  Canada: { symbol: "C$", rate: 0.004878, code: "CAD" }, // 1 CAD = 205 PKR
+  CA: { symbol: "C$", rate: 0.004878, code: "CAD" },
+  "United Arab Emirates": { symbol: "AED ", rate: 0.013082, code: "AED" }, // ✅ FIXED: 0.013082
+  UAE: { symbol: "AED ", rate: 0.013082, code: "AED" },
+  AE: { symbol: "AED ", rate: 0.013082, code: "AED" },
+  Dubai: { symbol: "AED ", rate: 0.013082, code: "AED" },
+  "Saudi Arabia": { symbol: "SAR ", rate: 0.013357, code: "SAR" }, // 1 SAR = 74.87 PKR
+  SA: { symbol: "SAR ", rate: 0.013357, code: "SAR" },
+  KSA: { symbol: "SAR ", rate: 0.013357, code: "SAR" },
+  India: { symbol: "₹", rate: 0.298507, code: "INR" }, // ✅ FIXED: ₹ not "Rs"
+  IN: { symbol: "₹", rate: 0.298507, code: "INR" },
+  Germany: { symbol: "€", rate: 0.003049, code: "EUR" }, // ✅ FIXED: € not "EUR", rate 0.003049
+  Europe: { symbol: "€", rate: 0.003049, code: "EUR" }, // ✅ NEW: safety fallback
+  France: { symbol: "€", rate: 0.003049, code: "EUR" },
+  Italy: { symbol: "€", rate: 0.003049, code: "EUR" },
+  Spain: { symbol: "€", rate: 0.003049, code: "EUR" },
+  Netherlands: { symbol: "€", rate: 0.003049, code: "EUR" },
+  Austria: { symbol: "€", rate: 0.003049, code: "EUR" },
+  Belgium: { symbol: "€", rate: 0.003049, code: "EUR" },
+  Portugal: { symbol: "€", rate: 0.003049, code: "EUR" },
 };
 
 function getCurrencyForCountry(country: string) {
@@ -66,9 +72,10 @@ function formatAmount(amountPKR: number, country: string): string {
   if (cfg.code === "PKR")
     return `Rs. ${Math.round(amountPKR).toLocaleString("en-PK")}`;
   if (cfg.code === "INR")
-    return `Rs ${Math.round(amountPKR * cfg.rate).toLocaleString("en-IN")}`;
+    return `₹${Math.round(amountPKR * cfg.rate).toLocaleString("en-IN")}`;
   const converted = amountPKR * cfg.rate;
-  return `${cfg.symbol} ${converted.toLocaleString("en-US", {
+  // ✅ symbol already has trailing space for AED/SAR/Rs — others don't need space
+  return `${cfg.symbol}${converted.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -82,10 +89,6 @@ function getClient() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-// ── Save delivered customer email so they can use coupons ─────────────────────
-// ✅ FIX: Cast supabase to `any` so TypeScript doesn't complain about
-//    delivered_customers table not being in the auto-generated DB types.
-//    The table exists in the DB — this is purely a types file mismatch.
 async function saveDeliveredCustomer(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
@@ -112,7 +115,6 @@ async function saveDeliveredCustomer(
       );
     }
   } catch (err: any) {
-    // Non-critical — don't crash the status update
     console.error("❌ saveDeliveredCustomer exception:", err?.message || err);
   }
 }
@@ -142,10 +144,8 @@ export async function POST(req: NextRequest) {
       cancelReason,
     } = body;
 
-    // items array — support both field names
     const items = itemsDirect || orderItems || [];
 
-    // ── Validation ────────────────────────────────────────────────────────────
     if (
       !orderId ||
       !status ||
@@ -159,7 +159,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ Only 3 valid statuses
     const validStatuses = ["shipped", "delivered", "cancelled"];
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
@@ -168,7 +167,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── Currency setup ────────────────────────────────────────────────────────
     const country = customerCountry || "Pakistan";
     const currencyCfg = getCurrencyForCountry(country);
     const totalAmountNum = totalAmount || 0;
@@ -178,7 +176,6 @@ export async function POST(req: NextRequest) {
       `🌍 [${orderNumber}] ${status.toUpperCase()} | Country: ${country} | Currency: ${currencyCfg.code} | Total: ${formattedTotal}`,
     );
 
-    // ── DB Update ─────────────────────────────────────────────────────────────
     const supabase = getClient();
     const updatePayload: Record<string, any> = {
       status,
@@ -205,12 +202,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: dbError.message }, { status: 500 });
     }
 
-    // ── Save delivered customer for coupon eligibility ────────────────────────
     if (status === "delivered" && customerEmail) {
       await saveDeliveredCustomer(supabase, customerEmail, orderNumber);
     }
 
-    // ── Formatted items (for email) ───────────────────────────────────────────
     const formattedItems = items.map((item: any) => ({
       name: item.product_name || item.name || "Product",
       variant: item.variant_name || null,
@@ -227,7 +222,6 @@ export async function POST(req: NextRequest) {
       product_image: item.product_image || null,
     }));
 
-    // ── WhatsApp items ────────────────────────────────────────────────────────
     const waItems = items.map((item: any) => ({
       name: item.product_name || item.name || "Product",
       variant: item.variant_name || null,
@@ -243,7 +237,6 @@ export async function POST(req: NextRequest) {
     let ownerEmailSent = false;
     let whatsappSent = false;
 
-    // ── SHIPPED ───────────────────────────────────────────────────────────────
     if (status === "shipped") {
       const cn = courierName || "Courier";
       const tn = trackingNumber || "N/A";
@@ -291,10 +284,7 @@ export async function POST(req: NextRequest) {
       customerEmailSent = emailResult;
       ownerEmailSent = ownerResult;
       whatsappSent = waResult;
-    }
-
-    // ── DELIVERED ─────────────────────────────────────────────────────────────
-    else if (status === "delivered") {
+    } else if (status === "delivered") {
       const [emailResult, ownerResult, waResult] = await Promise.all([
         sendStatusUpdateEmail(
           customerEmail,
@@ -332,10 +322,7 @@ export async function POST(req: NextRequest) {
       customerEmailSent = emailResult;
       ownerEmailSent = ownerResult;
       whatsappSent = waResult;
-    }
-
-    // ── CANCELLED ─────────────────────────────────────────────────────────────
-    else if (status === "cancelled") {
+    } else if (status === "cancelled") {
       const [emailResult, ownerResult, waResult] = await Promise.all([
         sendStatusUpdateEmail(
           customerEmail,

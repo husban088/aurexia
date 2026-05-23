@@ -284,6 +284,7 @@ function VariantThumbnails({
   getVariantImage: (variantId: string) => string | null;
   isRTL: boolean;
 }) {
+  const { language: vtLang } = useLanguage();
   if (!variants || variants.length === 0) return null;
 
   const getIcon = () => {
@@ -302,6 +303,20 @@ function VariantThumbnails({
   };
 
   const getTypeLabel = () => {
+    if (vtLang === "de") {
+      switch (type) {
+        case "color":
+          return "Farben";
+        case "size":
+          return "Größen";
+        case "material":
+          return "Materialien";
+        case "capacity":
+          return "Kapazitäten";
+        default:
+          return type;
+      }
+    }
     switch (type) {
       case "color":
         return "Colors";
@@ -441,6 +456,7 @@ function ProductCardComponent({
   isRTL: boolean;
 }) {
   const router = useRouter();
+  const { language: cardLanguage } = useLanguage();
   const [isHovered, setIsHovered] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     productData.variants && productData.variants.length > 0
@@ -679,10 +695,14 @@ function ProductCardComponent({
         )}
         <div className="pg-card-badges">
           {productData.condition === "new" && !totalDiscount && (
-            <span className="pg-badge pg-badge--new">New</span>
+            <span className="pg-badge pg-badge--new">
+              {cardLanguage === "de" ? "Neu" : "New"}
+            </span>
           )}
           {isLowStock && (
-            <span className="pg-badge pg-badge--low">Low Stock</span>
+            <span className="pg-badge pg-badge--low">
+              {cardLanguage === "de" ? "Wenig Bestand" : "Low Stock"}
+            </span>
           )}
           {totalDiscount && totalDiscount > 0 ? (
             <span className="pg-badge pg-badge--sale">-{totalDiscount}%</span>
@@ -803,10 +823,10 @@ function ProductCardComponent({
           className={`pg-card-stock ${isOutOfStock ? "out" : isLowStock ? "low" : "in"}`}
         >
           {isOutOfStock
-            ? getPgTranslation("outOfStock", isRTL ? "ar" : "en")
+            ? getPgTranslation("outOfStock", cardLanguage)
             : isLowStock
-              ? `${getPgTranslation("lowStock", isRTL ? "ar" : "en")} ${currentStock} ${getPgTranslation("left", isRTL ? "ar" : "en")}`
-              : getPgTranslation("inStock", isRTL ? "ar" : "en")}
+              ? `${getPgTranslation("lowStock", cardLanguage)} ${currentStock} ${getPgTranslation("left", cardLanguage)}`
+              : getPgTranslation("inStock", cardLanguage)}
         </div>
       </div>
       <div className="pg-card-line" />
