@@ -1,0 +1,435 @@
+/* ============================================================
+   WHY CHOOSE US  ·  WhyChooseUs.css
+   Luxury theme — matches site aesthetic (about.css / checkout.css)
+   ============================================================ */
+
+/* ── Variables ── */
+.wcu-root {
+  --wcu-gold: #daa520;
+  --wcu-gold-dark: #b8860b;
+  --wcu-gold-deep: #8b6914;
+  --wcu-gold-light: #f0c040;
+  --wcu-gold-soft: rgba(218, 165, 32, 0.1);
+  --wcu-gold-glow: rgba(218, 165, 32, 0.15);
+  --wcu-border: rgba(184, 134, 11, 0.18);
+  --wcu-border-hover: rgba(184, 134, 11, 0.38);
+  --wcu-bg: #f9f5f0;
+  --wcu-card-bg: #ffffff;
+  --wcu-text-dark: #1a1a1a;
+  --wcu-text-mid: #444444;
+  --wcu-text-muted: #666666;
+  --wcu-serif: "Goldman", system-ui, sans-serif;
+  --wcu-sans: "Goldman", system-ui, sans-serif;
+  --wcu-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Root ── */
+.wcu-root {
+  position: relative;
+  width: 100%;
+  padding: 6rem 1.5rem 5rem;
+  background: linear-gradient(135deg, #f8f4ed 0%, #fdfaf5 50%, #fffdf9 100%);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Ambient glow */
+.wcu-ambient {
+  position: absolute;
+  top: -180px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(
+    circle,
+    rgba(218, 165, 32, 0.07) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Header ── */
+.wcu-header {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  margin-bottom: 3.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.wcu-eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-family: var(--wcu-sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--wcu-gold-deep);
+  margin: 0;
+}
+
+.wcu-ey-line {
+  display: block;
+  width: 27px;
+  height: 3px;
+  background: var(--wcu-gold);
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.wcu-title {
+  font-family: var(--wcu-serif);
+  font-size: clamp(1.9rem, 4vw, 2.9rem);
+  font-weight: 400;
+  color: var(--wcu-text-dark);
+  margin: 0;
+  line-height: 1.1;
+}
+
+.wcu-title em {
+  font-style: italic;
+  color: var(--wcu-gold-deep);
+}
+
+.wcu-sub {
+  font-family: var(--wcu-sans);
+  font-size: 0.87rem;
+  font-weight: 500;
+  line-height: 1.8;
+  letter-spacing: 0.025em;
+  color: var(--wcu-text-mid);
+  max-width: 580px;
+  margin: 0;
+}
+
+/* ── Grid ── */
+.wcu-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto 2.5rem;
+}
+
+/* ── Card ── */
+.wcu-card {
+  position: relative;
+  background: var(--wcu-card-bg);
+  border: 1px solid var(--wcu-border);
+  border-radius: 18px;
+  padding: 2rem 1.8rem 2.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow: hidden;
+  cursor: default;
+  transition:
+    transform var(--wcu-ease),
+    box-shadow var(--wcu-ease),
+    border-color var(--wcu-ease);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+/* Radial glow inside card — shows on hover */
+.wcu-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 0% 110%,
+    rgba(218, 165, 32, 0.07) 0%,
+    transparent 65%
+  );
+  opacity: 0;
+  transition: opacity var(--wcu-ease);
+  pointer-events: none;
+}
+
+/* Shimmer overlay */
+.wcu-card-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 40%,
+    rgba(218, 165, 32, 0.04) 50%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+  transition: transform 0.7s ease;
+  pointer-events: none;
+}
+
+/* Bottom gold bar — slides in on hover */
+.wcu-card-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 0;
+  background: linear-gradient(90deg, var(--wcu-gold), var(--wcu-gold-light));
+  border-radius: 0 0 0 0;
+  transition: width 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+/* ── Card Hover ── */
+.wcu-card:hover {
+  transform: translateY(-8px);
+  border-color: var(--wcu-border-hover);
+  box-shadow:
+    0 22px 50px rgba(184, 134, 11, 0.11),
+    0 6px 18px rgba(0, 0, 0, 0.05);
+}
+
+.wcu-card:hover::before {
+  opacity: 1;
+}
+
+.wcu-card:hover .wcu-card-shimmer {
+  transform: translateX(100%);
+}
+
+.wcu-card:hover .wcu-card-bar {
+  width: 100%;
+}
+
+/* ── Icon ── */
+.wcu-icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 13px;
+  background: rgba(218, 165, 32, 0.09);
+  border: 1px solid rgba(218, 165, 32, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.85rem;
+  flex-shrink: 0;
+  transition:
+    background var(--wcu-ease),
+    border-color var(--wcu-ease),
+    transform var(--wcu-ease);
+}
+
+.wcu-card:hover .wcu-icon-wrap {
+  background: rgba(218, 165, 32, 0.18);
+  border-color: rgba(218, 165, 32, 0.38);
+  transform: scale(1.08) rotate(-3deg);
+}
+
+.wcu-icon-svg {
+  width: 24px;
+  height: 24px;
+  stroke: var(--wcu-gold-deep);
+  fill: none;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+/* ── Card Text ── */
+.wcu-card-num {
+  font-family: var(--wcu-sans);
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--wcu-gold-deep);
+  opacity: 0.55;
+  line-height: 1;
+}
+
+.wcu-card-title {
+  font-family: var(--wcu-serif);
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--wcu-text-dark);
+  margin: 0.25rem 0 0;
+  line-height: 1.25;
+  transition: color 0.3s ease;
+}
+
+.wcu-card:hover .wcu-card-title {
+  color: var(--wcu-gold-deep);
+}
+
+.wcu-card-desc {
+  font-family: var(--wcu-sans);
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.75;
+  letter-spacing: 0.02em;
+  color: var(--wcu-text-mid);
+  margin: 0.2rem 0 0;
+  flex: 1;
+}
+
+/* ── Stats Bar ── */
+.wcu-stats-bar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  max-width: 900px;
+  margin: 0 auto;
+  background: var(--wcu-card-bg);
+  border: 1px solid var(--wcu-border);
+  border-radius: 16px;
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+
+.wcu-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 2.25rem;
+  gap: 0.35rem;
+  border-right: 1px solid var(--wcu-border);
+  flex: 1;
+  min-width: 130px;
+  transition:
+    background var(--wcu-ease),
+    transform var(--wcu-ease);
+}
+
+.wcu-stat:last-child {
+  border-right: none;
+}
+
+.wcu-stat:hover {
+  background: var(--wcu-gold-soft);
+  transform: translateY(-2px);
+}
+
+.wcu-stat-val {
+  font-family: var(--wcu-serif);
+  font-size: 1.85rem;
+  font-weight: 400;
+  color: var(--wcu-gold-deep);
+  line-height: 1;
+  display: block;
+}
+
+.wcu-stat-lbl {
+  font-family: var(--wcu-sans);
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--wcu-text-muted);
+  display: block;
+  text-align: center;
+}
+
+/* ── RTL Support ── */
+[dir="rtl"] .wcu-eyebrow {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .wcu-card {
+  text-align: right;
+}
+
+[dir="rtl"] .wcu-card-bar {
+  left: auto;
+  right: 0;
+}
+
+[dir="rtl"] .wcu-card:hover .wcu-card-bar {
+  width: 100%;
+}
+
+[dir="rtl"] .wcu-card-shimmer {
+  background: linear-gradient(
+    -115deg,
+    transparent 40%,
+    rgba(218, 165, 32, 0.04) 50%,
+    transparent 60%
+  );
+}
+
+/* ── Responsive ── */
+@media (max-width: 960px) {
+  .wcu-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+
+  .wcu-root {
+    padding: 5rem 1.25rem 4rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .wcu-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .wcu-card {
+    padding: 1.5rem 1.4rem 1.8rem;
+  }
+
+  .wcu-stat {
+    flex: 1 1 45%;
+    border-bottom: 1px solid var(--wcu-border);
+  }
+
+  .wcu-stat:nth-child(odd) {
+    border-right: 1px solid var(--wcu-border);
+  }
+
+  .wcu-stat:nth-child(even) {
+    border-right: none;
+  }
+
+  .wcu-stat:nth-last-child(-n + 2) {
+    border-bottom: none;
+  }
+
+  .wcu-stats-bar {
+    border-radius: 14px;
+  }
+
+  .wcu-root {
+    padding: 4rem 1rem 3.5rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .wcu-stat {
+    flex: 1 1 100%;
+    border-right: none !important;
+    border-bottom: 1px solid var(--wcu-border);
+  }
+
+  .wcu-stat:last-child {
+    border-bottom: none;
+  }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .wcu-card,
+  .wcu-icon-wrap,
+  .wcu-card-bar,
+  .wcu-card-shimmer,
+  .wcu-stat {
+    transition: none;
+    animation: none;
+  }
+}

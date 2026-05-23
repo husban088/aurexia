@@ -164,6 +164,143 @@ interface OrderSuccessUIProps {
   isOwner: boolean; // ✅ NEW PROP
 }
 
+// ─── Payment Success Toast ────────────────────────────────────────────────────
+function PaymentSuccessToast({
+  paymentMethod,
+  onDismiss,
+}: {
+  paymentMethod: "card" | "paypal";
+  onDismiss: () => void;
+}) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    // Slide in immediately
+    const t1 = setTimeout(() => setVisible(true), 50);
+    // Auto dismiss after 4.5s
+    const t2 = setTimeout(() => {
+      setVisible(false);
+      setTimeout(onDismiss, 400);
+    }, 4500);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [onDismiss]);
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: "24px",
+        left: "50%",
+        transform: visible
+          ? "translateX(-50%) translateY(0)"
+          : "translateX(-50%) translateY(-110%)",
+        transition: "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        gap: "14px",
+        background: "linear-gradient(135deg, #1a1a1a 0%, #111 100%)",
+        border: "1px solid rgba(218,165,32,0.5)",
+        borderRadius: "16px",
+        padding: "16px 22px",
+        boxShadow:
+          "0 8px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(218,165,32,0.1), inset 0 1px 0 rgba(255,255,255,0.06)",
+        minWidth: "300px",
+        maxWidth: "90vw",
+        cursor: "pointer",
+      }}
+      onClick={() => {
+        setVisible(false);
+        setTimeout(onDismiss, 400);
+      }}
+    >
+      {/* Green check icon */}
+      <div
+        style={{
+          width: "40px",
+          height: "40px",
+          borderRadius: "50%",
+          background: "linear-gradient(135deg, #22c55e, #16a34a)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          boxShadow: "0 4px 12px rgba(34,197,94,0.35)",
+        }}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#fff"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          width="20"
+          height="20"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </div>
+
+      {/* Text */}
+      <div style={{ flex: 1 }}>
+        <p
+          style={{
+            margin: 0,
+            fontWeight: 700,
+            fontSize: "15px",
+            color: "#fff",
+            lineHeight: 1.2,
+          }}
+        >
+          Payment Successful! 🎉
+        </p>
+        <p
+          style={{
+            margin: "3px 0 0",
+            fontSize: "12px",
+            color: "#888",
+            fontWeight: 400,
+          }}
+        >
+          Paid via {paymentMethod === "card" ? "Stripe" : "PayPal"} • Order
+          confirmed
+        </p>
+      </div>
+
+      {/* Gold accent bar on left edge */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          top: "12px",
+          bottom: "12px",
+          width: "3px",
+          borderRadius: "0 2px 2px 0",
+          background: "linear-gradient(180deg, #daa520, #f5c842)",
+        }}
+      />
+
+      {/* Close X */}
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#555"
+        strokeWidth="2"
+        width="14"
+        height="14"
+        style={{ flexShrink: 0 }}
+      >
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    </div>
+  );
+}
+
 function OrderSuccessUI({
   firstName,
   lastName,
@@ -190,6 +327,7 @@ function OrderSuccessUI({
 }: OrderSuccessUIProps) {
   const [visible, setVisible] = useState(false);
   const [checkAnim, setCheckAnim] = useState(false);
+  const [showToast, setShowToast] = useState(true); // ✅ Toast by default shown
   const confettiRef = useRef<HTMLCanvasElement>(null);
 
   const isAustralia = currencyCode === "AUD";
@@ -302,6 +440,14 @@ function OrderSuccessUI({
   return (
     <div className={`os-root ${visible ? "os-root--visible" : ""}`}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* ✅ Payment Success Toast — page load pe seedha show hoga */}
+      {showToast && (
+        <PaymentSuccessToast
+          paymentMethod={paymentMethod}
+          onDismiss={() => setShowToast(false)}
+        />
+      )}
 
       <canvas
         ref={confettiRef}
@@ -868,6 +1014,31 @@ function OrderSuccessUI({
   );
 }
 
+// ─── Helper: read Supabase session from localStorage SYNCHRONOUSLY ───────────
+// getSession() is async and causes a second render. Instead we read the token
+// directly from localStorage — Supabase stores it there — so isOwner is known
+// before the very first render, no reload needed.
+function readOwnerFromLocalStorage(): boolean {
+  try {
+    // Supabase v2 stores session under key: sb-<projectRef>-auth-token
+    // We scan all localStorage keys to find it without needing the project ref.
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("sb-") && key.endsWith("-auth-token")) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        const email =
+          parsed?.user?.email ?? parsed?.session?.user?.email ?? null;
+        if (email === OWNER_EMAIL) return true;
+      }
+    }
+  } catch {
+    // localStorage not available (SSR) or parse error — safe fallback
+  }
+  return false;
+}
+
 // ─── Main Page Export ─────────────────────────────────────────────────────────
 
 export default function OrderSuccessPage() {
@@ -876,8 +1047,11 @@ export default function OrderSuccessPage() {
 
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [ready, setReady] = useState(false);
-  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
+
+  // ✅ Read owner status SYNCHRONOUSLY from localStorage — zero delay, no reload
+  const [isOwner, setIsOwner] = useState<boolean>(() =>
+    readOwnerFromLocalStorage(),
+  );
 
   const [notifStatus, setNotifStatus] = useState<{
     email: boolean | null;
@@ -885,37 +1059,7 @@ export default function OrderSuccessPage() {
     sending: boolean;
   }>({ email: null, whatsapp: null, sending: true });
 
-  // ── Step 1: Get current logged in user from Supabase ──────────────────────
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        const email = session?.user?.email ?? null;
-        setCurrentUserEmail(email);
-        setIsOwner(email === OWNER_EMAIL);
-      } catch (error) {
-        console.error("Error fetching user:", error);
-        setCurrentUserEmail(null);
-        setIsOwner(false);
-      }
-    };
-
-    fetchUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      const email = session?.user?.email ?? null;
-      setCurrentUserEmail(email);
-      setIsOwner(email === OWNER_EMAIL);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // ── Step 2: Load order data from sessionStorage ──────────────────────────────
+  // ── Step 1: Load order data from sessionStorage ──────────────────────────────
   useEffect(() => {
     const raw = sessionStorage.getItem("order_success_data");
 
@@ -932,6 +1076,17 @@ export default function OrderSuccessPage() {
       router.replace("/");
     }
   }, [router]);
+
+  // ── Step 2: Keep isOwner in sync if auth state changes (login/logout) ──────
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const email = session?.user?.email ?? null;
+      setIsOwner(email === OWNER_EMAIL);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   // ── Step 3: Send notifications once order data is ready ──────────────────────
   useEffect(() => {

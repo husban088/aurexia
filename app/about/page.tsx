@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useLanguage } from "@/app/context/LanguageContext";
+import WhyChooseUs from "@/app/components/WhyChooseUs"; // Import the WhyChooseUs component
 import "./about.css";
+import GlobalFAQSection from "@/app/components/GlobalFAQSection";
 
 /* ═══════════════════════════════════════════
    TRANSLATIONS
@@ -136,13 +138,13 @@ const getAboutTranslation = (
 ═══════════════════════════════════════════ */
 export default function About() {
   const { language, isRTLMode } = useLanguage();
-  const lang = language;
+  const lang = language as "en" | "ar" | "de";
 
   const stats = [
     { value: "2024", label: getAboutTranslation("statFounded", lang) },
     { value: "48+", label: getAboutTranslation("statTimepieces", lang) },
     { value: "12K+", label: getAboutTranslation("statMembers", lang) },
-    { value: "99%", label: getAboutTranslation("statSatisfaction", lang) },
+    { value: "100%", label: getAboutTranslation("statSatisfaction", lang) },
   ];
 
   const values = aboutTranslations.values.map((v, idx) => ({
@@ -216,6 +218,9 @@ export default function About() {
         </div>
       </section>
 
+      {/* ══ WHY CHOOSE US SECTION (IMPORTED) ══ */}
+      <WhyChooseUs />
+
       {/* ══ VALUES ══ */}
       <section className="ab-values">
         <div className="ab-section-header">
@@ -243,6 +248,8 @@ export default function About() {
           ))}
         </div>
       </section>
+
+      <GlobalFAQSection />
 
       {/* ══ CTA ══ */}
       <section className="ab-cta">

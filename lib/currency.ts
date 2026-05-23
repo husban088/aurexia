@@ -62,7 +62,7 @@ export const currencies: Currency[] = [
   },
   {
     code: "AED",
-    symbol: "د.إ",
+    symbol: "AED", // ✅ FIX: Arabic symbol removed — causes PayPal crash
     name: "UAE Dirham",
     rate: 0.013082, // 1 AED = 76.45 PKR
     flag: "🇦🇪",
@@ -71,7 +71,7 @@ export const currencies: Currency[] = [
   },
   {
     code: "SAR",
-    symbol: "﷼",
+    symbol: "SAR", // ✅ FIX: Arabic symbol removed — causes PayPal crash
     name: "Saudi Riyal",
     rate: 0.013357, // 1 SAR = 74.87 PKR
     flag: "🇸🇦",
@@ -102,45 +102,160 @@ export let defaultCurrency: Currency =
   currencies.find((c) => c.code === "PKR") || currencies[0];
 
 // ── Live Rate Fetcher ──────────────────────────────────────────────────────────
-// ✅ Only uses open.er-api.com — Frankfurt blocked by CORS on browser
-// Cache: 1 hour, won't re-fetch every page load
+// ✅ Multi-API with automatic fallback chain
+// ✅ Server-side route preferred (no CORS) — client APIs as fallback
+// ✅ Cache: 6 hours (rates don't change every minute)
+// ✅ Last-known rates always preserved — never shows wrong price
+// ✅ Auto-refresh: CurrencyContext calls this periodically
+
 let _ratesCacheTime = 0;
 let _ratesLive: Record<string, number> | null = null;
-const RATES_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const RATES_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
+// ── Hardcoded fallback rates (updated May 2026) ───────────────────────────────
+// Used ONLY when ALL APIs fail — prevents showing wrong $0.00 prices
+const FALLBACK_RATES_PKR_BASE: Record<string, number> = {
+  USD: 0.003584, // 1 PKR = 0.003584 USD  (1 USD ≈ 279 PKR)
+  GBP: 0.002639, // 1 PKR = 0.002639 GBP  (1 GBP ≈ 379 PKR)
+  EUR: 0.003049, // 1 PKR = 0.003049 EUR  (1 EUR ≈ 328 PKR)
+  AUD: 0.005, // 1 PKR = 0.005000 AUD  (1 AUD ≈ 200 PKR)
+  CAD: 0.004878, // 1 PKR = 0.004878 CAD  (1 CAD ≈ 205 PKR)
+  AED: 0.013082, // 1 PKR = 0.013082 AED  (1 AED ≈ 76.45 PKR)
+  SAR: 0.013357, // 1 PKR = 0.013357 SAR  (1 SAR ≈ 74.87 PKR)
+  INR: 0.298507, // 1 PKR = 0.298507 INR  (1 INR ≈ 3.35 PKR)
+  PKR: 1,
+};
+
+// ── Fetch with timeout helper ─────────────────────────────────────────────────
+async function fetchWithTimeout(
+  url: string,
+  timeoutMs = 5000,
+): Promise<Response> {
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      cache: "no-store",
+    });
+    clearTimeout(tid);
+    return res;
+  } catch (e) {
+    clearTimeout(tid);
+    throw e;
+  }
+}
+
+// ── Normalize rates: any base → PKR-base rates ────────────────────────────────
+// open.er-api gives PKR-base directly.
+// exchangerate.host gives USD-base → we convert.
+function normalizeToPKRBase(
+  rates: Record<string, number>,
+  base: "PKR" | "USD",
+): Record<string, number> {
+  if (base === "PKR") return rates;
+
+  // USD-base: rates[X] = how many X per 1 USD
+  // We need: how many X per 1 PKR = rates[X] / rates[PKR]
+  const pkrPerUsd = rates["PKR"];
+  if (!pkrPerUsd || pkrPerUsd <= 0) return {};
+
+  const normalized: Record<string, number> = { PKR: 1 };
+  for (const [code, val] of Object.entries(rates)) {
+    if (code === "PKR") continue;
+    normalized[code] = val / pkrPerUsd; // X per 1 PKR
+  }
+  return normalized;
+}
+
+// ── Main live rate fetcher ────────────────────────────────────────────────────
 export async function fetchLiveRates(): Promise<Record<string, number> | null> {
-  // Return cached rates if fresh
+  // Return cached rates if still fresh (within TTL)
   if (_ratesLive && Date.now() - _ratesCacheTime < RATES_CACHE_TTL) {
     return _ratesLive;
   }
 
-  // ✅ open.er-api.com only — supports CORS, no key needed
-  // Frankfurt is intentionally REMOVED — it blocks with CORS on browser
+  // ── API chain: try each in order, stop at first success ──────────────────
+  // Priority 1: Our own Next.js server route — no CORS, most reliable
+  // Priority 2: open.er-api.com — free, CORS-enabled, PKR base
+  // Priority 3: exchangerate-api.com — free tier, PKR base
+  // Priority 4: Fallback hardcoded rates (always works)
+
+  // 1. Own server API (server reads external APIs without CORS restriction)
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-
-    const res = await fetch("https://open.er-api.com/v6/latest/PKR", {
-      signal: controller.signal,
-      cache: "no-store",
-    });
-    clearTimeout(timeout);
-
-    if (!res.ok) throw new Error("API error");
-
-    const data = await res.json();
-    const rates: Record<string, number> = data.rates || {};
-
-    if (rates.USD) {
-      _ratesLive = rates;
-      _ratesCacheTime = Date.now();
-      return rates;
+    const res = await fetchWithTimeout("/api/live-rates", 4000);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.rates && data.rates.USD) {
+        _ratesLive = data.rates; // already PKR-base from our route
+        _ratesCacheTime = Date.now();
+        console.log("✅ Live rates from /api/live-rates");
+        return _ratesLive;
+      }
     }
   } catch {
-    // Silently fall back to hardcoded rates — never throw
+    // continue
   }
 
-  return null;
+  // 2. open.er-api.com (CORS-safe, PKR base, free)
+  try {
+    const res = await fetchWithTimeout(
+      "https://open.er-api.com/v6/latest/PKR",
+      5000,
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const rates = data.rates as Record<string, number>;
+      if (rates?.USD) {
+        _ratesLive = rates;
+        _ratesCacheTime = Date.now();
+        console.log("✅ Live rates from open.er-api.com");
+        return _ratesLive;
+      }
+    }
+  } catch {
+    // continue
+  }
+
+  // 3. exchangerate-api.com (CORS-safe, PKR base, free tier)
+  try {
+    const res = await fetchWithTimeout(
+      "https://api.exchangerate-api.com/v4/latest/PKR",
+      5000,
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const rates = data.rates as Record<string, number>;
+      if (rates?.USD) {
+        _ratesLive = rates;
+        _ratesCacheTime = Date.now();
+        console.log("✅ Live rates from exchangerate-api.com");
+        return _ratesLive;
+      }
+    }
+  } catch {
+    // continue
+  }
+
+  // 4. If we have stale cached rates — return them (better than null/hardcoded)
+  if (_ratesLive) {
+    console.warn("⚠️ All live APIs failed — using stale cached rates");
+    return _ratesLive;
+  }
+
+  // 5. Absolute last resort: hardcoded fallback (only if never fetched before)
+  console.warn("⚠️ All APIs failed — using hardcoded fallback rates");
+  return FALLBACK_RATES_PKR_BASE;
+}
+
+// ── Force refresh (bypass cache) ──────────────────────────────────────────────
+// Called when user manually refreshes currency or app comes back online
+export async function forceRefreshRates(): Promise<Record<
+  string,
+  number
+> | null> {
+  _ratesCacheTime = 0; // invalidate cache
+  return fetchLiveRates();
 }
 
 // ── Apply live rates to currencies array ──────────────────────────────────────

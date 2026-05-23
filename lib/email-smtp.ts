@@ -3,51 +3,100 @@
 // ✅ IMAGES: Product images show in email via direct <img> tags
 // ✅ COUPON: Simple clean box — no emoji, no decorative chars
 // ✅ ALL emails: plain text + html both sent for inbox delivery
+// ✅ LIVE RATES: currency.ts se live rates fetch hoti hain — hardcoded rates nahi
 
 import nodemailer from "nodemailer";
+import {
+  currencies as staticCurrencies,
+  fetchLiveRates,
+  applyLiveRates,
+  getCurrencyByCountry,
+} from "@/lib/currency";
 
-// ── Currency helpers ──────────────────────────────────────────────────────────
-const PKR_RATES: Record<
-  string,
-  { symbol: string; rate: number; code: string }
-> = {
-  Pakistan: { symbol: "Rs.", rate: 1, code: "PKR" },
-  "United States": { symbol: "$", rate: 0.0036, code: "USD" },
-  USA: { symbol: "$", rate: 0.0036, code: "USD" },
-  US: { symbol: "$", rate: 0.0036, code: "USD" },
-  "United Kingdom": { symbol: "GBP", rate: 0.0028, code: "GBP" },
-  UK: { symbol: "GBP", rate: 0.0028, code: "GBP" },
-  GB: { symbol: "GBP", rate: 0.0028, code: "GBP" },
-  England: { symbol: "GBP", rate: 0.0028, code: "GBP" },
-  Australia: { symbol: "A$", rate: 0.0055, code: "AUD" },
-  AU: { symbol: "A$", rate: 0.0055, code: "AUD" },
-  Canada: { symbol: "C$", rate: 0.0049, code: "CAD" },
-  CA: { symbol: "C$", rate: 0.0049, code: "CAD" },
-  "United Arab Emirates": { symbol: "AED", rate: 0.013, code: "AED" },
-  UAE: { symbol: "AED", rate: 0.013, code: "AED" },
-  AE: { symbol: "AED", rate: 0.013, code: "AED" },
-  Dubai: { symbol: "AED", rate: 0.013, code: "AED" },
-  "Saudi Arabia": { symbol: "SAR", rate: 0.013, code: "SAR" },
-  SA: { symbol: "SAR", rate: 0.013, code: "SAR" },
-  KSA: { symbol: "SAR", rate: 0.013, code: "SAR" },
-  India: { symbol: "Rs", rate: 0.3, code: "INR" },
-  IN: { symbol: "Rs", rate: 0.3, code: "INR" },
-  Germany: { symbol: "EUR", rate: 0.0033, code: "EUR" },
-  France: { symbol: "EUR", rate: 0.0033, code: "EUR" },
-  Italy: { symbol: "EUR", rate: 0.0033, code: "EUR" },
-  Spain: { symbol: "EUR", rate: 0.0033, code: "EUR" },
-  Netherlands: { symbol: "EUR", rate: 0.0033, code: "EUR" },
+// ── Country name/code → 2-letter code mapping ────────────────────────────────
+const COUNTRY_NAME_TO_CODE: Record<string, string> = {
+  Pakistan: "PK",
+  "United States": "US",
+  USA: "US",
+  US: "US",
+  "United Kingdom": "GB",
+  UK: "GB",
+  GB: "GB",
+  England: "GB",
+  Australia: "AU",
+  AU: "AU",
+  Canada: "CA",
+  CA: "CA",
+  "United Arab Emirates": "AE",
+  UAE: "AE",
+  AE: "AE",
+  Dubai: "AE",
+  "Saudi Arabia": "SA",
+  SA: "SA",
+  KSA: "SA",
+  India: "IN",
+  IN: "IN",
+  Germany: "DE",
+  DE: "DE",
+  France: "FR",
+  FR: "FR",
+  Italy: "IT",
+  IT: "IT",
+  Spain: "ES",
+  ES: "ES",
+  Netherlands: "NL",
+  NL: "NL",
+  EU: "DE",
 };
 
-function getCurrencyForCountry(country: string) {
-  if (!country) return PKR_RATES["Pakistan"];
-  if (PKR_RATES[country]) return PKR_RATES[country];
-  const lower = country.toLowerCase();
-  for (const [key, val] of Object.entries(PKR_RATES)) {
-    if (key.toLowerCase() === lower || lower.includes(key.toLowerCase()))
-      return val;
+// ── Server-side live rate cache ────────────────────────────────────────────────
+let _emailRatesCache: Record<string, number> | null = null;
+let _emailCacheTime = 0;
+const EMAIL_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+async function getEmailLiveRates(): Promise<Record<string, number> | null> {
+  if (_emailRatesCache && Date.now() - _emailCacheTime < EMAIL_CACHE_TTL) {
+    return _emailRatesCache;
   }
-  return PKR_RATES["Pakistan"];
+  const rates = await fetchLiveRates();
+  if (rates) {
+    _emailRatesCache = rates;
+    _emailCacheTime = Date.now();
+  }
+  return rates;
+}
+
+// ── Get live currency for a country ───────────────────────────────────────────
+async function getCurrencyForCountry(country: string) {
+  const countryCode = COUNTRY_NAME_TO_CODE[country] || country || "PK";
+  const rates = await getEmailLiveRates();
+  const staticCurr = getCurrencyByCountry(countryCode);
+  if (rates && staticCurr.code !== "PKR") {
+    const liveRate = rates[staticCurr.code];
+    if (liveRate && liveRate > 0) {
+      return { ...staticCurr, rate: liveRate };
+    }
+  }
+  return staticCurr;
+}
+
+// ── Format price with live rates ───────────────────────────────────────────────
+// Sync version — only use after getCurrencyForCountry has been called
+function formatPriceSync(
+  amountPKR: number,
+  currency: { code: string; symbol: string; rate: number },
+): string {
+  if (currency.code === "PKR") {
+    return `Rs. ${Math.round(amountPKR).toLocaleString("en-PK")}`;
+  }
+  const converted = amountPKR * currency.rate;
+  if (currency.code === "INR") {
+    return `Rs ${Math.round(converted).toLocaleString("en-IN")}`;
+  }
+  return `${currency.symbol}${converted.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 // ── Transporter ───────────────────────────────────────────────────────────────
@@ -445,7 +494,7 @@ export async function sendStatusUpdateEmail(
 ): Promise<boolean> {
   try {
     const country = customerCountry || "Pakistan";
-    const cfg = getCurrencyForCountry(country);
+    const cfg = await getCurrencyForCountry(country); // ✅ live rates
     const currencyCode = cfg.code;
     const displayTotal = formattedTotal || "-";
     const fItems = formattedItems || [];

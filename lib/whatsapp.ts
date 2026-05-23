@@ -3,67 +3,96 @@
 // ✅ WhatsApp messages email ke bilkul same content/structure
 // ✅ Currency auto-detect by customer country
 // ✅ Product image + text (paid plan) — ALL statuses: confirmed, shipped, delivered, cancelled
+// ✅ LIVE RATES: currency.ts se live rates fetch hoti hain — hardcoded rates nahi
 // Docs: https://wasenderapi.com/api-docs
 
 // ─────────────────────────────────────────────────────────────
-// CURRENCY CONFIG — exactly matching email.ts PKR_RATES
+// LIVE CURRENCY SYSTEM — currency.ts se import
 // ─────────────────────────────────────────────────────────────
-const PKR_RATES: Record<
-  string,
-  { symbol: string; rate: number; code: string; locale: string }
-> = {
-  Pakistan: { symbol: "₨", rate: 1, code: "PKR", locale: "en-PK" },
-  "United States": { symbol: "$", rate: 0.0036, code: "USD", locale: "en-US" },
-  USA: { symbol: "$", rate: 0.0036, code: "USD", locale: "en-US" },
-  US: { symbol: "$", rate: 0.0036, code: "USD", locale: "en-US" },
-  "United Kingdom": { symbol: "£", rate: 0.0028, code: "GBP", locale: "en-GB" },
-  UK: { symbol: "£", rate: 0.0028, code: "GBP", locale: "en-GB" },
-  GB: { symbol: "£", rate: 0.0028, code: "GBP", locale: "en-GB" },
-  England: { symbol: "£", rate: 0.0028, code: "GBP", locale: "en-GB" },
-  Australia: { symbol: "A$", rate: 0.0055, code: "AUD", locale: "en-AU" },
-  AU: { symbol: "A$", rate: 0.0055, code: "AUD", locale: "en-AU" },
-  Canada: { symbol: "C$", rate: 0.0049, code: "CAD", locale: "en-CA" },
-  CA: { symbol: "C$", rate: 0.0049, code: "CAD", locale: "en-CA" },
-  "United Arab Emirates": {
-    symbol: "AED",
-    rate: 0.013,
-    code: "AED",
-    locale: "ar-AE",
-  },
-  UAE: { symbol: "AED", rate: 0.013, code: "AED", locale: "ar-AE" },
-  AE: { symbol: "AED", rate: 0.013, code: "AED", locale: "ar-AE" },
-  Dubai: { symbol: "AED", rate: 0.013, code: "AED", locale: "ar-AE" },
-  "Saudi Arabia": { symbol: "﷼", rate: 0.013, code: "SAR", locale: "ar-SA" },
-  SA: { symbol: "﷼", rate: 0.013, code: "SAR", locale: "ar-SA" },
-  KSA: { symbol: "﷼", rate: 0.013, code: "SAR", locale: "ar-SA" },
-  India: { symbol: "₹", rate: 0.3, code: "INR", locale: "en-IN" },
-  IN: { symbol: "₹", rate: 0.3, code: "INR", locale: "en-IN" },
-  Germany: { symbol: "€", rate: 0.0033, code: "EUR", locale: "de-DE" },
-  France: { symbol: "€", rate: 0.0033, code: "EUR", locale: "fr-FR" },
-  Italy: { symbol: "€", rate: 0.0033, code: "EUR", locale: "it-IT" },
-  Spain: { symbol: "€", rate: 0.0033, code: "EUR", locale: "es-ES" },
-  Netherlands: { symbol: "€", rate: 0.0033, code: "EUR", locale: "nl-NL" },
-  EU: { symbol: "€", rate: 0.0033, code: "EUR", locale: "en-EU" },
+import {
+  currencies as staticCurrencies,
+  fetchLiveRates,
+  applyLiveRates,
+  getCurrencyByCountry,
+} from "@/lib/currency";
+
+// ── Country name/code → currency code mapping ─────────────────
+// currency.ts mein getCurrencyByCountry sirf 2-letter codes support karta hai
+// Yahan full names + codes dono map kiye hain
+const COUNTRY_NAME_TO_CODE: Record<string, string> = {
+  Pakistan: "PK",
+  "United States": "US",
+  USA: "US",
+  US: "US",
+  "United Kingdom": "GB",
+  UK: "GB",
+  GB: "GB",
+  England: "GB",
+  Australia: "AU",
+  AU: "AU",
+  Canada: "CA",
+  CA: "CA",
+  "United Arab Emirates": "AE",
+  UAE: "AE",
+  AE: "AE",
+  Dubai: "AE",
+  "Saudi Arabia": "SA",
+  SA: "SA",
+  KSA: "SA",
+  India: "IN",
+  IN: "IN",
+  Germany: "DE",
+  DE: "DE",
+  France: "FR",
+  FR: "FR",
+  Italy: "IT",
+  IT: "IT",
+  Spain: "ES",
+  ES: "ES",
+  Netherlands: "NL",
+  NL: "NL",
+  EU: "DE", // EU default → Germany (EUR)
 };
 
-function getCurrencyConfig(country: string) {
-  if (!country) return PKR_RATES["Pakistan"];
-  if (PKR_RATES[country]) return PKR_RATES[country];
-  const lower = country.toLowerCase();
-  for (const [key, val] of Object.entries(PKR_RATES)) {
-    if (key.toLowerCase() === lower) return val;
+// ── Cache for live rates (server-side, shared across requests) ─
+let _cachedRates: Record<string, number> | null = null;
+let _cacheTime = 0;
+const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+// ── Get live-rate-updated currency list ───────────────────────
+async function getLiveCurrencies() {
+  // Return cached if fresh
+  if (_cachedRates && Date.now() - _cacheTime < CACHE_TTL) {
+    return applyLiveRates(_cachedRates);
   }
-  for (const [key, val] of Object.entries(PKR_RATES)) {
-    if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower))
-      return val;
+  const rates = await fetchLiveRates();
+  if (rates) {
+    _cachedRates = rates;
+    _cacheTime = Date.now();
+    return applyLiveRates(rates);
   }
-  return PKR_RATES["Pakistan"];
+  // Fallback: static currencies (already have hardcoded rates as safety net)
+  return staticCurrencies;
 }
 
-function formatPrice(amountPKR: number, country: string): string {
-  const cfg = getCurrencyConfig(country);
+// ── Get currency config for a country (live rates) ────────────
+async function getCurrencyConfig(country: string) {
+  const countryCode = COUNTRY_NAME_TO_CODE[country] || country || "PK";
+  const liveCurrencies = await getLiveCurrencies();
+  // getCurrencyByCountry returns from static list — we need live version
+  const staticResult = getCurrencyByCountry(countryCode);
+  const live = liveCurrencies.find((c) => c.code === staticResult.code);
+  return live || staticResult;
+}
+
+// ── Format price using live rates ─────────────────────────────
+async function formatPriceAsync(
+  amountPKR: number,
+  country: string,
+): Promise<string> {
+  const cfg = await getCurrencyConfig(country);
   if (cfg.code === "PKR") {
-    return `₨ ${Math.round(amountPKR).toLocaleString("en-PK")}`;
+    return `Rs. ${Math.round(amountPKR).toLocaleString("en-PK")}`;
   }
   const converted = amountPKR * cfg.rate;
   if (cfg.code === "INR") {
@@ -73,6 +102,42 @@ function formatPrice(amountPKR: number, country: string): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+// ── Sync formatPrice (uses cached rates — for builders called after async fetch)
+// ── Live rates must be pre-fetched before calling sync builders
+let _syncRates: Record<string, number> | null = null;
+
+function formatPrice(amountPKR: number, country: string): string {
+  const countryCode = COUNTRY_NAME_TO_CODE[country] || country || "PK";
+  const staticCurr = getCurrencyByCountry(countryCode);
+  // Use live rate if available in cache, else fallback to static
+  let rate = staticCurr.rate;
+  if (_syncRates && _syncRates[staticCurr.code] && staticCurr.code !== "PKR") {
+    rate = _syncRates[staticCurr.code];
+  }
+  if (staticCurr.code === "PKR") {
+    return `Rs. ${Math.round(amountPKR).toLocaleString("en-PK")}`;
+  }
+  const converted = amountPKR * rate;
+  if (staticCurr.code === "INR") {
+    return `₹${Math.round(converted).toLocaleString("en-IN")}`;
+  }
+  return `${staticCurr.symbol}${converted.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+// ── Pre-fetch live rates and warm up sync cache ───────────────
+// Call this before any sync formatPrice usage
+async function warmUpRates(): Promise<void> {
+  const rates = await fetchLiveRates();
+  if (rates) {
+    _cachedRates = rates;
+    _syncRates = rates;
+    _cacheTime = Date.now();
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -353,10 +418,16 @@ export async function sendOrderWhatsApp(
   customerCountry?: string,
 ): Promise<boolean> {
   const country = customerCountry || "Pakistan";
-  const cfg = getCurrencyConfig(country);
+
+  // ✅ Fetch live rates before formatting (warms up sync cache)
+  await warmUpRates();
+
+  const cfg = await getCurrencyConfig(country);
   const isPKR = cfg.code === "PKR";
 
-  console.log(`🌍 Country: "${country}" → Currency: ${cfg.code}`);
+  console.log(
+    `🌍 Country: "${country}" → Currency: ${cfg.code} (live rate: ${cfg.rate})`,
+  );
 
   let itemLines: string[] = [];
   let totalPKRCalc = 0;
@@ -511,6 +582,8 @@ export async function sendShippedWhatsApp(
   total: number,
   country: string,
 ): Promise<boolean> {
+  // ✅ Fetch live rates before building message
+  await warmUpRates();
   const message = buildShippedWhatsApp(
     name,
     orderNumber,
@@ -623,6 +696,8 @@ export async function sendDeliveredWhatsApp(
   total: number,
   country: string,
 ): Promise<boolean> {
+  // ✅ Fetch live rates before building message
+  await warmUpRates();
   const message = buildDeliveredWhatsApp(
     name,
     orderNumber,
@@ -722,6 +797,8 @@ export async function sendCancelledWhatsApp(
   total: number,
   country: string,
 ): Promise<boolean> {
+  // ✅ Fetch live rates before building message
+  await warmUpRates();
   const message = buildCancelledWhatsApp(
     name,
     orderNumber,
@@ -754,23 +831,43 @@ export function buildConfirmedWhatsApp(
     piecesPerUnit?: number;
   }>,
   country?: string,
+  // ✅ FIX: Pre-formatted item prices — agar yeh diya to price dubara convert nahi hogi
+  formattedItems?: Array<{
+    name: string;
+    variant?: string | null;
+    quantity: number;
+    formattedPrice: string;
+  }>,
 ): string {
   const c = country || "Pakistan";
 
   let itemLines = "";
-  if (items && items.length > 0) {
-    const lines = items.map((item) => {
-      const ppu = item.piecesPerUnit || 1;
-      const itemTotalPKR = item.price * ppu * item.quantity;
-      const priceFormatted = formatPrice(itemTotalPKR, c);
-      const variantText =
-        item.variant && item.variant !== "Standard" ? ` (${item.variant})` : "";
-      return `  • ${item.name}${variantText} ×${item.quantity}   ${priceFormatted}`;
-    });
+
+  // ✅ FIX: Pehle formattedItems use karo (no double conversion)
+  // Fallback: items se calculate karo (PKR only, jab amountsPreConverted=false)
+  const sourceItems =
+    formattedItems && formattedItems.length > 0
+      ? formattedItems.map((fi) => ({
+          label: `  • ${fi.name}${fi.variant && fi.variant !== "Standard" ? ` (${fi.variant})` : ""} ×${fi.quantity}   ${fi.formattedPrice}`,
+        }))
+      : (items || []).map((item) => {
+          const ppu = item.piecesPerUnit || 1;
+          const itemTotalPKR = item.price * ppu * item.quantity;
+          const priceFormatted = formatPrice(itemTotalPKR, c);
+          const variantText =
+            item.variant && item.variant !== "Standard"
+              ? ` (${item.variant})`
+              : "";
+          return {
+            label: `  • ${item.name}${variantText} ×${item.quantity}   ${priceFormatted}`,
+          };
+        });
+
+  if (sourceItems.length > 0) {
     itemLines = `
 🛒 *ORDER SUMMARY*
 ──────────────────────
-${lines.join("\n")}
+${sourceItems.map((i) => i.label).join("\n")}
 ──────────────────────
 💳 *GRAND TOTAL: ${displayTotal}*
 
@@ -817,13 +914,23 @@ export async function sendConfirmedWhatsApp(
     product_image?: string | null;
   }>,
   country: string,
+  // ✅ FIX: Pre-formatted item prices pass karo — no double conversion
+  formattedItems?: Array<{
+    name: string;
+    variant?: string | null;
+    quantity: number;
+    formattedPrice: string;
+  }>,
 ): Promise<boolean> {
+  // ✅ Fetch live rates before building message
+  await warmUpRates();
   const message = buildConfirmedWhatsApp(
     name,
     orderNumber,
     displayTotal,
     items,
     country,
+    formattedItems, // ✅ pass through
   );
   return sendImageThenText(
     phoneNumber,

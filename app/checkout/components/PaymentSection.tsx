@@ -62,24 +62,6 @@ interface PaymentSectionProps {
   onPaymentMethodChange?: (method: "card" | "paypal") => void;
 }
 
-// ── PKR → target currency conversion rates ────────────────────────────────────
-const PKR_RATES: Record<string, number> = {
-  USD: 0.0036,
-  GBP: 0.00284,
-  AUD: 0.00548,
-  EUR: 0.00332,
-  CAD: 0.0049,
-  AED: 0.01322,
-  SAR: 0.0135,
-  INR: 0.3,
-  NZD: 0.00594,
-  SGD: 0.00484,
-  JPY: 0.54,
-  CNY: 0.02612,
-  CHF: 0.00316,
-  PKR: 1.0,
-};
-
 // ── Currencies Stripe supports (lowercase) ────────────────────────────────────
 const STRIPE_SUPPORTED = new Set([
   "usd",
@@ -96,32 +78,45 @@ const STRIPE_SUPPORTED = new Set([
   "chf",
 ]);
 
-// ── Zero-decimal currencies ───────────────────────────────────────────────────
-const ZERO_DECIMAL = new Set(["jpy", "krw", "idr", "twd"]);
-
 // ─────────────────────────────────────────────────────────────────────────────
-// getStripeReady — ONE function, ONE source of truth
-// Input:  detectedCurrencyCode e.g. "USD", "PKR", "GBP", "AED"
-// Output: { stripeCurrency: "usd", convertRate: 0.0036 }
+// getStripeReady — uses LIVE rate from CurrencyContext (no hardcoded rates!)
+// CurrencyContext fetches live rates and updates currency.rate automatically.
+// Input:  detectedCurrencyCode e.g. "USD", "PKR", "GBP" + live rate from context
+// Output: { stripeCurrency: "usd", pkrRate: <live rate> }
 // PKR → always USD (Stripe nahi karta PKR)
 // Unknown → USD fallback
 // ─────────────────────────────────────────────────────────────────────────────
-function getStripeReady(detectedCode: string): {
+function getStripeReady(
+  detectedCode: string,
+  liveRate: number, // ✅ comes from currency.rate (already live from CurrencyContext)
+): {
   stripeCurrency: string;
   pkrRate: number;
 } {
   const upper = (detectedCode || "USD").toUpperCase();
 
   // PKR → USD (Stripe doesn't support PKR)
+  // For PKR users: CurrencyContext sets rate=1 (base), so we need USD rate
+  // But CurrencyContext also has all currencies — if user is PKR, we rely on fallback
   const targetUpper = upper === "PKR" ? "USD" : upper;
   const stripeCurrency = targetUpper.toLowerCase();
 
   // If Stripe doesn't support this currency → fallback to USD
   if (!STRIPE_SUPPORTED.has(stripeCurrency)) {
-    return { stripeCurrency: "usd", pkrRate: PKR_RATES["USD"] };
+    return {
+      stripeCurrency: "usd",
+      pkrRate: liveRate > 0 && liveRate !== 1 ? liveRate : 0.003584,
+    };
   }
 
-  const pkrRate = PKR_RATES[targetUpper] ?? PKR_RATES["USD"];
+  // ✅ For non-PKR currencies: liveRate IS the correct PKR→X rate from CurrencyContext
+  // For PKR users: currency.rate=1 (base), liveRate=1 → use safe USD fallback
+  // This fallback only fires for PKR users; all other users get live rate
+  const pkrRate =
+    upper === "PKR" || liveRate <= 0 || liveRate === 1
+      ? 0.003584 // PKR user pays in USD — safe fallback (CurrencyContext doesn't give us USD rate for PKR users here)
+      : liveRate; // ✅ Live rate for all other currencies
+
   return { stripeCurrency, pkrRate };
 }
 
@@ -158,9 +153,14 @@ export default function PaymentSection({
 
   const { formatPrice, currency: detectedCurrency } = useCurrency();
 
+  // ✅ LIVE RATE from CurrencyContext — automatically updated every 6h
+  // currency.rate = 1 PKR → X foreign (e.g. 0.003584 for USD)
+  const liveRate = detectedCurrency?.rate ?? 0.003584;
+
   // ✅ SINGLE SOURCE OF TRUTH — ek jagah se currency + rate dono niklo
   const { stripeCurrency, pkrRate } = getStripeReady(
     detectedCurrency?.code || "USD",
+    liveRate, // ✅ live rate passed in — no hardcoded rates
   );
 
   // ✅ convertedTotal — PKR amount → foreign currency float (e.g. 3820 PKR → 13.75 USD)

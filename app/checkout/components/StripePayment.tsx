@@ -54,8 +54,8 @@ export default function StripePayment({
           orderNumber,
           customerName,
           customerEmail,
-          amount,        // float e.g. 13.75 AUD
-          currency,      // e.g. "aud"
+          amount, // float e.g. 13.75 AUD
+          currency, // e.g. "aud"
           paymentIntentId,
         }),
       });
@@ -124,8 +124,14 @@ export default function StripePayment({
   // ✅ Currency symbol
   const getCurrencySymbol = (code: string): string => {
     const symbols: Record<string, string> = {
-      usd: "$", gbp: "£", aud: "A$", eur: "€",
-      cad: "C$", inr: "₹", aed: "د.إ", sar: "﷼",
+      usd: "$",
+      gbp: "£",
+      aud: "A$",
+      eur: "€",
+      cad: "C$",
+      inr: "₹",
+      aed: "د.إ",
+      sar: "﷼",
     };
     return symbols[code.toLowerCase()] ?? code.toUpperCase();
   };

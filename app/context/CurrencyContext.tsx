@@ -16,6 +16,7 @@ import {
   convertPrice,
   formatPrice,
   fetchLiveRates,
+  forceRefreshRates,
   applyLiveRates,
 } from "@/lib/currency";
 
@@ -155,6 +156,8 @@ export function CurrencyProvider({
   const [currency, setCurrencyState] = useState<Currency>(getStartingCurrency);
   const [loading, setLoading] = useState(false);
   const detectionDone = useRef(false);
+  const lastRatesFetch = useRef<number>(0); // timestamp of last rates fetch
+  const RATES_REFRESH_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours in ms
 
   // ── User manually picks a currency ──────────────────────────────────
   const setCurrency = useCallback(
@@ -169,10 +172,12 @@ export function CurrencyProvider({
   );
 
   // ── Fetch live rates in background — never blocks UI ────────────────
-  const applyRates = useCallback((currCode: string) => {
-    fetchLiveRates()
+  const applyRates = useCallback((currCode: string, force = false) => {
+    const fetcher = force ? forceRefreshRates : fetchLiveRates;
+    fetcher()
       .then((rates) => {
         if (!rates) return;
+        lastRatesFetch.current = Date.now();
         const updated = applyLiveRates(rates);
         setLiveCurrencies(updated);
         // Update current currency with live rate too
@@ -255,6 +260,35 @@ export function CurrencyProvider({
     detect();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Auto-refresh live rates every 6 hours ───────────────────────────
+  // Also refreshes when user comes back to the tab after a long absence
+  useEffect(() => {
+    // Periodic timer: refresh rates every 6 hours
+    const interval = setInterval(() => {
+      const currCode = currency.code;
+      console.log("🔄 Auto-refreshing live rates (6h interval)");
+      applyRates(currCode, true); // force=true to bypass cache
+    }, RATES_REFRESH_INTERVAL);
+
+    // Visibility change: refresh if tab was hidden for >6 hours
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        const elapsed = Date.now() - lastRatesFetch.current;
+        if (elapsed > RATES_REFRESH_INTERVAL) {
+          console.log("🔄 Tab refocused — refreshing stale rates");
+          applyRates(currency.code, true);
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [currency.code, applyRates, RATES_REFRESH_INTERVAL]);
+
   // ── Force re-detect (e.g. user clicks "detect my currency") ─────────
   const refreshCurrency = useCallback(async () => {
     detectionDone.current = false;
@@ -277,7 +311,7 @@ export function CurrencyProvider({
       if (!country) country = await detectCountryClientSide();
       const detected = getCurrencyByCountry(country);
       setCurrencyState(detected);
-      applyRates(detected.code);
+      applyRates(detected.code, true); // force=true — bypass cache on manual refresh
     } finally {
       setLoading(false);
     }

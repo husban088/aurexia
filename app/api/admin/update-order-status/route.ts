@@ -1,13 +1,11 @@
 // app/api/admin/update-order-status/route.ts
+// ✅ LIVE RATES: fetchLiveRates from currency.ts — no hardcoded rates
 // ✅ Only 3 status buttons: shipped | delivered | cancelled
 // ✅ confirmed is handled by send-order-notification (on checkout)
 // ✅ Currency by customer country in all emails + WhatsApp
 // ✅ PAID PLAN: Product image sent with WhatsApp for ALL statuses
 // ✅ When status = "delivered", customer email saved to
 //    delivered_customers table → unlocks coupon codes for them
-// ✅ FIXED: Currency symbols corrected (£ € ₹ instead of text)
-// ✅ FIXED: EUR rate 0.003049, AED rate 0.013082 (synced with currency.ts)
-// ✅ FIXED: "Europe" key added as safety fallback
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -17,68 +15,104 @@ import {
   sendCancelledWhatsApp,
 } from "@/lib/whatsapp";
 import { sendStatusUpdateEmail, sendOwnerStatusAlert } from "@/lib/email-smtp";
+import {
+  fetchLiveRates,
+  getCurrencyByCountry,
+  currencies as staticCurrencies,
+} from "@/lib/currency";
 
-// ── Currency helpers ──────────────────────────────────────────────────────────
-// ✅ FIXED: All rates + symbols synced with currency.ts (May 2026 open market)
-const PKR_RATES: Record<
-  string,
-  { symbol: string; rate: number; code: string }
-> = {
-  Pakistan: { symbol: "Rs. ", rate: 1, code: "PKR" },
-  "United States": { symbol: "$", rate: 0.003584, code: "USD" }, // 1 USD = 279 PKR
-  USA: { symbol: "$", rate: 0.003584, code: "USD" },
-  US: { symbol: "$", rate: 0.003584, code: "USD" },
-  "United Kingdom": { symbol: "£", rate: 0.002639, code: "GBP" }, // ✅ FIXED: £ not "GBP"
-  UK: { symbol: "£", rate: 0.002639, code: "GBP" },
-  GB: { symbol: "£", rate: 0.002639, code: "GBP" },
-  England: { symbol: "£", rate: 0.002639, code: "GBP" },
-  Australia: { symbol: "A$", rate: 0.005, code: "AUD" }, // 1 AUD = 200 PKR
-  AU: { symbol: "A$", rate: 0.005, code: "AUD" },
-  Canada: { symbol: "C$", rate: 0.004878, code: "CAD" }, // 1 CAD = 205 PKR
-  CA: { symbol: "C$", rate: 0.004878, code: "CAD" },
-  "United Arab Emirates": { symbol: "AED ", rate: 0.013082, code: "AED" }, // ✅ FIXED: 0.013082
-  UAE: { symbol: "AED ", rate: 0.013082, code: "AED" },
-  AE: { symbol: "AED ", rate: 0.013082, code: "AED" },
-  Dubai: { symbol: "AED ", rate: 0.013082, code: "AED" },
-  "Saudi Arabia": { symbol: "SAR ", rate: 0.013357, code: "SAR" }, // 1 SAR = 74.87 PKR
-  SA: { symbol: "SAR ", rate: 0.013357, code: "SAR" },
-  KSA: { symbol: "SAR ", rate: 0.013357, code: "SAR" },
-  India: { symbol: "₹", rate: 0.298507, code: "INR" }, // ✅ FIXED: ₹ not "Rs"
-  IN: { symbol: "₹", rate: 0.298507, code: "INR" },
-  Germany: { symbol: "€", rate: 0.003049, code: "EUR" }, // ✅ FIXED: € not "EUR", rate 0.003049
-  Europe: { symbol: "€", rate: 0.003049, code: "EUR" }, // ✅ NEW: safety fallback
-  France: { symbol: "€", rate: 0.003049, code: "EUR" },
-  Italy: { symbol: "€", rate: 0.003049, code: "EUR" },
-  Spain: { symbol: "€", rate: 0.003049, code: "EUR" },
-  Netherlands: { symbol: "€", rate: 0.003049, code: "EUR" },
-  Austria: { symbol: "€", rate: 0.003049, code: "EUR" },
-  Belgium: { symbol: "€", rate: 0.003049, code: "EUR" },
-  Portugal: { symbol: "€", rate: 0.003049, code: "EUR" },
+// ── Country name → 2-letter code ─────────────────────────────────────────────
+const COUNTRY_NAME_TO_CODE: Record<string, string> = {
+  Pakistan: "PK",
+  "United States": "US",
+  USA: "US",
+  US: "US",
+  "United Kingdom": "GB",
+  UK: "GB",
+  GB: "GB",
+  England: "GB",
+  Australia: "AU",
+  AU: "AU",
+  Canada: "CA",
+  CA: "CA",
+  "United Arab Emirates": "AE",
+  UAE: "AE",
+  AE: "AE",
+  Dubai: "AE",
+  "Saudi Arabia": "SA",
+  SA: "SA",
+  KSA: "SA",
+  India: "IN",
+  IN: "IN",
+  Germany: "DE",
+  DE: "DE",
+  Europe: "DE", // safety fallback
+  France: "FR",
+  FR: "FR",
+  Italy: "IT",
+  IT: "IT",
+  Spain: "ES",
+  ES: "ES",
+  Netherlands: "NL",
+  NL: "NL",
+  Austria: "AT",
+  AT: "AT",
+  Belgium: "BE",
+  BE: "BE",
+  Portugal: "PT",
+  PT: "PT",
 };
 
-function getCurrencyForCountry(country: string) {
-  if (!country) return PKR_RATES["Pakistan"];
-  if (PKR_RATES[country]) return PKR_RATES[country];
-  const lower = country.toLowerCase();
-  for (const [key, val] of Object.entries(PKR_RATES)) {
-    if (key.toLowerCase() === lower || lower.includes(key.toLowerCase()))
-      return val;
+// ── Server-side live rate cache (shared across requests in same process) ───────
+let _ratesCache: Record<string, number> | null = null;
+let _cacheTime = 0;
+const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+async function getLiveRates(): Promise<Record<string, number> | null> {
+  if (_ratesCache && Date.now() - _cacheTime < CACHE_TTL) {
+    return _ratesCache;
   }
-  return PKR_RATES["Pakistan"];
+  const rates = await fetchLiveRates();
+  if (rates) {
+    _ratesCache = rates;
+    _cacheTime = Date.now();
+  }
+  return rates;
 }
 
-function formatAmount(amountPKR: number, country: string): string {
-  const cfg = getCurrencyForCountry(country);
-  if (cfg.code === "PKR")
+// ── Get live currency config for a country ────────────────────────────────────
+async function getCurrencyForCountry(country: string) {
+  const countryCode = COUNTRY_NAME_TO_CODE[country] || "PK";
+  const staticCurr = getCurrencyByCountry(countryCode);
+  const rates = await getLiveRates();
+  const liveRate = rates?.[staticCurr.code];
+  return {
+    code: staticCurr.code,
+    symbol: staticCurr.symbol,
+    rate: liveRate && liveRate > 0 ? liveRate : staticCurr.rate, // live first, static fallback
+  };
+}
+
+// ── Format amount in target currency (always from PKR) ────────────────────────
+function formatAmount(
+  amountPKR: number,
+  cfg: { code: string; symbol: string; rate: number },
+): string {
+  if (cfg.code === "PKR") {
     return `Rs. ${Math.round(amountPKR).toLocaleString("en-PK")}`;
-  if (cfg.code === "INR")
+  }
+  if (cfg.code === "INR") {
     return `₹${Math.round(amountPKR * cfg.rate).toLocaleString("en-IN")}`;
+  }
   const converted = amountPKR * cfg.rate;
-  // ✅ symbol already has trailing space for AED/SAR/Rs — others don't need space
-  return `${cfg.symbol}${converted.toLocaleString("en-US", {
+  const codeStyle = ["AED", "SAR", "CHF", "SGD", "NZD", "HKD"].includes(
+    cfg.code,
+  );
+  const formatted = converted.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`;
+  });
+  return codeStyle ? `${cfg.symbol} ${formatted}` : `${cfg.symbol}${formatted}`;
 }
 
 function getClient() {
@@ -168,12 +202,14 @@ export async function POST(req: NextRequest) {
     }
 
     const country = customerCountry || "Pakistan";
-    const currencyCfg = getCurrencyForCountry(country);
+
+    // ✅ Live rates fetched ONCE for the whole request
+    const currencyCfg = await getCurrencyForCountry(country);
     const totalAmountNum = totalAmount || 0;
-    const formattedTotal = formatAmount(totalAmountNum, country);
+    const formattedTotal = formatAmount(totalAmountNum, currencyCfg);
 
     console.log(
-      `🌍 [${orderNumber}] ${status.toUpperCase()} | Country: ${country} | Currency: ${currencyCfg.code} | Total: ${formattedTotal}`,
+      `🌍 [${orderNumber}] ${status.toUpperCase()} | Country: ${country} | Currency: ${currencyCfg.code} (live rate: ${currencyCfg.rate}) | Total: ${formattedTotal}`,
     );
 
     const supabase = getClient();
@@ -206,6 +242,7 @@ export async function POST(req: NextRequest) {
       await saveDeliveredCustomer(supabase, customerEmail, orderNumber);
     }
 
+    // ✅ formattedItems use live-rate formatAmount
     const formattedItems = items.map((item: any) => ({
       name: item.product_name || item.name || "Product",
       variant: item.variant_name || null,
@@ -214,7 +251,7 @@ export async function POST(req: NextRequest) {
       piecesPerUnit: item.pieces_per_unit || 1,
       formattedPrice: formatAmount(
         (item.price || 0) * (item.pieces_per_unit || 1) * (item.quantity || 1),
-        country,
+        currencyCfg,
       ),
       pricePKR: (item.price || 0) * (item.pieces_per_unit || 1),
       variant_image: item.variant_image || null,
@@ -371,6 +408,7 @@ export async function POST(req: NextRequest) {
       ownerEmail: ownerEmailSent ? "✅" : "❌",
       country,
       currency: currencyCfg.code,
+      liveRate: currencyCfg.rate,
       total: formattedTotal,
       itemsCount: items.length,
       hasImages: waItems.some(

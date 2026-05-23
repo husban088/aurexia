@@ -16,8 +16,29 @@ interface PayPalPaymentProps {
   onError: (error: string) => void;
 }
 
-// ✅ PayPal supported currencies
-const PAYPAL_SUPPORTED: Set<string> = new Set([
+// ─────────────────────────────────────────────────────────────────────────────
+// ✅ PayPal LIVE supported currencies (production mein sab kaam karta hai)
+// ✅ PayPal SANDBOX limited hai — AED/SAR/INR sandbox mein UNPROCESSABLE_ENTITY deta hai
+//    Isliye sandbox mein AED → USD fallback lagao
+//    Production pe yeh fallback hatao (SANDBOX_CURRENCIES_ONLY set ko empty karo)
+// ─────────────────────────────────────────────────────────────────────────────
+const IS_SANDBOX =
+  process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID?.startsWith("AY") || // sandbox IDs start with AY
+  process.env.NODE_ENV === "development";
+
+// Currencies that fail in PayPal sandbox — production mein yeh theek kaam karte hain
+const SANDBOX_UNSUPPORTED: Set<string> = new Set([
+  "AED",
+  "SAR",
+  "INR",
+  "QAR",
+  "KWD",
+  "BHD",
+  "OMR",
+]);
+
+// ✅ All PayPal live-supported currencies
+const PAYPAL_LIVE_SUPPORTED: Set<string> = new Set([
   "USD",
   "GBP",
   "AUD",
@@ -55,54 +76,33 @@ const PAYPAL_SUPPORTED: Set<string> = new Set([
   "OMR",
 ]);
 
-// ✅ PKR exchange rates — 1 PKR = X foreign currency
-// Update these rates periodically or fetch from your API
-const PKR_TO_CURRENCY: Record<string, number> = {
-  USD: 0.0036, // 1 PKR = 0.00360 USD  (1 USD ≈ 278 PKR)
-  GBP: 0.00284, // 1 PKR = 0.00284 GBP  (1 GBP ≈ 352 PKR)
-  AUD: 0.00548, // 1 PKR = 0.00548 AUD  (1 AUD ≈ 182 PKR)
-  EUR: 0.00332, // 1 PKR = 0.00332 EUR  (1 EUR ≈ 301 PKR)
-  CAD: 0.0049, // 1 PKR = 0.00490 CAD  (1 CAD ≈ 204 PKR)
-  AED: 0.01322, // 1 PKR = 0.01322 AED  (1 AED ≈ 75.6 PKR)
-  SAR: 0.0135, // 1 PKR = 0.01350 SAR  (1 SAR ≈ 74 PKR)
-  INR: 0.3, // 1 PKR = 0.30 INR     (1 INR ≈ 3.3 PKR)
-  NZD: 0.00594, // 1 PKR = 0.00594 NZD  (1 NZD ≈ 168 PKR)
-  SGD: 0.00484, // 1 PKR = 0.00484 SGD  (1 SGD ≈ 206 PKR)
-  JPY: 0.54, // 1 PKR = 0.54 JPY     (1 JPY ≈ 1.85 PKR)
-  CNY: 0.02612, // 1 PKR = 0.02612 CNY  (1 CNY ≈ 38.3 PKR)
-  BRL: 0.01874, // 1 PKR = 0.01874 BRL
-  MXN: 0.0612, // 1 PKR = 0.06120 MXN
-  SEK: 0.0372, // 1 PKR = 0.03720 SEK
-  NOK: 0.0382, // 1 PKR = 0.03820 NOK
-  DKK: 0.02476, // 1 PKR = 0.02476 DKK
-  CHF: 0.00316, // 1 PKR = 0.00316 CHF
-  HKD: 0.0281, // 1 PKR = 0.02810 HKD
-  ZAR: 0.0652, // 1 PKR = 0.06520 ZAR
-  QAR: 0.01311, // 1 PKR = 0.01311 QAR
-  KWD: 0.0011, // 1 PKR = 0.00110 KWD
-  PKR: 1.0, // fallback — same currency
-};
-
-const CURRENCY_TO_LOCALE: Record<string, string> = {
-  PKR: "en_US",
-  USD: "en_US",
-  GBP: "en_GB",
-  AUD: "en_AU",
-  EUR: "en_DE",
-  CAD: "en_CA",
-  AED: "ar_AE",
-  SAR: "ar_SA",
-  INR: "en_IN",
-  NZD: "en_NZ",
-  SGD: "en_SG",
-  JPY: "ja_JP",
-  CNY: "zh_CN",
-  BRL: "pt_BR",
-  MXN: "es_MX",
-  SEK: "sv_SE",
-  NOK: "no_NO",
-  DKK: "da_DK",
-  CHF: "de_CH",
+// ✅ FALLBACK rates only — used when CurrencyContext live rate is unavailable
+// Primary source: detectedCurrency.rate from CurrencyContext (live, auto-updated from /api/live-rates)
+// These fire ONLY if currency.rate is 0 or currency not detected yet
+const PKR_FALLBACK_RATES: Record<string, number> = {
+  USD: 0.003584,
+  GBP: 0.002639,
+  AUD: 0.005,
+  EUR: 0.003049,
+  CAD: 0.004878,
+  AED: 0.013082,
+  SAR: 0.013357,
+  INR: 0.298507,
+  NZD: 0.00594,
+  SGD: 0.00484,
+  JPY: 0.54,
+  CNY: 0.02612,
+  BRL: 0.01874,
+  MXN: 0.0612,
+  SEK: 0.0372,
+  NOK: 0.0382,
+  DKK: 0.02476,
+  CHF: 0.00316,
+  HKD: 0.0281,
+  ZAR: 0.0652,
+  QAR: 0.01311,
+  KWD: 0.0011,
+  PKR: 1.0,
 };
 
 const CURRENCY_TO_COUNTRY: Record<string, string> = {
@@ -127,6 +127,33 @@ const CURRENCY_TO_COUNTRY: Record<string, string> = {
   CHF: "CH",
 };
 
+// ✅ Zero-decimal currencies (no cents)
+const ZERO_DECIMAL_CURRENCIES: Set<string> = new Set([
+  "JPY",
+  "KRW",
+  "IDR",
+  "TWD",
+]);
+
+// ✅ Code-style currencies: show "AED 366.47" not "$366.47 AED"
+const CODE_STYLE_CURRENCIES: Set<string> = new Set([
+  "AED",
+  "SAR",
+  "CHF",
+  "SGD",
+  "NZD",
+  "HKD",
+  "ZAR",
+  "QAR",
+  "KWD",
+  "PKR",
+  "SEK",
+  "NOK",
+  "DKK",
+  "BHD",
+  "OMR",
+]);
+
 const CURRENCY_SYMBOLS: Record<string, string> = {
   PKR: "Rs",
   USD: "$",
@@ -135,8 +162,8 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   EUR: "€",
   CAD: "C$",
   INR: "₹",
-  AED: "د.إ",
-  SAR: "﷼",
+  AED: "AED",
+  SAR: "SAR",
   NZD: "NZ$",
   SGD: "S$",
   JPY: "¥",
@@ -153,16 +180,44 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   KWD: "KD",
 };
 
-// ✅ Zero-decimal currencies (no cents)
-const ZERO_DECIMAL_CURRENCIES: Set<string> = new Set([
-  "JPY",
-  "KRW",
-  "IDR",
-  "TWD",
-]);
+// ─────────────────────────────────────────────────────────────────────────────
+// getPayPalCurrency — resolve karo kaunsi currency PayPal ko bhejna hai
+// Sandbox mein AED/SAR/INR etc fail hote hain → USD fallback
+// Production mein direct AED/SAR chalega
+// ─────────────────────────────────────────────────────────────────────────────
+function getPayPalCurrency(userCode: string): {
+  paypalCurrency: string; // PayPal ko bhejo yeh
+  displayCurrency: string; // User ko dikhao yeh (hamesha original)
+  isFallback: boolean; // sandbox fallback laga?
+} {
+  const upper = (userCode || "USD").toUpperCase();
+
+  if (!PAYPAL_LIVE_SUPPORTED.has(upper)) {
+    return { paypalCurrency: "USD", displayCurrency: upper, isFallback: true };
+  }
+
+  // Sandbox mein AED/SAR etc → USD fallback
+  if (IS_SANDBOX && SANDBOX_UNSUPPORTED.has(upper)) {
+    return { paypalCurrency: "USD", displayCurrency: upper, isFallback: true };
+  }
+
+  return { paypalCurrency: upper, displayCurrency: upper, isFallback: false };
+}
+
+// ✅ Format display amount cleanly — no duplicate symbol/code
+function formatDisplayAmount(amount: number, currency: string): string {
+  const isZeroDecimal = ZERO_DECIMAL_CURRENCIES.has(currency);
+  const formatted = isZeroDecimal ? amount.toLocaleString() : amount.toFixed(2);
+
+  if (CODE_STYLE_CURRENCIES.has(currency)) {
+    return `${currency} ${formatted}`; // "AED 366.47"
+  }
+  const symbol = CURRENCY_SYMBOLS[currency] ?? currency;
+  return `${symbol}${formatted}`; // "$366.47"
+}
 
 export default function PayPalPayment({
-  amount, // This is always raw PKR amount
+  amount,
   orderNumber,
   formData,
   subtotal,
@@ -177,42 +232,43 @@ export default function PayPalPayment({
     "Processing your payment...",
   );
 
-  const { currency: detectedCurrency } = useCurrency();
-
+  const { currency: detectedCurrency, currencies: liveCurrencies } =
+    useCurrency();
   const userCurrencyCode = detectedCurrency?.code || "USD";
 
-  // ✅ KEY FIX: Convert PKR → target currency using our own rate table
-  // This ensures 565 PKR → 2.03 USD, NOT 565 USD
-  const paypalCurrency = PAYPAL_SUPPORTED.has(userCurrencyCode)
-    ? userCurrencyCode
-    : "USD";
-  const targetCurrency = PAYPAL_SUPPORTED.has(userCurrencyCode)
-    ? userCurrencyCode
-    : "USD";
+  // ✅ KEY: Resolve PayPal currency (handles sandbox limitations)
+  const { paypalCurrency, displayCurrency, isFallback } =
+    getPayPalCurrency(userCurrencyCode);
 
-  // Get conversion rate: how many target-currency units = 1 PKR
-  const pkrToTargetRate =
-    PKR_TO_CURRENCY[targetCurrency] ?? PKR_TO_CURRENCY["USD"];
+  // ✅ LIVE RATE RESOLVER — CurrencyContext se live rate lo (from /api/live-rates)
+  // liveCurrencies = CurrencyContext ka updated array with live rates applied
+  // PKR_FALLBACK_RATES sirf tabhi fire hoga jab context abhi load nahi hua
+  const getLiveRate = (targetCode: string): number => {
+    const upper = targetCode.toUpperCase();
+    const liveCurr = liveCurrencies.find((c) => c.code === upper);
+    if (liveCurr && liveCurr.rate > 0 && liveCurr.code !== "PKR") {
+      return liveCurr.rate; // ✅ Live rate from CurrencyContext (/api/live-rates)
+    }
+    return PKR_FALLBACK_RATES[upper] ?? PKR_FALLBACK_RATES["USD"]; // emergency fallback
+  };
 
-  // ✅ Convert: PKR amount × rate = target currency amount
-  const rawConverted = amount * pkrToTargetRate;
+  // Convert PKR → display currency (for showing user the right amount)
+  const displayRate = getLiveRate(displayCurrency);
+  const displayAmount = parseFloat((amount * displayRate).toFixed(2));
 
-  // ✅ Zero-decimal currencies (JPY, KRW) need integer amounts
-  const convertedAmount = ZERO_DECIMAL_CURRENCIES.has(targetCurrency)
-    ? Math.round(rawConverted)
-    : parseFloat(rawConverted.toFixed(2));
+  // Convert PKR → PayPal currency (what we actually charge)
+  const paypalRate = getLiveRate(paypalCurrency);
+  const rawPaypalAmount = amount * paypalRate;
+  const paypalAmount = ZERO_DECIMAL_CURRENCIES.has(paypalCurrency)
+    ? Math.max(1, Math.round(rawPaypalAmount))
+    : Math.max(0.01, parseFloat(rawPaypalAmount.toFixed(2)));
 
-  // ✅ Minimum amount guard (PayPal requires at least $0.01)
-  const safeConvertedAmount = Math.max(
-    convertedAmount,
-    ZERO_DECIMAL_CURRENCIES.has(targetCurrency) ? 1 : 0.01,
-  );
-
-  const paypalLocale = CURRENCY_TO_LOCALE[userCurrencyCode] ?? "en_US";
   const countryCode = CURRENCY_TO_COUNTRY[userCurrencyCode] ?? "US";
-  const currencySymbol = CURRENCY_SYMBOLS[targetCurrency] ?? "$";
-
   const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+
+  console.log(
+    `PayPal | User: ${userCurrencyCode} | Display: ${formatDisplayAmount(displayAmount, displayCurrency)} | Charging: ${paypalCurrency} ${paypalAmount} | Sandbox fallback: ${isFallback}`,
+  );
 
   if (!amount || amount <= 0) {
     return (
@@ -226,7 +282,7 @@ export default function PayPalPayment({
     return (
       <div className="ps-paypal-error">
         <p>
-          ⚠️ PayPal Client ID missing. Add NEXT_PUBLIC_PAYPAL_CLIENT_ID to
+          PayPal Client ID missing. Add NEXT_PUBLIC_PAYPAL_CLIENT_ID to
           .env.local
         </p>
       </div>
@@ -241,8 +297,8 @@ export default function PayPalPayment({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: safeConvertedAmount, // ✅ Correctly converted amount (e.g. 2.03)
-          currency: paypalCurrency, // ✅ Target currency (e.g. "USD")
+          amount: paypalAmount, // ✅ Correct amount in paypalCurrency
+          currency: paypalCurrency, // ✅ USD in sandbox, AED in production
           orderData: {
             orderNumber,
             description: `Order ${orderNumber} - Tech4U`,
@@ -259,13 +315,16 @@ export default function PayPalPayment({
       });
 
       const data = await response.json();
-      if (!response.ok)
+
+      if (!response.ok) {
+        console.error("PayPal order creation failed:", data);
         throw new Error(data.error || "Failed to create PayPal order");
+      }
       if (!data.orderId) throw new Error("No order ID received from PayPal");
 
       return data.orderId;
     } catch (error) {
-      console.error("Failed to create PayPal order:", error);
+      console.error("createOrder error:", error);
       onPaymentError(
         error instanceof Error ? error.message : "Failed to initialize PayPal",
       );
@@ -278,7 +337,6 @@ export default function PayPalPayment({
     setIsProcessing(true);
     setProcessingMessage("Payment approved! Completing your order...");
 
-    // ✅ Pehle capture karo — DB mein record bane
     try {
       const captureRes = await fetch("/api/capture-paypal-order", {
         method: "POST",
@@ -287,33 +345,27 @@ export default function PayPalPayment({
           orderId: data.orderID,
           orderNumber,
           formData,
-          subtotal: safeConvertedAmount,
+          subtotal: paypalAmount,
           shipping: 0,
-          total: safeConvertedAmount,
+          total: paypalAmount,
         }),
       });
 
       const captureData = await captureRes.json();
-
       if (!captureRes.ok || !captureData.success) {
         console.error("PayPal capture failed:", captureData);
-        // PayPal ne approve kar diya — DB fail ho bhi jaye to user ko success dikhao
-        // Lekin log zaroor karo taake manually fix kar sako
       } else {
-        console.log("✅ PayPal capture successful:", captureData.captureId);
+        console.log("PayPal capture successful:", captureData.captureId);
       }
     } catch (error) {
-      // Network error — PayPal approved hai, capture fail — log karo
       console.error("PayPal capture network error:", error);
     }
 
-    // ✅ SessionStorage save karo BEFORE onSuccess
     try {
       sessionStorage.setItem("payment_just_completed", "true");
       sessionStorage.setItem("payment_order_number", orderNumber);
     } catch (e) {}
 
-    // ✅ AB onSuccess call karo — capture ho chuka hai
     onSuccess();
   };
 
@@ -332,13 +384,13 @@ export default function PayPalPayment({
 
   return (
     <PayPalScriptProvider
-      key={`paypal-${paypalCurrency}-${paypalLocale}`}
+      key={`paypal-${paypalCurrency}`}
       options={{
         clientId: clientId,
         currency: paypalCurrency,
         intent: "capture",
         components: "buttons",
-        locale: paypalLocale,
+        locale: "en_US", // ✅ Always en_US — Arabic locales crash PayPal SDK
       }}
     >
       <div>
@@ -349,7 +401,6 @@ export default function PayPalPayment({
           </div>
         ) : (
           <>
-            {/* Cancelled warning */}
             {paymentCancelled && (
               <div
                 style={{
@@ -362,23 +413,18 @@ export default function PayPalPayment({
                   color: "#7c5a00",
                 }}
               >
-                ⚠️ Payment cancelled. Please try again.
+                Payment cancelled. Please try again.
               </div>
             )}
 
             <PayPalButtons
-              fundingSource="paypal" // ← yeh line add karo
-              key={`btn-${orderNumber}-${paypalCurrency}-${paypalLocale}`}
+              fundingSource="paypal"
+              key={`btn-${orderNumber}-${paypalCurrency}`}
               createOrder={createOrder}
               onApprove={onApprove}
               onError={handlePayPalError}
               onCancel={handleCancel}
-              forceReRender={[
-                safeConvertedAmount,
-                paypalCurrency,
-                paypalLocale,
-                orderNumber,
-              ]}
+              forceReRender={[paypalAmount, paypalCurrency, orderNumber]}
               style={{
                 layout: "vertical",
                 color: "gold",
@@ -388,7 +434,7 @@ export default function PayPalPayment({
               }}
             />
 
-            {/* "You will be charged" info */}
+            {/* "You will be charged" — always show user's own currency */}
             <div className="ps-paypal-amount-info">
               <svg
                 viewBox="0 0 24 24"
@@ -403,12 +449,9 @@ export default function PayPalPayment({
               </svg>
               <span>
                 You will be charged{" "}
+                {/* ✅ Show user's actual currency (AED 366.47), even if PayPal charges USD internally in sandbox */}
                 <strong>
-                  {currencySymbol}
-                  {ZERO_DECIMAL_CURRENCIES.has(targetCurrency)
-                    ? safeConvertedAmount.toLocaleString()
-                    : safeConvertedAmount.toFixed(2)}{" "}
-                  {targetCurrency}
+                  {formatDisplayAmount(displayAmount, displayCurrency)}
                 </strong>
               </span>
             </div>

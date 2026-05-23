@@ -42,74 +42,6 @@ interface FormErrors {
   state?: string; // ✅ NEW
 }
 
-// ✅ Toast component
-function PaymentToast({ visible }: { visible: boolean }) {
-  return (
-    <div
-      style={{
-        position: "fixed",
-        top: "24px",
-        left: "50%",
-        transform: `translateX(-50%) translateY(${visible ? "0" : "-120px"})`,
-        opacity: visible ? 1 : 0,
-        transition: "all 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)",
-        zIndex: 9999,
-        pointerEvents: "none",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          background: "linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)",
-          color: "#fff",
-          padding: "14px 24px",
-          borderRadius: "50px",
-          boxShadow:
-            "0 8px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(218,165,32,0.3)",
-          fontSize: "15px",
-          fontWeight: 600,
-          letterSpacing: "0.01em",
-          whiteSpace: "nowrap",
-          border: "1px solid rgba(218,165,32,0.4)",
-        }}
-      >
-        <div
-          style={{
-            width: "28px",
-            height: "28px",
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #22c55e, #16a34a)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            boxShadow: "0 0 12px rgba(34,197,94,0.5)",
-          }}
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#fff"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </div>
-        <span style={{ color: "#daa520" }}>Payment Successful!</span>
-        <span style={{ color: "#aaa", fontWeight: 400, fontSize: "14px" }}>
-          — Your order is confirmed
-        </span>
-      </div>
-    </div>
-  );
-}
-
 // Currency code → country code mapping
 const currencyToCountry: Record<string, string> = {
   PKR: "PK",
@@ -255,8 +187,8 @@ export default function Checkout() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  const [showToast, setShowToast] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  // ✅ Toast aur redirecting state checkout page pe nahi chahiye
+  // Toast order-success page pe show hoga directly
 
   const [checkoutStep, setCheckoutStep] = useState<"shipping" | "payment">(
     "shipping",
@@ -529,12 +461,9 @@ export default function Checkout() {
       );
     } catch {}
 
-    // ✅ STEP 4: UI update
-    setShowToast(true);
-    setIsRedirecting(true);
-
-    // ✅ STEP 5: Redirect immediately
-    window.location.replace("/order-success");
+    // ✅ STEP 4: Seedha order-success page pe jao — koi overlay nahi
+    // Toast wahan show hoga (order-success/page.tsx mein PaymentSuccessToast)
+    router.push("/order-success");
 
     // ✅ STEP 6: save-order — Supabase mein state bhi save hoga
     fetch("/api/save-order", {
@@ -564,6 +493,16 @@ export default function Checkout() {
     }).catch((err) => console.error("save-order background error:", err));
 
     // ✅ STEP 7: WhatsApp + Email notification
+    // ✅ FIX: Pre-convert PKR amounts to user currency BEFORE sending
+    // Notification route ko PKR + currency code dono bhejne se wo dobara convert karta tha
+    // Ab converted amounts directly bhejo — route sirf format kare, convert na kare
+    const currencyRate = currency?.rate ?? 1; // 1 PKR = X foreign units
+    const convertedSubtotal = parseFloat(
+      (snapSubtotal * currencyRate).toFixed(2),
+    );
+    const convertedShipping = parseFloat((shipping * currencyRate).toFixed(2));
+    const convertedTotal = parseFloat((snapSubtotal * currencyRate).toFixed(2)); // shipping=0 so same
+
     fetch("/api/send-order-notification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -573,17 +512,16 @@ export default function Checkout() {
         phone: fullPhone,
         name: customerName,
         items: orderItems,
-        subtotal,
-        shipping,
-        total,
-        shippingAddress, // ✅ state already inside this
+        subtotal: convertedSubtotal,
+        shipping: convertedShipping,
+        total: convertedTotal,
+        shippingAddress,
         paymentMethod:
           paymentMethod === "card" ? "Credit/Debit Card (Stripe)" : "PayPal",
         currency: currency.code,
+        amountsPreConverted: true,
         customerCountry:
-          phoneInfo.name === "Europe"
-            ? "Germany" // ✅ FIXED: "Europe" → "Germany" taake EUR currency sahi match ho
-            : phoneInfo.name,
+          phoneInfo.name === "Europe" ? "Germany" : phoneInfo.name,
       }),
     }).catch((err) => console.error("notification background error:", err));
 
@@ -617,38 +555,7 @@ export default function Checkout() {
     console.error("Payment error:", error);
   };
 
-  // ============================================
-  // LOADING STATE
-  // ============================================
-  if (isRedirecting) {
-    return (
-      <div className="co-root">
-        <div className="co-grain" aria-hidden="true" />
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: "60vh",
-            gap: "1.5rem",
-          }}
-        >
-          <div className="co-spinner" style={{ margin: "0 auto" }} />
-          <p
-            style={{
-              color: "#daa520",
-              fontWeight: 600,
-              fontSize: "1.1rem",
-              letterSpacing: "0.02em",
-            }}
-          >
-            ✅ Payment Successful! Redirecting...
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // isRedirecting block removed — router.push handles redirect cleanly
 
   if (
     !isMounted ||
@@ -669,7 +576,7 @@ export default function Checkout() {
   // ============================================
   // EMPTY CART STATE
   // ============================================
-  if (!loading && items.length === 0 && !isRedirecting) {
+  if (!loading && items.length === 0) {
     return (
       <div className="co-root">
         <div className="co-grain" aria-hidden="true" />
@@ -705,8 +612,6 @@ export default function Checkout() {
   // ============================================
   return (
     <>
-      <PaymentToast visible={showToast} />
-
       <div className="co-root">
         <div className="co-grain" aria-hidden="true" />
         <div className="co-lines" aria-hidden="true">

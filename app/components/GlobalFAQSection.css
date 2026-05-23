@@ -1,0 +1,628 @@
+/* ============================================================
+   GLOBAL FAQ SECTION  ·  gfaq.css
+   Luxury Design with Premium Animations - Light Theme
+   Matching WhyChooseUs section
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
+
+:root {
+  --gfaq-gold: #daa520;
+  --gfaq-gold-dark: #b8860b;
+  --gfaq-gold-deep: #8b6914;
+  --gfaq-gold-light: #f0c040;
+  --gfaq-gold-soft: rgba(218, 165, 32, 0.1);
+  --gfaq-gold-glow: rgba(218, 165, 32, 0.15);
+  --gfaq-border: rgba(184, 134, 11, 0.18);
+  --gfaq-border-hover: rgba(184, 134, 11, 0.38);
+  --gfaq-bg: #f9f5f0;
+  --gfaq-bg-gradient-start: #f8f4ed;
+  --gfaq-bg-gradient-mid: #fdfaf5;
+  --gfaq-bg-gradient-end: #fffdf9;
+  --gfaq-card-bg: #ffffff;
+  --gfaq-card-hover: #fffaf5;
+  --gfaq-text-dark: #1a1a1a;
+  --gfaq-text-mid: #444444;
+  --gfaq-text-muted: #666666;
+  --gfaq-whatsapp: #25d366;
+  --gfaq-serif: "Goldman", system-ui, sans-serif;
+  --gfaq-sans: "Goldman", system-ui, sans-serif;
+  --gfaq-ease: 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Root Section ── */
+.gfaq-root {
+  position: relative;
+  width: 100%;
+  background: linear-gradient(135deg, #f8f4ed 0%, #fdfaf5 50%, #fffdf9 100%);
+  color: var(--gfaq-text-dark);
+  overflow-x: hidden;
+  isolation: isolate;
+  padding: 5rem 2rem 6rem;
+}
+
+/* Ambient Glow - Gold */
+.gfaq-ambient {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 800px;
+  height: 600px;
+  background: radial-gradient(
+    circle,
+    rgba(218, 165, 32, 0.07) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Vertical Decorative Lines - Gold */
+.gfaq-lines {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-evenly;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.gfaq-lines span {
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(184, 134, 11, 0.08) 20%,
+    rgba(184, 134, 11, 0.08) 80%,
+    transparent
+  );
+}
+
+/* ── Header Section ── */
+.gfaq-header {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto 4rem;
+}
+
+.gfaq-eyebrow-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.gfaq-eyeline {
+  display: block;
+  width: 40px;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--gfaq-gold),
+    transparent
+  );
+  opacity: 0.7;
+}
+
+.gfaq-eyebrow {
+  font-family: var(--gfaq-sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--gfaq-gold-deep);
+  margin: 0;
+}
+
+.gfaq-title {
+  font-family: var(--gfaq-serif);
+  font-size: clamp(2rem, 4.5vw, 3.5rem);
+  font-weight: 400;
+  color: var(--gfaq-text-dark);
+  margin: 0 0 1rem;
+  letter-spacing: -0.02em;
+}
+
+.gfaq-title em {
+  font-style: italic;
+  color: var(--gfaq-gold-deep);
+}
+
+.gfaq-subtitle {
+  font-family: var(--gfaq-sans);
+  font-size: 0.87rem;
+  font-weight: 500;
+  line-height: 1.8;
+  letter-spacing: 0.025em;
+  color: var(--gfaq-text-mid);
+  margin: 0 0 2rem;
+  max-width: 580px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.gfaq-title-decoration {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.gfaq-deco-diamond {
+  width: 6px;
+  height: 6px;
+  background: var(--gfaq-gold);
+  transform: rotate(45deg);
+  opacity: 0.6;
+}
+
+.gfaq-deco-line {
+  width: 50px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--gfaq-gold),
+    transparent
+  );
+}
+
+/* ── Accordion Wrapper - Centered ── */
+.gfaq-accordion-wrapper {
+  position: relative;
+  z-index: 2;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.gfaq-accordion-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* FAQ Accordion Item */
+.gfaq-item {
+  background: var(--gfaq-card-bg);
+  border: 1px solid var(--gfaq-border);
+  border-radius: 18px;
+  overflow: hidden;
+  transition: all var(--gfaq-ease);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+.gfaq-item:hover {
+  border-color: var(--gfaq-border-hover);
+  background: var(--gfaq-card-hover);
+  transform: translateX(4px);
+  box-shadow: 0 8px 25px rgba(184, 134, 11, 0.08);
+}
+
+.gfaq-item.open {
+  border-color: var(--gfaq-gold);
+  background: var(--gfaq-card-bg);
+  box-shadow: 0 10px 30px rgba(218, 165, 32, 0.1);
+}
+
+/* Question Button */
+.gfaq-question-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 1.8rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--gfaq-sans);
+  transition: all var(--gfaq-ease);
+  text-align: left;
+}
+
+.gfaq-question-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.gfaq-question-num {
+  font-family: var(--gfaq-serif);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--gfaq-gold-deep);
+  background: rgba(218, 165, 32, 0.1);
+  padding: 0.3rem 0.7rem;
+  border-radius: 20px;
+  transition: all 0.3s;
+}
+
+.gfaq-item:hover .gfaq-question-num {
+  background: rgba(218, 165, 32, 0.2);
+  transform: scale(1.05);
+}
+
+.gfaq-question-text {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--gfaq-text-dark);
+  transition: color 0.3s;
+}
+
+.gfaq-item:hover .gfaq-question-text {
+  color: var(--gfaq-gold-deep);
+}
+
+/* Icons */
+.gfaq-icon-wrap {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.gfaq-icon,
+.gfaq-icon-close {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: all 0.35s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+.gfaq-icon {
+  opacity: 1;
+  transform: rotate(0deg);
+  color: var(--gfaq-gold);
+}
+
+.gfaq-icon-close {
+  opacity: 0;
+  transform: rotate(-90deg);
+  color: var(--gfaq-gold);
+}
+
+.gfaq-item.open .gfaq-icon {
+  opacity: 0;
+  transform: rotate(90deg);
+}
+
+.gfaq-item.open .gfaq-icon-close {
+  opacity: 1;
+  transform: rotate(0deg);
+}
+
+/* Answer Container */
+.gfaq-answer-container {
+  overflow: hidden;
+  transition:
+    max-height 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.4s ease;
+}
+
+.gfaq-answer-content {
+  padding: 0 1.8rem 1.8rem 1.8rem;
+  position: relative;
+}
+
+.gfaq-answer-line {
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--gfaq-gold), transparent);
+  margin-bottom: 1rem;
+}
+
+.gfaq-answer-text {
+  font-family: var(--gfaq-sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.75;
+  letter-spacing: 0.02em;
+  color: var(--gfaq-text-mid);
+  margin: 0;
+}
+
+/* ── CTA Section ── */
+.gfaq-cta {
+  position: relative;
+  z-index: 2;
+  margin-top: 5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.gfaq-cta-inner {
+  position: relative;
+  background: var(--gfaq-card-bg);
+  border: 1px solid var(--gfaq-border);
+  border-radius: 60px;
+  padding: 2rem 3rem;
+  text-align: center;
+  max-width: 700px;
+  width: 100%;
+  transition: all var(--gfaq-ease);
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+.gfaq-cta-inner:hover {
+  border-color: var(--gfaq-border-hover);
+  transform: scale(1.02);
+  box-shadow: 0 15px 35px rgba(184, 134, 11, 0.1);
+}
+
+.gfaq-cta-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(218, 165, 32, 0.05),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.gfaq-cta-icon {
+  display: inline-flex;
+  width: 52px;
+  height: 52px;
+  background: rgba(218, 165, 32, 0.09);
+  border: 1px solid rgba(218, 165, 32, 0.22);
+  border-radius: 13px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  transition: all var(--gfaq-ease);
+}
+
+.gfaq-cta-inner:hover .gfaq-cta-icon {
+  background: rgba(218, 165, 32, 0.18);
+  transform: scale(1.08) rotate(-3deg);
+}
+
+.gfaq-cta-icon svg {
+  width: 24px;
+  height: 24px;
+  color: var(--gfaq-gold-deep);
+  stroke-width: 1.65;
+}
+
+.gfaq-cta-title {
+  font-family: var(--gfaq-serif);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--gfaq-text-dark);
+  margin: 0 0 1.5rem;
+}
+
+.gfaq-cta-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.gfaq-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.8rem 1.8rem;
+  font-family: var(--gfaq-sans);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  background: transparent;
+  border-radius: 40px;
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  text-decoration: none;
+}
+
+.gfaq-cta-btn-primary {
+  background: var(--gfaq-gold);
+  border: 1px solid var(--gfaq-gold);
+  color: white;
+}
+
+.gfaq-cta-btn-primary:hover {
+  background: transparent;
+  color: var(--gfaq-gold-deep);
+  transform: translateY(-3px);
+  gap: 1rem;
+  box-shadow: 0 10px 25px rgba(218, 165, 32, 0.2);
+}
+
+.gfaq-cta-btn-whatsapp {
+  border: 1px solid var(--gfaq-whatsapp);
+  color: var(--gfaq-whatsapp);
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.gfaq-cta-btn-whatsapp:hover {
+  background: var(--gfaq-whatsapp);
+  color: white;
+  transform: translateY(-3px);
+  border-color: var(--gfaq-whatsapp);
+  gap: 1rem;
+  box-shadow: 0 10px 25px rgba(37, 211, 102, 0.2);
+}
+
+.gfaq-cta-btn svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.3s;
+}
+
+.gfaq-cta-btn:hover svg {
+  transform: translateX(4px);
+}
+
+.gfaq-cta-btn-whatsapp:hover svg {
+  transform: scale(1.1);
+}
+
+/* ── RTL Support ── */
+[dir="rtl"] .gfaq-question-btn {
+  text-align: right;
+}
+
+[dir="rtl"] .gfaq-question-left {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .gfaq-answer-line {
+  background: linear-gradient(90deg, transparent, var(--gfaq-gold));
+}
+
+[dir="rtl"] .gfaq-item:hover {
+  transform: translateX(-4px);
+}
+
+[dir="rtl"] .gfaq-cta-btn:hover svg {
+  transform: translateX(-4px);
+}
+
+[dir="rtl"] .gfaq-cta-btn-whatsapp:hover svg {
+  transform: scale(1.1);
+}
+
+/* ── Responsive Design ── */
+@media (max-width: 1024px) {
+  .gfaq-root {
+    padding: 4rem 1.5rem 5rem;
+  }
+
+  .gfaq-accordion-wrapper {
+    max-width: 800px;
+  }
+
+  .gfaq-question-btn {
+    padding: 1.2rem 1.5rem;
+  }
+
+  .gfaq-answer-content {
+    padding: 0 1.5rem 1.5rem 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .gfaq-root {
+    padding: 3rem 1rem 4rem;
+  }
+
+  .gfaq-eyeline {
+    width: 25px;
+  }
+
+  .gfaq-eyebrow {
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+  }
+
+  .gfaq-title {
+    font-size: 1.8rem;
+  }
+
+  .gfaq-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .gfaq-question-btn {
+    padding: 1rem 1.2rem;
+  }
+
+  .gfaq-question-left {
+    gap: 0.6rem;
+  }
+
+  .gfaq-question-num {
+    font-size: 0.6rem;
+    padding: 0.2rem 0.5rem;
+  }
+
+  .gfaq-question-text {
+    font-size: 0.85rem;
+  }
+
+  .gfaq-answer-text {
+    font-size: 0.8rem;
+  }
+
+  .gfaq-cta-inner {
+    padding: 1.5rem 2rem;
+    border-radius: 40px;
+  }
+
+  .gfaq-cta-title {
+    font-size: 1.2rem;
+  }
+
+  .gfaq-cta-btn {
+    padding: 0.6rem 1.4rem;
+    font-size: 0.6rem;
+  }
+
+  .gfaq-cta-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .gfaq-cta-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .gfaq-cta-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .gfaq-cta-btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .gfaq-cta-btn-whatsapp {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .gfaq-question-left {
+    flex-wrap: wrap;
+  }
+
+  .gfaq-question-text {
+    font-size: 0.8rem;
+    width: calc(100% - 60px);
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .gfaq-item,
+  .gfaq-cta-btn,
+  .gfaq-icon,
+  .gfaq-icon-close,
+  .gfaq-cta-icon {
+    transition: none;
+    animation: none;
+  }
+
+  .gfaq-item:hover {
+    transform: none;
+  }
+}
