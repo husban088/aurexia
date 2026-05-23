@@ -18,7 +18,7 @@ export type BulkPricingTier = {
 
 type BulkPricingManagerProps = {
   variantId?: string;
-  unitPrice: number; // Sale price per piece in CURRENT display currency (e.g. PKR 4000)
+  unitPrice: number; // Sale price per piece — ALWAYS in PKR (base currency, as stored in DB)
   tiers: BulkPricingTier[];
   onTiersChange: (tiers: BulkPricingTier[]) => void;
   onError: (msg: string) => void;
@@ -32,10 +32,8 @@ export function BulkPricingManager({
   onTiersChange,
   onError,
 }: BulkPricingManagerProps) {
-  const { currency } = useCurrency();
-  const symbol = currency.symbol;
+  const { currency, formatPrice: ctxFormatPrice } = useCurrency();
   const currencyCode = currency.code;
-  const currencyRate = currency.rate;
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTierMin, setNewTierMin] = useState(2);
@@ -44,45 +42,41 @@ export function BulkPricingManager({
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
-  // Convert display currency → PKR for DB storage
-  const toPKR = (displayPrice: number): number => {
-    if (currencyCode === "PKR") return displayPrice;
-    return Number((displayPrice / currencyRate).toFixed(2));
-  };
-
-  // PKR → display currency for showing on screen
-  const fromPKR = (pkrPrice: number): number => {
-    if (currencyCode === "PKR") return pkrPrice;
-    return Number((pkrPrice * currencyRate).toFixed(2));
-  };
+  /**
+   * ALL prices are stored and calculated in PKR.
+   * unitPrice prop MUST be in PKR (raw DB price).
+   * Display conversion happens only in fmt() via the currency context.
+   *
+   * tier_price in DB = total PKR for min_quantity pieces after discount.
+   * Formula: unitPricePKR × qty × (1 - discount/100)
+   *
+   * Example: unitPrice=4000 PKR, qty=2, discount=5%
+   *   → 4000 * 2 * 0.95 = 7600 PKR (stored in DB)
+   *   → formatPrice(7600) → displayed in user's currency
+   */
 
   /**
-   * Calculate discounted TOTAL price (display currency) for qty pieces.
-   *
-   * Example: unitPrice=4000 (PKR), qty=2, discount=5%
-   *   → 4000 * 2 * (1 - 5/100) = 8000 * 0.95 = 7600 ✅
+   * Calculate total PKR price for qty pieces at discountPct.
+   * Always returns PKR — never depends on display currency.
    */
-  const calcTotalDisplay = (qty: number, discountPct: number): number => {
-    const total = unitPrice * qty * (1 - discountPct / 100);
-    return Number(total.toFixed(2));
+  const calcTotalPKR = (qty: number, discountPct: number): number => {
+    return Number((unitPrice * qty * (1 - discountPct / 100)).toFixed(2));
   };
 
-  // Format amount in display currency
-  const fmt = (amount: number): string =>
-    `${symbol}${Math.round(amount).toLocaleString()}`;
+  // Format a PKR amount in display currency using currency context
+  const fmt = (pkrAmount: number): string => ctxFormatPrice(pkrAmount);
 
   // ─── Build a tier object ────────────────────────────────────────────────────
   /**
-   * tier_price = total PKR price for min_quantity pieces (after discount)
-   * This is what gets saved to DB and used everywhere.
+   * tier_price = total PKR for min_quantity pieces after discount.
+   * This is ALWAYS PKR regardless of admin's display currency.
    */
   const buildTier = (
     minQty: number,
     maxQty: number,
     discountPct: number,
   ): BulkPricingTier => {
-    const totalDisplay = calcTotalDisplay(minQty, discountPct);
-    const totalPKR = toPKR(totalDisplay);
+    const totalPKR = calcTotalPKR(minQty, discountPct);
     return {
       variant_id: "",
       min_quantity: minQty,
@@ -95,16 +89,16 @@ export function BulkPricingManager({
 
   // ─── Get display values for a saved tier ───────────────────────────────────
   /**
-   * Given a stored tier, return the total price in display currency.
-   * tier_price is already stored as PKR total → convert to display.
+   * tier_price is stored as PKR total in DB.
+   * ALWAYS read tier_price directly from DB — never recalculate from unitPrice.
+   * This guarantees the displayed price exactly matches what was saved,
+   * regardless of currency rate changes or display currency.
    */
   const getTierTotalDisplay = (tier: BulkPricingTier): number => {
-    // If discount_percentage is set, recalculate from unitPrice for accuracy
-    // This avoids floating point drift from repeated PKR↔display conversions
-    if (tier.discount_percentage != null) {
-      return calcTotalDisplay(tier.min_quantity, tier.discount_percentage);
-    }
-    return fromPKR(tier.tier_price);
+    // Always use the stored PKR value — never recalculate from unitPrice
+    // (recalculating from unitPrice causes drift when variant price is edited
+    //  but tiers haven't been re-saved yet, or when display currency differs)
+    return tier.tier_price; // PKR — fmt() will convert for display
   };
 
   // ─── Actions ────────────────────────────────────────────────────────────────
@@ -146,7 +140,11 @@ export function BulkPricingManager({
 
   const updateTierDiscount = (index: number, discountPct: number) => {
     const tier = tiers[index];
-    const updated = buildTier(tier.min_quantity, tier.max_quantity, discountPct);
+    const updated = buildTier(
+      tier.min_quantity,
+      tier.max_quantity,
+      discountPct,
+    );
     const updatedTiers = [...tiers];
     updatedTiers[index] = { ...updatedTiers[index], ...updated };
     onTiersChange(updatedTiers);
@@ -154,13 +152,13 @@ export function BulkPricingManager({
 
   const addMultipleTiers = () => {
     const presets = [
-      { min: 2,  max: 2,   discount: 5  },
-      { min: 3,  max: 3,   discount: 8  },
-      { min: 4,  max: 4,   discount: 10 },
-      { min: 5,  max: 5,   discount: 12 },
-      { min: 6,  max: 10,  discount: 15 },
-      { min: 11, max: 20,  discount: 20 },
-      { min: 21, max: 50,  discount: 25 },
+      { min: 2, max: 2, discount: 5 },
+      { min: 3, max: 3, discount: 8 },
+      { min: 4, max: 4, discount: 10 },
+      { min: 5, max: 5, discount: 12 },
+      { min: 6, max: 10, discount: 15 },
+      { min: 11, max: 20, discount: 20 },
+      { min: 21, max: 50, discount: 25 },
       { min: 51, max: 100, discount: 30 },
     ];
 
@@ -179,9 +177,10 @@ export function BulkPricingManager({
   };
 
   // ─── Preview for add form ──────────────────────────────────────────────────
-  const previewTotal = calcTotalDisplay(newTierMin, newTierDiscount);
-  const previewPerPiece = previewTotal / newTierMin;
-  const previewSaving = unitPrice - previewPerPiece;
+  // All in PKR — fmt() handles display conversion
+  const previewTotalPKR = calcTotalPKR(newTierMin, newTierDiscount);
+  const previewPerPiecePKR = previewTotalPKR / newTierMin;
+  const previewSavingPKR = unitPrice - previewPerPiecePKR;
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -241,33 +240,33 @@ export function BulkPricingManager({
 
                 const discountPct = tier.discount_percentage ?? 0;
 
-                // Total price for min_quantity pieces (display currency)
-                const totalDisplay = getTierTotalDisplay(tier);
-                // Per piece price after discount
-                const perPieceDisplay = totalDisplay / tier.min_quantity;
-                // Original total without any discount
-                const originalTotal = unitPrice * tier.min_quantity;
-                // How much saved per piece
-                const savingPerPiece = unitPrice - perPieceDisplay;
-                // Recalculate actual % for display
-                const actualPct = ((savingPerPiece / unitPrice) * 100).toFixed(1);
+                // All amounts in PKR (unitPrice is PKR, getTierTotalDisplay returns PKR)
+                // fmt() converts PKR → display currency for rendering
+                const totalPKR = getTierTotalDisplay(tier); // = tier.tier_price (PKR from DB)
+                const perPiecePKR = totalPKR / tier.min_quantity;
+                const originalTotalPKR = unitPrice * tier.min_quantity;
+                const savingPerPiecePKR = unitPrice - perPiecePKR;
+                const actualPct =
+                  unitPrice > 0
+                    ? ((savingPerPiecePKR / unitPrice) * 100).toFixed(1)
+                    : "0.0";
 
                 return (
                   <tr key={idx}>
                     <td className="ap-bulk-tier-qty">{qtyText}</td>
                     <td className="ap-bulk-tier-total-price">
                       <span className="ap-bulk-cut-price">
-                        {fmt(originalTotal)}
+                        {fmt(originalTotalPKR)}
                       </span>
                       <span className="ap-bulk-sale-price">
-                        {fmt(totalDisplay)}
+                        {fmt(totalPKR)}
                       </span>
                     </td>
                     <td className="ap-bulk-tier-per-piece">
-                      {fmt(perPieceDisplay)}
+                      {fmt(perPiecePKR)}
                     </td>
                     <td className="ap-bulk-tier-saving">
-                      Save {fmt(savingPerPiece)}/pc
+                      Save {fmt(savingPerPiecePKR)}/pc
                     </td>
                     <td className="ap-bulk-tier-discount">
                       <span className="ap-bulk-discount-badge">
@@ -387,13 +386,13 @@ export function BulkPricingManager({
             <span>Unit price: {fmt(unitPrice)}</span>
             <span>→</span>
             <span className="ap-bulk-preview-price">
-              Total: {fmt(previewTotal)}
+              Total: {fmt(previewTotalPKR)}
             </span>
             <span className="ap-bulk-preview-saving">
-              Per piece: {fmt(previewPerPiece)}
+              Per piece: {fmt(previewPerPiecePKR)}
             </span>
             <span className="ap-bulk-preview-saving">
-              Save: {fmt(previewSaving)}/pc
+              Save: {fmt(previewSavingPKR)}/pc
             </span>
           </div>
         </div>
@@ -402,13 +401,13 @@ export function BulkPricingManager({
       <div className="ap-bulk-presets-small">
         <span className="ap-bulk-presets-label">Quick add:</span>
         {[
-          { label: "2pc",    qty: 2,  maxQty: 2,   discount: 5  },
-          { label: "3pc",    qty: 3,  maxQty: 3,   discount: 8  },
-          { label: "4pc",    qty: 4,  maxQty: 4,   discount: 10 },
-          { label: "5pc",    qty: 5,  maxQty: 5,   discount: 12 },
-          { label: "6-10",   qty: 6,  maxQty: 10,  discount: 15 },
-          { label: "11-20",  qty: 11, maxQty: 20,  discount: 20 },
-          { label: "21-50",  qty: 21, maxQty: 50,  discount: 25 },
+          { label: "2pc", qty: 2, maxQty: 2, discount: 5 },
+          { label: "3pc", qty: 3, maxQty: 3, discount: 8 },
+          { label: "4pc", qty: 4, maxQty: 4, discount: 10 },
+          { label: "5pc", qty: 5, maxQty: 5, discount: 12 },
+          { label: "6-10", qty: 6, maxQty: 10, discount: 15 },
+          { label: "11-20", qty: 11, maxQty: 20, discount: 20 },
+          { label: "21-50", qty: 21, maxQty: 50, discount: 25 },
           { label: "51-100", qty: 51, maxQty: 100, discount: 30 },
         ].map((preset, idx) => (
           <button
