@@ -103,11 +103,11 @@ const t = {
       questionAr: "كيف يمكنني الاتصال بدعم العملاء؟",
       questionDe: "Wie kann ich den Kundensupport kontaktieren?",
       answerEn:
-        "Our white-glove support team is available 7 days a week. You can reach us via email at support@tech4u.com, through our live chat feature, or via WhatsApp. We're here to help with any question, big or small.",
+        "Our white-glove support team is available 7 days a week. You can reach us via email at info@tech4ru.com, through our live chat feature, or via WhatsApp. We're here to help with any question, big or small.",
       answerAr:
-        "فريق الدعم المتميز لدينا متاح 7 أيام في الأسبوع. يمكنك التواصل معنا عبر البريد الإلكتروني support@tech4u.com، أو عبر ميزة الدردشة المباشرة، أو عبر واتساب. نحن هنا لمساعدتك في أي سؤال كبير أو صغير.",
+        "فريق الدعم المتميز لدينا متاح 7 أيام في الأسبوع. يمكنك التواصل معنا عبر البريد الإلكتروني info@tech4ru.com، أو عبر ميزة الدردشة المباشرة، أو عبر واتساب. نحن هنا لمساعدتك في أي سؤال كبير أو صغير.",
       answerDe:
-        "Unser White-Glove-Support-Team ist 7 Tage die Woche für Sie da. Sie können uns per E-Mail unter support@tech4u.com, über unsere Live-Chat-Funktion oder per WhatsApp erreichen. Wir sind hier, um Ihnen bei jeder Frage zu helfen, ob groß oder klein.",
+        "Unser White-Glove-Support-Team ist 7 Tage die Woche für Sie da. Sie können uns per E-Mail unter info@tech4ru.com, über unsere Live-Chat-Funktion oder per WhatsApp erreichen. Wir sind hier, um Ihnen bei jeder Frage zu helfen, ob groß oder klein.",
     },
     {
       id: "08",
