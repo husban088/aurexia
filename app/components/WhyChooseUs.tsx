@@ -1,155 +1,118 @@
 "use client";
 
+import { useRef } from "react";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Autoplay, Navigation, Pagination } from "swiper/modules";
 import { useLanguage } from "@/app/context/LanguageContext";
 import "./WhyChooseUs.css";
+
+// Import Swiper styles
+import "swiper/css";
+import "swiper/css/navigation";
+import "swiper/css/pagination";
 
 /* ═══════════════════════════════════════════
    TRANSLATIONS
 ═══════════════════════════════════════════ */
 const t = {
-  eyebrow: {
-    en: "Why Tech4U",
-    ar: "لماذا تيك4يو",
-    de: "Warum Tech4U",
-  },
-  titleMain: {
-    en: "The Standard of",
+  title: {
+    en: "Why Choose",
     ar: "معيار",
     de: "Der Maßstab für",
   },
   titleEm: {
-    en: "True Luxury",
+    en: "Tech4U",
     ar: "الفخامة الحقيقية",
     de: "Wahren Luxus",
   },
   subtitle: {
-    en: "Trusted by collectors all over the world — here's what sets us apart.",
-    ar: "موثوق به من قبل المقتنين في جميع أنحاء العالم — إليك ما يميزنا.",
-    de: "Von Sammlern auf der ganzen Welt vertraut — das macht uns besonders.",
+    en: "At TECH4U, we carefully curate high-quality products that combine luxury, functionality, and modern design. From stylish watches and automotive accessories to smart tech and elegant home décor, every product is selected to elevate your lifestyle.",
+    ar: "في TECH4U، نختار بعناية منتجات عالية الجودة تجمع بين الفخامة والوظائف والتصميم الحديث. من الساعات الأنيقة وإكسسوارات السيارات إلى التكنولوجيا الذكية وديكور المنزل الأنيق، يتم اختيار كل منتج ليرتقي بنمط حياتك.",
+    de: "Bei TECH4U kuratieren wir sorgfältig hochwertige Produkte, die Luxus, Funktionalität und modernes Design vereinen. Von stilvollen Uhren und Automotive-Zubehör bis hin zu smarter Technologie und eleganter Wohndekoration – jedes Produkt wird ausgewählt, um Ihren Lebensstil zu bereichern.",
   },
-  stats: [
-    {
-      value: "12K+",
-      label: {
-        en: "Happy Collectors",
-        ar: "مقتنٍ سعيد",
-        de: "Glückliche Sammler",
-      },
-    },
-    {
-      label: {
-        en: "All Over The World",
-        ar: "جميع أنحاء العالم",
-        de: "Auf der ganzen Welt",
-      },
-    },
-    {
-      value: "48+",
-      label: {
-        en: "Exclusive Pieces",
-        ar: "قطعة حصرية",
-        de: "Exklusive Stücke",
-      },
-    },
-    {
-      value: "100%",
-      label: {
-        en: "Satisfaction Rate",
-        ar: "معدل الرضا",
-        de: "Zufriedenheitsrate",
-      },
-    },
-  ],
   cards: [
     {
-      num: "01",
+      id: "01",
       icon: "star",
-      title: {
-        en: "Certified Authenticity",
-        ar: "مصادقة معتمدة",
-        de: "Zertifizierte Echtheit",
-      },
-      desc: {
-        en: "Every timepiece ships with a certificate of authenticity. Zero counterfeits — ever. Your investment is real.",
-        ar: "كل ساعة تُشحن مع شهادة أصالة. لا مزيفات أبداً. استثمارك حقيقي.",
-        de: "Jedes Zeitmesser wird mit einem Echtheitszertifikat geliefert. Null Fälschungen — niemals. Ihre Investition ist real.",
-      },
+      titleEn: "Certified Authenticity",
+      titleAr: "مصادقة معتمدة",
+      titleDe: "Zertifizierte Echtheit",
+      descEn:
+        "Every timepiece ships with a certificate of authenticity. Zero counterfeits — ever. Your investment is real.",
+      descAr: "كل ساعة تُشحن مع شهادة أصالة. لا مزيفات أبداً. استثمارك حقيقي.",
+      descDe:
+        "Jedes Zeitmesser wird mit einem Echtheitszertifikat geliefert. Null Fälschungen — niemals. Ihre Investition ist real.",
     },
     {
-      num: "02",
+      id: "02",
       icon: "shipping",
-      title: {
-        en: "Global Delivery",
-        ar: "توصيل سريع عالمي",
-        de: "Weltweite Expresslieferung",
-      },
-      desc: {
-        en: "Insured, tracked shipping all over the world. Your order arrives pristine — or we make it right.",
-        ar: "شحن مؤمّن ومتتبع في جميع أنحاء العالم. طلبك يصل بحالة ممتازة — أو نصلحه.",
-        de: "Versicherter, verfolgbarer Versand auf der ganzen Welt. Ihre Bestellung kommt einwandfrei an — oder wir machen es richtig.",
-      },
+      titleEn: "Global Delivery",
+      titleAr: "توصيل سريع عالمي",
+      titleDe: "Weltweite Expresslieferung",
+      descEn:
+        "Insured, tracked shipping all over the world. Your order arrives pristine — or we make it right.",
+      descAr:
+        "شحن مؤمّن ومتتبع في جميع أنحاء العالم. طلبك يصل بحالة ممتازة — أو نصلحه.",
+      descDe:
+        "Versicherter, verfolgbarer Versand auf der ganzen Welt. Ihre Bestellung kommt einwandfrei an — oder wir machen es richtig.",
     },
     {
-      num: "03",
+      id: "03",
       icon: "shield",
-      title: {
-        en: "Buyer Protection",
-        ar: "حماية المشتري",
-        de: "Käuferschutz",
-      },
-      desc: {
-        en: "Full purchase protection on every order. If it's not exactly as described, you're fully covered — no questions asked.",
-        ar: "حماية كاملة للشراء على كل طلب. إذا لم يكن كما هو موصوف تماماً، فأنت مغطى بالكامل.",
-        de: "Vollständiger Kaufschutz bei jeder Bestellung. Wenn es nicht genau wie beschrieben ist, sind Sie vollständig abgesichert.",
-      },
+      titleEn: "Buyer Protection",
+      titleAr: "حماية المشتري",
+      titleDe: "Käuferschutz",
+      descEn:
+        "Full purchase protection on every order. If it's not exactly as described, you're fully covered — no questions asked.",
+      descAr:
+        "حماية كاملة للشراء على كل طلب. إذا لم يكن كما هو موصوف تماماً، فأنت مغطى بالكامل.",
+      descDe:
+        "Vollständiger Kaufschutz bei jeder Bestellung. Wenn es nicht genau wie beschrieben ist, sind Sie vollständig abgesichert.",
     },
     {
-      num: "04",
+      id: "04",
       icon: "curated",
-      title: {
-        en: "Curated for Collectors",
-        ar: "مختار للمقتنين",
-        de: "Für Sammler kuratiert",
-      },
-      desc: {
-        en: "Each piece is hand-selected by experts. Limited inventory means you're never wearing what everyone else owns.",
-        ar: "يتم اختيار كل قطعة يدوياً من قبل خبراء. المخزون المحدود يعني أنك لن ترتدي ما يمتلكه الجميع.",
-        de: "Jedes Stück wird von Experten handverlesen. Begrenztes Inventar bedeutet, dass Sie nie das tragen, was alle anderen besitzen.",
-      },
+      titleEn: "Curated for Collectors",
+      titleAr: "مختار للمقتنين",
+      titleDe: "Für Sammler kuratiert",
+      descEn:
+        "Each piece is hand-selected by experts. Limited inventory means you're never wearing what everyone else owns.",
+      descAr:
+        "يتم اختيار كل قطعة يدوياً من قبل خبراء. المخزون المحدود يعني أنك لن ترتدي ما يمتلكه الجميع.",
+      descDe:
+        "Jedes Stück wird von Experten handverlesen. Begrenztes Inventar bedeutet, dass Sie nie das tragen, was alle anderen besitzen.",
     },
     {
-      num: "05",
+      id: "05",
       icon: "payment",
-      title: {
-        en: "Secure Multi-Currency Checkout",
-        ar: "دفع آمن بعملات متعددة",
-        de: "Sicheres Mehrwährungs-Checkout",
-      },
-      desc: {
-        en: "Pay in USD, GBP, AUD, EUR, AED and more. Stripe & PayPal encryption — your data is never stored.",
-        ar: "ادفع بالدولار الأمريكي والجنيه الإسترليني والدولار الأسترالي واليورو والدرهم وغيرها.",
-        de: "Bezahlen Sie in USD, GBP, AUD, EUR, AED und mehr. Stripe & PayPal Verschlüsselung.",
-      },
+      titleEn: "Secure Multi-Currency Checkout",
+      titleAr: "دفع آمن بعملات متعددة",
+      titleDe: "Sicheres Mehrwährungs-Checkout",
+      descEn:
+        "Pay in USD, GBP, AUD, EUR, AED and more. Stripe & PayPal encryption — your data is never stored.",
+      descAr:
+        "ادفع بالدولار الأمريكي والجنيه الإسترليني والدولار الأسترالي واليورو والدرهم وغيرها.",
+      descDe:
+        "Bezahlen Sie in USD, GBP, AUD, EUR, AED und mehr. Stripe & PayPal Verschlüsselung.",
     },
     {
-      num: "06",
+      id: "06",
       icon: "support",
-      title: {
-        en: "White-Glove Support",
-        ar: "دعم على أعلى مستوى",
-        de: "Erstklassiger Support",
-      },
-      desc: {
-        en: "A real human responds — fast. Whether it's a sizing question or a returns request, we treat every customer as a VIP.",
-        ar: "إنسان حقيقي يرد بسرعة. سواء كان سؤالاً عن المقاس أو طلب إرجاع، نعامل كل عميل كشخص مميز.",
-        de: "Ein echter Mensch antwortet — schnell. Ob Größenfrage oder Rückgabeanfrage, wir behandeln jeden Kunden als VIP.",
-      },
+      titleEn: "White-Glove Support",
+      titleAr: "دعم على أعلى مستوى",
+      titleDe: "Erstklassiger Support",
+      descEn:
+        "A real human responds — fast. Whether it's a sizing question or a returns request, we treat every customer as a VIP.",
+      descAr:
+        "إنسان حقيقي يرد بسرعة. سواء كان سؤالاً عن المقاس أو طلب إرجاع، نعامل كل عميل كشخص مميز.",
+      descDe:
+        "Ein echter Mensch antwortet — schnell. Ob Größenfrage oder Rückgabeanfrage, wir behandeln jeden Kunden als VIP.",
     },
   ],
 };
 
 /* ═══════════════════════════════════════════
-   SVG ICONS (unchanged)
+   SVG ICONS
 ═══════════════════════════════════════════ */
 function Icon({ name }: { name: string }) {
   switch (name) {
@@ -208,60 +171,109 @@ function Icon({ name }: { name: string }) {
 export default function WhyChooseUs() {
   const { language, isRTLMode } = useLanguage();
   const lang = language as "en" | "ar" | "de";
+  const swiperRef = useRef<any>(null);
+  const isRTL = isRTLMode;
 
   return (
     <section
       className="wcu-root"
-      dir={isRTLMode ? "rtl" : "ltr"}
+      dir={isRTL ? "rtl" : "ltr"}
       aria-label="Why choose Tech4U"
     >
       {/* Ambient glow */}
       <div className="wcu-ambient" aria-hidden="true" />
 
-      {/* Header */}
+      {/* Header - Same style as Featured Products */}
       <div className="wcu-header">
-        <p className="wcu-eyebrow">
-          <span className="wcu-ey-line" />
-          {t.eyebrow[lang]}
-          <span className="wcu-ey-line" />
-        </p>
         <h2 className="wcu-title">
-          {t.titleMain[lang]} <em>{t.titleEm[lang]}</em>
+          {t.title[lang]} <em>{t.titleEm[lang]}</em>
         </h2>
-        <p className="wcu-sub">{t.subtitle[lang]}</p>
+        <p className="wcu-subtitle">{t.subtitle[lang]}</p>
       </div>
 
-      {/* Cards Grid */}
-      <div className="wcu-grid">
-        {t.cards.map((card) => (
-          <div key={card.num} className="wcu-card">
-            {/* Shimmer line — animated on hover via CSS */}
-            <div className="wcu-card-shimmer" aria-hidden="true" />
+      {/* Swiper Slider */}
+      <div className="wcu-slider-wrapper">
+        <div className="wcu-nav-buttons">
+          <button className="wcu-nav-prev" aria-label="Previous">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <button className="wcu-nav-next" aria-label="Next">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </div>
 
-            <div className="wcu-icon-wrap">
-              <Icon name={card.icon} />
-            </div>
+        <Swiper
+          ref={swiperRef}
+          modules={[Autoplay, Navigation, Pagination]}
+          spaceBetween={24}
+          slidesPerView={1}
+          centeredSlides={false}
+          loop={true}
+          autoplay={{
+            delay: 4000,
+            disableOnInteraction: false,
+            pauseOnMouseEnter: true,
+          }}
+          navigation={{
+            prevEl: ".wcu-nav-prev",
+            nextEl: ".wcu-nav-next",
+          }}
+          pagination={{
+            clickable: true,
+            el: ".wcu-pagination",
+            bulletClass: "wcu-bullet",
+            bulletActiveClass: "wcu-bullet-active",
+          }}
+          breakpoints={{
+            640: {
+              slidesPerView: 1.2,
+              spaceBetween: 20,
+            },
+            768: {
+              slidesPerView: 2,
+              spaceBetween: 24,
+            },
+            1024: {
+              slidesPerView: 3,
+              spaceBetween: 30,
+            },
+          }}
+        >
+          {t.cards.map((card) => (
+            <SwiperSlide key={card.id}>
+              <div className="wcu-card">
+                <div className="wcu-card-shimmer" aria-hidden="true" />
+                <div className="wcu-icon-wrap">
+                  <Icon name={card.icon} />
+                </div>
+                <span className="wcu-card-num" aria-hidden="true">
+                  {card.id}
+                </span>
+                <h3 className="wcu-card-title">
+                  {lang === "en"
+                    ? card.titleEn
+                    : lang === "ar"
+                      ? card.titleAr
+                      : card.titleDe}
+                </h3>
+                <p className="wcu-card-desc">
+                  {lang === "en"
+                    ? card.descEn
+                    : lang === "ar"
+                      ? card.descAr
+                      : card.descDe}
+                </p>
+                <div className="wcu-card-bar" aria-hidden="true" />
+              </div>
+            </SwiperSlide>
+          ))}
+        </Swiper>
 
-            <span className="wcu-card-num" aria-hidden="true">
-              {card.num}
-            </span>
-            <h3 className="wcu-card-title">{card.title[lang]}</h3>
-            <p className="wcu-card-desc">{card.desc[lang]}</p>
-
-            {/* Bottom bar */}
-            <div className="wcu-card-bar" aria-hidden="true" />
-          </div>
-        ))}
-      </div>
-
-      {/* Stats Bar */}
-      <div className="wcu-stats-bar">
-        {t.stats.map((s, i) => (
-          <div key={i} className="wcu-stat">
-            <span className="wcu-stat-val">{s.value}</span>
-            <span className="wcu-stat-lbl">{s.label[lang]}</span>
-          </div>
-        ))}
+        <div className="wcu-pagination" />
       </div>
     </section>
   );

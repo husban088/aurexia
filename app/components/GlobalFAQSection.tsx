@@ -9,25 +9,20 @@ import "./GlobalFAQSection.css";
    TRANSLATIONS
 ═══════════════════════════════════════════ */
 const t = {
-  eyebrow: {
-    en: "Frequently Asked Questions",
-    ar: "الأسئلة الشائعة",
-    de: "Häufig gestellte Fragen",
-  },
   title: {
-    en: "Everything You Need",
-    ar: "كل ما تحتاج",
-    de: "Alles was Sie brauchen",
+    en: "Why,",
+    ar: "راحة بالك،",
+    de: "Warum,",
   },
   titleEm: {
-    en: "to Know",
-    ar: "لمعرفته",
-    de: "zu Wissen",
+    en: "Shop With Us?",
+    ar: "أولويتنا",
+    de: "Kaufe bei uns ein",
   },
   subtitle: {
-    en: "Answers to common questions about our products, shipping, returns, and more.",
-    ar: "إجابات على الأسئلة الشائعة حول منتجاتنا والشحن والإرجاع والمزيد.",
-    de: "Antworten auf häufig gestellte Fragen zu unseren Produkten, Versand, Rückgaben und mehr.",
+    en: "Quick answers, secure shopping, and reliable support — everything you need for a smooth and confident shopping experience",
+    ar: "نؤمن بالشفافية الكاملة. إليكم إجابات صادقة على الأسئلة التي يطرحها عملاؤنا أكثر - لأنك تستحق التسوق بثقة.",
+    de: "Schnelle Antworten, sicheres Einkaufen und zuverlässiger Support – für ein reibungsloses und vertrauensvolles Einkaufserlebnis.",
   },
   faqs: [
     {
@@ -266,12 +261,6 @@ export default function GlobalFAQSection() {
 
       {/* Header Section */}
       <div className="gfaq-header">
-        <div className="gfaq-eyebrow-wrapper">
-          <span className="gfaq-eyeline" />
-          <p className="gfaq-eyebrow">{t.eyebrow[lang]}</p>
-          <span className="gfaq-eyeline" />
-        </div>
-
         <h2 className="gfaq-title">
           {t.title[lang]} <em>{t.titleEm[lang]}</em>
         </h2>

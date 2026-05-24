@@ -1,0 +1,508 @@
+/* ============================================================
+   TRUST BADGES SECTION  ·  tbs.css
+   Luxury Swiper Slider Design
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
+
+.tbs-root {
+  position: relative;
+  width: 100%;
+  padding: 5rem 2rem 6rem;
+  background: linear-gradient(135deg, #f8f4ed 0%, #fdfaf5 50%, #fffdf9 100%);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Ambient Glow */
+.tbs-ambient {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 800px;
+  height: 600px;
+  background: radial-gradient(
+    circle,
+    rgba(218, 165, 32, 0.07) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Grain Texture */
+.tbs-grain {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
+  opacity: 0.3;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.tbs-container {
+  position: relative;
+  z-index: 2;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+/* ── Header Section ── */
+.tbs-header {
+  text-align: center;
+  margin-bottom: 3.5rem;
+}
+
+.tbs-eyebrow-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.tbs-eyeline {
+  display: block;
+  width: 40px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #daa520, transparent);
+  opacity: 0.7;
+}
+
+.tbs-eyebrow {
+  font-family: "Goldman", system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: #8b6914;
+  margin: 0;
+}
+
+.tbs-title {
+  font-family: "Goldman", system-ui, sans-serif;
+  font-size: clamp(1.9rem, 4vw, 2.9rem);
+  font-weight: 400;
+  color: #1a1a1a;
+  margin: 0 0 1rem;
+  line-height: 1.1;
+}
+
+.tbs-title em {
+  font-style: italic;
+  color: #8b6914;
+}
+
+.tbs-subtitle {
+  font-family: "Goldman", system-ui, sans-serif;
+  font-size: 0.87rem;
+  font-weight: 500;
+  line-height: 1.8;
+  letter-spacing: 0.025em;
+  color: #444444;
+  max-width: 580px;
+  margin: 0 auto;
+}
+
+.tbs-title-decoration {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.tbs-deco-diamond {
+  width: 6px;
+  height: 6px;
+  background: #daa520;
+  transform: rotate(45deg);
+  opacity: 0.6;
+}
+
+.tbs-deco-line {
+  width: 50px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #daa520, transparent);
+}
+
+/* ── Slider Wrapper ── */
+.tbs-slider-wrapper {
+  position: relative;
+  padding: 0 2rem;
+}
+
+/* Navigation Buttons */
+.tbs-nav-buttons {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 10;
+  padding: 0 -1rem;
+}
+
+.tbs-nav-prev,
+.tbs-nav-next {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: white;
+  border: 1px solid rgba(184, 134, 11, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.tbs-nav-prev:hover,
+.tbs-nav-next:hover {
+  background: #daa520;
+  border-color: #daa520;
+  transform: scale(1.1);
+  box-shadow: 0 8px 20px rgba(218, 165, 32, 0.2);
+}
+
+.tbs-nav-prev:hover svg,
+.tbs-nav-next:hover svg {
+  color: white;
+}
+
+.tbs-nav-prev svg,
+.tbs-nav-next svg {
+  width: 20px;
+  height: 20px;
+  color: #8b6914;
+  transition: all 0.3s;
+}
+
+/* ── Card Design ── */
+.tbs-card {
+  height: 100%;
+  padding: 0.5rem;
+}
+
+.tbs-card-inner {
+  position: relative;
+  background: white;
+  border: 1px solid rgba(184, 134, 11, 0.12);
+  border-radius: 20px;
+  padding: 2rem 1.5rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: all 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+.tbs-card-inner:hover {
+  transform: translateY(-8px);
+  border-color: rgba(184, 134, 11, 0.3);
+  box-shadow: 0 22px 40px rgba(184, 134, 11, 0.12);
+}
+
+/* Card Glow Effect */
+.tbs-card-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(218, 165, 32, 0.06),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.45s;
+  pointer-events: none;
+}
+
+.tbs-card-inner:hover .tbs-card-glow {
+  opacity: 1;
+}
+
+/* Card Shimmer */
+.tbs-card-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 40%,
+    rgba(218, 165, 32, 0.05) 50%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+  transition: transform 0.7s ease;
+  pointer-events: none;
+}
+
+.tbs-card-inner:hover .tbs-card-shimmer {
+  transform: translateX(100%);
+}
+
+/* Card Bottom Bar */
+.tbs-card-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 0;
+  background: linear-gradient(90deg, #daa520, #f0c040);
+  transition: width 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.tbs-card-inner:hover .tbs-card-bar {
+  width: 100%;
+}
+
+/* Icon */
+.tbs-icon-wrap {
+  width: 70px;
+  height: 70px;
+  border-radius: 20px;
+  background: rgba(218, 165, 32, 0.08);
+  border: 1px solid rgba(218, 165, 32, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  transition: all 0.35s;
+}
+
+.tbs-card-inner:hover .tbs-icon-wrap {
+  background: rgba(218, 165, 32, 0.15);
+  transform: scale(1.05) rotate(-3deg);
+  border-color: rgba(218, 165, 32, 0.4);
+}
+
+.tbs-icon-wrap svg {
+  width: 32px;
+  height: 32px;
+  color: #8b6914;
+  stroke-width: 1.5;
+}
+
+/* Card Text */
+.tbs-card-title {
+  font-family: "Goldman", system-ui, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 0.75rem;
+  transition: color 0.3s;
+}
+
+.tbs-card-inner:hover .tbs-card-title {
+  color: #8b6914;
+}
+
+.tbs-card-desc {
+  font-family: "Goldman", system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.6;
+  color: #666666;
+  margin: 0;
+}
+
+/* Pagination */
+.tbs-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 2.5rem;
+}
+
+.tbs-bullet {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(184, 134, 11, 0.3);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.tbs-bullet:hover {
+  background: rgba(184, 134, 11, 0.6);
+  transform: scale(1.2);
+}
+
+.tbs-bullet-active {
+  width: 28px;
+  border-radius: 4px;
+  background: #daa520;
+}
+
+/* ── RTL Support ── */
+[dir="rtl"] .tbs-eyebrow-wrapper {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .tbs-nav-prev svg,
+[dir="rtl"] .tbs-nav-next svg {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .tbs-card-bar {
+  left: auto;
+  right: 0;
+}
+
+[dir="rtl"] .tbs-card-shimmer {
+  background: linear-gradient(
+    -115deg,
+    transparent 40%,
+    rgba(218, 165, 32, 0.05) 50%,
+    transparent 60%
+  );
+}
+
+/* ── Responsive Design ── */
+@media (max-width: 1024px) {
+  .tbs-root {
+    padding: 4rem 1.5rem 5rem;
+  }
+
+  .tbs-slider-wrapper {
+    padding: 0 1.5rem;
+  }
+
+  .tbs-nav-prev,
+  .tbs-nav-next {
+    width: 40px;
+    height: 40px;
+  }
+
+  .tbs-nav-prev svg,
+  .tbs-nav-next svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .tbs-root {
+    padding: 3rem 1rem 4rem;
+  }
+
+  .tbs-eyeline {
+    width: 25px;
+  }
+
+  .tbs-eyebrow {
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+  }
+
+  .tbs-title {
+    font-size: 1.8rem;
+  }
+
+  .tbs-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .tbs-slider-wrapper {
+    padding: 0 1rem;
+  }
+
+  .tbs-nav-buttons {
+    display: none;
+  }
+
+  .tbs-card-inner {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .tbs-icon-wrap {
+    width: 55px;
+    height: 55px;
+  }
+
+  .tbs-icon-wrap svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .tbs-card-title {
+    font-size: 0.95rem;
+  }
+
+  .tbs-card-desc {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .tbs-pagination {
+    margin-top: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .tbs-eyeline {
+    width: 20px;
+  }
+
+  .tbs-eyebrow {
+    font-size: 0.55rem;
+  }
+
+  .tbs-title {
+    font-size: 1.5rem;
+  }
+
+  .tbs-subtitle {
+    font-size: 0.7rem;
+  }
+
+  .tbs-icon-wrap {
+    width: 48px;
+    height: 48px;
+  }
+
+  .tbs-icon-wrap svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .tbs-card-title {
+    font-size: 0.85rem;
+  }
+
+  .tbs-card-desc {
+    font-size: 0.65rem;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .tbs-card-inner,
+  .tbs-icon-wrap,
+  .tbs-nav-prev,
+  .tbs-nav-next,
+  .tbs-card-shimmer,
+  .tbs-card-bar {
+    transition: none;
+    animation: none;
+  }
+
+  .tbs-card-inner:hover {
+    transform: none;
+  }
+
+  .swiper-autoplay {
+    animation: none;
+  }
+}

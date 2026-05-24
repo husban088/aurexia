@@ -14,6 +14,12 @@ type ProfileData = {
   updated_at: string;
 };
 
+// Type for Supabase response
+type SupabaseResponse<T> = {
+  data: T | null;
+  error: any;
+};
+
 const profileTranslations = {
   member: { en: "Member", ar: "عضو", de: "Mitglied" },
   status: { en: "Status", ar: "الحالة", de: "Status" },
@@ -127,14 +133,12 @@ const getT = (
 ): string =>
   profileTranslations[key]?.[lang] || profileTranslations[key]?.en || key;
 
-// ── Module-level profile cache — survives SPA navigation ──────────────────────
+// ── Module-level profile cache — survives SPA navigation ──
 let _cachedProfile: ProfileData | null = null;
 let _cacheTs = 0;
 const PROFILE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// ── Wrap any promise with a hard timeout ──────────────────────────────────────
-// Prevents Supabase calls from hanging forever when tab is in background
-// or network is slow. On timeout, the catch block runs immediately.
+// ── Wrap any promise with a hard timeout ──
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
@@ -144,15 +148,29 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+// ── Type-safe Supabase fetch helper ──
+async function fetchWithTimeout<T>(
+  promise: Promise<{ data: T | null; error: any }>,
+  ms: number,
+): Promise<{ data: T | null; error: any }> {
+  try {
+    return await withTimeout(promise, ms);
+  } catch (error) {
+    return { data: null, error };
+  }
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const { language, isRTLMode } = useLanguage();
-  const lang = language;
+  const lang = language as "en" | "ar" | "de";
 
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<ProfileData | null>(
+    () => _cachedProfile,
+  );
+  const [loading, setLoading] = useState(!_cachedProfile);
   const [activeTab, setActiveTab] = useState<"info" | "security">("info");
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(_cachedProfile?.username || "");
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState<{
     type: "error" | "success";
@@ -165,7 +183,6 @@ export default function ProfilePage() {
   const [passLoading, setPassLoading] = useState(false);
   const [signOutLoading, setSignOutLoading] = useState(false);
 
-  // Tracks if the component is still mounted — prevents setState after unmount
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
@@ -195,9 +212,7 @@ export default function ProfilePage() {
     setLoading(false);
   }, []);
 
-  // ── Main profile loader ────────────────────────────────────────────────────
-  // Every Supabase call has an individual timeout via withTimeout() so if
-  // network is slow or the tab was in the background, calls never hang.
+  // ── Main profile loader ──
   const loadProfile = useCallback(
     async (force = false) => {
       if (!mountedRef.current) return;
@@ -215,54 +230,62 @@ export default function ProfilePage() {
       if (!_cachedProfile && mountedRef.current) setLoading(true);
 
       try {
-        // getUser() validates the JWT server-side — 7s timeout
-        const {
-          data: { user },
-          error: userError,
-        } = await withTimeout(supabase.auth.getUser(), 7000);
+        // Get user with timeout
+        const { data: userData, error: userError } = await fetchWithTimeout<{
+          user: any;
+        }>(supabase.auth.getUser(), 7000);
 
         if (!mountedRef.current) return;
 
-        if (userError || !user) {
+        if (userError || !userData?.user) {
           setLoading(false);
           router.replace("/signin?redirectTo=/profile");
           return;
         }
 
-        // Fetch profile row — 8s timeout
-        let { data: profileData, error: profileError } = await withTimeout(
-          supabase.from("profiles").select("*").eq("id", user.id).single(),
-          8000,
-        );
+        const user = userData.user;
+
+        // Fetch profile row with timeout
+        const { data: profileData, error: profileError } =
+          await fetchWithTimeout<any>(
+            supabase.from("profiles").select("*").eq("id", user.id).single(),
+            8000,
+          );
 
         if (!mountedRef.current) return;
 
+        let finalProfile: ProfileData | null = null;
+
         if (profileError || !profileData) {
-          // Profile row missing — create it (8s timeout)
+          // Profile missing — try to create it
           try {
-            const { data: newProfile, error: insertError } = await withTimeout(
-              supabase
-                .from("profiles")
-                .insert({
-                  id: user.id,
-                  username:
-                    user.user_metadata?.username ||
-                    user.email?.split("@")[0] ||
-                    "user",
-                  email: user.email || "",
-                })
-                .select()
-                .single(),
-              8000,
-            );
-            if (!insertError && newProfile) profileData = newProfile;
+            const { data: newProfile, error: insertError } =
+              await fetchWithTimeout<any>(
+                supabase
+                  .from("profiles")
+                  .insert({
+                    id: user.id,
+                    username:
+                      user.user_metadata?.username ||
+                      user.email?.split("@")[0] ||
+                      "user",
+                    email: user.email || "",
+                  })
+                  .select()
+                  .single(),
+                8000,
+              );
+
+            if (!insertError && newProfile) {
+              finalProfile = newProfile as ProfileData;
+            }
           } catch {
-            /* insert failed — use local fallback below */
+            // Insert failed
           }
 
-          // Local fallback so the page still shows even if DB insert fails
-          if (!profileData) {
-            profileData = {
+          // Fallback if still no profile
+          if (!finalProfile) {
+            finalProfile = {
               id: user.id,
               username:
                 user.user_metadata?.username ||
@@ -274,13 +297,16 @@ export default function ProfilePage() {
                 user.updated_at || user.created_at || new Date().toISOString(),
             };
           }
+        } else {
+          finalProfile = profileData as ProfileData;
         }
 
-        _cachedProfile = profileData;
-        _cacheTs = Date.now();
-        if (mountedRef.current) applyProfile(profileData);
+        if (finalProfile) {
+          _cachedProfile = finalProfile;
+          _cacheTs = Date.now();
+          if (mountedRef.current) applyProfile(finalProfile);
+        }
       } catch {
-        // Timeout or network error — show stale cache if available
         if (!mountedRef.current) return;
         if (_cachedProfile) {
           applyProfile(_cachedProfile);
@@ -292,37 +318,31 @@ export default function ProfilePage() {
     [router, applyProfile],
   );
 
-  // ── On mount: serve cache instantly, then refresh in background ───────────
+  // ── On mount: immediate render ──
   useEffect(() => {
-    if (_cachedProfile && Date.now() - _cacheTs < PROFILE_CACHE_TTL) {
-      // Show cache immediately — no spinner
+    // Show cached profile instantly
+    if (_cachedProfile) {
       applyProfile(_cachedProfile);
-      // Still refresh silently in background so data stays fresh
+      // Refresh in background
       loadProfile(true);
     } else {
       loadProfile(false);
     }
 
-    // Reconnect after going offline
     const handleOnline = () => {
       if (mountedRef.current) loadProfile(true);
     };
 
-    // Tab becomes visible again (e.g. user switched tabs and came back)
-    // Show cache instantly, refresh silently — buttons should never be stuck
     const handleVisibility = () => {
-      if (document.visibilityState !== "visible") return;
-      if (!mountedRef.current) return;
-
-      if (_cachedProfile) {
-        // Show existing data immediately — no loading spinner
-        applyProfile(_cachedProfile);
-        // Refresh silently if cache is stale
-        if (Date.now() - _cacheTs > PROFILE_CACHE_TTL) {
+      if (document.visibilityState === "visible" && mountedRef.current) {
+        if (_cachedProfile) {
+          applyProfile(_cachedProfile);
+          if (Date.now() - _cacheTs > PROFILE_CACHE_TTL) {
+            loadProfile(true);
+          }
+        } else {
           loadProfile(true);
         }
-      } else {
-        loadProfile(true);
       }
     };
 
@@ -334,8 +354,7 @@ export default function ProfilePage() {
     };
   }, [loadProfile, applyProfile]);
 
-  // ── Save username ─────────────────────────────────────────────────────────
-  // 10s timeout on each DB call — button can never be stuck forever
+  // ── Save username ──
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || saving) return;
@@ -346,11 +365,12 @@ export default function ProfilePage() {
       const trimmed = username.trim();
       if (!trimmed) {
         setAlert({ type: "error", msg: getT("usernameEmpty", lang) });
+        setSaving(false);
         return;
       }
 
-      // Check if username already taken (8s timeout)
-      const { data: existing } = await withTimeout(
+      // Check if username already taken
+      const { data: existing, error: checkError } = await fetchWithTimeout<any>(
         supabase
           .from("profiles")
           .select("id")
@@ -360,13 +380,14 @@ export default function ProfilePage() {
         8000,
       );
 
-      if (existing) {
+      if (!checkError && existing) {
         setAlert({ type: "error", msg: getT("usernameTaken", lang) });
+        setSaving(false);
         return;
       }
 
-      // Update username (8s timeout)
-      const { data: updated, error } = await withTimeout(
+      // Update username
+      const { data: updated, error: updateError } = await fetchWithTimeout<any>(
         supabase
           .from("profiles")
           .update({ username: trimmed })
@@ -376,31 +397,25 @@ export default function ProfilePage() {
         8000,
       );
 
-      if (error) throw error;
+      if (updateError || !updated) throw new Error("Update failed");
 
-      _cachedProfile = updated;
+      _cachedProfile = updated as ProfileData;
       _cacheTs = Date.now();
       if (mountedRef.current) {
-        setProfile(updated);
+        setProfile(updated as ProfileData);
         setUsername(updated.username);
         setAlert({ type: "success", msg: getT("updateSuccess", lang) });
       }
-    } catch (err: any) {
+    } catch {
       if (mountedRef.current) {
-        setAlert({
-          type: "error",
-          msg: err?.message?.includes("timeout")
-            ? getT("updateFailed", lang)
-            : getT("updateFailed", lang),
-        });
+        setAlert({ type: "error", msg: getT("updateFailed", lang) });
       }
     } finally {
       if (mountedRef.current) setSaving(false);
     }
   };
 
-  // ── Change password ────────────────────────────────────────────────────────
-  // 10s timeout — button never hangs
+  // ── Change password ──
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passLoading) return;
@@ -410,15 +425,16 @@ export default function ProfilePage() {
     try {
       if (!newPass || newPass.length < 6) {
         setAlert({ type: "error", msg: getT("passwordShort", lang) });
+        setPassLoading(false);
         return;
       }
       if (newPass !== confirmPass) {
         setAlert({ type: "error", msg: getT("passwordMismatch", lang) });
+        setPassLoading(false);
         return;
       }
 
-      // updateUser with 10s timeout
-      const { error } = await withTimeout(
+      const { error } = await fetchWithTimeout<any>(
         supabase.auth.updateUser({ password: newPass }),
         10000,
       );
@@ -430,45 +446,34 @@ export default function ProfilePage() {
         setConfirmPass("");
         setAlert({ type: "success", msg: getT("passwordChangeSuccess", lang) });
       }
-    } catch (err: any) {
+    } catch {
       if (mountedRef.current) {
-        setAlert({
-          type: "error",
-          msg: err?.message || getT("passwordChangeFailed", lang),
-        });
+        setAlert({ type: "error", msg: getT("passwordChangeFailed", lang) });
       }
     } finally {
       if (mountedRef.current) setPassLoading(false);
     }
   };
 
-  // ── Sign out ───────────────────────────────────────────────────────────────
-  // Clear cache, signOut with 5s timeout, then redirect.
-  // Redirect always happens — even if signOut times out or throws.
+  // ── Sign out ──
   const handleSignOut = async () => {
     if (signOutLoading) return;
     setSignOutLoading(true);
 
-    // Clear local cache immediately
     _cachedProfile = null;
     _cacheTs = 0;
 
     try {
-      // Sign out with 5s timeout — if it hangs, we still redirect
-      await withTimeout(supabase.auth.signOut(), 5000);
+      await fetchWithTimeout(supabase.auth.signOut(), 5000);
     } catch {
-      // Ignore timeout / network errors — redirect anyway
-    } finally {
-      // Always redirect — never leave user stuck on profile
-      router.replace("/signin");
-      // Note: setSignOutLoading(false) is intentionally omitted here.
-      // The component unmounts immediately on redirect so there's no
-      // need to reset state (avoids "setState on unmounted component" warning).
+      // Ignore
     }
+
+    router.replace("/signin");
   };
 
-  // ── Loading skeleton ──────────────────────────────────────────────────────
-  if (loading) {
+  // ── Show loading skeleton (only on first load, not on refresh) ──
+  if (loading && !_cachedProfile) {
     return (
       <div className="pf-loading" dir={isRTLMode ? "rtl" : "ltr"}>
         <div className="pf-loading-ring">
