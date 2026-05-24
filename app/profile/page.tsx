@@ -139,9 +139,9 @@ let _cacheTs = 0;
 const PROFILE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // ── Wrap any promise with a hard timeout ──
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
   return Promise.race([
-    promise,
+    Promise.resolve(promise),
     new Promise<T>((_, reject) =>
       setTimeout(() => reject(new Error(`timeout:${ms}ms`)), ms),
     ),
@@ -150,11 +150,11 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 
 // ── Type-safe Supabase fetch helper ──
 async function fetchWithTimeout<T>(
-  promise: Promise<{ data: T | null; error: any }>,
+  queryOrPromise: PromiseLike<{ data: T | null; error: any }>,
   ms: number,
 ): Promise<{ data: T | null; error: any }> {
   try {
-    return await withTimeout(promise, ms);
+    return await withTimeout(Promise.resolve(queryOrPromise), ms);
   } catch (error) {
     return { data: null, error };
   }
@@ -464,7 +464,12 @@ export default function ProfilePage() {
     _cacheTs = 0;
 
     try {
-      await fetchWithTimeout(supabase.auth.signOut(), 5000);
+      await Promise.race([
+        supabase.auth.signOut(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("timeout:5000ms")), 5000),
+        ),
+      ]);
     } catch {
       // Ignore
     }
