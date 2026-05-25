@@ -54,32 +54,6 @@
   margin-bottom: 3.5rem;
 }
 
-.tbs-eyebrow-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.tbs-eyeline {
-  display: block;
-  width: 40px;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, #daa520, transparent);
-  opacity: 0.7;
-}
-
-.tbs-eyebrow {
-  font-family: "Goldman", system-ui, sans-serif;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.35em;
-  text-transform: uppercase;
-  color: #8b6914;
-  margin: 0;
-}
-
 .tbs-title {
   font-family: "Goldman", system-ui, sans-serif;
   font-size: clamp(1.9rem, 4vw, 2.9rem);
@@ -92,6 +66,7 @@
 .tbs-title em {
   font-style: italic;
   color: #8b6914;
+  font-weight: 600;
 }
 
 .tbs-subtitle {
@@ -103,28 +78,6 @@
   color: #444444;
   max-width: 580px;
   margin: 0 auto;
-}
-
-.tbs-title-decoration {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
-}
-
-.tbs-deco-diamond {
-  width: 6px;
-  height: 6px;
-  background: #daa520;
-  transform: rotate(45deg);
-  opacity: 0.6;
-}
-
-.tbs-deco-line {
-  width: 50px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, #daa520, transparent);
 }
 
 /* ── Slider Wrapper ── */

@@ -17,18 +17,18 @@ import "swiper/css/pagination";
 const t = {
   title: {
     en: "Why Choose",
-    ar: "معيار",
-    de: "Der Maßstab für",
+    ar: "لماذا تختار",
+    de: "Warum wählen",
   },
   titleEm: {
     en: "Tech4U",
-    ar: "الفخامة الحقيقية",
-    de: "Wahren Luxus",
+    ar: "Tech4U",
+    de: "Tech4U",
   },
   subtitle: {
-    en: "At TECH4U, we carefully curate high-quality products that combine luxury, functionality, and modern design. From stylish watches and automotive accessories to smart tech and elegant home décor, every product is selected to elevate your lifestyle.",
-    ar: "في TECH4U، نختار بعناية منتجات عالية الجودة تجمع بين الفخامة والوظائف والتصميم الحديث. من الساعات الأنيقة وإكسسوارات السيارات إلى التكنولوجيا الذكية وديكور المنزل الأنيق، يتم اختيار كل منتج ليرتقي بنمط حياتك.",
-    de: "Bei TECH4U kuratieren wir sorgfältig hochwertige Produkte, die Luxus, Funktionalität und modernes Design vereinen. Von stilvollen Uhren und Automotive-Zubehör bis hin zu smarter Technologie und eleganter Wohndekoration – jedes Produkt wird ausgewählt, um Ihren Lebensstil zu bereichern.",
+    en: "Premium products, verified authenticity, and world-class service — everything curated to elevate your lifestyle.",
+    ar: "منتجات فاخرة، أصالة موثّقة، وخدمة عالمية — كل شيء مختار لترتقي بأسلوب حياتك.",
+    de: "Premium-Produkte, geprüfte Echtheit und erstklassiger Service — alles kuratiert, um Ihren Lebensstil zu verbessern.",
   },
   cards: [
     {
@@ -183,7 +183,7 @@ export default function WhyChooseUs() {
       {/* Ambient glow */}
       <div className="wcu-ambient" aria-hidden="true" />
 
-      {/* Header - Same style as Featured Products */}
+      {/* Header */}
       <div className="wcu-header">
         <h2 className="wcu-title">
           {t.title[lang]} <em>{t.titleEm[lang]}</em>

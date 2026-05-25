@@ -15,25 +15,20 @@ import "swiper/css/pagination";
    TRANSLATIONS
 ═══════════════════════════════════════════ */
 const t = {
-  eyebrow: {
-    en: "Why Choose Tech4U",
-    ar: "لماذا تختار تيك4يو",
-    de: "Warum Tech4U wählen",
-  },
   title: {
-    en: "Experience",
-    ar: "تجربة",
-    de: "Erlebnis",
+    en: "Shop with",
+    ar: "تسوّق مع",
+    de: "Einkaufen mit",
   },
   titleEm: {
-    en: "Luxury Like Never Before",
-    ar: "فاخرة لا مثيل لها",
-    de: "Luxus wie nie zuvor",
+    en: "Confidence",
+    ar: "الثقة",
+    de: "Vertrauen",
   },
   subtitle: {
-    en: "We redefine excellence with premium services tailored for discerning collectors worldwide.",
-    ar: "نعيد تعريف التميز بخدمات متميزة مصممة لهواة الجمع في جميع أنحاء العالم.",
-    de: "Wir definieren Exzellenz neu mit Premium-Services, die für anspruchsvolle Sammler weltweit maßgeschneidert sind.",
+    en: "Every order is protected, authenticated, and backed by our world-class guarantee.",
+    ar: "كل طلب محمي وموثّق ومدعوم بضمان عالمي المستوى.",
+    de: "Jede Bestellung ist geschützt, authentifiziert und durch unsere erstklassige Garantie abgesichert.",
   },
   badges: [
     {
@@ -209,23 +204,10 @@ export default function TrustBadgesSection() {
       <div className="tbs-container">
         {/* Header Section */}
         <div className="tbs-header">
-          <div className="tbs-eyebrow-wrapper">
-            <span className="tbs-eyeline" />
-            <p className="tbs-eyebrow">{t.eyebrow[lang]}</p>
-            <span className="tbs-eyeline" />
-          </div>
-
           <h2 className="tbs-title">
             {t.title[lang]} <em>{t.titleEm[lang]}</em>
           </h2>
-
           <p className="tbs-subtitle">{t.subtitle[lang]}</p>
-
-          <div className="tbs-title-decoration" aria-hidden="true">
-            <span className="tbs-deco-diamond" />
-            <span className="tbs-deco-line" />
-            <span className="tbs-deco-diamond" />
-          </div>
         </div>
 
         {/* Swiper Slider */}
