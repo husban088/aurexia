@@ -1548,6 +1548,16 @@
   transform: translateY(0) !important;
 }
 
+/* Video section should ALWAYS be visible - never hidden by reveal/scroll animation */
+.pd-video-section,
+.pd-video-section *,
+.pd-video-section .pd-reveal,
+.pd-video-section [class*="reveal"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transition: none !important;
+}
+
 .pd-price {
   font-size: 1.4rem;
 }

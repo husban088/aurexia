@@ -349,11 +349,8 @@ function ExploreInner() {
               spaceBetween: 20,
               centeredSlides: false,
               breakpoints: {
-                480: { slidesPerView: 1.3, spaceBetween: 20 },
-                640: { slidesPerView: 1.6, spaceBetween: 24 },
-                900: { slidesPerView: 2.2, spaceBetween: 28 },
-                1200: { slidesPerView: 3, spaceBetween: 32 },
-                1440: { slidesPerView: 3, spaceBetween: 36 },
+                768: { slidesPerView: 2, spaceBetween: 24 },
+                1024: { slidesPerView: 3, spaceBetween: 32 },
               },
               grabCursor: true,
               touchRatio: 1,

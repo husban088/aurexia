@@ -24,6 +24,39 @@ const _productCache = new Map<string, any>();
 const _inFlight = new Map<string, Promise<any>>();
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── SESSION STORAGE CACHE ───────────────────────────────────────────────────
+// Survives tab switches, wifi drops, laptop sleep — anything short of a full page reload.
+// We store a compact version (no heavy nested data bloat) under a versioned key.
+const SESSION_CACHE_VERSION = "t4u_pd_v1";
+
+function sessionGet(key: string): any | null {
+  try {
+    const raw = sessionStorage.getItem(`${SESSION_CACHE_VERSION}:${key}`);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function sessionSet(key: string, data: any): void {
+  try {
+    sessionStorage.setItem(
+      `${SESSION_CACHE_VERSION}:${key}`,
+      JSON.stringify(data),
+    );
+  } catch {
+    // sessionStorage full or unavailable — silently ignore
+  }
+}
+
+function sessionDel(key: string): void {
+  try {
+    sessionStorage.removeItem(`${SESSION_CACHE_VERSION}:${key}`);
+  } catch {}
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -106,6 +139,7 @@ async function fetchById(id: string): Promise<any | null> {
         const result = processProductData(data);
         _productCache.set(id, result);
         _productCache.set(slugify(result.name), result);
+        sessionSet(id, result);
         return result;
       }
 
@@ -161,6 +195,8 @@ async function fetchBySlugSearch(slug: string): Promise<any | null> {
       _productCache.set(slug, result);
       _productCache.set(matched.id, result);
       _productCache.set(slugify(matched.name), result);
+      sessionSet(slug, result);
+      sessionSet(matched.id, result);
       return result;
     } catch {
       if (attempt < 2) {
@@ -173,10 +209,17 @@ async function fetchBySlugSearch(slug: string): Promise<any | null> {
 
 /* ── Unified cached fetch — never caches null results or failed promises ── */
 async function fetchProductCached(key: string): Promise<any | null> {
-  // Return from cache immediately if available
+  // 1. Return from in-memory cache immediately if available
   if (_productCache.has(key)) return _productCache.get(key)!;
 
-  // If already in-flight, wait for that same promise
+  // 2. Check sessionStorage (survives tab switches and laptop sleep)
+  const sessionHit = sessionGet(key);
+  if (sessionHit) {
+    _productCache.set(key, sessionHit); // re-warm in-memory cache
+    return sessionHit;
+  }
+
+  // 3. If already in-flight, wait for that same promise
   if (_inFlight.has(key)) return _inFlight.get(key)!;
 
   const { id, slug } = extractIdFromSlug(key);
@@ -193,6 +236,7 @@ async function fetchProductCached(key: string): Promise<any | null> {
 function _invalidateProductCache(key: string) {
   _productCache.delete(key);
   _inFlight.delete(key);
+  sessionDel(key);
 }
 
 /* ═══════════════════════════════════════════
@@ -463,18 +507,32 @@ export default function ProductDetail() {
   const { id: urlId, slug: urlSlug } = extractIdFromSlug(rawKey);
   const cacheKey = urlId || rawKey;
 
-  const [product, setProduct] = useState<Product | null>(() =>
-    cacheKey ? (_productCache.get(cacheKey) ?? null) : null,
-  );
+  const [product, setProduct] = useState<Product | null>(() => {
+    if (!cacheKey) return null;
+    const memHit = _productCache.get(cacheKey);
+    if (memHit) return memHit;
+    const sessHit = sessionGet(cacheKey);
+    if (sessHit) {
+      _productCache.set(cacheKey, sessHit); // re-warm in-memory cache
+      return sessHit;
+    }
+    return null;
+  });
   const [variants, setVariants] = useState<VariantWithDetails[]>([]);
   const [variantImagesMap, setVariantImagesMap] = useState<VariantImagesMap>(
     {},
   );
   const [selectedVariant, setSelectedVariant] =
     useState<VariantWithDetails | null>(null);
-  const [loading, setLoading] = useState(() =>
-    cacheKey ? !_productCache.has(cacheKey) : true,
-  );
+  const [loading, setLoading] = useState(() => {
+    if (!cacheKey) return true;
+    if (_productCache.has(cacheKey)) return false;
+    try {
+      if (sessionStorage.getItem(`${SESSION_CACHE_VERSION}:${cacheKey}`))
+        return false;
+    } catch {}
+    return true;
+  });
   const [notFound, setNotFound] = useState(false);
   const [qty, setQty] = useState(1);
   const [wishlist, setWishlist] = useState(false);
@@ -568,8 +626,9 @@ export default function ProductDetail() {
   // ── If cache already had the product, hydrate instantly ──
   useEffect(() => {
     if (!cacheKey) return;
-    const cached = _productCache.get(cacheKey);
+    const cached = _productCache.get(cacheKey) || sessionGet(cacheKey);
     if (cached) {
+      if (!_productCache.has(cacheKey)) _productCache.set(cacheKey, cached);
       hydrateFromData(cached);
       setLoading(false);
       setNotFound(false);
@@ -672,6 +731,21 @@ export default function ProductDetail() {
         setNotFound(false);
         return;
       }
+      // Check sessionStorage before hitting network
+      const sessionHit = sessionGet(cacheKey);
+      if (sessionHit) {
+        _productCache.set(cacheKey, sessionHit);
+        hydrateFromData(sessionHit);
+        setLoading(false);
+        setNotFound(false);
+        // Silent refresh now that we're back online
+        fetchProductCached(cacheKey)
+          .then((data) => {
+            if (data) hydrateFromData(data);
+          })
+          .catch(() => {});
+        return;
+      }
       if (notFound || (!product && !loading)) {
         _productCache.delete(cacheKey);
         _inFlight.delete(cacheKey);
@@ -706,6 +780,7 @@ export default function ProductDetail() {
         window.history.replaceState({}, "", window.location.pathname);
       }
 
+      // ── In-memory cache hit ──
       if (!forceRefresh && _productCache.has(cacheKey)) {
         hydrateFromData(_productCache.get(cacheKey));
         setLoading(false);
@@ -713,28 +788,70 @@ export default function ProductDetail() {
         return;
       }
 
-      setProduct((currentProduct) => {
-        if (currentProduct && !forceRefresh) {
-          // Product already visible — silent background refresh
+      // ── SessionStorage hit (survives tab switch / laptop sleep / wifi drop) ──
+      if (!forceRefresh) {
+        const sessionHit = sessionGet(cacheKey);
+        if (sessionHit) {
+          _productCache.set(cacheKey, sessionHit);
+          hydrateFromData(sessionHit);
+          setLoading(false);
+          setNotFound(false);
+          // Silent background refresh to keep data fresh
           fetchProductCached(cacheKey)
             .then((data) => {
               if (data) hydrateFromData(data);
             })
             .catch(() => {});
-          return currentProduct;
+          return;
         }
+      }
+
+      // ── No cache — check if product already in React state ──
+      setProduct((currentProduct) => {
+        if (currentProduct && !forceRefresh) {
+          // Product already visible — NEVER wipe it. Silent background refresh only.
+          fetchProductCached(cacheKey)
+            .then((data) => {
+              if (data) hydrateFromData(data);
+            })
+            .catch(() => {});
+          return currentProduct; // keep showing existing product
+        }
+        // Product not in state — fetch it
         setLoading(true);
         setNotFound(false);
-        fetchProductCached(cacheKey).then((data) => {
-          if (data) {
-            hydrateFromData(data);
-            setLoading(false);
-            setNotFound(false);
-          } else {
-            setLoading(false);
-            setNotFound(true);
-          }
-        });
+        fetchProductCached(cacheKey)
+          .then((data) => {
+            if (data) {
+              hydrateFromData(data);
+              setLoading(false);
+              setNotFound(false);
+            } else {
+              // Last resort: check sessionStorage one more time before showing error
+              const fallback = sessionGet(cacheKey);
+              if (fallback) {
+                _productCache.set(cacheKey, fallback);
+                hydrateFromData(fallback);
+                setLoading(false);
+                setNotFound(false);
+              } else {
+                setLoading(false);
+                setNotFound(true);
+              }
+            }
+          })
+          .catch(() => {
+            const fallback = sessionGet(cacheKey);
+            if (fallback) {
+              _productCache.set(cacheKey, fallback);
+              hydrateFromData(fallback);
+              setLoading(false);
+              setNotFound(false);
+            } else {
+              setLoading(false);
+              setNotFound(true);
+            }
+          });
         return null;
       });
     }
@@ -894,6 +1011,8 @@ export default function ProductDetail() {
   }, [(product as any)?.id]);
 
   // ── IntersectionObserver for reveal animations ──
+  // NOTE: Video section (.pd-video-section) is explicitly excluded —
+  // it must always stay visible regardless of scroll position.
   useEffect(() => {
     const els = document.querySelectorAll(".pd-reveal, .rp-reveal");
     const obs = new IntersectionObserver(
@@ -903,7 +1022,12 @@ export default function ProductDetail() {
         ),
       { threshold: 0.12 },
     );
-    els.forEach((el) => obs.observe(el));
+    els.forEach((el) => {
+      // Never observe video section or anything inside it
+      if (!el.closest(".pd-video-section")) {
+        obs.observe(el);
+      }
+    });
     return () => obs.disconnect();
   }, [loading, product]);
 
@@ -1606,11 +1730,16 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {/* ── VIDEO SECTION ── */}
-        <ProductVideoSection
-          videoUrl={(product as any)?.video_url || null}
-          productName={product.name}
-        />
+        {/* ── VIDEO SECTION ── always visible, never hidden by scroll/reveal animations ── */}
+        <div
+          className="pd-video-section"
+          style={{ opacity: 1, transform: "none", visibility: "visible" }}
+        >
+          <ProductVideoSection
+            videoUrl={(product as any)?.video_url || null}
+            productName={product.name}
+          />
+        </div>
 
         {/* ── TABS SECTION ── */}
         <div className="pd-tabs-section">
