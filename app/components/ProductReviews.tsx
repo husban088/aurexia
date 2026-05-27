@@ -601,6 +601,16 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       <div className="pr-bg-orb pr-bg-orb--2" />
       <div className="pr-bg-orb pr-bg-orb--3" />
       <div className="pr-bg-grid" />
+
+      {/* Decorative bg lines — matching HomeReviews */}
+      <div className="pr-bg-lines">
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+
       <div className="pr-sparkle pr-sparkle--1" />
       <div className="pr-sparkle pr-sparkle--2" />
       <div className="pr-sparkle pr-sparkle--3" />
@@ -636,7 +646,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                   <svg width="11" height="11" viewBox="0 0 24 24">
                     <polygon
                       points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
-                      fill="#d4af37"
+                      fill="#0ff"
                     />
                   </svg>
                   <div className="pr-bar-track">

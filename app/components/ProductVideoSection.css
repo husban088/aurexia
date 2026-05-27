@@ -8,13 +8,26 @@
 @import url("https://fonts.googleapis.com/css2?family=Russo+One&display=swap");
 
 :root {
-  --pvs-gold: #daa520;
-  --pvs-gold-dark: #b8860b;
-  --pvs-gold-light: #f0c040;
-  --pvs-gold-glow: rgba(218, 165, 32, 0.15);
-  --pvs-dark: #1a1a1a;
-  --pvs-glass: rgba(255, 255, 255, 0.03);
-  --pvs-glass-border: rgba(218, 165, 32, 0.15);
+  /* ── Aqua accent (matching Explore Aurexia) ── */
+  --pvs-aqua: #0ff;
+  --pvs-aqua-dark: #00cccc;
+  --pvs-aqua-deep: #0088aa;
+  --pvs-aqua-light: #66ffff;
+  --pvs-aqua-dim: rgba(0, 255, 255, 0.12);
+  --pvs-aqua-glow: rgba(0, 255, 255, 0.25);
+
+  /* ── Kept for any legacy references ── */
+  --pvs-gold: #0ff;
+  --pvs-gold-dark: #00cccc;
+  --pvs-gold-light: #66ffff;
+  --pvs-gold-glow: rgba(0, 255, 255, 0.15);
+
+  /* ── Dark background ── */
+  --pvs-dark: #e6f7ff;
+  --pvs-bg: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
+  --pvs-glass: rgba(0, 255, 255, 0.03);
+  --pvs-glass-border: rgba(0, 255, 255, 0.15);
+
   --pvs-serif: "Russo One", sans-serif;
   --pvs-sans: "Russo One", sans-serif;
   --pvs-ease: 0.6s cubic-bezier(0.22, 1, 0.36, 1);
@@ -29,6 +42,10 @@
   transform: translateY(40px);
   transition: all var(--pvs-ease);
   isolation: isolate;
+
+  /* ── Dark background matching Explore Aurexia ── */
+  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
+  padding: 3rem 0;
 }
 
 .pvs-root.visible {
@@ -41,20 +58,121 @@
   display: none;
 }
 
-/* ── Ambient Glow Behind Video ── */
-.pvs-ambient {
+/* ── Top radial glow — Aqua (matching ea-section::before) ── */
+.pvs-root::before {
+  content: "";
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: -40%;
+  left: -15%;
+  width: 130%;
+  height: 130%;
+  background: radial-gradient(
+    ellipse at 60% 30%,
+    rgba(0, 255, 255, 0.08) 0%,
+    rgba(0, 200, 255, 0.04) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Bottom corner glow — Aqua (matching ea-section::after) ── */
+.pvs-root::after {
+  content: "";
+  position: absolute;
+  bottom: -30%;
+  right: -10%;
   width: 80%;
   height: 80%;
   background: radial-gradient(
-    ellipse,
-    rgba(218, 165, 32, 0.08) 0%,
+    circle,
+    rgba(0, 255, 255, 0.06) 0%,
+    transparent 65%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Grain Texture (matching ea-grain) ── */
+.pvs-grain {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Bg Lines (matching ea-bg-lines) ── */
+.pvs-bg-lines {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pvs-bg-lines span {
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 255, 255, 0.08) 30%,
+    rgba(0, 255, 255, 0.08) 70%,
+    transparent 100%
+  );
+}
+
+/* ── Aqua Orbs (matching ea-aqua-orb) ── */
+.pvs-aqua-orb {
+  position: absolute;
+  bottom: -150px;
+  left: -150px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(
+    circle,
+    rgba(0, 255, 255, 0.08) 0%,
+    rgba(0, 200, 255, 0.03) 50%,
+    transparent 80%
+  );
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pvs-aqua-orb-right {
+  position: absolute;
+  top: -100px;
+  right: -100px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(
+    circle,
+    rgba(0, 255, 255, 0.06) 0%,
     transparent 70%
   );
-  filter: blur(60px);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Ambient Glow Behind Video — Aqua (matching ea-ambient) ── */
+.pvs-ambient {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 800px;
+  height: 600px;
+  background: radial-gradient(
+    circle,
+    rgba(0, 255, 255, 0.12) 0%,
+    rgba(0, 200, 255, 0.05) 40%,
+    transparent 80%
+  );
   pointer-events: none;
   z-index: 0;
   animation: pvs-ambient-pulse 8s ease-in-out infinite alternate;
@@ -63,11 +181,11 @@
 @keyframes pvs-ambient-pulse {
   0% {
     opacity: 0.4;
-    transform: translate(-50%, -50%) scale(0.95);
+    transform: translateX(-50%) scale(0.95);
   }
   100% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1.05);
+    transform: translateX(-50%) scale(1.05);
   }
 }
 
@@ -100,8 +218,8 @@
 .pvs-corner--tl {
   top: 0;
   left: 0;
-  border-top: 2px solid var(--pvs-gold);
-  border-left: 2px solid var(--pvs-gold);
+  border-top: 2px solid var(--pvs-aqua);
+  border-left: 2px solid var(--pvs-aqua);
   border-radius: 20px 0 0 0;
   transform: translate(-10px, -10px);
 }
@@ -113,8 +231,8 @@
 .pvs-corner--tr {
   top: 0;
   right: 0;
-  border-top: 2px solid var(--pvs-gold);
-  border-right: 2px solid var(--pvs-gold);
+  border-top: 2px solid var(--pvs-aqua);
+  border-right: 2px solid var(--pvs-aqua);
   border-radius: 0 20px 0 0;
   transform: translate(10px, -10px);
 }
@@ -126,8 +244,8 @@
 .pvs-corner--bl {
   bottom: 0;
   left: 0;
-  border-bottom: 2px solid var(--pvs-gold);
-  border-left: 2px solid var(--pvs-gold);
+  border-bottom: 2px solid var(--pvs-aqua);
+  border-left: 2px solid var(--pvs-aqua);
   border-radius: 0 0 0 20px;
   transform: translate(-10px, 10px);
 }
@@ -139,8 +257,8 @@
 .pvs-corner--br {
   bottom: 0;
   right: 0;
-  border-bottom: 2px solid var(--pvs-gold);
-  border-right: 2px solid var(--pvs-gold);
+  border-bottom: 2px solid var(--pvs-aqua);
+  border-right: 2px solid var(--pvs-aqua);
   border-radius: 0 0 20px 0;
   transform: translate(10px, 10px);
 }
@@ -174,11 +292,11 @@
 .pvs-ey-line {
   width: 40px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--pvs-gold), transparent);
+  background: linear-gradient(90deg, transparent, var(--pvs-aqua), transparent);
 }
 
 .pvs-ey-line--right {
-  background: linear-gradient(90deg, transparent, var(--pvs-gold), transparent);
+  background: linear-gradient(90deg, transparent, var(--pvs-aqua), transparent);
 }
 
 .pvs-ey-text {
@@ -187,20 +305,26 @@
   font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--pvs-gold);
+  color: var(--pvs-aqua);
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
 }
 
 .pvs-title {
   font-family: var(--pvs-serif);
   font-size: clamp(1.6rem, 4vw, 2.2rem);
   font-weight: 500;
-  color: var(--pvs-dark);
+  color: #e6f7ff;
   margin: 0 0 0.75rem;
+  text-shadow: 0 2px 10px rgba(0, 255, 255, 0.15);
 }
 
 .pvs-title em {
   font-style: italic;
-  color: var(--pvs-gold-dark);
+  background: linear-gradient(135deg, #0ff 0%, #00aaff 60%, #0ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
 }
 
 .pvs-subtitle {
@@ -210,14 +334,14 @@
   gap: 1rem;
   font-family: var(--pvs-sans);
   font-size: 0.7rem;
-  color: #888;
+  color: #bbd4e5;
   letter-spacing: 0.05em;
 }
 
 .pvs-sub-line {
   width: 30px;
   height: 1px;
-  background: rgba(218, 165, 32, 0.3);
+  background: rgba(0, 255, 255, 0.3);
 }
 
 /* ── Video Wrapper ── */
@@ -228,15 +352,15 @@
   overflow: hidden;
   background: #0a0a0a;
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(218, 165, 32, 0.2);
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(0, 255, 255, 0.2);
   transition: all 0.5s var(--pvs-ease);
 }
 
 .pvs-video-wrapper:hover {
   box-shadow:
-    0 30px 80px rgba(218, 165, 32, 0.15),
-    0 0 0 2px rgba(218, 165, 32, 0.4);
+    0 30px 80px rgba(0, 255, 255, 0.15),
+    0 0 0 2px rgba(0, 255, 255, 0.4);
   transform: scale(1.01);
 }
 
@@ -297,7 +421,7 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: rgba(218, 165, 32, 0.9);
+  background: rgba(0, 255, 255, 0.9);
   border: none;
   cursor: pointer;
   display: flex;
@@ -306,13 +430,13 @@
   transition: all 0.3s var(--pvs-ease);
   backdrop-filter: blur(4px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-  color: #1a1a1a;
+  color: #0a0f1a;
 }
 
 .pvs-play-btn:hover {
   transform: scale(1.1);
-  background: var(--pvs-gold);
-  box-shadow: 0 12px 35px rgba(218, 165, 32, 0.4);
+  background: var(--pvs-aqua);
+  box-shadow: 0 12px 35px rgba(0, 255, 255, 0.4);
 }
 
 .pvs-play-btn svg {
@@ -329,7 +453,7 @@
   height: 40px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(218, 165, 32, 0.3);
+  border: 1px solid rgba(0, 255, 255, 0.3);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -337,12 +461,13 @@
   transition: all 0.3s ease;
   backdrop-filter: blur(4px);
   z-index: 3;
-  color: #daa520;
+  color: #0ff;
 }
 
 .pvs-mute-btn:hover {
   background: rgba(0, 0, 0, 0.8);
-  border-color: var(--pvs-gold);
+  border-color: var(--pvs-aqua);
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.3);
   transform: scale(1.05);
 }
 
@@ -365,7 +490,7 @@
 
 .pvs-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--pvs-gold), var(--pvs-gold-light));
+  background: linear-gradient(90deg, var(--pvs-aqua), var(--pvs-aqua-light));
   width: 0%;
   transition: width 0.1s linear;
 }
@@ -386,9 +511,10 @@
   position: absolute;
   width: 4px;
   height: 4px;
-  background: rgba(218, 165, 32, 0.4);
+  background: rgba(0, 255, 255, 0.4);
   border-radius: 50%;
   animation: pvs-float 12s infinite ease-in-out;
+  box-shadow: 0 0 6px rgba(0, 255, 255, 0.3);
 }
 
 .pvs-particle:nth-child(1) {
@@ -615,14 +741,37 @@
   }
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
+/* Footer Ornament (matching ea-footer-ornament) */
+.pvs-footer-ornament {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  color: #0ff;
+  opacity: 0;
+  transition: opacity 0.8s var(--pvs-ease) 0.4s;
+}
+
+.pvs-root.visible .pvs-footer-ornament {
+  opacity: 1;
+}
+
+.pvs-orn-line {
+  width: 60px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #0ff, transparent);
+  opacity: 0.6;
+}
+
+/* Dark mode — already dark, override if light mode is ever inherited */
+@media (prefers-color-scheme: light) {
   .pvs-title {
-    color: #f0f0f0;
+    color: #e6f7ff;
   }
 
   .pvs-subtitle {
-    color: #aaa;
+    color: #bbd4e5;
   }
 }
 

@@ -90,7 +90,23 @@ export default function ProductVideoSection({
       className={`pvs-root ${isVisible ? "visible" : ""}`}
       data-video-present="true"
     >
-      {/* Ambient Glow - Behind Video */}
+      {/* Grain texture — matching Explore Aurexia */}
+      <div className="pvs-grain" aria-hidden="true" />
+
+      {/* Decorative bg lines */}
+      <div className="pvs-bg-lines" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+
+      {/* Aqua Orb Decorations */}
+      <div className="pvs-aqua-orb" aria-hidden="true" />
+      <div className="pvs-aqua-orb-right" aria-hidden="true" />
+
+      {/* Ambient Glow */}
       <div className="pvs-ambient" aria-hidden="true" />
 
       {/* Main Container */}
@@ -213,6 +229,15 @@ export default function ProductVideoSection({
           <div className="pvs-particle" />
           <div className="pvs-particle" />
           <div className="pvs-particle" />
+        </div>
+
+        {/* Footer Ornament — matching Explore Aurexia */}
+        <div className="pvs-footer-ornament" aria-hidden="true">
+          <span className="pvs-orn-line" />
+          <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor">
+            <polygon points="10,1 12.9,7 19.5,8.1 14.7,12.7 16,19.5 10,16.2 4,19.5 5.3,12.7 0.5,8.1 7.1,7" />
+          </svg>
+          <span className="pvs-orn-line" />
         </div>
       </div>
     </div>
