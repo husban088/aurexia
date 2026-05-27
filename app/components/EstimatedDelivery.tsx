@@ -85,6 +85,10 @@ export default function EstimatedDelivery({
 
   return (
     <section className={`pd-delivery-section ${className}`}>
+      {/* Ambient aqua orbs */}
+      <div className="pd-delivery-orb" aria-hidden="true" />
+      <div className="pd-delivery-orb-left" aria-hidden="true" />
+
       <div className="pd-delivery-header">
         <div className="pd-delivery-icon">
           <svg
