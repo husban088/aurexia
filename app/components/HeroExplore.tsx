@@ -109,7 +109,7 @@ export default function HeroExplore() {
           </p>
 
           {/* CTA Button */}
-          <Link href="/shop" className="he-btn" aria-label="Shop Now">
+          <Link href="/accessories" className="he-btn" aria-label="Shop Now">
             <span className="he-btn-text">Shop Now</span>
             <span className="he-btn-icon" aria-hidden="true">
               <svg
