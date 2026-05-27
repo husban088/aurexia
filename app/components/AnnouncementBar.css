@@ -1,4 +1,5 @@
 /* app/components/AnnouncementBar.css */
+/* BLACK & AQUA GRADIENT THEME - Matching Navbar & Explore Aurexia */
 
 @keyframes shimmer {
   0% {
@@ -40,27 +41,49 @@
   }
 }
 
-/* ── ANNOUNCEMENT BAR ─────────────────────────────────────────────────────── */
+@keyframes aquaShimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes aquaGlowPulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    filter: blur(4px);
+  }
+  50% {
+    opacity: 0.8;
+    filter: blur(8px);
+  }
+}
+
+/* ── ANNOUNCEMENT BAR ── BLACK & AQUA GRADIENT ─────────────────────────── */
 .announcement-bar {
   width: 100%;
   background: linear-gradient(
     135deg,
-    #0a0a1a 0%,
-    #1a1a2e 25%,
-    #16213e 50%,
-    #1a1a2e 75%,
-    #0a0a1a 100%
+    #0a0f1a 0%,
+    #0a1a1f 25%,
+    #0a1f2a 50%,
+    #0a1a1f 75%,
+    #0a0f1a 100%
   );
   background-size: 200% 100%;
   animation: shimmer 8s ease infinite;
-  border-bottom: 1px solid rgba(218, 165, 32, 0.3);
-  border-top: 1px solid rgba(218, 165, 32, 0.2);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(0, 255, 255, 0.25);
+  border-top: 1px solid rgba(0, 255, 255, 0.15);
+  box-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.2),
+    0 0 15px rgba(0, 255, 255, 0.05);
   overflow: hidden;
   position: relative;
 
   /* ── Slide in/out transition ─────────────────── */
-  /* max-height trick: smooth height collapse without JS measuring */
   max-height: 80px;
   opacity: 1;
   transition:
@@ -69,7 +92,7 @@
     padding 0.35s ease;
 }
 
-/* Scroll down → hide announcement bar (slide up, collapse height) */
+/* Scroll down → hide announcement bar */
 .announcement-bar.announcement-hidden {
   max-height: 0;
   opacity: 0;
@@ -87,7 +110,7 @@
   pointer-events: auto;
 }
 
-/* Gold shimmer line on top */
+/* Aqua shimmer line on top */
 .announcement-bar::before {
   content: "";
   position: absolute;
@@ -98,25 +121,17 @@
   background: linear-gradient(
     90deg,
     transparent,
-    #daa520,
-    #f0c040,
-    #daa520,
+    #0ff,
+    #66ffff,
+    #0ff,
     transparent
   );
-  animation: shimmerLine 3s infinite;
+  animation: aquaShimmer 3s infinite;
   pointer-events: none;
+  z-index: 2;
 }
 
-@keyframes shimmerLine {
-  0% {
-    left: -100%;
-  }
-  100% {
-    left: 100%;
-  }
-}
-
-/* Subtle gold line at bottom */
+/* Subtle aqua line at bottom */
 .announcement-bar::after {
   content: "";
   position: absolute;
@@ -127,11 +142,28 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(218, 165, 32, 0.3),
-    rgba(218, 165, 32, 0.6),
-    rgba(218, 165, 32, 0.3),
+    rgba(0, 255, 255, 0.3),
+    rgba(0, 255, 255, 0.6),
+    rgba(0, 255, 255, 0.3),
     transparent
   );
+  pointer-events: none;
+}
+
+/* Aqua glow effect behind announcement bar */
+.announcement-bar .announcement-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(0, 255, 255, 0.1) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
 }
 
 .announcement-container {
@@ -156,7 +188,7 @@
 
 .announcement-icon {
   font-size: 1.2rem;
-  filter: drop-shadow(0 0 3px rgba(218, 165, 32, 0.5));
+  filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.5));
   animation: pulse 2s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -177,10 +209,10 @@
   text-transform: uppercase;
   background: linear-gradient(
     135deg,
-    #daa520 0%,
-    #f0c040 40%,
-    #ffd700 60%,
-    #daa520 100%
+    #0ff 0%,
+    #66ffff 40%,
+    #00cccc 60%,
+    #0ff 100%
   );
   background-size: 300% auto;
   -webkit-background-clip: text;
@@ -188,13 +220,14 @@
   color: transparent;
   animation: shimmer 3s linear infinite;
   white-space: nowrap;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
 }
 
 .announcement-subtext {
   font-family: "Goldman", system-ui, sans-serif;
   font-weight: 500;
   font-size: clamp(0.6rem, 3vw, 1rem);
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(0, 255, 255, 0.7);
   letter-spacing: 0.06em;
   white-space: nowrap;
   position: relative;
@@ -203,8 +236,9 @@
 .announcement-subtext::before {
   content: "•";
   margin-right: 0.5rem;
-  color: #daa520;
+  color: #0ff;
   font-weight: bold;
+  text-shadow: 0 0 3px rgba(0, 255, 255, 0.5);
 }
 
 /* ── Responsive ───────────────────────────────────────────────────────────── */
@@ -254,15 +288,14 @@
     font-size: 0.9rem;
   }
   .announcement-text {
-    font-size: 1rem;
+    font-size: 0.7rem;
     letter-spacing: 0.06em;
   }
   .announcement-subtext {
-    font-size: 0.8rem;
+    font-size: 0.65rem;
     letter-spacing: 0.04em;
   }
 
-  /* On mobile hidden state, collapse harder */
   .announcement-bar.announcement-hidden {
     max-height: 0;
   }
@@ -273,11 +306,11 @@
     padding: 0.35rem 0.5rem;
   }
   .announcement-text {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     letter-spacing: 0.05em;
   }
   .announcement-subtext {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
   }
   .announcement-icon {
     font-size: 0.8rem;
@@ -305,9 +338,41 @@
     gap: 0.9rem;
   }
 
-  /* Bigger screens mein max-height thoda zyada */
   .announcement-bar,
   .announcement-bar.announcement-visible {
     max-height: 90px;
   }
+}
+
+/* RTL Support for AnnouncementBar */
+[dir="rtl"] .announcement-subtext::before {
+  margin-right: 0;
+  margin-left: 0.5rem;
+}
+
+[dir="rtl"] .announcement-text-wrapper {
+  flex-direction: row-reverse;
+}
+
+/* Optional: Add a subtle aqua corner accent */
+.announcement-bar .corner-accent {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.announcement-bar .corner-accent--tl {
+  top: 0;
+  left: 0;
+  border-top: 1px solid rgba(0, 255, 255, 0.4);
+  border-left: 1px solid rgba(0, 255, 255, 0.4);
+}
+
+.announcement-bar .corner-accent--tr {
+  top: 0;
+  right: 0;
+  border-top: 1px solid rgba(0, 255, 255, 0.4);
+  border-right: 1px solid rgba(0, 255, 255, 0.4);
 }

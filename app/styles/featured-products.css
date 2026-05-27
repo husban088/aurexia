@@ -1,6 +1,6 @@
 /* ============================================================
-   FEATURED PRODUCTS SECTION - PERFECT ALIGNMENT FIX
-   Har card mein brand, name, price, reviews, variants, stock EXACT same position
+   FEATURED PRODUCTS SECTION - LUXURY BLACK & AQUA GRADIENT
+   Premium Dark Theme with Aqua Accents & Gold Highlights
    ============================================================ */
 
 @import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
@@ -9,45 +9,55 @@
 /* ── Design Tokens ── */
 :root {
   --fp-gold: #c9a84c;
-  --fp-gold-dark: #a8873a;
+  --fp-gold-dark: #b8963e;
   --fp-gold-deep: #7a6128;
   --fp-gold-light: #e8c96a;
-  --fp-gold-pale: #f5e9c8;
-  --fp-gold-dim: rgba(201, 168, 76, 0.1);
+  --fp-gold-pale: rgba(201, 168, 76, 0.15);
   --fp-gold-glow: rgba(201, 168, 76, 0.25);
-  --fp-gold-border: rgba(201, 168, 76, 0.2);
+  --fp-gold-border: rgba(201, 168, 76, 0.25);
   --fp-gold-border-h: rgba(201, 168, 76, 0.5);
-  --fp-bg: #faf7f2;
+
+  /* Aqua Accents */
+  --fp-aqua: #0ff;
+  --fp-aqua-dark: #00cccc;
+  --fp-aqua-dim: rgba(0, 255, 255, 0.15);
+  --fp-aqua-glow: rgba(0, 255, 255, 0.3);
+  --fp-aqua-border: rgba(0, 255, 255, 0.2);
+
+  /* Card Colors - Keep White/Cream for readability */
+  --fp-bg: #0a0f1a;
   --fp-card: #ffffff;
   --fp-card-hover: #fffdf8;
   --fp-ink: #111111;
-  --fp-ink-soft: #333333;
-  --fp-ink-muted: #777777;
-  --fp-serif: var(--font-goldman), "Goldman", system-ui, sans-serif;
-  --fp-sans: var(--font-goldman), "Goldman", system-ui, sans-serif;
+  --fp-ink-soft: #fff;
+  --fp-ink-muted: #fff;
+  --fp-serif: "Goldman", system-ui, sans-serif;
+  --fp-sans: "Goldman", system-ui, sans-serif;
   --fp-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --fp-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* ── FIXED HEIGHTS FOR PERFECT ALIGNMENT (IMPORTANT!) ── */
+  /* FIXED HEIGHTS FOR PERFECT ALIGNMENT */
   --fp-brand-height: 20px;
   --fp-name-height: 44px;
   --fp-price-height: 40px;
-  --fp-rating-height: 28px; /* Rating area fixed height */
-  --fp-variants-height: 80px; /* Variants area fixed height */
-  --fp-stock-height: 28px; /* Stock area fixed height */
+  --fp-rating-height: 28px;
+  --fp-variants-height: 80px;
+  --fp-stock-height: 28px;
 }
 
 /* ═══════════════════════════════════════════════════════
-      SECTION WRAPPER
+      SECTION WRAPPER - BLACK & AQUA GRADIENT
    ═══════════════════════════════════════════════════════ */
 .fp-section {
   position: relative;
   z-index: 1;
   padding: 5.5rem 0 7rem;
-  background: linear-gradient(160deg, #f7f3ec 0%, #fdfaf5 45%, #fffef9 100%);
+  /* Black to Aqua Gradient - same as trust badges */
+  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
   overflow: hidden;
 }
 
+/* Ambient Glow - Aqua */
 .fp-section::after {
   content: "";
   position: absolute;
@@ -60,13 +70,15 @@
   max-height: 900px;
   background: radial-gradient(
     circle,
-    rgba(201, 168, 76, 0.07) 0%,
-    transparent 65%
+    rgba(0, 255, 255, 0.1) 0%,
+    rgba(0, 200, 255, 0.05) 40%,
+    transparent 70%
   );
   pointer-events: none;
   z-index: 0;
 }
 
+/* Top Border - Aqua */
 .fp-section::before {
   content: "";
   position: absolute;
@@ -78,18 +90,62 @@
   background: linear-gradient(
     to right,
     transparent,
-    rgba(201, 168, 76, 0.55),
+    rgba(0, 255, 255, 0.7),
     transparent
   );
   pointer-events: none;
 }
 
+/* Grain Texture - same as trust badges */
+.fp-grain {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
+  opacity: 0.3;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Aqua Orb Decoration */
+.fp-aqua-orb {
+  position: absolute;
+  bottom: -150px;
+  right: -150px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(
+    circle,
+    rgba(0, 255, 255, 0.08) 0%,
+    rgba(0, 200, 255, 0.03) 50%,
+    transparent 80%
+  );
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.fp-aqua-orb-left {
+  position: absolute;
+  top: -100px;
+  left: -100px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(
+    circle,
+    rgba(0, 255, 255, 0.06) 0%,
+    transparent 70%
+  );
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* ═══════════════════════════════════════════════════════
-      HEADER
+      HEADER - AQUA THEME
    ═══════════════════════════════════════════════════════ */
 .fp-header {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   max-width: 1320px;
   margin: 0 auto;
   padding: 0 2rem 3.5rem;
@@ -108,15 +164,16 @@
   font-weight: 600;
   letter-spacing: 0.45em;
   text-transform: uppercase;
-  color: var(--fp-gold-deep);
+  color: #0ff;
   margin-bottom: 1rem;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
 }
 
 .fp-ey-line {
   display: block;
   width: 28px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--fp-gold));
+  background: linear-gradient(90deg, transparent, #0ff, transparent);
   opacity: 0.8;
 }
 
@@ -124,41 +181,44 @@
   font-family: var(--fp-serif);
   font-size: clamp(2.6rem, 5.5vw, 4.2rem);
   font-weight: 600;
-  color: var(--fp-ink);
+  color: #e6f7ff;
   margin: 0 0 1.1rem;
   line-height: 1.05;
   letter-spacing: -0.01em;
+  text-shadow: 0 2px 10px rgba(0, 255, 255, 0.15);
 }
 
 .fp-title em {
   font-style: italic;
-  color: var(--fp-gold-deep);
+  color: #0ff;
   font-weight: 600;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
 }
 
 .fp-subtitle {
   font-family: var(--fp-sans);
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.08em;
-  color: var(--fp-ink-muted);
+  color: #bbd4e5;
   max-width: 480px;
   line-height: 1.9;
   margin-bottom: 2.5rem;
 }
 
-/* ── Category Tabs ── */
+/* ── Category Tabs - Aqua Theme ── */
 .fp-tabs {
   display: flex;
   align-items: center;
   gap: 0;
-  border: 1px solid var(--fp-gold-border);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   border-radius: 50px;
   overflow: hidden;
-  background: white;
+  background: rgba(10, 20, 30, 0.6);
+  backdrop-filter: blur(8px);
   box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.04),
-    0 0 0 1px rgba(201, 168, 76, 0.06);
+    0 4px 20px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(0, 255, 255, 0.06);
 }
 
 .fp-tab {
@@ -166,17 +226,15 @@
   padding: 0.85rem 2rem;
   background: transparent;
   border: none;
-  border-right: 1px solid var(--fp-gold-border);
+  border-right: 1px solid rgba(0, 255, 255, 0.2);
   font-family: var(--fp-sans);
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: var(--fp-ink-muted);
+  color: #bbd4e5;
   cursor: pointer;
-  transition:
-    color 0.3s ease,
-    background 0.3s ease;
+  transition: all 0.3s ease;
   white-space: nowrap;
   z-index: 1;
   overflow: hidden;
@@ -188,8 +246,8 @@
   inset: 0;
   background: linear-gradient(
     135deg,
-    var(--fp-gold-dim),
-    rgba(201, 168, 76, 0.04)
+    rgba(0, 255, 255, 0.1),
+    rgba(0, 255, 255, 0.02)
   );
   transform: translateY(100%);
   transition: transform 0.4s var(--fp-ease-out);
@@ -201,7 +259,7 @@
 }
 
 .fp-tab:hover {
-  color: var(--fp-gold-dark);
+  color: #0ff;
 }
 
 .fp-tab:hover::before {
@@ -209,8 +267,9 @@
 }
 
 .fp-tab.fp-tab--active {
-  color: var(--fp-gold-dark);
+  color: #0ff;
   font-weight: 600;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
 }
 
 .fp-tab.fp-tab--active::before {
@@ -224,7 +283,8 @@
   left: 0;
   width: 100%;
   height: 2px;
-  background: linear-gradient(90deg, var(--fp-gold), var(--fp-gold-light));
+  background: linear-gradient(90deg, #0ff, #00aaff, #0ff);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -232,7 +292,7 @@
    ═══════════════════════════════════════════════════════ */
 .fp-container {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   max-width: 1320px;
   margin: 0 auto;
   padding: 0 2rem;
@@ -260,17 +320,18 @@
   width: 18px;
   height: 2px;
   border-radius: 2px;
-  background: rgba(201, 168, 76, 0.25);
+  background: rgba(0, 255, 255, 0.25);
   opacity: 1;
   transition: all 0.35s ease;
 }
 
 .fp-swiper .swiper-pagination-bullet-active {
   width: 36px;
-  background: var(--fp-gold);
+  background: #0ff;
+  box-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
 }
 
-/* Nav Buttons */
+/* Nav Buttons - Aqua Theme */
 .fp-nav {
   display: flex;
   align-items: center;
@@ -282,16 +343,17 @@
 .fp-nav-btn {
   width: 44px;
   height: 44px;
-  border: 1px solid var(--fp-gold-border);
+  border: 1px solid rgba(0, 255, 255, 0.3);
   border-radius: 50%;
-  background: white;
-  color: var(--fp-gold-dark);
+  background: rgba(10, 20, 30, 0.9);
+  backdrop-filter: blur(4px);
+  color: #0ff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.35s var(--fp-ease-out);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
 .fp-nav-btn svg {
@@ -301,96 +363,109 @@
 }
 
 .fp-nav-btn:hover {
-  border-color: var(--fp-gold);
-  background: var(--fp-gold);
-  color: white;
-  box-shadow: 0 6px 20px rgba(201, 168, 76, 0.3);
+  border-color: #0ff;
+  background: #0ff;
+  color: #0a0f1a;
+  box-shadow: 0 6px 20px rgba(0, 255, 255, 0.4);
   transform: scale(1.1);
 }
 
 /* ═══════════════════════════════════════════════════════
-      PRODUCT CARD - PERFECT ALIGNMENT
-      Fixed heights for EVERY section
+      PRODUCT CARD - White Background, Aqua Accents
    ═══════════════════════════════════════════════════════ */
 .fp-card {
   position: relative;
   background: var(--fp-card);
-  border: 1px solid var(--fp-gold-border);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: 20px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  transition:
-    transform 0.5s var(--fp-ease-out),
-    box-shadow 0.5s var(--fp-ease-out),
-    border-color 0.4s ease;
+  transition: all 0.5s var(--fp-ease-out);
   width: 100%;
   text-decoration: none;
   color: inherit;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   height: 100%;
 }
 
+/* Card Glow Effect - Aqua */
 .fp-card::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    135deg,
-    transparent 40%,
-    rgba(201, 168, 76, 0.05) 50%,
-    transparent 60%
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(0, 255, 255, 0.08),
+    transparent 70%
   );
-  background-size: 200% 200%;
   opacity: 0;
-  transition:
-    opacity 0.4s ease,
-    background-position 0.6s ease;
+  transition: opacity 0.45s;
   pointer-events: none;
   border-radius: 20px;
   z-index: 1;
 }
 
+/* Card Shimmer - Aqua */
+.fp-card-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 40%,
+    rgba(0, 255, 255, 0.08) 50%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+  transition: transform 0.7s ease;
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 20px;
+}
+
+/* Bottom Bar - Aqua Gradient */
 .fp-card::before {
   content: "";
   position: absolute;
-  top: 0;
-  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
   width: 0;
-  height: 0;
-  border-style: solid;
-  border-width: 0 28px 28px 0;
-  border-color: transparent var(--fp-gold) transparent transparent;
-  opacity: 0;
-  transition: opacity 0.35s ease;
+  background: linear-gradient(90deg, #0ff, #00aaff, #0ff);
+  transition: width 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
   z-index: 5;
 }
 
 .fp-card:hover {
-  transform: translateY(-10px);
+  transform: translateY(-8px);
   box-shadow:
-    0 28px 55px rgba(201, 168, 76, 0.14),
-    0 8px 20px rgba(0, 0, 0, 0.06);
-  border-color: var(--fp-gold-border-h);
-}
-
-.fp-card:hover::before {
-  opacity: 1;
+    0 28px 55px rgba(0, 200, 255, 0.2),
+    0 8px 20px rgba(0, 0, 0, 0.2);
+  border-color: rgba(0, 255, 255, 0.5);
 }
 
 .fp-card:hover::after {
   opacity: 1;
-  background-position: -100% -100%;
 }
 
+.fp-card:hover::before {
+  width: 100%;
+}
+
+.fp-card:hover .fp-card-shimmer {
+  transform: translateX(100%);
+}
+
+/* Add shimmer element to actual card (to be added in TSX) */
 /* ── Image Area ── */
 .fp-card-img {
   position: relative;
   width: 100%;
   padding-top: 100%;
   flex-shrink: 0;
-  background: #f0ebe3;
+  background: #0a0f1a;
   overflow: hidden;
 }
 
@@ -414,7 +489,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.18) 0%, transparent 50%);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.15) 0%, transparent 50%);
   opacity: 0;
   transition: opacity 0.4s ease;
   z-index: 1;
@@ -430,13 +505,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #f2ede6 0%, #e8e0d5 100%);
+  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 100%);
 }
 
 .fp-card-placeholder svg {
   width: 52px;
   height: 52px;
-  color: rgba(201, 168, 76, 0.22);
+  color: rgba(0, 255, 255, 0.3);
 }
 
 /* ── Badges ── */
@@ -464,31 +539,19 @@
   -webkit-backdrop-filter: blur(6px);
 }
 
-.fp-badge--feat {
-  background: var(--fp-gold);
-  color: white;
-  box-shadow: 0 2px 8px rgba(201, 168, 76, 0.4);
-}
-
 .fp-badge--new {
-  background: rgba(34, 197, 94, 0.14);
-  border: 1px solid rgba(34, 197, 94, 0.35);
-  color: #15803d;
-}
-
-.fp-badge--sale {
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #dc2626;
+  background: rgba(0, 255, 255, 0.15);
+  border: 1px solid rgba(0, 255, 255, 0.35);
+  color: #0ff;
 }
 
 .fp-badge--low {
-  background: rgba(245, 158, 11, 0.14);
+  background: rgba(245, 158, 11, 0.15);
   border: 1px solid rgba(245, 158, 11, 0.35);
-  color: #d97706;
+  color: #f59e0b;
 }
 
-/* ── Icon Buttons (Quick View + Cart) ── */
+/* ── Icon Buttons - Aqua Theme ── */
 .fp-icon-buttons {
   position: absolute;
   bottom: 0.8rem;
@@ -516,7 +579,7 @@
   height: 40px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(201, 168, 76, 0.22);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -530,19 +593,19 @@
 .fp-icon-btn svg {
   width: 17px;
   height: 17px;
-  color: var(--fp-ink);
+  color: #0ff;
   transition: all 0.25s ease;
 }
 
 .fp-icon-btn:hover {
-  background: var(--fp-gold);
-  border-color: var(--fp-gold);
+  background: #0ff;
+  border-color: #0ff;
   transform: scale(1.12);
-  box-shadow: 0 6px 18px rgba(201, 168, 76, 0.35);
+  box-shadow: 0 6px 18px rgba(0, 255, 255, 0.4);
 }
 
 .fp-icon-btn:hover svg {
-  color: white;
+  color: #0a0f1a;
 }
 
 .fp-icon-btn:disabled {
@@ -551,8 +614,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-      CARD BODY - FIXED HEIGHTS FOR PERFECT ALIGNMENT
-      Har section ki EXACT height fixed hai
+      CARD BODY - FIXED HEIGHTS
    ═══════════════════════════════════════════════════════ */
 .fp-card-body {
   padding: 1rem 1rem 1.2rem;
@@ -560,18 +622,18 @@
   flex-direction: column;
   background: white;
   position: relative;
-  z-index: 2;
+  z-index: 3;
   gap: 0;
 }
 
-/* ── Brand - FIXED HEIGHT 20px ── */
+/* ── Brand - Aqua Color ── */
 .fp-card-brand {
   font-family: var(--fp-sans);
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--fp-gold-dark);
+  color: #00cccc;
   margin: 0;
   height: 20px;
   line-height: 20px;
@@ -581,12 +643,11 @@
   text-overflow: ellipsis;
 }
 
-/* If no brand, this ensures same spacing */
 .fp-card-brand:empty {
   display: block;
 }
 
-/* ── Product Name - FIXED HEIGHT 44px (2 lines max) ── */
+/* ── Product Name ── */
 .fp-card-name {
   font-family: var(--fp-serif);
   font-size: 1rem;
@@ -604,10 +665,10 @@
 }
 
 .fp-card:hover .fp-card-name {
-  color: var(--fp-gold-deep);
+  color: #00cccc;
 }
 
-/* ── Price Row - FIXED HEIGHT 42px ── */
+/* ── Price Row ── */
 .fp-card-price-row {
   display: flex;
   align-items: baseline;
@@ -622,7 +683,7 @@
   font-family: var(--fp-serif);
   font-size: 1.35rem;
   font-weight: 600;
-  color: var(--fp-gold-dark);
+  color: #00cccc;
   letter-spacing: -0.01em;
   line-height: 1.2;
 }
@@ -640,8 +701,8 @@
   font-family: var(--fp-sans);
   font-size: 0.65rem;
   font-weight: 600;
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.08);
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.1);
   padding: 0.1rem 0.5rem;
   border-radius: 20px;
   letter-spacing: 0.04em;
@@ -649,8 +710,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-      RATING SECTION - FIXED HEIGHT 28px
-      ⚠️ IMPORTANT: Rating always takes 28px space even if hidden
+      RATING SECTION
    ═══════════════════════════════════════════════════════ */
 .fp-card-rating {
   display: flex;
@@ -660,10 +720,8 @@
   min-height: 35px;
   max-height: 35px;
   margin: 0;
-  /* Always visible div, content inside is conditional */
 }
 
-/* When rating is empty, still maintain height */
 .fp-card-rating:empty {
   display: flex;
   height: 28px;
@@ -676,14 +734,12 @@
   letter-spacing: 0.01em;
 }
 
-/* Hide rating wrapper when no rating */
 .fp-card-rating:has(.fp-card-rating-count:empty) {
   visibility: hidden;
 }
 
 /* ═══════════════════════════════════════════════════════
-      VARIANTS WRAPPER - FIXED HEIGHT 80px
-      ⚠️ IMPORTANT: Always takes 80px space even if no variants
+      VARIANTS WRAPPER
    ═══════════════════════════════════════════════════════ */
 .fp-card-variants-wrapper {
   min-height: 80px;
@@ -697,8 +753,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-      STOCK SECTION - FIXED HEIGHT 28px
-      ⚠️ IMPORTANT: Stock always takes 28px space
+      STOCK SECTION
    ═══════════════════════════════════════════════════════ */
 .fp-card-stock {
   font-family: var(--fp-sans);
@@ -746,7 +801,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-      VARIANT THUMBNAILS
+      VARIANT THUMBNAILS - Aqua Accents
    ═══════════════════════════════════════════════════════ */
 .fp-card-variants {
   display: flex;
@@ -763,8 +818,8 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--fp-gold-deep);
-  background: rgba(201, 168, 76, 0.08);
+  color: #00cccc;
+  background: rgba(0, 255, 255, 0.08);
   padding: 0.2rem 0.6rem;
   border-radius: 20px;
   white-space: nowrap;
@@ -781,7 +836,6 @@
   flex-wrap: wrap;
 }
 
-/* Individual variant button - vertical layout (image on top, text below) */
 .fp-variant-thumb {
   display: flex !important;
   flex-direction: column !important;
@@ -797,13 +851,12 @@
   min-width: 52px;
 }
 
-/* Image wrapper - fixed size square */
 .fp-variant-thumb-img {
   width: 48px;
   height: 48px;
   border-radius: 12px;
   overflow: hidden;
-  border: 2px solid rgba(201, 168, 76, 0.2);
+  border: 2px solid rgba(0, 255, 255, 0.2);
   background: #f5f0e8;
   transition: all 0.25s ease;
 }
@@ -815,17 +868,16 @@
   display: block;
 }
 
-/* Placeholder when no image available */
 .fp-variant-thumb-placeholder {
   width: 48px;
   height: 48px;
   border-radius: 12px;
   background: linear-gradient(
     135deg,
-    rgba(201, 168, 76, 0.15),
-    rgba(201, 168, 76, 0.05)
+    rgba(0, 255, 255, 0.1),
+    rgba(0, 255, 255, 0.03)
   );
-  border: 2px solid rgba(201, 168, 76, 0.2);
+  border: 2px solid rgba(0, 255, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -835,10 +887,9 @@
 .fp-variant-thumb-text {
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--fp-gold-dark);
+  color: #0ff;
 }
 
-/* Text label below the image */
 .fp-variant-thumb-label {
   font-family: var(--fp-sans);
   font-size: 0.65rem;
@@ -853,88 +904,53 @@
   transition: color 0.2s ease;
 }
 
-/* Hover effects */
 .fp-variant-thumb:hover .fp-variant-thumb-img {
-  border-color: var(--fp-gold);
+  border-color: #0ff;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(201, 168, 76, 0.25);
+  box-shadow: 0 4px 12px rgba(0, 255, 255, 0.3);
 }
 
 .fp-variant-thumb:hover .fp-variant-thumb-placeholder {
-  border-color: var(--fp-gold);
-  background: rgba(201, 168, 76, 0.12);
+  border-color: #0ff;
+  background: rgba(0, 255, 255, 0.12);
   transform: translateY(-2px);
 }
 
 .fp-variant-thumb:hover .fp-variant-thumb-label {
-  color: var(--fp-gold-dark);
+  color: #00cccc;
 }
 
-/* Active state */
 .fp-variant-thumb.active .fp-variant-thumb-img {
-  border-color: var(--fp-gold);
-  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.3);
+  border-color: #0ff;
+  box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.3);
 }
 
 .fp-variant-thumb.active .fp-variant-thumb-placeholder {
-  border-color: var(--fp-gold);
-  background: rgba(201, 168, 76, 0.15);
-  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.2);
+  border-color: #0ff;
+  background: rgba(0, 255, 255, 0.15);
+  box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.2);
 }
 
 .fp-variant-thumb.active .fp-variant-thumb-label {
-  color: var(--fp-gold-dark);
+  color: #00cccc;
   font-weight: 600;
 }
 
-/* More indicator */
 .fp-variant-more {
   font-size: 0.65rem;
   font-weight: 600;
-  color: var(--fp-gold-dark);
-  background: rgba(201, 168, 76, 0.1);
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.1);
   padding: 0.3rem 0.7rem;
   border-radius: 20px;
-  border: 1px solid rgba(201, 168, 76, 0.2);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   font-family: var(--fp-sans);
   letter-spacing: 0.02em;
   cursor: default;
 }
 
-/* Bottom animated gold line */
-.fp-card-line {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 2.5px;
-  width: 0;
-  background: linear-gradient(
-    90deg,
-    var(--fp-gold),
-    var(--fp-gold-light),
-    var(--fp-gold)
-  );
-  background-size: 200% 100%;
-  transition: width 0.55s var(--fp-ease-out);
-  z-index: 6;
-}
-
-.fp-card:hover .fp-card-line {
-  width: 100%;
-  animation: fp-line-shimmer 1.5s ease infinite 0.55s;
-}
-
-@keyframes fp-line-shimmer {
-  0% {
-    background-position: 0% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
 /* ═══════════════════════════════════════════════════════
-      VIEW ALL BUTTON
+      VIEW ALL BUTTON - Aqua Theme
    ═══════════════════════════════════════════════════════ */
 .fp-view-all-wrap {
   display: flex;
@@ -947,41 +963,39 @@
   align-items: center;
   gap: 0.8rem;
   padding: 1rem 2.8rem;
-  border: 1px solid var(--fp-gold-border);
+  border: 1px solid rgba(0, 255, 255, 0.3);
   border-radius: 50px;
   font-family: var(--fp-sans);
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--fp-gold-deep);
+  color: #0ff;
   text-decoration: none;
-  background: white;
+  background: rgba(10, 20, 30, 0.8);
+  backdrop-filter: blur(8px);
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  transition:
-    color 0.4s ease,
-    border-color 0.4s ease,
-    transform 0.35s var(--fp-ease-out),
-    box-shadow 0.4s ease;
+  transition: all 0.4s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .fp-view-all::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, var(--fp-gold-dark), var(--fp-gold));
+  background: linear-gradient(135deg, #0ff, #00aaff);
   transform: translateX(-110%);
   transition: transform 0.45s var(--fp-ease-out);
   border-radius: 50px;
 }
 
 .fp-view-all:hover {
-  color: white;
-  border-color: var(--fp-gold);
+  color: #0a0f1a;
+  border-color: #0ff;
   transform: translateY(-3px);
-  box-shadow: 0 12px 30px rgba(201, 168, 76, 0.28);
+  box-shadow: 0 12px 30px rgba(0, 255, 255, 0.35);
 }
 
 .fp-view-all:hover::before {
@@ -1004,6 +1018,10 @@
   transform: translateX(5px);
 }
 
+[dir="rtl"] .fp-view-all:hover svg {
+  transform: translateX(-5px);
+}
+
 /* ═══════════════════════════════════════════════════════
       SPINNER & SKELETON
    ═══════════════════════════════════════════════════════ */
@@ -1017,8 +1035,8 @@
   display: inline-block;
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(201, 168, 76, 0.2);
-  border-top-color: var(--fp-gold);
+  border: 2px solid rgba(0, 255, 255, 0.2);
+  border-top-color: #0ff;
   border-radius: 50%;
   animation: fp-spin 0.75s linear infinite;
 }
@@ -1026,6 +1044,8 @@
 .fp-card--skeleton {
   pointer-events: none;
   min-height: 500px;
+  background: rgba(10, 20, 30, 0.5);
+  border-color: rgba(0, 255, 255, 0.1);
 }
 
 @keyframes fp-skeleton {
@@ -1038,7 +1058,7 @@
 }
 
 .fp-skel-img {
-  background: linear-gradient(110deg, #ededec 8%, #f5f4f2 18%, #ededec 33%);
+  background: linear-gradient(110deg, #0a1a1f 8%, #0a2025 18%, #0a1a1f 33%);
   background-size: 200% 100%;
   animation: fp-skeleton 1.5s ease-in-out infinite;
 }
@@ -1047,16 +1067,9 @@
   height: 11px;
   border-radius: 4px;
   margin: 8px 0;
-  background: linear-gradient(110deg, #ededec 8%, #f5f4f2 18%, #ededec 33%);
+  background: linear-gradient(110deg, #1a2a2f 8%, #1a3035 18%, #1a2a2f 33%);
   background-size: 200% 100%;
   animation: fp-skeleton 1.5s ease-in-out infinite;
-}
-
-.fp-empty {
-  text-align: center;
-  padding: 3rem;
-  font-family: var(--fp-sans);
-  color: var(--fp-ink-muted);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1280,8 +1293,9 @@
   .fp-card,
   .fp-card-img img,
   .fp-icon-buttons,
-  .fp-card-line,
-  .fp-view-all::before {
+  .fp-view-all::before,
+  .fp-card::before,
+  .fp-card-shimmer {
     transition: none;
     animation: none;
   }
@@ -1320,7 +1334,9 @@
   }
 }
 
-/* ========== RTL SUPPORT FOR FEATURED PRODUCTS ========== */
+/* ═══════════════════════════════════════════════════════
+      RTL SUPPORT
+   ═══════════════════════════════════════════════════════ */
 [dir="rtl"] .fp-card-body {
   text-align: right;
 }
@@ -1337,27 +1353,7 @@
   flex-direction: row-reverse;
 }
 
-[dir="rtl"] .fp-card-divider {
-  margin-left: auto;
-  margin-right: 0;
-}
-
-[dir="rtl"] .fp-card:hover .fp-card-divider {
-  margin-left: auto;
-}
-
-[dir="rtl"] .fp-nav-prev {
-  left: auto;
-  right: 0;
-}
-
-[dir="rtl"] .fp-nav-next {
-  right: auto;
-  left: 0;
-}
-
-[dir="rtl"] .fp-nav-prev svg,
-[dir="rtl"] .fp-nav-next svg {
+[dir="rtl"] .fp-nav-btn svg {
   transform: rotate(180deg);
 }
 
@@ -1368,4 +1364,21 @@
 [dir="rtl"] .fp-card-label {
   left: auto;
   right: 0.9rem;
+}
+
+[dir="rtl"] .fp-card-badges {
+  left: auto;
+  right: 0.85rem;
+}
+
+[dir="rtl"] .fp-card-price-row {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .fp-variant-thumbnails {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .fp-card-variants {
+  flex-direction: row-reverse;
 }

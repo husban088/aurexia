@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/app/context/LanguageContext";
 import "@/app/components/HomeReviews.css";
 
 interface HomeReview {
@@ -17,7 +18,7 @@ interface HomeReview {
   product_name?: string;
 }
 
-// ── Simple memory cache only (no localStorage to avoid hydration issues) ──
+// ── Simple memory cache only ──
 let cachedReviews: HomeReview[] | null = null;
 let fetchPromise: Promise<void> | null = null;
 
@@ -110,6 +111,7 @@ function SkeletonCard() {
 
 // ── Main Component ──
 export default function HomeReviews() {
+  const { isRTLMode } = useLanguage();
   const [reviews, setReviews] = useState<HomeReview[]>(
     () => cachedReviews ?? [],
   );
@@ -139,14 +141,12 @@ export default function HomeReviews() {
   useEffect(() => {
     mountedRef.current = true;
 
-    // If already cached in memory, skip fetch
     if (cachedReviews !== null) {
       setReviews(cachedReviews);
       setLoading(false);
       return;
     }
 
-    // If fetch already in progress, don't start another
     if (fetchPromise) {
       fetchPromise.then(() => {
         if (mountedRef.current && cachedReviews !== null) {
@@ -208,7 +208,7 @@ export default function HomeReviews() {
     };
   }, []);
 
-  // Handle online/offline - refresh when connection returns
+  // Handle online/offline
   useEffect(() => {
     const handleOnline = () => {
       if (cachedReviews === null && mountedRef.current) {
@@ -338,10 +338,19 @@ export default function HomeReviews() {
   const visibleReviews = reviews.slice(offset, offset + visibleCount);
   const showNav = totalSlides > visibleCount;
 
+  const avgRating =
+    reviews.length > 0
+      ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
+      : "0";
+
   // Loading skeleton
   if (loading) {
     return (
-      <section className="hr-section">
+      <section className="hr-section" dir={isRTLMode ? "rtl" : "ltr"}>
+        <div className="hr-bg-orb hr-bg-orb--1" />
+        <div className="hr-bg-orb hr-bg-orb--2" />
+        <div className="hr-bg-orb hr-bg-orb--3" />
+        <div className="hr-bg-grid" />
         <div className="hr-content">
           <div className="hr-header">
             <p className="hr-eyebrow">
@@ -365,16 +374,26 @@ export default function HomeReviews() {
 
   if (reviews.length === 0) return null;
 
-  const avgRating = (
-    reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
-  ).toFixed(1);
-
   return (
-    <section className="hr-section">
+    <section className="hr-section" dir={isRTLMode ? "rtl" : "ltr"}>
+      {/* Background Orbs */}
       <div className="hr-bg-orb hr-bg-orb--1" />
       <div className="hr-bg-orb hr-bg-orb--2" />
       <div className="hr-bg-orb hr-bg-orb--3" />
+
+      {/* Grid Pattern */}
       <div className="hr-bg-grid" />
+
+      {/* Decorative Lines */}
+      <div className="hr-bg-lines">
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+
+      {/* Sparkles */}
       <div className="hr-sparkle hr-sparkle--1" />
       <div className="hr-sparkle hr-sparkle--2" />
       <div className="hr-sparkle hr-sparkle--3" />

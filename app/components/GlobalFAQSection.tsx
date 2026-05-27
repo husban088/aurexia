@@ -11,17 +11,17 @@ import "./GlobalFAQSection.css";
 const t = {
   title: {
     en: "Why,",
-    ar: "راحة بالك،",
+    ar: "لماذا،",
     de: "Warum,",
   },
   titleEm: {
     en: "Shop With Us?",
-    ar: "أولويتنا",
-    de: "Kaufe bei uns ein",
+    ar: "تسوق معنا؟",
+    de: "Kaufe bei uns ein?",
   },
   subtitle: {
     en: "Quick answers, secure shopping, and reliable support — everything you need for a smooth and confident shopping experience",
-    ar: "نؤمن بالشفافية الكاملة. إليكم إجابات صادقة على الأسئلة التي يطرحها عملاؤنا أكثر - لأنك تستحق التسوق بثقة.",
+    ar: "إجابات سريعة، تسوق آمن، ودعم موثوق — كل ما تحتاجه لتجربة تسوق سلسة وموثوقة",
     de: "Schnelle Antworten, sicheres Einkaufen und zuverlässiger Support – für ein reibungsloses und vertrauensvolles Einkaufserlebnis.",
   },
   faqs: [
@@ -195,7 +195,7 @@ function FAQAccordionItem({
       </button>
 
       <div
-        className={`gfaq-answer-container ${isOpen ? "active" : ""}`}
+        className="gfaq-answer-container"
         style={{
           maxHeight: isOpen ? "500px" : "0",
           opacity: isOpen ? 1 : 0,
@@ -216,7 +216,8 @@ function FAQAccordionItem({
 export default function GlobalFAQSection() {
   const { language, isRTLMode } = useLanguage();
   const lang = language as "en" | "ar" | "de";
-  const [openId, setOpenId] = useState<string | null>("01");
+  // ✅ No default open FAQ - all closed initially
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const faqsData = t.faqs.map((faq) => ({
     id: faq.id,
@@ -249,6 +250,9 @@ export default function GlobalFAQSection() {
       dir={isRTLMode ? "rtl" : "ltr"}
       aria-label="Frequently Asked Questions"
     >
+      {/* Grain texture */}
+      <div className="gfaq-grain" aria-hidden="true" />
+
       {/* Ambient glow */}
       <div className="gfaq-ambient" aria-hidden="true" />
 

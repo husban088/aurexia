@@ -1,25 +1,26 @@
 /* ============================================================
    TERMS OF SERVICE PAGE  ·  terms.css
-   Premium Light Theme — Matching Privacy Policy
+   BLACK & AQUA GRADIENT THEME
+   Matching Navbar & Explore Aurexia
    ============================================================ */
 
 @import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 :root {
-  --tos-gold: #daa520;
-  --tos-gold-dark: #b8860b;
-  --tos-gold-deep: #8b6914;
-  --tos-gold-light: #f0c040;
-  --tos-gold-soft: rgba(218, 165, 32, 0.08);
-  --tos-bg: #f9f5f0;
-  --tos-bg-light: #ffffff;
-  --tos-card-bg: #ffffff;
-  --tos-border: rgba(184, 134, 11, 0.15);
-  --tos-border-hover: rgba(184, 134, 11, 0.35);
-  --tos-text-dark: #1a1a1a;
-  --tos-text-light: #444444;
-  --tos-text-grey: #666666;
-  --tos-text-gold: #8b6914;
+  --tos-aqua: #0ff;
+  --tos-aqua-dark: #00cccc;
+  --tos-aqua-deep: #0088aa;
+  --tos-aqua-light: #66ffff;
+  --tos-aqua-soft: rgba(0, 255, 255, 0.08);
+  --tos-bg: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
+  --tos-bg-light: #0a1a1f;
+  --tos-card-bg: #0a1a1f;
+  --tos-border: rgba(0, 255, 255, 0.18);
+  --tos-border-hover: rgba(0, 255, 255, 0.35);
+  --tos-text-dark: #e6f7ff;
+  --tos-text-light: #bbd4e5;
+  --tos-text-grey: #88bbcc;
+  --tos-text-gold: #0ff;
   --tos-serif: "Goldman", system-ui, sans-serif;
   --tos-sans: "Goldman", system-ui, sans-serif;
   --tos-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
@@ -30,14 +31,14 @@
   position: relative;
   min-height: 100vh;
   width: 100%;
-  background: linear-gradient(135deg, #f8f4ed 0%, #fdfaf5 50%, #fffdf9 100%);
+  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
   color: var(--tos-text-dark);
   overflow-x: hidden;
   isolation: isolate;
   padding-top: 80px;
 }
 
-/* Ambient glow */
+/* Ambient glow - Aqua */
 .tos-ambient {
   position: fixed;
   top: -200px;
@@ -47,7 +48,7 @@
   height: 700px;
   background: radial-gradient(
     circle,
-    rgba(218, 165, 32, 0.08) 0%,
+    rgba(0, 255, 255, 0.08) 0%,
     transparent 70%
   );
   pointer-events: none;
@@ -58,13 +59,13 @@
 .tos-grain {
   position: fixed;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.018'/%3E%3C/svg%3E");
-  opacity: 0.3;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.35;
   pointer-events: none;
   z-index: 0;
 }
 
-/* Vertical lines */
+/* Vertical lines - Aqua */
 .tos-lines {
   position: fixed;
   inset: 0;
@@ -80,13 +81,13 @@
   background: linear-gradient(
     to bottom,
     transparent,
-    rgba(184, 134, 11, 0.12) 30%,
-    rgba(184, 134, 11, 0.12) 70%,
+    rgba(0, 255, 255, 0.08) 30%,
+    rgba(0, 255, 255, 0.08) 70%,
     transparent
   );
 }
 
-/* Corner marks */
+/* Corner marks - Aqua */
 .tos-corner {
   position: fixed;
   width: 28px;
@@ -97,14 +98,14 @@
 .tos-corner--tl {
   top: 1.5rem;
   left: 1.5rem;
-  border-top: 1px solid rgba(184, 134, 11, 0.4);
-  border-left: 1px solid rgba(184, 134, 11, 0.4);
+  border-top: 1px solid rgba(0, 255, 255, 0.4);
+  border-left: 1px solid rgba(0, 255, 255, 0.4);
 }
 .tos-corner--tr {
   top: 1.5rem;
   right: 1.5rem;
-  border-top: 1px solid rgba(184, 134, 11, 0.4);
-  border-right: 1px solid rgba(184, 134, 11, 0.4);
+  border-top: 1px solid rgba(0, 255, 255, 0.4);
+  border-right: 1px solid rgba(0, 255, 255, 0.4);
 }
 
 /* Container */
@@ -125,12 +126,12 @@
   transform: translateY(0);
 }
 
-/* Header */
+/* Header - Aqua */
 .tos-header {
   text-align: center;
   margin-bottom: 3rem;
   padding-bottom: 2rem;
-  border-bottom: 1px solid var(--tos-border);
+  border-bottom: 1px solid rgba(0, 255, 255, 0.15);
 }
 
 .tos-eyebrow {
@@ -143,16 +144,16 @@
   font-weight: 700;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: var(--tos-text-gold);
+  color: #66ffff;
   margin-bottom: 1rem;
 }
 .tos-ey-line {
   width: 40px;
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--tos-gold));
+  background: linear-gradient(90deg, transparent, #0ff);
 }
 .tos-ey-line:last-child {
-  background: linear-gradient(90deg, var(--tos-gold), transparent);
+  background: linear-gradient(90deg, #0ff, transparent);
 }
 
 .tos-title {
@@ -162,10 +163,14 @@
   color: var(--tos-text-dark);
   margin: 0 0 0.75rem;
   letter-spacing: -0.01em;
+  text-shadow: 0 2px 10px rgba(0, 255, 255, 0.15);
 }
 .tos-title em {
   font-style: italic;
-  color: var(--tos-gold-dark);
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .tos-last-updated {
@@ -173,7 +178,7 @@
   font-size: 0.75rem;
   font-weight: 500;
   letter-spacing: 0.1em;
-  color: var(--tos-text-grey);
+  color: #88bbcc;
   margin: 0 0 1rem;
 }
 
@@ -187,7 +192,7 @@
   margin: 0 auto;
 }
 
-/* Content Sections */
+/* Content Sections - Aqua */
 .tos-content {
   display: flex;
   flex-direction: column;
@@ -195,8 +200,9 @@
 }
 
 .tos-section {
-  background: var(--tos-card-bg);
-  border: 1px solid var(--tos-border);
+  background: rgba(10, 26, 31, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: 20px;
   padding: 1.75rem;
   transition: all var(--tos-ease);
@@ -204,9 +210,9 @@
   overflow: hidden;
 }
 .tos-section:hover {
-  border-color: var(--tos-border-hover);
+  border-color: rgba(0, 255, 255, 0.4);
   transform: translateX(6px);
-  box-shadow: 0 12px 30px rgba(184, 134, 11, 0.08);
+  box-shadow: 0 12px 30px rgba(0, 255, 255, 0.1);
 }
 
 .tos-section-icon {
@@ -215,18 +221,19 @@
   right: 1.5rem;
   width: 40px;
   height: 40px;
-  background: var(--tos-gold-soft);
+  background: rgba(0, 255, 255, 0.1);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--tos-gold-dark);
+  color: #0ff;
   transition: all var(--tos-ease);
 }
 .tos-section:hover .tos-section-icon {
   transform: scale(1.1) rotate(5deg);
-  background: var(--tos-gold);
-  color: white;
+  background: #0ff;
+  color: #0a0f1a;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
 }
 .tos-section-icon svg {
   width: 20px;
@@ -262,18 +269,18 @@
   line-height: 1.6;
 }
 .tos-section-content strong {
-  color: var(--tos-gold-dark);
+  color: #0ff;
   font-weight: 700;
 }
 
-/* Footer Navigation */
+/* Footer Navigation - Aqua */
 .tos-footer-nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-top: 3rem;
   padding-top: 2rem;
-  border-top: 1px solid var(--tos-border);
+  border-top: 1px solid rgba(0, 255, 255, 0.15);
 }
 .tos-back-link,
 .tos-privacy-link {
@@ -285,19 +292,20 @@
   font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--tos-text-grey);
+  color: #88bbcc;
   text-decoration: none;
   padding: 0.6rem 1.2rem;
-  border: 1px solid var(--tos-border);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   border-radius: 40px;
   transition: all var(--tos-ease);
 }
 .tos-back-link:hover,
 .tos-privacy-link:hover {
-  border-color: var(--tos-gold);
-  color: var(--tos-gold-dark);
-  background: var(--tos-gold-soft);
+  border-color: #0ff;
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.1);
   transform: translateY(-2px);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.15);
 }
 
 /* Responsive */
@@ -341,4 +349,39 @@
   .tos-section-title {
     font-size: 1.1rem;
   }
+}
+
+/* ========== RTL SUPPORT ========== */
+[dir="rtl"] .tos-section {
+  transform: translateX(-6px);
+}
+[dir="rtl"] .tos-section:hover {
+  transform: translateX(6px);
+}
+[dir="rtl"] .tos-section-icon {
+  right: auto;
+  left: 1.5rem;
+}
+[dir="rtl"] .tos-section-title {
+  padding-right: 0;
+  padding-left: 50px;
+}
+[dir="rtl"] .tos-eyebrow {
+  flex-direction: row-reverse;
+}
+[dir="rtl"] .tos-corner--tl {
+  left: auto;
+  right: 1.5rem;
+  border-left: none;
+  border-right: 1px solid rgba(0, 255, 255, 0.4);
+}
+[dir="rtl"] .tos-corner--tr {
+  right: auto;
+  left: 1.5rem;
+  border-right: none;
+  border-left: 1px solid rgba(0, 255, 255, 0.4);
+}
+[dir="rtl"] .tos-section-content ul {
+  padding-left: 0;
+  padding-right: 1.5rem;
 }

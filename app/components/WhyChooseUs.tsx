@@ -22,7 +22,7 @@ const t = {
   },
   titleEm: {
     en: "Tech4U",
-    ar: "Tech4U",
+    ar: "تيك4يو",
     de: "Tech4U",
   },
   subtitle: {
@@ -180,11 +180,28 @@ export default function WhyChooseUs() {
       dir={isRTL ? "rtl" : "ltr"}
       aria-label="Why choose Tech4U"
     >
+      {/* Grain texture */}
+      <div className="wcu-grain" aria-hidden="true" />
+
       {/* Ambient glow */}
       <div className="wcu-ambient" aria-hidden="true" />
 
+      {/* Decorative bg lines */}
+      <div className="wcu-bg-lines" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+
       {/* Header */}
       <div className="wcu-header">
+        <div className="wcu-eyebrow">
+          <span className="wcu-ey-line" />
+          <span>WHY CHOOSE US</span>
+          <span className="wcu-ey-line" />
+        </div>
         <h2 className="wcu-title">
           {t.title[lang]} <em>{t.titleEm[lang]}</em>
         </h2>

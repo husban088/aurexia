@@ -1,21 +1,36 @@
 /* =============================================
    NAVBAR CSS - TECH4U Luxury Store
+   BLACK & AQUA GRADIENT THEME | TEXT LOGO
    Fully Responsive | Luxury Design | Smooth Animations
    ============================================= */
 
 @import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 :root {
-  --nav-bg: #f9f5f0;
-  --nav-bg-scroll: rgba(249, 245, 240, 0.98);
-  --nav-border: rgba(184, 134, 11, 0.18);
-  --nav-gold: #daa520;
-  --nav-gold-light: #f0c040;
-  --nav-gold-dim: rgba(218, 165, 32, 0.08);
-  --nav-gold-deep: #8b6914;
-  --nav-white: #1a1a1a;
-  --nav-muted: #444444;
-  --nav-muted-light: #666666;
+  /* === BLACK & AQUA GRADIENT VARIABLES === */
+  --nav-bg-gradient: linear-gradient(
+    135deg,
+    #0a0f1a 0%,
+    #0a1a1f 50%,
+    #0a1f2a 100%
+  );
+  --nav-bg-scroll-gradient: linear-gradient(
+    135deg,
+    rgba(10, 15, 26, 0.98) 0%,
+    rgba(10, 26, 31, 0.98) 50%,
+    rgba(10, 31, 42, 0.98) 100%
+  );
+
+  --nav-bg: #0a0f1a;
+  --nav-bg-scroll: rgba(10, 26, 31, 0.98);
+  --nav-border: rgba(0, 255, 255, 0.18);
+  --nav-gold: #0ff;
+  --nav-gold-light: #66ffff;
+  --nav-gold-dim: rgba(0, 255, 255, 0.08);
+  --nav-gold-deep: #00cccc;
+  --nav-white: #e6f7ff;
+  --nav-muted: #bbd4e5;
+  --nav-muted-light: #aaccee;
   --nav-height: 70px;
   --nav-font-body: var(--font-goldman), "Goldman", system-ui, sans-serif;
   --nav-font-display: var(--font-goldman), "Goldman", system-ui, sans-serif;
@@ -24,45 +39,75 @@
 }
 
 /* ─────────────────────────────────────────────────────────────
-         Z-INDEX SYSTEM (saara project isi system pe chale):
+         Z-INDEX SYSTEM
          ─────────────────────────────────────────────────────────────
          10   — Normal page content
-         20   — Sticky elements (product gallery, sidebar)
+         20   — Sticky elements
          100  — Navbar (fixed, above page content)
-         150  — Navbar dropdowns (currency, category menus — above navbar bar)
-         1000 — Modals / overlays (cart drawer, search modal, mobile menu)
-               → YEH NAVBAR SE UPAR HAIN — hamesha dikhenge
-         9999 — Lightbox (product image fullscreen)
-         ─────────────────────────────────────────────────────────────
-         RULE: Modals ko z-index: 1000+ rakhna ZAROORI hai.
-         Navbar z-index: 100 hai — modals iske upar automatically aayenge.
-   
-         WHY: Navbar position:fixed + z-index milke ek stacking context
-         banate hain. Iske andar ke saare children (navbar-bottom,
-         dropdowns) usi context mein bound hote hain. Isliye modals ko
-         navbar ke BAAD DOM mein hona chahiye AUR unka z-index navbar
-         se zyada hona chahiye. Yahi sahi architecture hai.
+         150  — Navbar dropdowns
+         1000 — Modals / overlays
+         9999 — Lightbox
          ───────────────────────────────────────────────────────────── */
 
-/* Main Navbar — inside sticky wrapper */
+/* Main Navbar — Gradient Background */
 .navbar {
   position: relative;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 1;
-  background: var(--nav-bg);
-  border-bottom: 1px solid var(--nav-border);
+  z-index: 100;
+  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
+  border-bottom: 1px solid rgba(0, 255, 255, 0.18);
   backdrop-filter: blur(0px);
   transition:
     background var(--transition),
     box-shadow var(--transition);
 }
 
+/* Top Aqua Glow Line */
+.navbar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #0ff,
+    #66ffff,
+    #0ff,
+    transparent
+  );
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 101;
+}
+
 .navbar.scrolled {
-  background: var(--nav-bg-scroll);
+  background: linear-gradient(
+    135deg,
+    rgba(10, 15, 26, 0.98) 0%,
+    rgba(10, 26, 31, 0.98) 50%,
+    rgba(10, 31, 42, 0.98) 100%
+  );
   backdrop-filter: blur(12px);
-  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 4px 40px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(0, 255, 255, 0.1);
+}
+
+.navbar.scrolled::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #0ff, transparent);
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 /* Top Bar Container */
@@ -85,7 +130,7 @@
   gap: 0.75rem;
 }
 
-/* ========== CENTER SECTION - LOGO ========== */
+/* ========== CENTER SECTION - TEXT LOGO ========== */
 .navbar-center {
   flex: 2;
   display: flex;
@@ -93,92 +138,166 @@
   justify-content: center;
 }
 
+/* ========== TEXT LOGO STYLES - LUXURY DESIGN ========== */
 .navbar-logo {
   display: flex;
   align-items: baseline;
-  gap: 2px;
+  justify-content: center;
   text-decoration: none;
   position: relative;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  gap: 2px;
   padding: 0.25rem 0;
-  transition: transform 0.3s ease;
 }
 
 .navbar-logo:hover {
   transform: scale(1.02);
 }
 
+/* TECH part of logo */
 .logo-tech {
   font-family: var(--nav-font-tech);
   font-size: 1.9rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #1a1a1a 0%, #8b6914 100%);
+  background: linear-gradient(135deg, #e6f7ff 0%, #0ff 50%, #66ffff 100%);
+  background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  transition: all 0.3s ease;
+  transition: all 0.4s ease;
+  text-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+  position: relative;
 }
 
 .navbar-logo:hover .logo-tech {
-  background: linear-gradient(135deg, #8b6914 0%, #daa520 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
+  background-position: 100% 0;
+  text-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
+  letter-spacing: -0.01em;
 }
 
+/* 4 part of logo */
 .logo-four {
   font-family: var(--nav-font-tech);
   font-size: 1.9rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.02em;
-  color: #daa520;
-  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #0ff 0%, #66ffff 50%, #0ff 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition: all 0.4s ease;
+  position: relative;
+  animation: aquaPulse 2s ease-in-out infinite;
+}
+
+@keyframes aquaPulse {
+  0%,
+  100% {
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+  }
+  50% {
+    text-shadow: 0 0 25px rgba(0, 255, 255, 0.7);
+  }
 }
 
 .navbar-logo:hover .logo-four {
-  color: #f0c040;
-  text-shadow: 0 0 8px rgba(218, 165, 32, 0.3);
+  background-position: 100% 0;
+  transform: scale(1.05);
+  display: inline-block;
 }
 
+/* U part of logo (optional - if you want TECH4U) */
+.logo-u {
+  font-family: var(--nav-font-tech);
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #e6f7ff 0%, #0ff 50%, #66ffff 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition: all 0.4s ease;
+}
+
+.navbar-logo:hover .logo-u {
+  background-position: 100% 0;
+}
+
+/* Luxury Subtext */
 .logo-luxury {
   font-family: var(--nav-font-display);
-  font-size: 0.7rem;
-  font-weight: 300;
-  letter-spacing: 0.3em;
+  font-size: 0.65rem;
+  font-weight: 400;
+  letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: rgba(139, 105, 20, 0.6);
+  background: linear-gradient(135deg, #66ffff 0%, #0ff 50%, #00cccc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   margin-left: 6px;
   position: relative;
-  top: 2px;
-  transition: all 0.3s ease;
+  top: 6px;
+  transition: all 0.4s ease;
+  opacity: 0.8;
 }
 
 .navbar-logo:hover .logo-luxury {
-  color: rgba(218, 165, 32, 0.8);
-  letter-spacing: 0.35em;
+  letter-spacing: 0.45em;
+  opacity: 1;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
 }
 
-/* Gold underline animation on hover */
+/* Aqua underline animation on hover */
 .navbar-logo::after {
   content: "";
   position: absolute;
   bottom: -4px;
   left: 0;
   right: 0;
-  height: 1px;
+  height: 2px;
   background: linear-gradient(
     90deg,
     transparent,
-    #daa520,
-    #f0c040,
-    #daa520,
+    #0ff,
+    #66ffff,
+    #0ff,
     transparent
   );
   transform: scaleX(0);
-  transition: transform 0.5s ease;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-radius: 2px;
 }
 
 .navbar-logo:hover::after {
   transform: scaleX(1);
+}
+
+/* Optional: Glow effect behind logo */
+.navbar-logo::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(
+    circle,
+    rgba(0, 255, 255, 0.15) 0%,
+    transparent 70%
+  );
+  transition: all 0.5s ease;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  border-radius: 50%;
+  z-index: -1;
+}
+
+.navbar-logo:hover::before {
+  width: 180%;
+  height: 180%;
 }
 
 /* ========== RIGHT SECTION ========== */
@@ -201,7 +320,7 @@
   border-radius: 50%;
   border: none;
   background: transparent;
-  color: var(--nav-muted);
+  color: #bbd4e5;
   cursor: pointer;
   transition: all var(--transition);
   text-decoration: none;
@@ -215,9 +334,10 @@
 }
 
 .nav-icon-btn:hover {
-  color: var(--nav-gold-deep);
-  background: var(--nav-gold-dim);
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.12);
   transform: scale(1.05);
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.2);
 }
 
 .nav-icon-btn:hover svg {
@@ -230,8 +350,8 @@
   bottom: -30px;
   left: 50%;
   transform: translateX(-50%);
-  background: #1a1a1a;
-  color: #daa520;
+  background: #0a0f1a;
+  color: #0ff;
   font-family: var(--nav-font-body);
   font-size: 0.65rem;
   font-weight: 500;
@@ -245,6 +365,7 @@
   transition: all 0.2s ease;
   pointer-events: none;
   z-index: 150;
+  border: 1px solid rgba(0, 255, 255, 0.2);
 }
 
 .nav-icon-btn:hover .nav-icon-tooltip {
@@ -268,13 +389,13 @@
   display: block;
   width: 22px;
   height: 2px;
-  background: var(--nav-muted);
+  background: #bbd4e5;
   border-radius: 2px;
   transition: all var(--transition);
 }
 
 .menu-btn:hover span {
-  background: var(--nav-gold-deep);
+  background: #0ff;
 }
 
 .menu-btn:hover span:nth-child(1) {
@@ -292,9 +413,10 @@
   right: 4px;
   width: 10px;
   height: 10px;
-  background: #22c55e;
+  background: #0ff;
   border-radius: 50%;
-  border: 2px solid var(--nav-bg);
+  border: 2px solid #0a0f1a;
+  box-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
   animation: pulse 2s ease-in-out infinite;
 }
 
@@ -317,8 +439,8 @@
   right: -2px;
   min-width: 18px;
   height: 18px;
-  background: #daa520;
-  color: #ffffff;
+  background: #0ff;
+  color: #0a0f1a;
   font-family: var(--nav-font-body);
   font-size: 10px;
   font-weight: 700;
@@ -327,7 +449,7 @@
   align-items: center;
   justify-content: center;
   padding: 0 4px;
-  box-shadow: 0 0 8px rgba(218, 165, 32, 0.5);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
   animation: cartBounce 0.5s ease;
 }
 
@@ -352,23 +474,24 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(218, 165, 32, 0.05);
-  border: 1px solid var(--nav-border);
+  background: rgba(0, 255, 255, 0.08);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: 40px;
   padding: 6px 12px;
   font-family: var(--nav-font-body);
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--nav-muted);
+  color: #bbd4e5;
   cursor: pointer;
   transition: all var(--transition);
 }
 
 .currency-btn:hover {
-  border-color: var(--nav-gold);
-  color: var(--nav-gold-deep);
-  background: rgba(218, 165, 32, 0.1);
+  border-color: #0ff;
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.15);
   transform: translateY(-1px);
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
 }
 
 .currency-flag {
@@ -399,14 +522,14 @@
   top: 100%;
   left: 0;
   min-width: 220px;
-  background: #ffffff;
-  border: 1px solid var(--nav-border);
+  background: linear-gradient(135deg, #0a1a1f 0%, #0a1f2a 100%);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: 16px;
   margin-top: 12px;
   overflow: hidden;
   z-index: 150;
   backdrop-filter: blur(20px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   animation: currencySlideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -432,21 +555,21 @@
   font-family: var(--nav-font-body);
   font-size: 0.8rem;
   font-weight: 400;
-  color: #666666;
+  color: #bbd4e5;
   cursor: pointer;
   text-align: left;
   transition: all 0.25s ease;
 }
 
 .currency-option:hover {
-  background: var(--nav-gold-dim);
-  color: var(--nav-gold-deep);
+  background: rgba(0, 255, 255, 0.1);
+  color: #0ff;
   padding-left: 22px;
 }
 
 .currency-option.active {
-  color: var(--nav-gold-deep);
-  background: rgba(218, 165, 32, 0.1);
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.15);
 }
 
 .currency-option-flag {
@@ -470,8 +593,9 @@
 
 /* ========== BOTTOM NAVIGATION ========== */
 .navbar-bottom {
-  border-top: 1px solid var(--nav-border);
-  background: rgba(249, 245, 240, 0.95);
+  border-top: 1px solid rgba(0, 255, 255, 0.15);
+  background: rgba(10, 26, 31, 0.9);
+  backdrop-filter: blur(8px);
 }
 
 .nav-links {
@@ -499,7 +623,7 @@
   font-weight: 500;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--nav-muted);
+  color: #bbd4e5;
   text-decoration: none;
   border-radius: 2px;
   transition: all var(--transition);
@@ -513,7 +637,7 @@
   left: 50%;
   width: 0;
   height: 2px;
-  background: linear-gradient(90deg, #daa520, #f0c040);
+  background: linear-gradient(90deg, #0ff, #66ffff);
   transition: all 0.3s ease;
   transform: translateX(-50%);
 }
@@ -523,12 +647,13 @@
 }
 
 .nav-item > a:hover {
-  color: var(--nav-gold-deep);
+  color: #0ff;
   letter-spacing: 0.18em;
+  text-shadow: 0 0 4px rgba(0, 255, 255, 0.3);
 }
 
 .nav-item > a.active {
-  color: var(--nav-gold-deep);
+  color: #0ff;
 }
 
 .nav-item > a.active::before {
@@ -551,12 +676,14 @@
   top: 100%;
   left: 0;
   min-width: 240px;
-  background: #ffffff;
-  border: 1px solid var(--nav-border);
+  background: linear-gradient(135deg, #0a1a1f 0%, #0a1f2a 100%);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-top: none;
   border-radius: 0 0 16px 16px;
   backdrop-filter: blur(20px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(0, 255, 255, 0.1);
   opacity: 0;
   visibility: hidden;
   transform: translateY(-10px);
@@ -577,7 +704,7 @@
   font-size: 0.7rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #666666;
+  color: #bbd4e5;
   text-decoration: none;
   transition: all 0.25s ease;
   position: relative;
@@ -590,14 +717,14 @@
   top: 0;
   bottom: 0;
   width: 3px;
-  background: #daa520;
+  background: #0ff;
   transform: scaleY(0);
   transition: transform 0.2s ease;
 }
 
 .dropdown-item:hover {
-  background: var(--nav-gold-dim);
-  color: var(--nav-gold-deep);
+  background: rgba(0, 255, 255, 0.1);
+  color: #0ff;
   padding-left: 2rem;
 }
 
@@ -606,8 +733,8 @@
 }
 
 .dropdown-item.active {
-  color: var(--nav-gold-deep);
-  background: var(--nav-gold-dim);
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.15);
 }
 
 /* ========== RESPONSIVE DESIGN ========== */
@@ -647,13 +774,17 @@
     gap: 0.25rem;
   }
 
+  /* Text logo responsive */
   .logo-tech,
-  .logo-four {
-    font-size: 1.7rem;
+  .logo-four,
+  .logo-u {
+    font-size: 1.5rem;
   }
 
   .logo-luxury {
-    display: none;
+    font-size: 0.55rem;
+    letter-spacing: 0.25em;
+    top: 4px;
   }
 
   .search-btn,
@@ -681,9 +812,18 @@
     gap: 0.2rem;
   }
 
+  /* Text logo responsive */
   .logo-tech,
-  .logo-four {
-    font-size: 1.7rem;
+  .logo-four,
+  .logo-u {
+    font-size: 1.3rem;
+  }
+
+  .logo-luxury {
+    font-size: 0.5rem;
+    letter-spacing: 0.2em;
+    top: 3px;
+    display: none; /* Hide on very small screens */
   }
 
   .nav-icon-btn {
@@ -725,9 +865,11 @@
     gap: 0.25rem;
   }
 
+  /* Text logo responsive */
   .logo-tech,
-  .logo-four {
-    font-size: 1.3rem;
+  .logo-four,
+  .logo-u {
+    font-size: 1.1rem;
   }
 
   .nav-icon-btn {
@@ -788,101 +930,7 @@ button,
   pointer-events: none;
 }
 
-/* ========== CENTER SECTION - LOGO ========== */
-.navbar-center {
-  flex: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.navbar-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  position: relative;
-  transition: transform 0.3s ease;
-}
-
-.navbar-logo:hover {
-  transform: scale(1.02);
-}
-
-/* Logo Image Styling */
-.navbar-logo-img {
-  height: 40px;
-  width: auto;
-  max-width: 160px;
-  object-fit: contain;
-  transition: all 0.3s ease;
-}
-
-.navbar-logo:hover .navbar-logo-img {
-  filter: drop-shadow(0 0 8px rgba(218, 165, 32, 0.3));
-}
-
-/* Gold underline animation on hover */
-.navbar-logo::after {
-  content: "";
-  position: absolute;
-  bottom: -4px;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    #daa520,
-    #f0c040,
-    #daa520,
-    transparent
-  );
-  transform: scaleX(0);
-  transition: transform 0.5s ease;
-}
-
-.navbar-logo:hover::after {
-  transform: scaleX(1);
-}
-
-/* Old text logo styles - REMOVE OR COMMENT OUT */
-/* .logo-tech, .logo-four, .logo-luxury ko comment kar do ya hata do */
-
-/* Tablet & Mobile */
-@media (max-width: 900px) {
-  .navbar-logo-img {
-    height: 38px;
-    max-width: 150px;
-  }
-
-  .logo-luxury {
-    display: none;
-  }
-}
-
-@media (max-width: 600px) {
-  .navbar-logo-img {
-    height: 32px;
-    max-width: 130px;
-  }
-}
-
-@media (max-width: 480px) {
-  .navbar-logo-img {
-    height: 29px;
-    max-width: 96px;
-  }
-}
-
 /* Language Selector positioning in navbar */
-.navbar-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-/* Make sure LanguageSelector fits nicely */
 .navbar-left .language-selector {
   margin-right: 0;
 }
@@ -905,27 +953,6 @@ button,
 .currency-dropdown {
   position: relative;
 }
-
-/* RTL Support for navbar */
-[dir="rtl"] .navbar-left {
-  flex-direction: row-reverse;
-}
-
-[dir="rtl"] .navbar-right {
-  flex-direction: row-reverse;
-}
-
-[dir="rtl"] .dropdown-menu {
-  right: 0;
-  left: auto;
-}
-
-[dir="rtl"] .nav-links a svg {
-  margin-left: 0;
-  margin-right: 5px;
-}
-
-/* Add to the end of navbar.css */
 
 /* ========== LANGUAGE DROPDOWN INTEGRATION ========== */
 .navbar-left .language-dropdown-wrapper {
@@ -961,7 +988,6 @@ button,
   right: auto;
 }
 
-/* RTL text alignment for nav items */
 [dir="rtl"] .nav-item > a {
   text-align: right;
 }
@@ -974,7 +1000,6 @@ button,
   transform: rotate(0deg);
 }
 
-/* Currency dropdown RTL */
 [dir="rtl"] .currency-option {
   text-align: right;
 }
@@ -984,9 +1009,17 @@ button,
   padding-right: 22px;
 }
 
+/* RTL Text Logo adjustments */
+[dir="rtl"] .navbar-logo {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .logo-luxury {
+  margin-left: 0;
+  margin-right: 6px;
+}
+
 /* ========== NAVBAR STICKY WRAPPER ========== */
-/* Wraps AnnouncementBar + Navbar together */
-/* Scrolls up together, scrolls down together */
 .navbar-sticky-wrapper {
   position: fixed;
   top: 0;
@@ -1001,8 +1034,6 @@ button,
 }
 
 /* ========== NAVBAR HIDE ON SCROLL DOWN ========== */
-/* AnnouncementBar jaisi same logic — scroll down = hide, scroll up = show */
-
 .navbar {
   transition:
     background var(--transition),
@@ -1011,14 +1042,12 @@ button,
     opacity 0.25s ease;
 }
 
-/* Scroll down → navbar slide up aur hide */
 .navbar.navbar-hidden {
   transform: translateY(-100%);
   opacity: 0;
   pointer-events: none;
 }
 
-/* Scroll up → navbar wapis show */
 .navbar:not(.navbar-hidden) {
   transform: translateY(0);
   opacity: 1;

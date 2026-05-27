@@ -6,18 +6,31 @@
 /* ── Tailwind ── */
 @import "tailwindcss";
 
+/* ============================================================
+   CSS VARIABLES — Black & Aqua Theme
+   ============================================================ */
 :root {
-  --background: #f5f0e8;
-  --foreground: #f5f0e8;
+  --background: #0a0f1a;
+  --foreground: #e6f7ff;
   --font-goldman: "Goldman", system-ui, sans-serif;
   --font-poppins:
     "Poppins", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
     sans-serif;
   --font-cormorant: "Cormorant Garamond", serif;
-  --scrollbar-thumb: #c9a84c;
-  --scrollbar-track: #1a1410;
-  /* ✅ Navbar height CSS variable — layout shift prevent karta hai */
-  --navbar-height: 64px;
+
+  /* Scrollbar Colors - Aqua Theme */
+  --scrollbar-thumb-start: #0ff;
+  --scrollbar-thumb-mid: #00cccc;
+  --scrollbar-thumb-end: #0088aa;
+  --scrollbar-track: #0a0f1a;
+  --scrollbar-border: #00cccc;
+  --scrollbar-thumb-hover-start: #66ffff;
+  --scrollbar-thumb-hover-mid: #0ff;
+  --scrollbar-thumb-hover-end: #00cccc;
+  --scrollbar-thumb-active: #00aaff;
+
+  /* Navbar height — layout shift prevention */
+  --navbar-height: 70px;
 }
 
 @theme inline {
@@ -28,69 +41,28 @@
 }
 
 /* ============================================================
-   GOLDEN SCROLLBAR — Chrome, Edge, Safari, Opera
-   ============================================================ */
-
-html::-webkit-scrollbar,
-body::-webkit-scrollbar,
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-html::-webkit-scrollbar-track,
-body::-webkit-scrollbar-track,
-*::-webkit-scrollbar-track {
-  background: #1a1410;
-}
-
-html::-webkit-scrollbar-thumb,
-body::-webkit-scrollbar-thumb,
-*::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #e0b84e 0%, #c9a84c 40%, #b4912f 100%);
-  border-radius: 6px;
-  border: 1px solid #8a6d1f;
-}
-
-html::-webkit-scrollbar-thumb:hover,
-body::-webkit-scrollbar-thumb:hover,
-*::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #f0cc6a 0%, #e0b84e 40%, #c9a84c 100%);
-}
-
-html::-webkit-scrollbar-thumb:active,
-body::-webkit-scrollbar-thumb:active,
-*::-webkit-scrollbar-thumb:active {
-  background: #b4912f;
-}
-
-html::-webkit-scrollbar-corner,
-body::-webkit-scrollbar-corner,
-*::-webkit-scrollbar-corner {
-  background: #1a1410;
-}
-
-/* ── Firefox Scrollbar ── */
-html {
-  scrollbar-width: thin;
-  scrollbar-color: #c9a84c #1a1410;
-}
-
-/* ============================================================
    BOX SIZING
    ============================================================ */
-
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
-/* ✅ scroll-behavior SIRF anchor links pe — navigation pe NAHI
-   Browser back/forward fast rehta hai */
+/* ============================================================
+   HTML & BODY BASE
+   ============================================================ */
 html {
   scroll-behavior: auto;
   overflow-x: hidden;
+  /* Firefox scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: #0ff #0a0f1a;
+}
+
+/* Firefox hover — subtle brightening via body */
+html:hover {
+  scrollbar-color: #66ffff #0a0f1a;
 }
 
 body {
@@ -98,13 +70,256 @@ body {
   padding: 0;
   box-sizing: inherit;
   overflow-x: hidden;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-goldman);
+  font-weight: 500;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ============================================================
-   ✅ PAGE TRANSITION — Fast aur smooth
-   Chrome back/forward bhi smooth lagta hai
+   AQUA GLOW SCROLLBAR — Chrome, Edge, Safari, Opera
    ============================================================ */
 
+/* ── Global scrollbar size ── */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+/* ── Track ── */
+::-webkit-scrollbar-track {
+  background: #0a0f1a;
+  border-radius: 10px;
+}
+
+/* ── Thumb ── */
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #0ff 0%, #00cccc 50%, #0088aa 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  transition: background 0.2s ease;
+}
+
+/* ── Thumb Hover ── */
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #66ffff 0%, #0ff 50%, #00cccc 100%);
+  border: 1px solid rgba(102, 255, 255, 0.5);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.35);
+}
+
+/* ── Thumb Active (click) ── */
+::-webkit-scrollbar-thumb:active {
+  background: #00aaff;
+  border: 1px solid #0ff;
+}
+
+/* ── Corner ── */
+::-webkit-scrollbar-corner {
+  background: #0a0f1a;
+}
+
+/* ============================================================
+   COMPONENT-SPECIFIC SCROLLBARS
+   Smaller & lighter for sidebars, modals, dropdowns
+   ============================================================ */
+
+/* Navbar Dropdowns */
+.dropdown-menu::-webkit-scrollbar,
+.navbar-bottom::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.dropdown-menu::-webkit-scrollbar-track,
+.navbar-bottom::-webkit-scrollbar-track {
+  background: #0a1a1f;
+  border-radius: 4px;
+}
+.dropdown-menu::-webkit-scrollbar-thumb,
+.navbar-bottom::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #0ff, #00cccc);
+  border-radius: 4px;
+  border: none;
+}
+.dropdown-menu::-webkit-scrollbar-thumb:hover,
+.navbar-bottom::-webkit-scrollbar-thumb:hover {
+  background: #66ffff;
+}
+
+/* Cart Sidebar Items */
+.cs-items::-webkit-scrollbar {
+  width: 3px;
+}
+.cs-items::-webkit-scrollbar-track {
+  background: rgba(0, 255, 255, 0.04);
+  border-radius: 3px;
+}
+.cs-items::-webkit-scrollbar-thumb {
+  background: #0ff;
+  border-radius: 3px;
+}
+.cs-items::-webkit-scrollbar-thumb:hover {
+  background: #66ffff;
+}
+
+/* Search Sidebar */
+.ss-content::-webkit-scrollbar {
+  width: 3px;
+}
+.ss-content::-webkit-scrollbar-track {
+  background: rgba(0, 255, 255, 0.04);
+  border-radius: 3px;
+}
+.ss-content::-webkit-scrollbar-thumb {
+  background: #0ff;
+  border-radius: 3px;
+}
+.ss-content::-webkit-scrollbar-thumb:hover {
+  background: #66ffff;
+}
+
+/* Sidebar Nav */
+.sidebar-nav::-webkit-scrollbar {
+  width: 5px;
+}
+.sidebar-nav::-webkit-scrollbar-track {
+  background: #0a1a1f;
+  border-radius: 5px;
+}
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #0ff, #00cccc);
+  border-radius: 5px;
+  border: none;
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #66ffff, #0ff);
+}
+
+/* Product Detail, Product Filter, Profile content */
+.pd-content::-webkit-scrollbar,
+.pf-content::-webkit-scrollbar,
+.pf-root::-webkit-scrollbar,
+.pf-nav::-webkit-scrollbar {
+  width: 5px;
+}
+.pd-content::-webkit-scrollbar-track,
+.pf-content::-webkit-scrollbar-track,
+.pf-root::-webkit-scrollbar-track,
+.pf-nav::-webkit-scrollbar-track {
+  background: #0a1a1f;
+  border-radius: 5px;
+}
+.pd-content::-webkit-scrollbar-thumb,
+.pf-content::-webkit-scrollbar-thumb,
+.pf-root::-webkit-scrollbar-thumb,
+.pf-nav::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #0ff, #00cccc);
+  border-radius: 5px;
+  border: none;
+}
+.pd-content::-webkit-scrollbar-thumb:hover,
+.pf-content::-webkit-scrollbar-thumb:hover,
+.pf-root::-webkit-scrollbar-thumb:hover,
+.pf-nav::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #66ffff, #0ff);
+}
+
+/* Modals */
+.dm-modal-body::-webkit-scrollbar,
+.pd-toast-wrap::-webkit-scrollbar,
+.co-toast-wrap::-webkit-scrollbar {
+  width: 6px;
+}
+.dm-modal-body::-webkit-scrollbar-track,
+.pd-toast-wrap::-webkit-scrollbar-track,
+.co-toast-wrap::-webkit-scrollbar-track {
+  background: #0a1a1f;
+  border-radius: 6px;
+}
+.dm-modal-body::-webkit-scrollbar-thumb,
+.pd-toast-wrap::-webkit-scrollbar-thumb,
+.co-toast-wrap::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #0ff, #00cccc);
+  border-radius: 6px;
+  border: none;
+}
+.dm-modal-body::-webkit-scrollbar-thumb:hover,
+.pd-toast-wrap::-webkit-scrollbar-thumb:hover,
+.co-toast-wrap::-webkit-scrollbar-thumb:hover {
+  background: #66ffff;
+}
+
+/* Product Grid / Swiper */
+.pg-grid::-webkit-scrollbar,
+.fp-swiper::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.pg-grid::-webkit-scrollbar-track,
+.fp-swiper::-webkit-scrollbar-track {
+  background: #0a1a1f;
+}
+.pg-grid::-webkit-scrollbar-thumb,
+.fp-swiper::-webkit-scrollbar-thumb {
+  background: #0ff;
+  border-radius: 4px;
+}
+.pg-grid::-webkit-scrollbar-thumb:hover,
+.fp-swiper::-webkit-scrollbar-thumb:hover {
+  background: #66ffff;
+}
+
+/* FAQ Accordion */
+.gfaq-accordion-container::-webkit-scrollbar {
+  width: 4px;
+}
+.gfaq-accordion-container::-webkit-scrollbar-track {
+  background: rgba(0, 255, 255, 0.04);
+}
+.gfaq-accordion-container::-webkit-scrollbar-thumb {
+  background: #0ff;
+  border-radius: 4px;
+}
+.gfaq-accordion-container::-webkit-scrollbar-thumb:hover {
+  background: #66ffff;
+}
+
+/* Checkout / Order Success Items */
+.co-success-items::-webkit-scrollbar {
+  width: 4px;
+}
+.co-success-items::-webkit-scrollbar-track {
+  background: transparent;
+}
+.co-success-items::-webkit-scrollbar-thumb {
+  background: #0ff;
+  border-radius: 2px;
+}
+.co-success-items::-webkit-scrollbar-thumb:hover {
+  background: #66ffff;
+}
+
+/* Select dropdowns (ShippingSection, etc.) */
+select::-webkit-scrollbar {
+  width: 6px;
+}
+select::-webkit-scrollbar-track {
+  background: #0a1a1f;
+  border-radius: 6px;
+}
+select::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #0ff, #00cccc);
+  border-radius: 6px;
+}
+select::-webkit-scrollbar-thumb:hover {
+  background: #66ffff;
+}
+
+/* ============================================================
+   PAGE TRANSITION ANIMATION
+   ============================================================ */
 @keyframes pageFadeIn {
   from {
     opacity: 0;
@@ -118,11 +333,9 @@ body {
 
 .page-fade-in {
   animation: pageFadeIn 0.25s ease-out forwards;
-  /* ✅ GPU acceleration — jankiness khatam */
   will-change: opacity, transform;
 }
 
-/* ✅ Animation ek baar ho — repeat nahi */
 @media (prefers-reduced-motion: reduce) {
   .page-fade-in {
     animation: none;
@@ -130,9 +343,8 @@ body {
 }
 
 /* ============================================================
-   GOLDMAN FONT - PRIMARY FONT FOR ENTIRE WEBSITE
+   GOLDMAN FONT — PRIMARY FONT FOR ENTIRE WEBSITE
    ============================================================ */
-
 body,
 h1,
 h2,
@@ -256,6 +468,7 @@ select {
   font-weight: 400;
 }
 
+/* Prevent italic — Goldman has no italic variant */
 i,
 em,
 cite,
@@ -266,29 +479,27 @@ var,
 }
 
 /* ============================================================
-   BODY STYLES
+   INTERACTIVE ELEMENT FOCUS STYLES
    ============================================================ */
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-goldman);
-  font-weight: 500;
-  font-style: normal;
-  overflow-x: hidden !important;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
 button {
   outline: none;
 }
 
 button:focus-visible {
-  outline: 2px solid rgba(180, 145, 80, 0.6);
+  outline: 2px solid rgba(0, 255, 255, 0.6);
   outline-offset: 2px;
 }
 
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgba(0, 255, 255, 0.4);
+  outline-offset: 1px;
+}
+
+/* ============================================================
+   LISTS & LINKS RESET
+   ============================================================ */
 ul,
 ol {
   list-style: none;
@@ -301,23 +512,21 @@ a {
 }
 
 /* ============================================================
-   ✅ PERFORMANCE — GPU layers for animated/scrolled elements
+   PERFORMANCE — GPU layers for sticky/animated elements
    ============================================================ */
-
 .navbar-sticky-wrapper {
   position: sticky;
   top: 0;
   z-index: 50;
-  /* GPU layer — navbar scroll flicker band */
   transform: translateZ(0);
   will-change: transform;
 }
 
 /* ============================================================
-   ADDITIONAL HELPER CLASSES
+   FONT HELPER CLASSES
    ============================================================ */
 
-/* Goldman helpers */
+/* Goldman */
 .font-goldman {
   font-family: "Goldman", system-ui, sans-serif;
   font-weight: 500;
@@ -331,7 +540,7 @@ a {
   font-weight: 700;
 }
 
-/* Poppins helpers (backup / override use ke liye) */
+/* Poppins */
 .font-poppins {
   font-family: "Poppins", sans-serif;
 }
@@ -368,6 +577,7 @@ a {
   font-weight: 900;
 }
 
+/* Cormorant & Mono */
 .font-cormorant {
   font-family: "Cormorant Garamond", serif;
 }
@@ -376,9 +586,8 @@ a {
 }
 
 /* ============================================================
-   RTL (Arabic / UAE)
+   RTL SUPPORT — Arabic / UAE
    ============================================================ */
-
 body.rtl,
 [dir="rtl"] {
   text-align: right;
@@ -452,4 +661,9 @@ body.rtl .fp-card-price,
 [dir="rtl"] .fp-card-price {
   text-align: right;
   direction: rtl;
+}
+
+/* RTL scrollbar — LTR direction rakhna for correct thumb position */
+[dir="rtl"] ::-webkit-scrollbar {
+  direction: ltr;
 }

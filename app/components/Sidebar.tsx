@@ -282,7 +282,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         onClick={(e) => e.stopPropagation()}
         suppressHydrationWarning
       >
-        {/* Header */}
+        {/* Header with TEXT LOGO */}
         <div className="sidebar-header">
           <Link
             href="/"
@@ -290,12 +290,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             onClick={onClose}
             prefetch={true}
           >
-            <img
-              src="/nav__logo.png"
-              alt="TECH4U"
-              className="sidebar-logo-img"
-              suppressHydrationWarning
-            />
+            <span className="sidebar-logo-tech">TECH</span>
+            <span className="sidebar-logo-four">4</span>
+            <span className="sidebar-logo-u">U</span>
           </Link>
 
           <button

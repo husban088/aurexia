@@ -1,4 +1,4 @@
-/* PaymentSection.css */
+/* PaymentSection.css — BLACK & AQUA THEME matching signin.css */
 
 .ps-payment-section {
   display: flex;
@@ -19,24 +19,28 @@
 }
 
 .ps-section-title {
-  font-family: "Cormorant Garamond", Georgia, serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.4rem;
   font-weight: 500;
-  color: #1a1a1a;
+  color: #e6f7ff;
   margin: 0;
+  text-shadow: 0 2px 8px rgba(0, 255, 255, 0.15);
 }
 
 .ps-section-title em {
   font-style: italic;
-  color: #daa520;
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   margin-right: 0.3em;
 }
 
 /* Card Preview */
 .ps-card-preview {
   position: relative;
-  background: linear-gradient(135deg, #fefcf8 0%, #f9f5f0 50%, #fefcf8 100%);
-  border: 1px solid rgba(218, 165, 32, 0.15);
+  background: linear-gradient(135deg, #0a1a1f 0%, #0a1f2a 50%, #0a2535 100%);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: 16px;
   padding: 1.75rem;
   min-height: 140px;
@@ -52,7 +56,7 @@
   inset: 0;
   background: radial-gradient(
     circle at 30% 50%,
-    rgba(218, 165, 32, 0.04) 0%,
+    rgba(0, 255, 255, 0.05) 0%,
     transparent 60%
   );
   pointer-events: none;
@@ -62,15 +66,16 @@
   width: 36px;
   height: 28px;
   border-radius: 4px;
-  background: linear-gradient(135deg, #daa520, #f0c040);
-  border: 1px solid rgba(218, 165, 32, 0.3);
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  opacity: 0.8;
 }
 
 .ps-card-num-display {
-  font-family: "Cormorant Garamond", Georgia, serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.1rem;
   font-weight: 500;
-  color: #1a1a1a;
+  color: #e6f7ff;
   margin: 0.75rem 0 0;
   letter-spacing: 0.15em;
 }
@@ -83,30 +88,30 @@
 }
 
 .ps-card-name-display {
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.15em;
-  color: #8b6914;
+  color: #0ff;
   text-transform: uppercase;
 }
 
 .ps-card-exp-display {
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.1em;
-  color: #666666;
+  color: #88bbcc;
 }
 
 .ps-card-brand {
   position: absolute;
   top: 1.5rem;
   right: 1.5rem;
-  font-family: "Cormorant Garamond", Georgia, serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 1rem;
   font-style: italic;
-  color: rgba(218, 165, 32, 0.4);
+  color: rgba(0, 255, 255, 0.35);
   letter-spacing: 0.05em;
 }
 
@@ -130,18 +135,18 @@
 }
 
 .ps-label {
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.58rem;
   font-weight: 600;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: #999999;
+  color: #88bbcc;
   transition: color 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .ps-field--focused .ps-label,
 .ps-field--filled .ps-label {
-  color: #8b6914;
+  color: #0ff;
 }
 
 .ps-input-wrap {
@@ -154,21 +159,21 @@
   border: none;
   outline: none;
   padding: 0.6rem 0;
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.8rem;
   font-weight: 400;
   letter-spacing: 0.05em;
-  color: #1a1a1a;
-  caret-color: #daa520;
+  color: #e6f7ff;
+  caret-color: #0ff;
 }
 
 .ps-input::placeholder {
-  color: #cccccc;
+  color: rgba(136, 187, 204, 0.5);
 }
 
 .ps-field-line {
   height: 1px;
-  background: rgba(139, 105, 20, 0.2);
+  background: rgba(0, 255, 255, 0.15);
   position: relative;
   overflow: hidden;
 }
@@ -180,7 +185,7 @@
   top: 0;
   width: 100%;
   height: 100%;
-  background: #daa520;
+  background: linear-gradient(90deg, #0ff, #66ffff);
   transition: left 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -188,19 +193,17 @@
   left: 0;
 }
 
-/* Error states */
 .ps-field--error .ps-field-line::after {
-  background: #dc2626;
+  background: #ff5050;
 }
-
 .ps-field--error .ps-label {
-  color: #dc2626;
+  color: #ff8080;
 }
 
 .ps-error-text {
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.55rem;
-  color: #dc2626;
+  color: #ff8080;
   margin-top: 0.25rem;
   display: block;
 }
@@ -210,16 +213,16 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.62rem;
   font-weight: 400;
   letter-spacing: 0.06em;
-  color: #999999;
+  color: #66aacc;
 }
 
 .ps-secure-note svg {
   flex-shrink: 0;
-  color: #8b6914;
+  color: #0ff;
   opacity: 0.6;
 }
 
@@ -245,12 +248,12 @@
   gap: 0.75rem;
   padding: 1rem;
   background: transparent;
-  border: 1px solid rgba(218, 165, 32, 0.2);
+  border: 1px solid rgba(0, 255, 255, 0.15);
   border-radius: 12px;
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.8rem;
   font-weight: 500;
-  color: #666666;
+  color: #88bbcc;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -260,28 +263,29 @@
 }
 
 .ps-method-btn--active {
-  border-color: #daa520;
-  background: rgba(218, 165, 32, 0.08);
-  color: #8b6914;
+  border-color: #0ff;
+  background: rgba(0, 255, 255, 0.08);
+  color: #0ff;
 }
 
 .ps-method-btn--active svg {
   opacity: 1;
-  color: #daa520;
+  color: #0ff;
 }
 
 .ps-method-btn:hover {
-  border-color: #daa520;
+  border-color: rgba(0, 255, 255, 0.5);
   transform: translateY(-1px);
+  background: rgba(0, 255, 255, 0.05);
 }
 
 /* Stripe Container */
 .ps-stripe-container {
   margin-top: 1rem;
   padding: 1rem;
-  background: #fefcf8;
+  background: rgba(10, 26, 31, 0.7);
   border-radius: 12px;
-  border: 1px solid rgba(218, 165, 32, 0.12);
+  border: 1px solid rgba(0, 255, 255, 0.12);
 }
 
 .ps-stripe-container .sp-stripe-form {
@@ -295,12 +299,12 @@
 }
 
 .ps-stripe-container .sp-pay-button {
-  background: linear-gradient(135deg, #daa520, #f0c040);
+  background: linear-gradient(135deg, #0ff, #66ffff);
   border: none;
   border-radius: 40px;
   padding: 0.85rem 2rem;
-  color: #1a1a1a;
-  font-family: "Josefin Sans", sans-serif;
+  color: #0a0f1a;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.22em;
@@ -310,8 +314,11 @@
 }
 
 .ps-stripe-container .sp-pay-button:hover:not(:disabled) {
+  background: transparent;
+  color: #0ff;
+  border: 1px solid #0ff;
   transform: translateY(-2px);
-  box-shadow: 0 10px 35px rgba(218, 165, 32, 0.3);
+  box-shadow: 0 10px 35px rgba(0, 255, 255, 0.25);
 }
 
 .ps-stripe-container .sp-pay-button:disabled {
@@ -324,17 +331,17 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem;
-  background: rgba(220, 38, 38, 0.1);
+  background: rgba(255, 80, 80, 0.08);
   border-radius: 8px;
-  color: #dc2626;
+  color: #ff8080;
   font-size: 0.75rem;
 }
 
 .sp-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(0, 0, 0, 0.2);
-  border-top-color: #1a1a1a;
+  border: 2px solid rgba(0, 255, 255, 0.2);
+  border-top-color: #0ff;
   border-radius: 50%;
   animation: co-spin 0.8s linear infinite;
   display: inline-block;
@@ -345,9 +352,9 @@
 .ps-paypal-container {
   margin-top: 1rem;
   padding: 1rem;
-  background: #fefcf8;
+  background: rgba(10, 26, 31, 0.7);
   border-radius: 12px;
-  border: 1px solid rgba(218, 165, 32, 0.12);
+  border: 1px solid rgba(0, 255, 255, 0.12);
 }
 
 /* Loading state */
@@ -358,12 +365,10 @@
   gap: 1rem;
   padding: 2rem;
   text-align: center;
-  color: #999999;
-  font-family: "Josefin Sans", sans-serif;
+  color: #66aacc;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.75rem;
 }
-
-/* Add this to your PaymentSection.css file */
 
 .ps-paypal-currency-info {
   display: flex;
@@ -372,15 +377,15 @@
   gap: 0.5rem;
   margin-top: 1rem;
   padding: 0.6rem;
-  background: rgba(218, 165, 32, 0.06);
+  background: rgba(0, 255, 255, 0.05);
   border-radius: 30px;
-  font-family: "Russo One", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   letter-spacing: 0.05em;
-  color: var(--pd-grey-dim, #666666);
+  color: #66aacc;
 }
 
 .ps-paypal-currency-info svg {
   flex-shrink: 0;
-  color: var(--pd-gold, #daa520);
+  color: #0ff;
 }

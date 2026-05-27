@@ -1,23 +1,22 @@
 /* ============================================================
    RELATED PRODUCTS STYLES · related-products.css
    "You May Also Like" section for product detail page
-   Matches FeaturedProducts design exactly
+   BLACK & AQUA GRADIENT THEME - Matching Navbar & Explore Aurexia
    ============================================================ */
 
 @import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 /* ── Design Tokens ── */
 :root {
-  --rp-gold: #c9a84c;
-  --rp-gold-dark: #a8873a;
-  --rp-gold-deep: #7a6128;
-  --rp-gold-light: #e8c96a;
-  --rp-gold-pale: #f5e9c8;
-  --rp-gold-dim: rgba(201, 168, 76, 0.1);
-  --rp-gold-glow: rgba(201, 168, 76, 0.25);
-  --rp-gold-border: rgba(201, 168, 76, 0.2);
-  --rp-gold-border-h: rgba(201, 168, 76, 0.5);
-  --rp-bg: #faf7f2;
+  --rp-aqua: #0ff;
+  --rp-aqua-dark: #00cccc;
+  --rp-aqua-deep: #0088aa;
+  --rp-aqua-light: #66ffff;
+  --rp-aqua-dim: rgba(0, 255, 255, 0.08);
+  --rp-aqua-glow: rgba(0, 255, 255, 0.25);
+  --rp-aqua-border: rgba(0, 255, 255, 0.2);
+  --rp-aqua-border-h: rgba(0, 255, 255, 0.5);
+  --rp-bg: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
   --rp-card: #ffffff;
   --rp-card-hover: #fffdf8;
   --rp-ink: #111111;
@@ -30,18 +29,28 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-         SECTION WRAPPER
+         SECTION WRAPPER - BLACK & AQUA GRADIENT
       ═══════════════════════════════════════════════════════ */
 .rp-section {
   position: relative;
   z-index: 1;
   padding: 4rem 0 5rem;
-  background: linear-gradient(160deg, #f7f3ec 0%, #fdfaf5 45%, #fffef9 100%);
+  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
   overflow: hidden;
   margin-top: 2rem;
 }
 
-/* Ambient radial glow */
+/* Grain texture */
+.rp-grain {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Ambient radial glow - Aqua */
 .rp-section::after {
   content: "";
   position: absolute;
@@ -54,19 +63,62 @@
   max-height: 900px;
   background: radial-gradient(
     circle,
-    rgba(201, 168, 76, 0.06) 0%,
-    transparent 65%
+    rgba(0, 255, 255, 0.08) 0%,
+    rgba(0, 200, 255, 0.04) 40%,
+    transparent 70%
   );
   pointer-events: none;
   z-index: 0;
 }
 
+/* Top border - Aqua */
+.rp-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(700px, 90%);
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(0, 255, 255, 0.6),
+    transparent
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Decorative lines - Aqua */
+.rp-lines {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 3%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.rp-lines span {
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(0, 255, 255, 0.06) 20%,
+    rgba(0, 255, 255, 0.06) 80%,
+    transparent
+  );
+}
+
 /* ═══════════════════════════════════════════════════════
-         HEADER
+         HEADER - AQUA THEME
       ═══════════════════════════════════════════════════════ */
 .rp-header {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   max-width: 1320px;
   margin: 0 auto;
   padding: 0 2rem 2.5rem;
@@ -86,15 +138,16 @@
   font-weight: 600;
   letter-spacing: 0.45em;
   text-transform: uppercase;
-  color: var(--rp-gold-deep);
+  color: #66ffff;
   margin-bottom: 1rem;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
 }
 
 .rp-eye-line {
   display: block;
   width: 28px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--rp-gold));
+  background: linear-gradient(90deg, transparent, #0ff, transparent);
   opacity: 0.8;
 }
 
@@ -102,16 +155,19 @@
   font-family: var(--rp-serif);
   font-size: clamp(2rem, 4.5vw, 3rem);
   font-weight: 400;
-  color: var(--rp-ink);
+  color: #e6f7ff;
   margin: 0 0 0.8rem;
   line-height: 1.05;
   letter-spacing: -0.01em;
+  text-shadow: 0 2px 10px rgba(0, 255, 255, 0.15);
 }
 
 .rp-title em {
   font-style: italic;
-  color: var(--rp-gold-deep);
-  font-weight: 600;
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -119,7 +175,7 @@
       ═══════════════════════════════════════════════════════ */
 .rp-grid {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   max-width: 1320px;
   margin: 0 auto;
   padding: 0 2rem;
@@ -130,12 +186,12 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-         PRODUCT CARD - Exactly matches FeaturedProducts
+         PRODUCT CARD - White Background, Aqua Accents
       ═══════════════════════════════════════════════════════ */
 .rp-card {
   position: relative;
   background: var(--rp-card);
-  border: 1px solid var(--rp-gold-border);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: 20px;
   overflow: hidden;
   display: flex;
@@ -149,10 +205,10 @@
   height: 100%;
   text-decoration: none;
   color: inherit;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.15);
 }
 
-/* Shimmer overlay on hover */
+/* Shimmer overlay on hover - Aqua */
 .rp-card::after {
   content: "";
   position: absolute;
@@ -160,7 +216,7 @@
   background: linear-gradient(
     135deg,
     transparent 40%,
-    rgba(201, 168, 76, 0.05) 50%,
+    rgba(0, 255, 255, 0.08) 50%,
     transparent 60%
   );
   background-size: 200% 200%;
@@ -173,7 +229,7 @@
   z-index: 1;
 }
 
-/* Gold corner triangle */
+/* Aqua corner triangle */
 .rp-card::before {
   content: "";
   position: absolute;
@@ -183,7 +239,7 @@
   height: 0;
   border-style: solid;
   border-width: 0 28px 28px 0;
-  border-color: transparent var(--rp-gold) transparent transparent;
+  border-color: transparent #0ff transparent transparent;
   opacity: 0;
   transition: opacity 0.35s ease;
   z-index: 5;
@@ -192,9 +248,9 @@
 .rp-card:hover {
   transform: translateY(-10px);
   box-shadow:
-    0 28px 55px rgba(201, 168, 76, 0.14),
-    0 8px 20px rgba(0, 0, 0, 0.06);
-  border-color: var(--rp-gold-border-h);
+    0 28px 55px rgba(0, 200, 255, 0.2),
+    0 8px 20px rgba(0, 0, 0, 0.2);
+  border-color: rgba(0, 255, 255, 0.5);
   background: var(--rp-card-hover);
 }
 
@@ -212,7 +268,7 @@
   width: 100%;
   padding-top: 100%; /* 1:1 aspect ratio */
   flex-shrink: 0;
-  background: #f0ebe3;
+  background: #0a0f1a;
   overflow: hidden;
 }
 
@@ -232,12 +288,12 @@
   transform: scale(1.1);
 }
 
-/* Image shimmer overlay on hover */
+/* Image shimmer overlay on hover - Aqua */
 .rp-card-img::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.18) 0%, transparent 50%);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.15) 0%, transparent 50%);
   opacity: 0;
   transition: opacity 0.4s ease;
   z-index: 1;
@@ -247,23 +303,23 @@
   opacity: 1;
 }
 
-/* Placeholder */
+/* Placeholder - Aqua theme */
 .rp-img-placeholder {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #f2ede6 0%, #e8e0d5 100%);
+  background: linear-gradient(135deg, #0a1a1f 0%, #0a1f2a 100%);
 }
 
 .rp-img-placeholder svg {
   width: 52px;
   height: 52px;
-  color: rgba(201, 168, 76, 0.22);
+  color: rgba(0, 255, 255, 0.25);
 }
 
-/* ── Badges ── */
+/* ── Badges - Aqua Theme ── */
 .rp-card-badges {
   position: absolute;
   top: 0.85rem;
@@ -285,34 +341,33 @@
   letter-spacing: 0.18em;
   text-transform: uppercase;
   backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
 }
 
 .rp-badge--feat {
-  background: var(--rp-gold);
-  color: white;
-  box-shadow: 0 2px 8px rgba(201, 168, 76, 0.4);
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  color: #0a0f1a;
+  box-shadow: 0 2px 8px rgba(0, 255, 255, 0.4);
 }
 
 .rp-badge--new {
-  background: rgba(34, 197, 94, 0.14);
-  border: 1px solid rgba(34, 197, 94, 0.35);
-  color: #15803d;
+  background: rgba(0, 255, 255, 0.15);
+  border: 1px solid rgba(0, 255, 255, 0.35);
+  color: #0ff;
 }
 
 .rp-badge--sale {
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #dc2626;
+  background: rgba(255, 107, 107, 0.15);
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  color: #ff6b6b;
 }
 
 .rp-badge--low {
-  background: rgba(245, 158, 11, 0.14);
+  background: rgba(245, 158, 11, 0.15);
   border: 1px solid rgba(245, 158, 11, 0.35);
-  color: #d97706;
+  color: #f59e0b;
 }
 
-/* ── Icon Buttons ── */
+/* ── Icon Buttons - Aqua Theme ── */
 .rp-icon-buttons {
   position: absolute;
   bottom: 0.8rem;
@@ -340,33 +395,32 @@
   height: 40px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(201, 168, 76, 0.22);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s var(--rp-ease-out);
   backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
 }
 
 .rp-icon-btn svg {
   width: 17px;
   height: 17px;
-  color: var(--rp-ink);
+  color: #0ff;
   transition: all 0.25s ease;
 }
 
 .rp-icon-btn:hover {
-  background: var(--rp-gold);
-  border-color: var(--rp-gold);
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  border-color: transparent;
   transform: scale(1.12);
-  box-shadow: 0 6px 18px rgba(201, 168, 76, 0.35);
+  box-shadow: 0 6px 18px rgba(0, 255, 255, 0.4);
 }
 
 .rp-icon-btn:hover svg {
-  color: white;
+  color: #0a0f1a;
 }
 
 .rp-icon-btn:disabled {
@@ -376,20 +430,13 @@
 
 .rp-icon-btn:disabled:hover {
   background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(201, 168, 76, 0.22);
+  border-color: rgba(0, 255, 255, 0.25);
   transform: none;
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
 }
 
-.rp-icon-btn:disabled:hover svg {
-  color: var(--rp-ink);
-}
-
 /* ═══════════════════════════════════════════════════════
-         CARD BODY
-      ═══════════════════════════════════════════════════════ */
-/* ═══════════════════════════════════════════════════════
-         CARD BODY - FIXED HEIGHTS FOR PERFECT ALIGNMENT
+         CARD BODY - FIXED HEIGHTS
       ═══════════════════════════════════════════════════════ */
 .rp-card-body {
   padding: 1.1rem 1.15rem 1.2rem;
@@ -401,14 +448,14 @@
   z-index: 2;
 }
 
-/* ── Brand — fixed height 20px, hamesha space reserve ── */
+/* ── Brand - Aqua Color ── */
 .rp-card-brand {
   font-family: var(--rp-sans);
   font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.26em;
   text-transform: uppercase;
-  color: var(--rp-gold-dark);
+  color: #00cccc;
   margin: 0;
   height: 20px;
   min-height: 20px;
@@ -419,7 +466,7 @@
   display: block;
 }
 
-/* ── Name — 2-line fixed height ── */
+/* ── Name ── */
 .rp-card-name {
   font-family: var(--rp-serif);
   font-size: 1rem;
@@ -437,10 +484,10 @@
 }
 
 .rp-card:hover .rp-card-name {
-  color: var(--rp-gold-deep);
+  color: #00cccc;
 }
 
-/* ── Price Row — fixed height ── */
+/* ── Price Row ── */
 .rp-card-price-row {
   display: flex;
   align-items: baseline;
@@ -457,7 +504,10 @@
   font-family: var(--rp-serif);
   font-size: 1.3rem;
   font-weight: 700;
-  color: var(--rp-gold-dark);
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   letter-spacing: -0.01em;
 }
 
@@ -473,14 +523,14 @@
   font-family: var(--rp-sans);
   font-size: 0.62rem;
   font-weight: 700;
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.08);
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.1);
   padding: 0.1rem 0.45rem;
   border-radius: 20px;
   letter-spacing: 0.04em;
 }
 
-/* ── Rating — FIXED HEIGHT 26px, hamesha rendered ── */
+/* ── Rating ── */
 .rp-rating {
   display: flex;
   align-items: center;
@@ -498,7 +548,7 @@
   color: var(--rp-ink-muted);
 }
 
-/* ── Variants Wrapper — FIXED HEIGHT 76px, hamesha rendered ── */
+/* ── Variants Wrapper ── */
 .rp-card-variants-wrapper {
   min-height: 76px;
   height: 76px;
@@ -510,7 +560,7 @@
   margin: 0 0 0.25rem;
 }
 
-/* ── Variants inner row ── */
+/* ── Variants inner row - Aqua ── */
 .rp-card-variants {
   display: flex;
   align-items: center;
@@ -524,9 +574,12 @@
   font-family: var(--rp-sans);
   font-size: 0.52rem;
   font-weight: 600;
-  color: var(--rp-gold-deep);
+  color: #0ff;
   letter-spacing: 0.06em;
   white-space: nowrap;
+  background: rgba(0, 255, 255, 0.08);
+  padding: 0.1rem 0.5rem;
+  border-radius: 20px;
 }
 
 .rp-variant-thumbnails {
@@ -540,7 +593,7 @@
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  border: 1.5px solid rgba(201, 168, 76, 0.22);
+  border: 1.5px solid rgba(0, 255, 255, 0.25);
   background: transparent;
   cursor: pointer;
   overflow: hidden;
@@ -565,13 +618,13 @@
 .rp-variant-thumb .rp-variant-text {
   font-size: 0.7rem;
   font-weight: 600;
-  color: #666;
+  color: #0ff;
 }
 
 .rp-variant-label-text {
   font-size: 0.46rem;
   font-weight: 500;
-  color: var(--rp-gold-deep);
+  color: #0ff;
   text-align: center;
   max-width: 38px;
   overflow: hidden;
@@ -581,31 +634,31 @@
 }
 
 .rp-variant-thumb:hover {
-  border-color: var(--rp-gold);
+  border-color: #0ff;
   transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(201, 168, 76, 0.2);
+  box-shadow: 0 4px 10px rgba(0, 255, 255, 0.3);
 }
 
 .rp-variant-thumb.active {
-  border-color: var(--rp-gold);
-  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.3);
-  background: rgba(201, 168, 76, 0.06);
+  border-color: #0ff;
+  box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.3);
+  background: rgba(0, 255, 255, 0.08);
 }
 
 .rp-variant-thumb.active .rp-variant-label-text {
-  color: var(--rp-gold-dark);
+  color: #66ffff;
   font-weight: 700;
 }
 
 .rp-variant-more {
   font-size: 0.56rem;
   font-weight: 600;
-  color: var(--rp-gold-dark);
+  color: #0ff;
   font-family: var(--rp-sans);
-  background: var(--rp-gold-dim);
+  background: rgba(0, 255, 255, 0.1);
   padding: 0.2rem 0.55rem;
   border-radius: 20px;
-  border: 1px solid rgba(201, 168, 76, 0.18);
+  border: 1px solid rgba(0, 255, 255, 0.2);
 }
 
 /* ── Stock Status ── */
@@ -654,19 +707,14 @@
   background: #ef4444;
 }
 
-/* Bottom animated gold line */
+/* Bottom animated aqua line */
 .rp-card-line {
   position: absolute;
   bottom: 0;
   left: 0;
   height: 2.5px;
   width: 0;
-  background: linear-gradient(
-    90deg,
-    var(--rp-gold),
-    var(--rp-gold-light),
-    var(--rp-gold)
-  );
+  background: linear-gradient(90deg, #0ff, #66ffff, #0ff);
   background-size: 200% 100%;
   transition: width 0.55s var(--rp-ease-out);
   z-index: 6;
@@ -687,7 +735,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-         SPINNER & SKELETON
+         SPINNER & SKELETON - Aqua Theme
       ═══════════════════════════════════════════════════════ */
 @keyframes rp-spin {
   to {
@@ -699,23 +747,23 @@
   display: inline-block;
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(201, 168, 76, 0.2);
-  border-top-color: var(--rp-gold);
+  border: 2px solid rgba(0, 255, 255, 0.2);
+  border-top-color: #0ff;
   border-radius: 50%;
   animation: rp-spin 0.75s linear infinite;
 }
 
-/* Skeleton Loading */
+/* Skeleton Loading - Dark Theme */
 .rp-skeleton-card {
-  background: white;
-  border: 1px solid rgba(201, 168, 76, 0.1);
+  background: rgba(10, 26, 31, 0.8);
+  border: 1px solid rgba(0, 255, 255, 0.15);
   border-radius: 20px;
   overflow: hidden;
 }
 
 .rp-skeleton-img {
   aspect-ratio: 1;
-  background: linear-gradient(110deg, #ededec 8%, #f5f4f2 18%, #ededec 33%);
+  background: linear-gradient(110deg, #1a2a2f 8%, #1a3035 18%, #1a2a2f 33%);
   background-size: 200% 100%;
   animation: rp-skeleton 1.5s ease-in-out infinite;
 }
@@ -730,7 +778,7 @@
 .rp-skeleton-line {
   height: 10px;
   border-radius: 5px;
-  background: linear-gradient(110deg, #ededec 8%, #f5f4f2 18%, #ededec 33%);
+  background: linear-gradient(110deg, #1a2a2f 8%, #1a3035 18%, #1a2a2f 33%);
   background-size: 200% 100%;
   animation: rp-skeleton 1.5s ease-in-out infinite;
 }
@@ -759,7 +807,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-         RESPONSIVE - Matches FeaturedProducts exactly
+         RESPONSIVE
       ═══════════════════════════════════════════════════════ */
 @media (max-width: 1100px) {
   .rp-section {
@@ -938,4 +986,39 @@
     opacity: 1;
     transform: none;
   }
+}
+
+/* ============================================================
+         RTL SUPPORT
+      ============================================================ */
+[dir="rtl"] .rp-card-body {
+  text-align: right;
+}
+
+[dir="rtl"] .rp-card-price-row {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+[dir="rtl"] .rp-card-variants {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .rp-variant-thumbnails {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .rp-eyebrow {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .rp-card-badges {
+  left: auto;
+  right: 0.85rem;
+}
+
+[dir="rtl"] .rp-icon-buttons {
+  flex-direction: row-reverse;
+  left: 0.8rem;
+  right: 0.8rem;
 }

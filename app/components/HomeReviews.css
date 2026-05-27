@@ -1,41 +1,53 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   HOME REVIEWS — Luxurious, Bright & Next-Level Design
-   Light theme with gold accents, glassmorphism, premium animations
+   HOME REVIEWS — BLACK & AQUA GRADIENT THEME
+   Matching Navbar, Explore Aurexia, WhyChooseUs & AnnouncementBar
    Fully responsive: Desktop 3 cards | Tablet 2 | Mobile 1
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
-/* ── CSS Variables – Light & Bright Luxury ─────────────────────────────── */
+/* ── CSS Variables – Black & Aqua Luxury ─────────────────────────────── */
 .hr-section {
-  --hr-gold: #d4af37;
-  --hr-gold-light: #f5e6a3;
-  --hr-gold-dark: #b8960c;
-  --hr-gold-glow: rgba(212, 175, 55, 0.2);
-  --hr-bg: linear-gradient(135deg, #fff9f0 0%, #fffef5 50%, #fdf8ed 100%);
-  --hr-card-bg: rgba(255, 255, 255, 0.92);
-  --hr-card-border: rgba(212, 175, 55, 0.25);
-  --hr-text: #1a1a2e;
-  --hr-text-muted: #5a5a6e;
-  --hr-text-light: #8a8a9e;
+  --hr-aqua: #0ff;
+  --hr-aqua-light: #66ffff;
+  --hr-aqua-dark: #00cccc;
+  --hr-aqua-deep: #0088aa;
+  --hr-aqua-glow: rgba(0, 255, 255, 0.2);
+  --hr-bg: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
+  --hr-card-bg: rgba(10, 26, 31, 0.92);
+  --hr-card-border: rgba(0, 255, 255, 0.25);
+  --hr-text: #fff;
+  --hr-text-muted: #fff;
+  --hr-text-light: #fff;
   --hr-radius: 24px;
-  --hr-ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --hr-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --hr-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --hr-shadow-sm: 0 8px 30px rgba(0, 0, 0, 0.05);
-  --hr-shadow-md: 0 15px 40px rgba(212, 175, 55, 0.12);
-  --hr-shadow-lg: 0 25px 50px rgba(212, 175, 55, 0.18);
+  --hr-shadow-sm: 0 8px 30px rgba(0, 0, 0, 0.3);
+  --hr-shadow-md: 0 15px 40px rgba(0, 255, 255, 0.12);
+  --hr-shadow-lg: 0 25px 50px rgba(0, 255, 255, 0.18);
 }
 
 /* ── Section Container ─────────────────────────────────────────────────── */
 .hr-section {
   position: relative;
-  background: var(--hr-bg);
+  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
   padding: 5rem 0 6rem;
   overflow: hidden;
   isolation: isolate;
 }
 
-/* ── Animated Background Orbs ─────────────────────────────────────────── */
+/* Grain texture matching other sections */
+.hr-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Animated Background Orbs – Aqua ─────────────────────────────────── */
 .hr-bg-orb {
   position: absolute;
   border-radius: 50%;
@@ -50,7 +62,7 @@
   height: 600px;
   background: radial-gradient(
     circle,
-    rgba(212, 175, 55, 0.12) 0%,
+    rgba(0, 255, 255, 0.1) 0%,
     transparent 70%
   );
   top: -200px;
@@ -63,7 +75,7 @@
   height: 500px;
   background: radial-gradient(
     circle,
-    rgba(212, 175, 55, 0.08) 0%,
+    rgba(0, 255, 255, 0.08) 0%,
     transparent 70%
   );
   bottom: -150px;
@@ -76,7 +88,7 @@
   height: 400px;
   background: radial-gradient(
     circle,
-    rgba(245, 230, 163, 0.1) 0%,
+    rgba(102, 255, 255, 0.08) 0%,
     transparent 70%
   );
   top: 40%;
@@ -93,29 +105,52 @@
   }
 }
 
-/* ── Subtle Grid Pattern ──────────────────────────────────────────────── */
+/* ── Subtle Grid Pattern – Aqua Tint ─────────────────────────────────── */
 .hr-bg-grid {
   position: absolute;
   inset: 0;
   z-index: 0;
   background-image:
-    linear-gradient(rgba(212, 175, 55, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(212, 175, 55, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 50px 50px;
   pointer-events: none;
 }
 
-/* ── Diamond Sparkle Decoration ───────────────────────────────────────── */
+/* ── Decorative bg lines ── */
+.hr-bg-lines {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hr-bg-lines span {
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 255, 255, 0.08) 30%,
+    rgba(0, 255, 255, 0.08) 70%,
+    transparent 100%
+  );
+}
+
+/* ── Aqua Sparkle Decoration ───────────────────────────────────────── */
 .hr-sparkle {
   position: absolute;
   width: 4px;
   height: 4px;
-  background: var(--hr-gold);
+  background: var(--hr-aqua);
   border-radius: 50%;
   opacity: 0;
   animation: hr-sparkle-pulse 3s ease-in-out infinite;
   pointer-events: none;
   z-index: 1;
+  box-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
 }
 
 .hr-sparkle--1 {
@@ -171,7 +206,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   HEADER SECTION — Elegant & Bright
+   HEADER SECTION — Aqua Theme
    ═══════════════════════════════════════════════════════════════════════ */
 .hr-header {
   text-align: center;
@@ -188,7 +223,7 @@
   font-weight: 700;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: var(--hr-gold-dark);
+  color: var(--hr-aqua-light);
   margin: 0 0 1.2rem;
 }
 
@@ -196,7 +231,7 @@
   display: block;
   width: 50px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--hr-gold), transparent);
+  background: linear-gradient(90deg, transparent, var(--hr-aqua), transparent);
 }
 
 .hr-title {
@@ -207,11 +242,12 @@
   margin: 0 0 1rem;
   line-height: 1.2;
   letter-spacing: -0.02em;
+  text-shadow: 0 2px 10px rgba(0, 255, 255, 0.15);
 }
 
 .hr-title em {
   font-style: italic;
-  background: linear-gradient(135deg, var(--hr-gold-dark), var(--hr-gold));
+  background: linear-gradient(135deg, #0ff, #66ffff);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -225,7 +261,7 @@
   left: 0;
   width: 100%;
   height: 2px;
-  background: linear-gradient(90deg, var(--hr-gold), transparent);
+  background: linear-gradient(90deg, var(--hr-aqua), transparent);
   border-radius: 2px;
 }
 
@@ -240,7 +276,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   STATS SECTION — Glassmorphism Cards
+   STATS SECTION — Glassmorphism Cards (Aqua Theme)
    ═══════════════════════════════════════════════════════════════════════ */
 .hr-stats {
   display: flex;
@@ -253,20 +289,20 @@
 
 .hr-stat {
   text-align: center;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(10, 26, 31, 0.7);
   backdrop-filter: blur(10px);
   padding: 1rem 2rem;
   border-radius: 60px;
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   transition: all 0.4s var(--hr-ease);
   min-width: 140px;
 }
 
 .hr-stat:hover {
   transform: translateY(-5px);
-  border-color: var(--hr-gold);
+  border-color: var(--hr-aqua);
   box-shadow: var(--hr-shadow-md);
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(10, 26, 31, 0.9);
 }
 
 .hr-stat-num {
@@ -274,7 +310,10 @@
   font-family: var(--font-goldman), "Goldman", system-ui, sans-serif;
   font-size: 2rem;
   font-weight: 700;
-  color: var(--hr-gold-dark);
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   line-height: 1;
   margin-bottom: 0.3rem;
 }
@@ -294,7 +333,7 @@
   background: linear-gradient(
     to bottom,
     transparent,
-    var(--hr-gold),
+    var(--hr-aqua),
     transparent
   );
 }
@@ -311,7 +350,7 @@
   margin: 0.5rem 0 1.5rem;
 }
 
-/* Cards Grid — Always visible, no opacity tricks */
+/* Cards Grid */
 .hr-cards-grid {
   display: grid;
   flex: 1;
@@ -363,14 +402,13 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   REVIEW CARD — Premium Glassmorphism Design
-   Layout: Avatar → Name → Stars → Title → Description → Product Tag
+   REVIEW CARD — Dark Glassmorphism with Aqua Accents
    ═══════════════════════════════════════════════════════════════════════ */
 .hr-card {
   position: relative;
-  background: var(--hr-card-bg);
+  background: rgba(10, 26, 31, 0.92);
   backdrop-filter: blur(8px);
-  border: 1px solid var(--hr-card-border);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   border-radius: var(--hr-radius);
   padding: 2rem 1.5rem 1.8rem;
   display: flex;
@@ -383,15 +421,15 @@
   overflow: hidden;
 }
 
-/* Card Hover Effects — Premium Animation */
+/* Card Hover Effects */
 .hr-card:hover {
   transform: translateY(-12px) scale(1.02);
-  border-color: var(--hr-gold);
+  border-color: var(--hr-aqua);
   box-shadow: var(--hr-shadow-lg);
-  background: rgba(255, 255, 255, 0.98);
+  background: rgba(10, 26, 31, 0.98);
 }
 
-/* Animated Shimmer Border Top */
+/* Animated Shimmer Border Top - Aqua */
 .hr-card-shimmer {
   position: absolute;
   top: 0;
@@ -401,8 +439,8 @@
   background: linear-gradient(
     90deg,
     transparent,
-    var(--hr-gold),
-    var(--hr-gold-light),
+    var(--hr-aqua),
+    var(--hr-aqua-light),
     transparent
   );
   transition: left 0.6s var(--hr-ease);
@@ -420,7 +458,7 @@
   bottom: 20px;
   right: 20px;
   font-size: 12px;
-  color: var(--hr-gold);
+  color: var(--hr-aqua);
   opacity: 0;
   transform: translate(5px, 5px);
   transition: all 0.4s var(--hr-ease-bounce);
@@ -432,7 +470,7 @@
   transform: translate(0, 0);
 }
 
-/* Decorative Quote Mark */
+/* Decorative Quote Mark - Aqua */
 .hr-card-quote {
   position: absolute;
   top: 0.8rem;
@@ -440,17 +478,17 @@
   font-family: var(--font-goldman), "Goldman", system-ui, sans-serif;
   font-size: 4.5rem;
   line-height: 1;
-  color: rgba(212, 175, 55, 0.08);
+  color: rgba(0, 255, 255, 0.08);
   pointer-events: none;
   transition: all 0.4s ease;
 }
 
 .hr-card:hover .hr-card-quote {
-  color: rgba(212, 175, 55, 0.15);
+  color: rgba(0, 255, 255, 0.15);
   transform: scale(1.05);
 }
 
-/* ── Avatar — Premium Round with Gold Ring ───────────────────────────── */
+/* ── Avatar — Premium Round with Aqua Ring ───────────────────────────── */
 .hr-card-avatar-wrap {
   position: relative;
   width: 85px;
@@ -467,18 +505,18 @@
   object-fit: cover;
   object-position: center;
   display: block;
-  border: 3px solid rgba(212, 175, 55, 0.3);
+  border: 3px solid rgba(0, 255, 255, 0.3);
   box-shadow:
-    0 0 0 4px rgba(212, 175, 55, 0.08),
-    0 10px 25px rgba(0, 0, 0, 0.1);
+    0 0 0 4px rgba(0, 255, 255, 0.08),
+    0 10px 25px rgba(0, 0, 0, 0.3);
   transition: all 0.45s var(--hr-ease-bounce);
 }
 
 .hr-card:hover .hr-card-avatar-img {
-  border-color: var(--hr-gold);
+  border-color: var(--hr-aqua);
   box-shadow:
-    0 0 0 6px rgba(212, 175, 55, 0.15),
-    0 15px 35px rgba(0, 0, 0, 0.15);
+    0 0 0 6px rgba(0, 255, 255, 0.15),
+    0 15px 35px rgba(0, 0, 0, 0.4);
   transform: scale(1.05);
 }
 
@@ -487,51 +525,51 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f5e6a3, #d4af37);
+  background: linear-gradient(135deg, #0ff, #00cccc);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-goldman), "Goldman", system-ui, sans-serif;
   font-size: 2rem;
   font-weight: 700;
-  color: white;
+  color: #0a0f1a;
   text-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  border: 3px solid rgba(212, 175, 55, 0.3);
+  border: 3px solid rgba(0, 255, 255, 0.3);
   transition: all 0.45s var(--hr-ease-bounce);
 }
 
 .hr-card:hover .hr-card-avatar-fallback {
-  border-color: var(--hr-gold);
+  border-color: var(--hr-aqua);
   transform: scale(1.05);
-  box-shadow: 0 0 0 6px rgba(212, 175, 55, 0.15);
+  box-shadow: 0 0 0 6px rgba(0, 255, 255, 0.15);
 }
 
-/* Verified Badge on Avatar */
+/* Verified Badge on Avatar - Aqua */
 .hr-card-badge {
   position: absolute;
   bottom: -2px;
   right: -4px;
   width: 26px;
   height: 26px;
-  background: linear-gradient(135deg, var(--hr-gold), var(--hr-gold-dark));
+  background: linear-gradient(135deg, var(--hr-aqua), var(--hr-aqua-dark));
   border-radius: 50%;
-  border: 2.5px solid white;
+  border: 2.5px solid #0a1a1f;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
   transition: all 0.3s var(--hr-ease-bounce);
 }
 
 .hr-card:hover .hr-card-badge {
   transform: scale(1.15) rotate(5deg);
-  box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4);
+  box-shadow: 0 5px 15px rgba(0, 255, 255, 0.4);
 }
 
 .hr-card-badge svg {
   width: 12px;
   height: 12px;
-  stroke: white;
+  stroke: #0a0f1a;
   stroke-width: 2.5;
 }
 
@@ -543,12 +581,11 @@
   letter-spacing: -0.01em;
   color: var(--hr-text);
   margin: 0 0 0.5rem;
-  transition: color 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 .hr-card:hover .hr-card-name {
-  color: var(--hr-gold-dark);
-  background: linear-gradient(135deg, var(--hr-gold-dark), var(--hr-gold));
+  background: linear-gradient(135deg, #0ff, #66ffff);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -570,19 +607,19 @@
 
 .hr-star polygon {
   fill: none;
-  stroke: var(--hr-gold);
+  stroke: var(--hr-aqua);
   stroke-width: 1.5;
   opacity: 0.35;
 }
 
 .hr-star--filled polygon {
-  fill: var(--hr-gold);
+  fill: var(--hr-aqua);
   opacity: 1;
 }
 
 .hr-card:hover .hr-star--filled {
   transform: scale(1.2);
-  filter: drop-shadow(0 0 3px rgba(212, 175, 55, 0.5));
+  filter: drop-shadow(0 0 3px rgba(0, 255, 255, 0.5));
 }
 
 /* ── Review Title ────────────────────────────────────────────────────── */
@@ -597,7 +634,7 @@
 }
 
 .hr-card:hover .hr-card-title {
-  color: var(--hr-gold-dark);
+  color: var(--hr-aqua-light);
 }
 
 /* ── Review Body (Description) ───────────────────────────────────────── */
@@ -627,9 +664,9 @@
   font-size: 0.55rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--hr-gold-dark);
-  background: rgba(212, 175, 55, 0.08);
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  color: var(--hr-aqua-light);
+  background: rgba(0, 255, 255, 0.08);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   padding: 0.4rem 1rem;
   border-radius: 50px;
   transition: all 0.35s var(--hr-ease);
@@ -637,8 +674,8 @@
 }
 
 .hr-card:hover .hr-card-product {
-  background: rgba(212, 175, 55, 0.15);
-  border-color: var(--hr-gold);
+  background: rgba(0, 255, 255, 0.15);
+  border-color: var(--hr-aqua);
   transform: translateX(3px);
 }
 
@@ -648,7 +685,7 @@
   stroke: currentColor;
 }
 
-/* Bottom Animated Gold Line */
+/* Bottom Animated Aqua Line */
 .hr-card-bottom-line {
   position: absolute;
   bottom: 0;
@@ -658,9 +695,9 @@
   background: linear-gradient(
     90deg,
     transparent,
-    var(--hr-gold),
-    var(--hr-gold-light),
-    var(--hr-gold),
+    var(--hr-aqua),
+    var(--hr-aqua-light),
+    var(--hr-aqua),
     transparent
   );
   transform: scaleX(0);
@@ -673,30 +710,30 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   NAVIGATION ARROWS — Premium Design
+   NAVIGATION ARROWS — Aqua Theme
    ═══════════════════════════════════════════════════════════════════════ */
 .hr-arrow {
   flex-shrink: 0;
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(212, 175, 55, 0.3);
+  background: rgba(10, 26, 31, 0.9);
+  border: 1px solid rgba(0, 255, 255, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--hr-gold-dark);
+  color: var(--hr-aqua-light);
   transition: all 0.35s var(--hr-ease-bounce);
   backdrop-filter: blur(8px);
   box-shadow: var(--hr-shadow-sm);
 }
 
 .hr-arrow:hover {
-  background: var(--hr-gold);
-  border-color: var(--hr-gold);
-  color: white;
-  box-shadow: 0 8px 25px rgba(212, 175, 55, 0.35);
+  background: var(--hr-aqua);
+  border-color: var(--hr-aqua);
+  color: #0a0f1a;
+  box-shadow: 0 8px 25px rgba(0, 255, 255, 0.35);
   transform: scale(1.12);
 }
 
@@ -706,7 +743,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   DOT INDICATORS
+   DOT INDICATORS — Aqua Theme
    ═══════════════════════════════════════════════════════════════════════ */
 .hr-dots {
   display: flex;
@@ -720,7 +757,7 @@
   width: 32px;
   height: 3px;
   border-radius: 3px;
-  background: rgba(212, 175, 55, 0.25);
+  background: rgba(0, 255, 255, 0.25);
   border: none;
   cursor: pointer;
   transition: all 0.35s var(--hr-ease);
@@ -728,19 +765,19 @@
 }
 
 .hr-dot--active {
-  background: var(--hr-gold);
+  background: var(--hr-aqua);
   width: 48px;
-  box-shadow: 0 0 8px rgba(212, 175, 55, 0.5);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
 }
 
 .hr-dot:hover:not(.hr-dot--active) {
-  background: rgba(212, 175, 55, 0.5);
+  background: rgba(0, 255, 255, 0.5);
   transform: scaleX(1.1);
   width: 40px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   SKELETON LOADING — Smooth Shimmer
+   SKELETON LOADING — Dark Theme Shimmer
    ═══════════════════════════════════════════════════════════════════════ */
 .hr-skeleton-row {
   display: grid;
@@ -750,9 +787,9 @@
 }
 
 .hr-skeleton-card {
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(10, 26, 31, 0.6);
   backdrop-filter: blur(4px);
-  border: 1px solid rgba(212, 175, 55, 0.15);
+  border: 1px solid rgba(0, 255, 255, 0.15);
   border-radius: var(--hr-radius);
   padding: 2rem 1.5rem 1.5rem;
   display: flex;
@@ -765,7 +802,7 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: linear-gradient(90deg, #e8e0d0 25%, #f0e8d8 50%, #e8e0d0 75%);
+  background: linear-gradient(90deg, #1a3a3a 25%, #2a4a4a 50%, #1a3a3a 75%);
   background-size: 200% 100%;
   animation: hr-shimmer 1.5s infinite;
 }
@@ -774,7 +811,7 @@
   height: 10px;
   width: 100%;
   border-radius: 5px;
-  background: linear-gradient(90deg, #e8e0d0 25%, #f0e8d8 50%, #e8e0d0 75%);
+  background: linear-gradient(90deg, #1a3a3a 25%, #2a4a4a 50%, #1a3a3a 75%);
   background-size: 200% 100%;
   animation: hr-shimmer 1.5s infinite;
 }
@@ -786,7 +823,7 @@
   width: 90px;
   height: 12px;
   border-radius: 5px;
-  background: linear-gradient(90deg, #e8e0d0 25%, #f0e8d8 50%, #e8e0d0 75%);
+  background: linear-gradient(90deg, #1a3a3a 25%, #2a4a4a 50%, #1a3a3a 75%);
   background-size: 200% 100%;
   animation: hr-shimmer 1.5s infinite;
 }
@@ -798,6 +835,41 @@
   100% {
     background-position: -200% 0;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RTL SUPPORT
+   ═══════════════════════════════════════════════════════════════════════ */
+[dir="rtl"] .hr-eyebrow {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .hr-card {
+  text-align: right;
+}
+
+[dir="rtl"] .hr-card-quote {
+  right: auto;
+  left: 1.2rem;
+}
+
+[dir="rtl"] .hr-card::after {
+  right: auto;
+  left: 20px;
+}
+
+[dir="rtl"] .hr-card-product svg {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .hr-arrow--prev svg,
+[dir="rtl"] .hr-arrow--next svg {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .hr-card-badge {
+  right: auto;
+  left: -4px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

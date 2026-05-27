@@ -18,7 +18,7 @@ interface NavbarProps {
   onCartOpen: () => void;
 }
 
-// ✅ Category translations — FULL TRANSLATIONS for all languages
+// ✅ Category translations
 const categoryLabels: Record<string, Record<"en" | "ar" | "de", string>> = {
   "/accessories": { en: "Accessories", ar: "الإكسسوارات", de: "Zubehör" },
   "/watches": { en: "Watches", ar: "الساعات", de: "Uhren" },
@@ -231,8 +231,8 @@ export default function Navbar({
     return () => subscription.unsubscribe();
   }, []);
 
-  // ✅ OWNER CHECK - Sirf owner email pe currency dropdown show hoga
-  const isOwner = userEmail === "info@tech4ru.com";
+  // ✅ OWNER CHECK
+  const isOwnerUser = userEmail === "info@tech4ru.com";
   const authResolved = user !== undefined;
   const isSignedIn = authResolved && user !== null;
 
@@ -241,17 +241,15 @@ export default function Navbar({
     setCurrencyOpen(false);
 
     if (cur.code === "EUR") {
-      // Germany → German language + show dropdown
       window.dispatchEvent(
         new CustomEvent("force-language-dropdown", {
           detail: { country: "DE" },
         }),
       );
     } else if (cur.code === "AED") {
-      // Dubai/UAE → English only, NO Arabic, NO language dropdown
       window.dispatchEvent(
         new CustomEvent("force-language-dropdown", {
-          detail: { country: "OTHER" }, // "OTHER" = English, no dropdown
+          detail: { country: "OTHER" },
         }),
       );
     } else {
@@ -285,18 +283,15 @@ export default function Navbar({
     window.location.href = href;
   };
 
-  // ✅ NO mounted gate — navbar always renders fully
-  // bfcache (browser back/forward) pe bhi complete navbar dikhta hai
   return (
     <nav
       className={`navbar${scrolled ? " scrolled" : ""}${navVisible ? "" : " navbar-hidden"}`}
       dir={isRTLMode ? "rtl" : "ltr"}
     >
       <div className="navbar-container">
-        {/* LEFT — Currency (SIRF OWNER KO DIKHEGA) & Search */}
+        {/* LEFT — Currency & Search */}
         <div className="navbar-left">
-          {/* ✅ CURRENCY DROPDOWN - SIRF OWNER EMAIL PE SHOW HOGA */}
-          {mounted && isOwner && (
+          {mounted && isOwnerUser && (
             <div
               className="currency-dropdown"
               onMouseEnter={handleCurrencyMouseEnter}
@@ -359,7 +354,7 @@ export default function Navbar({
           </button>
         </div>
 
-        {/* CENTER — Logo */}
+        {/* CENTER — TEXT LOGO */}
         <div className="navbar-center">
           <a
             href="/"
@@ -369,11 +364,9 @@ export default function Navbar({
               navigateTo("/");
             }}
           >
-            <img
-              src="/nav__logo.png"
-              alt="TECH4U Logo"
-              className="navbar-logo-img"
-            />
+            <span className="logo-tech">TECH</span>
+            <span className="logo-four">4</span>
+            <span className="logo-u">U</span>
           </a>
         </div>
 
@@ -507,7 +500,7 @@ export default function Navbar({
             );
           })}
 
-          {isOwner && (
+          {isOwnerUser && (
             <li className="nav-item">
               <a
                 href="/panel"

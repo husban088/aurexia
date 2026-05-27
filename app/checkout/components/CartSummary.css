@@ -1,14 +1,15 @@
-/* CartSummary.css - Fully Responsive Luxury Design */
+/* CartSummary.css — BLACK & AQUA THEME matching signin.css */
 
 .cs-summary-card {
-  background: #ffffff;
-  border: 1px solid rgba(218, 165, 32, 0.15);
+  background: rgba(10, 26, 31, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 255, 255, 0.18);
   border-radius: 16px;
   padding: clamp(1rem, 4vw, 1.75rem);
   display: flex;
   flex-direction: column;
   gap: clamp(1rem, 3vw, 1.5rem);
-  transition: all 0.3s var(--co-ease, 0.5s cubic-bezier(0.22, 1, 0.36, 1));
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   position: relative;
   overflow: hidden;
 }
@@ -19,11 +20,12 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #daa520, #f0c040, #daa520);
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #0ff, transparent);
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.5s ease;
+  opacity: 0.7;
 }
 
 .cs-summary-card:hover::before {
@@ -35,12 +37,12 @@
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  font-family: "Josefin Sans", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: clamp(0.5rem, 2vw, 0.57rem);
   font-weight: 600;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: #8b6914;
+  color: #66ffff;
   margin: 0;
 }
 
@@ -54,7 +56,7 @@
   display: block;
   width: 22px;
   height: 1px;
-  background: #daa520;
+  background: #0ff;
   opacity: 0.6;
 }
 
@@ -83,7 +85,7 @@
 }
 
 .cs-summary-item:hover {
-  background: rgba(218, 165, 32, 0.04);
+  background: rgba(0, 255, 255, 0.05);
   transform: translateX(4px);
 }
 
@@ -98,20 +100,20 @@
   width: clamp(36px, 8vw, 42px);
   height: clamp(36px, 8vw, 42px);
   border-radius: 8px;
-  background: #f5f0e8;
-  border: 1px solid rgba(218, 165, 32, 0.15);
+  background: rgba(0, 255, 255, 0.06);
+  border: 1px solid rgba(0, 255, 255, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: rgba(218, 165, 32, 0.3);
+  color: rgba(0, 255, 255, 0.3);
   overflow: hidden;
   transition: all 0.3s ease;
 }
 
 .cs-summary-item:hover .cs-summary-item-img {
   transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 255, 255, 0.15);
 }
 
 .cs-summary-item-info {
@@ -123,53 +125,53 @@
 }
 
 .cs-summary-item-name {
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: clamp(0.75rem, 3vw, 0.88rem);
   font-weight: 600;
-  color: #1a1a1a;
+  color: #e6f7ff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .cs-summary-item-variant {
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: clamp(0.55rem, 2vw, 0.6rem);
   font-weight: 400;
-  color: #666666;
+  color: #88bbcc;
   letter-spacing: 0.04em;
 }
 
 .cs-summary-item-price {
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: clamp(0.85rem, 3vw, 0.95rem);
   font-weight: 700;
-  color: #8b6914;
+  color: #0ff;
   white-space: nowrap;
 }
 
 .cs-summary-more {
   text-align: center;
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: clamp(0.6rem, 2vw, 0.65rem);
   font-weight: 400;
   letter-spacing: 0.08em;
-  color: #999999;
+  color: #66aacc;
   padding: 0.5rem 0;
-  border-top: 1px solid rgba(139, 105, 20, 0.1);
+  border-top: 1px solid rgba(0, 255, 255, 0.1);
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .cs-summary-more:hover {
-  color: #daa520;
+  color: #0ff;
 }
 
 .cs-summary-breakdown {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  border-top: 1px solid rgba(139, 105, 20, 0.1);
+  border-top: 1px solid rgba(0, 255, 255, 0.1);
   padding-top: 1rem;
 }
 
@@ -177,50 +179,50 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: clamp(0.65rem, 2.5vw, 0.72rem);
   font-weight: 500;
   letter-spacing: 0.04em;
-  color: #444444;
+  color: #bbd4e5;
 }
 
 .cs-summary-divider {
   height: 1px;
-  background: rgba(139, 105, 20, 0.1);
+  background: rgba(0, 255, 255, 0.12);
   margin: 0.15rem 0;
 }
 
 .cs-summary-total {
   font-size: clamp(0.75rem, 3vw, 0.82rem);
   font-weight: 700;
-  color: #1a1a1a;
+  color: #e6f7ff;
 }
 
 .cs-summary-total span:last-child {
   font-size: clamp(1rem, 4vw, 1.15rem);
-  color: #8b6914;
+  color: #0ff;
 }
 
 /* Coupon Section */
 .cs-coupon-section {
   margin: 0.5rem 0;
   padding: clamp(0.75rem, 3vw, 0.85rem);
-  border: 1px solid rgba(218, 165, 32, 0.15);
+  border: 1px solid rgba(0, 255, 255, 0.15);
   border-radius: 12px;
-  background: rgba(218, 165, 32, 0.03);
+  background: rgba(0, 255, 255, 0.03);
   transition: all 0.3s ease;
 }
 
 .cs-coupon-section:hover {
-  border-color: rgba(218, 165, 32, 0.3);
-  background: rgba(218, 165, 32, 0.05);
+  border-color: rgba(0, 255, 255, 0.3);
+  background: rgba(0, 255, 255, 0.05);
 }
 
 .cs-coupon-label {
   font-size: clamp(0.6rem, 2.5vw, 0.68rem);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #888;
+  color: #66aacc;
   margin: 0 0 0.6rem;
 }
 
@@ -243,11 +245,11 @@
 
 .cs-coupon-input {
   flex: 1;
-  background: #f5f0e8;
-  border: 1px solid rgba(218, 165, 32, 0.3);
+  background: rgba(0, 255, 255, 0.05);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: 8px;
   padding: 0.5rem 0.75rem;
-  color: #1a1a1a;
+  color: #e6f7ff;
   font-size: clamp(0.7rem, 2.5vw, 0.78rem);
   font-family: monospace;
   letter-spacing: 0.05em;
@@ -256,16 +258,16 @@
 }
 
 .cs-coupon-input:focus {
-  border-color: rgba(218, 165, 32, 0.7);
-  box-shadow: 0 0 0 3px rgba(218, 165, 32, 0.1);
+  border-color: rgba(0, 255, 255, 0.6);
+  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.08);
 }
 
 .cs-coupon-btn {
   padding: 0.5rem 1rem;
-  background: rgba(218, 165, 32, 0.15);
-  border: 1px solid rgba(218, 165, 32, 0.4);
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid rgba(0, 255, 255, 0.3);
   border-radius: 8px;
-  color: #b8860b;
+  color: #0ff;
   font-size: clamp(0.65rem, 2.5vw, 0.72rem);
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -275,9 +277,10 @@
 }
 
 .cs-coupon-btn:hover:not(:disabled) {
-  background: rgba(218, 165, 32, 0.25);
-  border-color: #daa520;
+  background: rgba(0, 255, 255, 0.2);
+  border-color: #0ff;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 255, 255, 0.15);
 }
 
 .cs-coupon-btn:disabled {
@@ -298,19 +301,19 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.4rem 0.75rem;
-  background: rgba(46, 125, 50, 0.1);
-  border: 1px solid rgba(46, 125, 50, 0.3);
+  background: rgba(0, 255, 255, 0.08);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   border-radius: 8px;
-  color: #2e7d32;
+  color: #0ff;
   font-size: clamp(0.7rem, 2.5vw, 0.78rem);
   flex: 1;
 }
 
 .cs-coupon-remove {
   background: none;
-  border: 1px solid rgba(180, 0, 0, 0.25);
+  border: 1px solid rgba(255, 80, 80, 0.25);
   border-radius: 6px;
-  color: #c62828;
+  color: #ff8080;
   font-size: 0.75rem;
   cursor: pointer;
   padding: 0.35rem 0.6rem;
@@ -318,17 +321,17 @@
 }
 
 .cs-coupon-remove:hover {
-  background: rgba(180, 0, 0, 0.08);
+  background: rgba(255, 80, 80, 0.08);
   transform: scale(1.05);
 }
 
 .cs-coupon-success {
   margin: 0.6rem 0 0;
   padding: 0.5rem 0.75rem;
-  background: rgba(46, 125, 50, 0.08);
-  border: 1px solid rgba(46, 125, 50, 0.2);
+  background: rgba(0, 255, 255, 0.06);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: 8px;
-  color: #2e7d32;
+  color: #0ff;
   font-size: clamp(0.65rem, 2.5vw, 0.72rem);
   animation: slideDown 0.3s ease;
 }
@@ -336,10 +339,10 @@
 .cs-coupon-error {
   margin: 0.6rem 0 0;
   padding: 0.5rem 0.75rem;
-  background: rgba(198, 40, 40, 0.08);
-  border: 1px solid rgba(198, 40, 40, 0.2);
+  background: rgba(255, 80, 80, 0.06);
+  border: 1px solid rgba(255, 80, 80, 0.2);
   border-radius: 8px;
-  color: #c62828;
+  color: #ff8080;
   font-size: clamp(0.65rem, 2.5vw, 0.72rem);
   animation: slideDown 0.3s ease;
 }
@@ -356,20 +359,19 @@
 }
 
 .cs-summary-row--discount {
-  color: #2e7d32;
+  color: #0ff;
 }
-
 .cs-discount-value {
-  color: #2e7d32;
+  color: #0ff;
   font-weight: 600;
 }
 
-/* Perks Section */
+/* Perks */
 .cs-perks {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 0.6rem;
-  border-top: 1px solid rgba(139, 105, 20, 0.1);
+  border-top: 1px solid rgba(0, 255, 255, 0.1);
   padding-top: 1rem;
 }
 
@@ -390,13 +392,13 @@
 }
 
 .cs-perk:hover {
-  background: rgba(218, 165, 32, 0.04);
+  background: rgba(0, 255, 255, 0.05);
   transform: translateX(4px);
 }
 
 .cs-perk-icon {
   font-size: clamp(0.7rem, 3vw, 0.75rem);
-  color: #8b6914;
+  color: #0ff;
   opacity: 0.7;
   flex-shrink: 0;
   width: 20px;
@@ -410,29 +412,24 @@
 }
 
 .cs-perk-text {
-  font-family: "Poppins", sans-serif;
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: clamp(0.55rem, 2.5vw, 0.62rem);
   font-weight: 400;
   letter-spacing: 0.04em;
-  color: #999999;
+  color: #88bbcc;
 }
 
 .free-shipping-text {
-  color: #2e7d32;
   font-weight: 600;
-  background: linear-gradient(135deg, #2e7d32, #1b5e20);
+  background: linear-gradient(135deg, #0ff, #66ffff);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 .free-shipping-banner {
-  background: linear-gradient(
-    135deg,
-    rgba(46, 125, 50, 0.08) 0%,
-    rgba(27, 94, 32, 0.05) 100%
-  );
-  border: 1px solid rgba(46, 125, 50, 0.2);
+  background: rgba(0, 255, 255, 0.06);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: 8px;
   padding: 8px 12px;
   margin: 12px 0;
@@ -442,7 +439,7 @@
   gap: 8px;
   font-size: clamp(0.7rem, 2.5vw, 0.8rem);
   font-weight: 500;
-  color: #2e7d32;
+  color: #0ff;
   animation: subtlePulse 2s ease-in-out infinite;
 }
 
@@ -452,13 +449,13 @@
     opacity: 1;
   }
   50% {
-    opacity: 0.85;
+    opacity: 0.75;
   }
 }
 
 .total-amount {
   font-weight: 700;
-  background: linear-gradient(135deg, #daa520, #f5cb5c);
+  background: linear-gradient(135deg, #0ff, #66ffff);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

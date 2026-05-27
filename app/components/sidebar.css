@@ -1,9 +1,10 @@
 /* =============================================
    SIDEBAR CSS — TECH4U Luxury Store
+   BLACK & AQUA GRADIENT THEME | TEXT LOGO
    Right-Side Slide Panel
    ============================================= */
 
-/* ---------- Overlay (backdrop) ---------- */
+/* ---------- Overlay (backdrop) - Aqua Theme ---------- */
 .sidebar-overlay {
   position: fixed;
   inset: 0;
@@ -17,12 +18,12 @@
 }
 
 .sidebar-overlay.open {
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(4px);
   pointer-events: auto;
 }
 
-/* ---------- Sidebar Panel ---------- */
+/* ---------- Sidebar Panel - Dark Theme with Aqua Accents ---------- */
 .sidebar {
   position: fixed;
   top: 0;
@@ -31,8 +32,8 @@
   z-index: 1001;
   width: 320px;
   max-width: 90vw;
-  background: #ffffff;
-  border-left: 1px solid rgba(218, 165, 32, 0.2);
+  background: linear-gradient(145deg, #0a1a1f 0%, #0a1f2a 100%);
+  border-left: 1px solid rgba(0, 255, 255, 0.25);
   display: flex;
   flex-direction: column;
 
@@ -43,10 +44,10 @@
     transform 0.5s cubic-bezier(0.4, 0, 0.15, 1),
     visibility 0s linear 0.5s;
 
-  /* Decorative left gold line */
+  /* Decorative left aqua line */
   box-shadow:
-    -1px 0 0 0 rgba(218, 165, 32, 0.15),
-    -8px 0 40px rgba(0, 0, 0, 0.1);
+    -1px 0 0 0 rgba(0, 255, 255, 0.15),
+    -8px 0 40px rgba(0, 0, 0, 0.3);
 }
 
 /* Open state — slides in from right */
@@ -58,7 +59,7 @@
     visibility 0s linear 0s;
 }
 
-/* Decorative gold shimmer on left edge */
+/* Decorative aqua shimmer on left edge */
 .sidebar::before {
   content: "";
   position: absolute;
@@ -69,9 +70,9 @@
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(218, 165, 32, 0.6) 25%,
-    rgba(240, 192, 64, 0.9) 50%,
-    rgba(218, 165, 32, 0.6) 75%,
+    rgba(0, 255, 255, 0.6) 25%,
+    #0ff 50%,
+    rgba(0, 255, 255, 0.6) 75%,
     transparent 100%
   );
   opacity: 0;
@@ -88,17 +89,20 @@
   align-items: center;
   justify-content: space-between;
   padding: 1.5rem 1.5rem 1.25rem;
-  border-bottom: 1px solid rgba(218, 165, 32, 0.15);
+  border-bottom: 1px solid rgba(0, 255, 255, 0.15);
   flex-shrink: 0;
 }
 
-/* Logo inside sidebar */
+/* ========== TEXT LOGO STYLES - Matching Navbar ========== */
 .sidebar-logo {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: baseline;
+  justify-content: flex-start;
   text-decoration: none;
-  gap: 0.1rem;
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  gap: 2px;
+  padding: 0.25rem 0;
 
   /* Staggered entry animation when open */
   opacity: 0;
@@ -113,42 +117,157 @@
   transform: translateX(0);
 }
 
-.sidebar-logo-text {
-  display: flex;
-  align-items: baseline;
-  gap: 1px;
+.sidebar-logo:hover {
+  transform: scale(1.02);
 }
 
+/* TECH part of logo */
 .sidebar-logo-tech {
   font-family: var(--font-goldman), "Goldman", system-ui, sans-serif;
   font-size: 1.4rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #1a1a1a 0%, #8b6914 100%);
+  background: linear-gradient(135deg, #e6f7ff 0%, #0ff 50%, #66ffff 100%);
+  background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  transition: all 0.4s ease;
+  text-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+  position: relative;
 }
 
+.sidebar-logo:hover .sidebar-logo-tech {
+  background-position: 100% 0;
+  text-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
+  letter-spacing: -0.01em;
+}
+
+/* 4 part of logo */
 .sidebar-logo-four {
   font-family: var(--font-goldman), "Goldman", system-ui, sans-serif;
   font-size: 1.4rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.02em;
-  color: #daa520;
+  background: linear-gradient(135deg, #0ff 0%, #66ffff 50%, #0ff 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition: all 0.4s ease;
+  position: relative;
+  animation: sidebarAquaPulse 2s ease-in-out infinite;
 }
 
+@keyframes sidebarAquaPulse {
+  0%,
+  100% {
+    text-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(0, 255, 255, 0.7);
+  }
+}
+
+.sidebar-logo:hover .sidebar-logo-four {
+  background-position: 100% 0;
+  transform: scale(1.05);
+  display: inline-block;
+}
+
+/* U part of logo */
+.sidebar-logo-u {
+  font-family: var(--font-goldman), "Goldman", system-ui, sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #e6f7ff 0%, #0ff 50%, #66ffff 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition: all 0.4s ease;
+}
+
+.sidebar-logo:hover .sidebar-logo-u {
+  background-position: 100% 0;
+}
+
+/* Luxury Subtext for Sidebar */
 .sidebar-logo-luxury {
   font-family: var(--font-goldman), "Goldman", system-ui, sans-serif;
   font-size: 0.55rem;
-  font-weight: 300;
-  letter-spacing: 0.3em;
+  font-weight: 400;
+  letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: rgba(139, 105, 20, 0.6);
-  margin-top: 2px;
+  background: linear-gradient(135deg, #66ffff 0%, #0ff 50%, #00cccc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-left: 4px;
+  position: relative;
+  top: 5px;
+  transition: all 0.4s ease;
+  opacity: 0.8;
 }
 
-/* Close button */
+.sidebar-logo:hover .sidebar-logo-luxury {
+  letter-spacing: 0.45em;
+  opacity: 1;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+}
+
+/* Aqua underline animation on hover */
+.sidebar-logo::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #0ff,
+    #66ffff,
+    #0ff,
+    transparent
+  );
+  transform: scaleX(0);
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-radius: 2px;
+}
+
+.sidebar-logo:hover::after {
+  transform: scaleX(1);
+}
+
+/* Optional: Glow effect behind logo */
+.sidebar-logo::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(
+    circle,
+    rgba(0, 255, 255, 0.15) 0%,
+    transparent 70%
+  );
+  transition: all 0.5s ease;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  border-radius: 50%;
+  z-index: -1;
+}
+
+.sidebar-logo:hover::before {
+  width: 180%;
+  height: 180%;
+}
+
+/* Close button - Aqua */
 .sidebar-close-btn {
   display: flex;
   align-items: center;
@@ -156,9 +275,9 @@
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  border: 1px solid rgba(218, 165, 32, 0.25);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   background: transparent;
-  color: #666666;
+  color: #bbd4e5;
   cursor: pointer;
   transition:
     color 0.3s ease,
@@ -177,10 +296,11 @@
 }
 
 .sidebar-close-btn:hover {
-  color: #daa520;
-  border-color: rgba(218, 165, 32, 0.6);
-  background: rgba(218, 165, 32, 0.08);
+  color: #0ff;
+  border-color: rgba(0, 255, 255, 0.6);
+  background: rgba(0, 255, 255, 0.1);
   transform: rotate(90deg) scale(1.05);
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.2);
 }
 
 .sidebar-close-btn svg {
@@ -195,7 +315,7 @@
   overflow-y: auto;
   padding: 1.5rem 0;
   scrollbar-width: thin;
-  scrollbar-color: rgba(218, 165, 32, 0.3) transparent;
+  scrollbar-color: rgba(0, 255, 255, 0.3) transparent;
 }
 
 .sidebar-nav::-webkit-scrollbar {
@@ -207,18 +327,19 @@
 }
 
 .sidebar-nav::-webkit-scrollbar-thumb {
-  background: rgba(218, 165, 32, 0.4);
+  background: rgba(0, 255, 255, 0.4);
   border-radius: 2px;
 }
 
-/* Section label */
+/* Section label - Aqua */
 .sidebar-section-label {
   font-family: var(--font-goldman), "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 400;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: #8b6914;
+  color: #0ff;
+  opacity: 0.7;
   padding: 0 1.75rem;
   margin-bottom: 0.5rem;
   margin-top: 0.5rem;
@@ -266,6 +387,13 @@
   transition-delay: 0.44s;
 }
 
+/* Sidebar Link Container */
+.sidebar-nav-link-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
 .sidebar-nav-link {
   display: flex;
   align-items: center;
@@ -276,7 +404,7 @@
   font-weight: 400;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #444444;
+  color: #bbd4e5;
   text-decoration: none;
   border-left: 2px solid transparent;
   transition:
@@ -284,6 +412,8 @@
     background 0.3s ease,
     border-color 0.3s ease,
     padding-left 0.3s ease;
+  width: 100%;
+  position: relative;
 }
 
 .sidebar-nav-link svg {
@@ -291,41 +421,64 @@
   height: 17px;
   stroke-width: 1.5;
   flex-shrink: 0;
-  color: rgba(218, 165, 32, 0.6);
+  color: rgba(0, 255, 255, 0.6);
   transition:
     color 0.3s ease,
     transform 0.3s ease;
 }
 
 .sidebar-nav-link:hover {
-  color: #1a1a1a;
-  background: rgba(218, 165, 32, 0.06);
-  border-left-color: rgba(218, 165, 32, 0.5);
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.08);
+  border-left-color: rgba(0, 255, 255, 0.6);
   padding-left: 2rem;
 }
 
 .sidebar-nav-link:hover svg {
-  color: #daa520;
+  color: #0ff;
   transform: scale(1.1);
 }
 
 .sidebar-nav-link.active {
-  color: #8b6914;
-  border-left-color: #daa520;
-  background: rgba(218, 165, 32, 0.06);
+  color: #0ff;
+  border-left-color: #0ff;
+  background: rgba(0, 255, 255, 0.1);
 }
 
 .sidebar-nav-link.active svg {
-  color: #daa520;
+  color: #0ff;
 }
 
-/* Welcome text special styling */
-.sidebar-nav-link--welcome {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
+/* Link Icon */
+.sidebar-link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  flex-shrink: 0;
 }
 
+.sidebar-link-icon svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.5;
+  color: rgba(0, 255, 255, 0.6);
+  transition:
+    color 0.3s ease,
+    transform 0.3s ease;
+}
+
+.sidebar-nav-link:hover .sidebar-link-icon svg {
+  color: #0ff;
+  transform: scale(1.1);
+}
+
+.sidebar-link-text {
+  flex: 1;
+  cursor: pointer;
+}
+
+/* Welcome text special styling - Aqua */
 .sidebar-welcome-text {
   display: flex;
   flex-direction: column;
@@ -335,21 +488,22 @@
 .sidebar-welcome-label {
   font-size: 0.6rem;
   letter-spacing: 0.1em;
-  color: #999;
+  color: #88bbcc;
 }
 
 .sidebar-welcome-name {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #8b6914;
+  color: #0ff;
 }
 
 .sidebar-welcome-dot {
   width: 6px;
   height: 6px;
-  background: #22c55e;
+  background: #0ff;
   border-radius: 50%;
   margin-left: auto;
+  box-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
   animation: sidebarPulse 2s ease-in-out infinite;
 }
 
@@ -381,137 +535,7 @@
   cursor: not-allowed;
 }
 
-/* ---------- Sidebar Divider ---------- */
-.sidebar-hr {
-  border: none;
-  border-top: 1px solid rgba(218, 165, 32, 0.12);
-  margin: 0.25rem 1.5rem;
-}
-
-/* ---------- Subcategory Navigation ---------- */
-.sidebar-nav-item-wrapper {
-  position: relative;
-}
-
-.sidebar-nav-arrow {
-  width: 12px;
-  height: 12px;
-  margin-left: auto;
-  transition: transform 0.2s ease;
-}
-
-.sidebar-nav-arrow.expanded {
-  transform: rotate(180deg);
-}
-
-.sidebar-subnav-list {
-  list-style: none;
-  padding-left: 2.5rem;
-  margin: 0.25rem 0 0.5rem;
-}
-
-.sidebar-subnav-link {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  font-family: var(--font-goldman), "Goldman", system-ui, sans-serif;
-  font-size: 0.6rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #666666;
-  text-decoration: none;
-  transition: all 0.2s ease;
-  border-radius: 2px;
-}
-
-.sidebar-subnav-link:hover {
-  color: #8b6914;
-  background: rgba(218, 165, 32, 0.06);
-}
-
-.sidebar-subnav-link.active {
-  color: #daa520;
-}
-
-/* ---------- Sidebar Footer ---------- */
-.sidebar-footer {
-  padding: 1.25rem 1.75rem 2rem;
-  border-top: 1px solid rgba(218, 165, 32, 0.12);
-  flex-shrink: 0;
-
-  opacity: 0;
-  transform: translateY(10px);
-  transition:
-    opacity 0.4s ease 0.5s,
-    transform 0.4s ease 0.5s;
-}
-
-.sidebar.open .sidebar-footer {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.sidebar-footer-text {
-  font-family: var(--font-goldman), "Goldman", system-ui, sans-serif;
-  font-size: 0.65rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: #999;
-}
-
-/* Sidebar Category Dropdown Styles */
-.sidebar-nav-link-container {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.sidebar-nav-link {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.85rem 1.75rem;
-  font-family: var(--font-goldman), "Goldman", system-ui, sans-serif;
-  font-size: 0.82rem;
-  font-weight: 400;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #444444;
-  text-decoration: none;
-  border-left: 2px solid transparent;
-  transition:
-    color 0.3s ease,
-    background 0.3s ease,
-    border-color 0.3s ease,
-    padding-left 0.3s ease;
-  width: 100%;
-  position: relative;
-}
-
-.sidebar-link-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  flex-shrink: 0;
-}
-
-.sidebar-link-icon svg {
-  width: 17px;
-  height: 17px;
-  stroke-width: 1.5;
-  color: rgba(218, 165, 32, 0.6);
-  transition:
-    color 0.3s ease,
-    transform 0.3s ease;
-}
-
-.sidebar-link-text {
-  flex: 1;
-  cursor: pointer;
-}
-
+/* Arrow button */
 .sidebar-arrow-btn {
   display: flex;
   align-items: center;
@@ -528,17 +552,17 @@
 }
 
 .sidebar-arrow-btn:hover {
-  background: rgba(218, 165, 32, 0.1);
+  background: rgba(0, 255, 255, 0.12);
 }
 
 .sidebar-arrow-btn:hover .sidebar-nav-arrow {
-  color: #daa520;
+  color: #0ff;
 }
 
 .sidebar-nav-arrow {
   width: 12px;
   height: 12px;
-  color: #666666;
+  color: #88bbcc;
   transition:
     transform 0.3s ease,
     color 0.3s ease;
@@ -546,16 +570,27 @@
 
 .sidebar-nav-arrow.expanded {
   transform: rotate(180deg);
-  color: #daa520;
+  color: #0ff;
 }
 
-/* Subcategory List Styles */
+/* ---------- Sidebar Divider ---------- */
+.sidebar-hr {
+  border: none;
+  border-top: 1px solid rgba(0, 255, 255, 0.12);
+  margin: 0.25rem 1.5rem;
+}
+
+/* ---------- Subcategory Navigation - Aqua ---------- */
+.sidebar-nav-item-wrapper {
+  position: relative;
+}
+
 .sidebar-subnav-list {
   list-style: none;
   padding: 0.5rem 0 0.75rem 3.5rem;
   margin: 0;
-  background: rgba(218, 165, 32, 0.02);
-  border-left: 1px solid rgba(218, 165, 32, 0.1);
+  background: rgba(0, 255, 255, 0.03);
+  border-left: 1px solid rgba(0, 255, 255, 0.12);
   margin-left: 1.75rem;
 }
 
@@ -581,7 +616,7 @@
   font-size: 0.65rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #666666;
+  color: #88bbcc;
   text-decoration: none;
   transition: all 0.25s ease;
   border-radius: 6px;
@@ -591,84 +626,160 @@
 .sidebar-subnav-dot {
   width: 4px;
   height: 4px;
-  background: rgba(218, 165, 32, 0.4);
+  background: rgba(0, 255, 255, 0.4);
   border-radius: 50%;
   transition: all 0.25s ease;
 }
 
 .sidebar-subnav-link:hover {
-  color: #daa520;
-  background: rgba(218, 165, 32, 0.06);
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.08);
   padding-left: 1rem;
 }
 
 .sidebar-subnav-link:hover .sidebar-subnav-dot {
-  background: #daa520;
+  background: #0ff;
   transform: scale(1.5);
+  box-shadow: 0 0 4px rgba(0, 255, 255, 0.5);
 }
 
 .sidebar-subnav-link.active {
-  color: #daa520;
-  background: rgba(218, 165, 32, 0.08);
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.1);
 }
 
 .sidebar-subnav-link.active .sidebar-subnav-dot {
-  background: #daa520;
+  background: #0ff;
   width: 6px;
   height: 6px;
 }
 
-/* Hover animation for sidebar nav items */
-.sidebar-nav-link:hover .sidebar-link-icon svg {
-  color: #daa520;
-  transform: scale(1.1);
-}
+/* ---------- Sidebar Footer ---------- */
+.sidebar-footer {
+  padding: 1.25rem 1.75rem 2rem;
+  border-top: 1px solid rgba(0, 255, 255, 0.12);
+  flex-shrink: 0;
 
-.sidebar-nav-link:hover {
-  color: #1a1a1a;
-  background: rgba(218, 165, 32, 0.06);
-  border-left-color: rgba(218, 165, 32, 0.5);
-  padding-left: 2rem;
-}
-
-/* Logo inside sidebar */
-.sidebar-logo {
-  display: flex;
-  align-items: center;
-  text-decoration: none;
-  gap: 0.5rem;
-
-  /* Staggered entry animation when open */
   opacity: 0;
-  transform: translateX(20px);
+  transform: translateY(10px);
   transition:
-    opacity 0.4s ease 0.25s,
-    transform 0.4s ease 0.25s;
+    opacity 0.4s ease 0.5s,
+    transform 0.4s ease 0.5s;
 }
 
-.sidebar.open .sidebar-logo {
+.sidebar.open .sidebar-footer {
   opacity: 1;
+  transform: translateY(0);
+}
+
+.sidebar-footer-text {
+  font-family: var(--font-goldman), "Goldman", system-ui, sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #88bbcc;
+}
+
+/* ---------- Responsive adjustments ---------- */
+@media (max-width: 480px) {
+  .sidebar-logo-tech,
+  .sidebar-logo-four,
+  .sidebar-logo-u {
+    font-size: 1.1rem;
+  }
+
+  .sidebar-logo-luxury {
+    font-size: 0.45rem;
+    letter-spacing: 0.25em;
+    top: 3px;
+    display: none;
+  }
+
+  .sidebar-nav-link {
+    padding: 0.7rem 1.5rem;
+    font-size: 0.75rem;
+  }
+
+  .sidebar-subnav-list {
+    padding-left: 2.5rem;
+    margin-left: 1rem;
+  }
+
+  .sidebar-section-label {
+    padding: 0 1.5rem;
+  }
+}
+
+/* ---------- RTL Support ---------- */
+[dir="rtl"] .sidebar {
+  left: 0;
+  right: auto;
+  transform: translateX(-100%);
+  border-left: none;
+  border-right: 1px solid rgba(0, 255, 255, 0.25);
+  box-shadow:
+    1px 0 0 0 rgba(0, 255, 255, 0.15),
+    8px 0 40px rgba(0, 0, 0, 0.3);
+}
+
+[dir="rtl"] .sidebar.open {
   transform: translateX(0);
 }
 
-/* Logo Image Styling */
-.sidebar-logo-img {
-  height: 38px;
-  width: auto;
-  max-width: 125px;
-  object-fit: contain;
-  transition: all 0.3s ease;
+[dir="rtl"] .sidebar::before {
+  left: auto;
+  right: 0;
 }
 
-.sidebar-logo:hover .sidebar-logo-img {
-  transform: scale(1.05);
-  filter: drop-shadow(0 0 6px rgba(218, 165, 32, 0.4));
+[dir="rtl"] .sidebar-nav-link {
+  border-left: none;
+  border-right: 2px solid transparent;
 }
 
-/* Responsive adjustments for sidebar logo */
-@media (max-width: 480px) {
-  .sidebar-logo-img {
-    height: 32px;
-    max-width: 110px;
-  }
+[dir="rtl"] .sidebar-nav-link:hover {
+  border-left: none;
+  border-right-color: rgba(0, 255, 255, 0.6);
+  padding-left: 1.75rem;
+  padding-right: 2rem;
+}
+
+[dir="rtl"] .sidebar-nav-link.active {
+  border-left: none;
+  border-right-color: #0ff;
+}
+
+[dir="rtl"] .sidebar-subnav-list {
+  padding-left: 0;
+  padding-right: 3.5rem;
+  margin-left: 0;
+  margin-right: 1.75rem;
+  border-left: none;
+  border-right: 1px solid rgba(0, 255, 255, 0.12);
+}
+
+[dir="rtl"] .sidebar-subnav-link:hover {
+  padding-left: 0.75rem;
+  padding-right: 1rem;
+}
+
+[dir="rtl"] .sidebar-nav-arrow.expanded {
+  transform: rotate(-180deg);
+}
+
+[dir="rtl"] .sidebar-close-btn:hover {
+  transform: rotate(-90deg) scale(1.05);
+}
+
+[dir="rtl"] .sidebar-logo {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .sidebar-logo-luxury {
+  margin-left: 0;
+  margin-right: 4px;
+}
+
+[dir="rtl"] .sidebar-logo::after {
+  left: auto;
+  right: 0;
 }

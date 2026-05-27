@@ -109,7 +109,7 @@ const categories = [
     imageSrc: "/menwatch.jpg",
     placeholderClass: "ea-ph-men",
     tagKey: "tagWatches",
-    accentColor: "#b8963e",
+    accentColor: "#0ff",
   },
   {
     id: 2,
@@ -123,7 +123,7 @@ const categories = [
     imageSrc: "/womenwatch.jpg",
     placeholderClass: "ea-ph-women",
     tagKey: "tagWatches",
-    accentColor: "#c9a96e",
+    accentColor: "#0ff",
   },
   {
     id: 3,
@@ -137,7 +137,7 @@ const categories = [
     imageSrc: "/mobacc.webp",
     placeholderClass: "ea-ph-mobile",
     tagKey: "tagAccessories",
-    accentColor: "#8fa3b1",
+    accentColor: "#0ff",
   },
   {
     id: 4,
@@ -151,7 +151,7 @@ const categories = [
     imageSrc: "/homedecor.jpg",
     placeholderClass: "ea-ph-decor",
     tagKey: "tagDecor",
-    accentColor: "#a07850",
+    accentColor: "#0ff",
   },
 ];
 
@@ -165,7 +165,7 @@ function getTranslation(
 }
 
 /* ──────────────────────────────────────────
-   SWIPER CDN LOADER — no module-level cache (bfcache safe)
+   SWIPER CDN LOADER — bfcache safe
 ────────────────────────────────────────── */
 function loadSwiperCDN(): Promise<void> {
   return new Promise<void>((resolve) => {
@@ -207,7 +207,7 @@ function loadSwiperCDN(): Promise<void> {
 }
 
 /* ──────────────────────────────────────────
-   CARD COMPONENT
+   CARD COMPONENT — with Shimmer & Bar
 ────────────────────────────────────────── */
 function CategoryCard({
   cat,
@@ -232,6 +232,11 @@ function CategoryCard({
       style={{ "--accent": cat.accentColor } as React.CSSProperties}
       dir={isRTL ? "rtl" : "ltr"}
     >
+      {/* Shimmer Effect */}
+      <div className="ea-card-shimmer" aria-hidden="true" />
+      {/* Bottom Bar */}
+      <div className="ea-card-bar" aria-hidden="true" />
+
       <div className="ea-card-img-wrap">
         {cat.imageSrc ? (
           <Image
@@ -245,7 +250,8 @@ function CategoryCard({
         ) : (
           <div className={`ea-card-placeholder ${cat.placeholderClass}`} />
         )}
-        <div className="ea-card-img-overlay" />
+        <div className="ea-card-overlay-base" />
+        <div className="ea-card-overlay-hover" />
       </div>
 
       <span className="ea-card-tag">{tag}</span>
@@ -421,7 +427,12 @@ function ExploreInner() {
       dir={isRTLMode ? "rtl" : "ltr"}
       suppressHydrationWarning
     >
+      {/* Decorative elements matching trust badges */}
       <div className="ea-grain" aria-hidden="true" />
+      <div className="ea-ambient" aria-hidden="true" />
+      <div className="ea-aqua-orb" aria-hidden="true" />
+      <div className="ea-aqua-orb-right" aria-hidden="true" />
+
       <div className="ea-bg-lines" aria-hidden="true">
         <span />
         <span />

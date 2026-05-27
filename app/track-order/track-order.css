@@ -1,44 +1,45 @@
 /* app/track-order/track-order.css */
-/* Tech4U — Order Tracking Page - Light Theme (Matching Signup Page) */
+/* Tech4U — Order Tracking Page - BLACK & AQUA THEME */
+/* Matching Navbar & Explore Aurexia */
 
 @import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 /* ─── Variables ─────────────────────────────────────────────────────────── */
 :root {
-  --trk-gold: #daa520;
-  --trk-gold-dark: #b8860b;
-  --trk-gold-deep: #8b6914;
-  --trk-gold-light: #f0c040;
-  --trk-gold-dim: rgba(218, 165, 32, 0.08);
-  --trk-bg: #f9f5f0;
-  --trk-bg-light: #ffffff;
-  --trk-card-bg: #ffffff;
-  --trk-border: rgba(184, 134, 11, 0.18);
-  --trk-border-hover: rgba(184, 134, 11, 0.35);
-  --trk-text-dark: #1a1a1a;
-  --trk-text-muted: #2a2a2a;
-  --trk-text-light: #444444;
-  --trk-text-grey: #666666;
-  --trk-text-gold: #8b6914;
+  --trk-aqua: #0ff;
+  --trk-aqua-dark: #00cccc;
+  --trk-aqua-deep: #0088aa;
+  --trk-aqua-light: #66ffff;
+  --trk-aqua-dim: rgba(0, 255, 255, 0.08);
+  --trk-bg: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
+  --trk-bg-light: #0a1a1f;
+  --trk-card-bg: #0a1a1f;
+  --trk-border: rgba(0, 255, 255, 0.18);
+  --trk-border-hover: rgba(0, 255, 255, 0.35);
+  --trk-text-dark: #e6f7ff;
+  --trk-text-muted: #bbd4e5;
+  --trk-text-light: #88bbcc;
+  --trk-text-grey: #88bbcc;
+  --trk-text-aqua: #0ff;
   --trk-serif: "Goldman", system-ui, sans-serif;
   --trk-sans: "Goldman", system-ui, sans-serif;
   --trk-ease: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-  --trk-success: #22c55e;
-  --trk-error: #ef4444;
+  --trk-success: #0ff;
+  --trk-error: #ff6b6b;
   --trk-warning: #f59e0b;
-  --trk-info: #3b82f6;
-  --trk-purple: #8b5cf6;
+  --trk-info: #0ff;
+  --trk-purple: #00cccc;
   --trk-radius: 20px;
   --trk-radius-sm: 12px;
-  --trk-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
-  --trk-shadow-sm: 0 4px 20px rgba(0, 0, 0, 0.03);
-  --trk-shadow-gold: 0 8px 32px rgba(218, 165, 32, 0.12);
+  --trk-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --trk-shadow-sm: 0 4px 20px rgba(0, 0, 0, 0.15);
+  --trk-shadow-gold: 0 8px 32px rgba(0, 255, 255, 0.15);
 }
 
 /* ─── Root & Base Styles ───────────────────────────────────────────────── */
 .trk-root {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8f4ed 0%, #fdfaf5 50%, #fffdf9 100%);
+  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
   color: var(--trk-text-dark);
   font-family: var(--trk-sans);
   position: relative;
@@ -46,12 +47,12 @@
   padding-top: 4rem;
 }
 
-/* Luxury Background Effects */
+/* Luxury Background Effects - Aqua */
 .trk-bg-grain {
   position: fixed;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.018'/%3E%3C/svg%3E");
-  opacity: 0.3;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.35;
   pointer-events: none;
   z-index: 0;
 }
@@ -65,7 +66,7 @@
   height: 600px;
   background: radial-gradient(
     ellipse at center,
-    rgba(218, 165, 32, 0.06) 0%,
+    rgba(0, 255, 255, 0.06) 0%,
     transparent 70%
   );
   pointer-events: none;
@@ -85,7 +86,7 @@
   }
 }
 
-/* ─── Topbar ────────────────────────────────────────────────────────────── */
+/* ─── Topbar - Aqua ────────────────────────────────────────────────────────── */
 .trk-topbar {
   position: relative;
   z-index: 10;
@@ -93,8 +94,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 1rem 2.5rem;
-  border-bottom: 1px solid var(--trk-border);
-  background: rgba(249, 245, 240, 0.95);
+  border-bottom: 1px solid rgba(0, 255, 255, 0.15);
+  background: rgba(10, 26, 31, 0.95);
   backdrop-filter: blur(10px);
 }
 
@@ -124,8 +125,8 @@
 }
 
 .trk-back-link:hover {
-  color: var(--trk-gold-deep);
-  background: var(--trk-gold-dim);
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.1);
   transform: translateX(-4px);
 }
 
@@ -143,7 +144,10 @@
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.2em;
-  color: var(--trk-gold-deep);
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   text-transform: uppercase;
   position: relative;
 }
@@ -155,7 +159,7 @@
   left: 0;
   width: 0;
   height: 2px;
-  background: linear-gradient(90deg, var(--trk-gold), transparent);
+  background: linear-gradient(90deg, #0ff, transparent);
   transition: width 0.3s ease;
 }
 
@@ -183,7 +187,7 @@
   }
 }
 
-/* ─── Header ────────────────────────────────────────────────────────────── */
+/* ─── Header - Aqua ────────────────────────────────────────────────────────── */
 .trk-header {
   text-align: center;
   padding: 3rem 0 2rem;
@@ -199,8 +203,8 @@
 .trk-header-icon {
   width: 80px;
   height: 80px;
-  background: var(--trk-gold-dim);
-  border: 2px solid rgba(218, 165, 32, 0.3);
+  background: rgba(0, 255, 255, 0.08);
+  border: 2px solid rgba(0, 255, 255, 0.3);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -222,14 +226,14 @@
 
 .trk-header-icon:hover {
   transform: scale(1.05);
-  border-color: var(--trk-gold);
+  border-color: #0ff;
   box-shadow: var(--trk-shadow-gold);
 }
 
 .trk-header-icon svg {
   width: 32px;
   height: 32px;
-  color: var(--trk-gold-deep);
+  color: #0ff;
 }
 
 .trk-title {
@@ -240,11 +244,15 @@
   margin: 0 0 0.75rem;
   line-height: 1.2;
   font-family: var(--trk-serif);
+  text-shadow: 0 2px 10px rgba(0, 255, 255, 0.15);
 }
 
 .trk-title em {
   font-style: italic;
-  color: var(--trk-gold-deep);
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .trk-subtitle {
@@ -261,10 +269,11 @@
   }
 }
 
-/* ─── Search Card ───────────────────────────────────────────────────────── */
+/* ─── Search Card - Aqua ───────────────────────────────────────────────────── */
 .trk-search-card {
-  background: var(--trk-card-bg);
-  border: 1px solid var(--trk-border);
+  background: rgba(10, 26, 31, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: var(--trk-radius);
   padding: 2rem;
   margin-bottom: 2rem;
@@ -274,7 +283,7 @@
 
 .trk-search-card:hover {
   transform: translateY(-4px);
-  border-color: var(--trk-border-hover);
+  border-color: rgba(0, 255, 255, 0.35);
   box-shadow: var(--trk-shadow-gold);
 }
 
@@ -314,12 +323,12 @@
   font-weight: 700;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: var(--trk-text-grey);
+  color: #88bbcc;
   transition: color var(--trk-ease);
 }
 
 .trk-field:hover .trk-label {
-  color: var(--trk-gold-deep);
+  color: #0ff;
 }
 
 .trk-input-wrap {
@@ -333,19 +342,19 @@
   transform: translateY(-50%);
   width: 18px;
   height: 18px;
-  color: #ccc;
+  color: #88bbcc;
   pointer-events: none;
   transition: color 0.3s ease;
 }
 
 .trk-input:focus + .trk-input-icon {
-  color: var(--trk-gold-deep);
+  color: #0ff;
 }
 
 .trk-input {
   width: 100%;
-  background: white;
-  border: 1px solid var(--trk-border);
+  background: rgba(10, 26, 31, 0.8);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   border-radius: var(--trk-radius-sm);
   padding: 0.85rem 1rem 0.85rem 2.75rem;
   font-family: var(--trk-sans);
@@ -358,24 +367,24 @@
 }
 
 .trk-input:focus {
-  border-color: var(--trk-gold);
-  box-shadow: 0 0 0 3px var(--trk-gold-dim);
+  border-color: #0ff;
+  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.15);
 }
 
 .trk-input::placeholder {
-  color: #bbb;
+  color: #88bbcc;
   font-weight: 400;
 }
 
-/* ─── Search Button ─────────────────────────────────────────────────────── */
+/* ─── Search Button - Aqua ─────────────────────────────────────────────────── */
 .trk-btn {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  background: #daa520;
-  color: white;
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  color: #0a0f1a;
   border: none;
   border-radius: 40px;
   padding: 0.9rem 1.5rem;
@@ -400,7 +409,7 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0.3),
     transparent
   );
   transition: left 0.5s ease;
@@ -411,9 +420,11 @@
 }
 
 .trk-btn:hover:not(:disabled) {
-  background: #b8860b;
+  background: transparent;
+  border: 1px solid #0ff;
+  color: #0ff;
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(218, 165, 32, 0.3);
+  box-shadow: 0 8px 25px rgba(0, 255, 255, 0.3);
 }
 
 .trk-btn:active:not(:disabled) {
@@ -432,8 +443,8 @@
 .trk-btn-spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: white;
+  border: 2px solid rgba(10, 15, 26, 0.2);
+  border-top-color: #0a0f1a;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -444,19 +455,19 @@
   }
 }
 
-/* ─── Error Message ─────────────────────────────────────────────────────── */
+/* ─── Error Message - Aqua ─────────────────────────────────────────────────── */
 .trk-error {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: rgba(255, 107, 107, 0.08);
+  border: 1px solid rgba(255, 107, 107, 0.25);
   border-radius: var(--trk-radius-sm);
   padding: 1rem 1.25rem;
   margin-top: 1rem;
   font-size: 0.8rem;
   font-weight: 500;
-  color: #ef4444;
+  color: #ff6b6b;
   animation: shake 0.5s ease;
 }
 
@@ -479,7 +490,7 @@
   flex-shrink: 0;
 }
 
-/* Tip */
+/* Tip - Aqua */
 .trk-tip {
   margin-top: 1rem;
   font-size: 0.7rem;
@@ -487,11 +498,11 @@
   color: var(--trk-text-grey);
   text-align: center;
   padding: 0.5rem;
-  background: var(--trk-gold-dim);
+  background: rgba(0, 255, 255, 0.05);
   border-radius: 8px;
 }
 
-/* ─── Result Section ────────────────────────────────────────────────────── */
+/* ─── Result Section - Aqua ────────────────────────────────────────────────── */
 .trk-result {
   display: flex;
   flex-direction: column;
@@ -510,10 +521,11 @@
   }
 }
 
-/* Result Header */
+/* Result Header - Aqua */
 .trk-result-header {
-  background: white;
-  border: 1px solid var(--trk-border);
+  background: rgba(10, 26, 31, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: var(--trk-radius);
   padding: 1.75rem;
   display: flex;
@@ -526,7 +538,7 @@
 
 .trk-result-header:hover {
   transform: translateY(-2px);
-  border-color: var(--trk-border-hover);
+  border-color: rgba(0, 255, 255, 0.35);
   box-shadow: var(--trk-shadow-gold);
 }
 
@@ -551,7 +563,10 @@
 .trk-result-num {
   font-size: 1.6rem;
   font-weight: 700;
-  color: var(--trk-gold-deep);
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   margin: 0 0 0.5rem;
   letter-spacing: -0.01em;
 }
@@ -582,7 +597,7 @@
   }
 }
 
-/* Status Badge */
+/* Status Badge - Aqua */
 .trk-status-badge {
   display: flex;
   align-items: center;
@@ -601,32 +616,32 @@
   color: #f59e0b;
 }
 .trk-status-badge.processing {
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  color: #3b82f6;
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  color: #0ff;
 }
 .trk-status-badge.confirmed {
-  background: rgba(139, 92, 246, 0.1);
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  color: #8b5cf6;
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  color: #0ff;
 }
 .trk-status-badge.shipped {
-  background: rgba(6, 182, 212, 0.1);
-  border: 1px solid rgba(6, 182, 212, 0.3);
-  color: #06b6d4;
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  color: #0ff;
 }
 .trk-status-badge.delivered {
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  color: #22c55e;
+  background: rgba(0, 255, 255, 0.15);
+  border: 1px solid rgba(0, 255, 255, 0.35);
+  color: #0ff;
 }
 .trk-status-badge.cancelled {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #ef4444;
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  color: #ff6b6b;
 }
 
-/* Country Badge */
+/* Country Badge - Aqua */
 .trk-country-badge {
   display: flex;
   align-items: center;
@@ -634,15 +649,15 @@
   font-size: 0.7rem;
   font-weight: 500;
   color: var(--trk-text-grey);
-  background: white;
-  border: 1px solid var(--trk-border);
+  background: rgba(10, 26, 31, 0.8);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: 40px;
   padding: 0.3rem 0.9rem;
   transition: var(--trk-ease);
 }
 
 .trk-country-badge:hover {
-  border-color: var(--trk-gold);
+  border-color: #0ff;
   transform: translateX(4px);
 }
 
@@ -674,10 +689,11 @@
   }
 }
 
-/* ─── Section Cards ─────────────────────────────────────────────────────── */
+/* ─── Section Cards - Aqua ─────────────────────────────────────────────────── */
 .trk-section {
-  background: white;
-  border: 1px solid var(--trk-border);
+  background: rgba(10, 26, 31, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: var(--trk-radius);
   overflow: hidden;
   transition: var(--trk-ease);
@@ -685,7 +701,7 @@
 }
 
 .trk-section:hover {
-  border-color: var(--trk-border-hover);
+  border-color: rgba(0, 255, 255, 0.35);
   transform: translateY(-2px);
   box-shadow: var(--trk-shadow-gold);
 }
@@ -695,11 +711,11 @@
   padding: 1rem 1.25rem;
   font-size: 0.7rem;
   font-weight: 700;
-  color: var(--trk-gold-deep);
+  color: #66ffff;
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  border-bottom: 1px solid var(--trk-border);
-  background: rgba(218, 165, 32, 0.03);
+  border-bottom: 1px solid rgba(0, 255, 255, 0.15);
+  background: rgba(0, 255, 255, 0.03);
 }
 
 .trk-section-body {
@@ -715,14 +731,14 @@
   }
 }
 
-/* ─── Rows ───────────────────────────────────────────────────────────────── */
+/* ─── Rows - Aqua ───────────────────────────────────────────────────────── */
 .trk-row {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
   padding: 0.6rem 0;
-  border-bottom: 1px solid var(--trk-border);
+  border-bottom: 1px solid rgba(0, 255, 255, 0.12);
   font-size: 0.85rem;
   font-weight: 500;
 }
@@ -757,7 +773,7 @@
   }
 }
 
-/* Status Text */
+/* Status Text - Aqua */
 .trk-status-text {
   font-weight: 700;
 }
@@ -765,60 +781,61 @@
   color: #f59e0b;
 }
 .trk-status-text.processing {
-  color: #3b82f6;
+  color: #0ff;
 }
 .trk-status-text.confirmed {
-  color: #8b5cf6;
+  color: #0ff;
 }
 .trk-status-text.shipped {
-  color: #06b6d4;
+  color: #0ff;
 }
 .trk-status-text.delivered {
-  color: #22c55e;
+  color: #0ff;
 }
 .trk-status-text.cancelled {
-  color: #ef4444;
+  color: #ff6b6b;
 }
 
-/* Tracking Number */
+/* Tracking Number - Aqua */
 .trk-tracking-number {
   font-family: monospace;
   font-weight: 700;
-  color: var(--trk-gold-deep);
-  background: var(--trk-gold-dim);
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.1);
   padding: 0.2rem 0.5rem;
   border-radius: 6px;
   font-size: 0.8rem;
 }
 
-/* Courier Link */
+/* Courier Link - Aqua */
 .trk-courier-link {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   margin-top: 0.75rem;
-  color: var(--trk-gold-deep);
+  color: #66ffff;
   text-decoration: none;
   font-size: 0.75rem;
   font-weight: 600;
   transition: var(--trk-ease);
   padding: 0.4rem 1rem;
   border-radius: 40px;
-  background: var(--trk-gold-dim);
+  background: rgba(0, 255, 255, 0.08);
 }
 
 .trk-courier-link:hover {
   gap: 0.75rem;
-  background: rgba(218, 165, 32, 0.15);
+  background: rgba(0, 255, 255, 0.15);
   transform: translateX(4px);
+  color: #0ff;
 }
 
-/* ─── Items Section ─────────────────────────────────────────────────────── */
+/* ─── Items Section - Aqua ─────────────────────────────────────────────────── */
 .trk-item {
   display: flex;
   gap: 1rem;
   padding: 0.75rem 0;
-  border-bottom: 1px solid var(--trk-border);
+  border-bottom: 1px solid rgba(0, 255, 255, 0.12);
 }
 
 .trk-item:last-child {
@@ -840,8 +857,8 @@
   width: 64px;
   height: 64px;
   border-radius: 12px;
-  background: #f5f0e8;
-  border: 1px solid var(--trk-border);
+  background: #0a1a1f;
+  border: 1px solid rgba(0, 255, 255, 0.2);
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -886,15 +903,18 @@
 }
 
 .trk-item-price {
-  color: var(--trk-gold-deep);
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   font-weight: 700;
 }
 
-/* Price Breakdown */
+/* Price Breakdown - Aqua */
 .trk-price-breakdown {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--trk-border);
+  border-top: 1px solid rgba(0, 255, 255, 0.12);
 }
 
 .trk-price-row {
@@ -914,11 +934,14 @@
   color: var(--trk-text-dark);
   padding: 0.75rem 0 0;
   margin-top: 0.5rem;
-  border-top: 1px solid rgba(218, 165, 32, 0.3);
+  border-top: 1px solid rgba(0, 255, 255, 0.25);
 }
 
 .trk-price-total span:last-child {
-  color: var(--trk-gold-deep);
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* Empty Text */
@@ -929,7 +952,7 @@
   padding: 1rem 0;
 }
 
-/* ─── Live Tracking ─────────────────────────────────────────────────────── */
+/* ─── Live Tracking - Aqua ─────────────────────────────────────────────────── */
 .trk-track-live-btn {
   display: flex;
   align-items: center;
@@ -937,8 +960,8 @@
   gap: 0.5rem;
   margin: 1rem 0;
   padding: 0.7rem 1.25rem;
-  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-  color: white;
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  color: #0a0f1a;
   border-radius: 40px;
   font-size: 0.75rem;
   font-weight: 700;
@@ -948,7 +971,7 @@
 
 .trk-track-live-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 8px 25px rgba(0, 255, 255, 0.3);
 }
 
 .trk-tracking-loading {
@@ -962,19 +985,19 @@
 .trk-spinner-small {
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(218, 165, 32, 0.2);
-  border-top-color: #daa520;
+  border: 2px solid rgba(0, 255, 255, 0.2);
+  border-top-color: #0ff;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
 
-/* Tracking Status */
+/* Tracking Status - Aqua */
 .trk-tracking-status {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem;
-  background: var(--trk-gold-dim);
+  background: rgba(0, 255, 255, 0.05);
   border-radius: 16px;
   margin-bottom: 1rem;
   flex-wrap: wrap;
@@ -1008,10 +1031,10 @@
   font-weight: 700;
 }
 .trk-tracking-status-value.shipped {
-  color: #06b6d4;
+  color: #0ff;
 }
 .trk-tracking-status-value.delivered {
-  color: #22c55e;
+  color: #0ff;
 }
 
 .trk-tracking-status-date {
@@ -1020,7 +1043,7 @@
   color: var(--trk-text-dark);
 }
 
-/* Timeline */
+/* Timeline - Aqua */
 .trk-timeline {
   position: relative;
   padding-left: 1.5rem;
@@ -1042,7 +1065,7 @@
   top: 1rem;
   bottom: -0.5rem;
   width: 2px;
-  background: linear-gradient(180deg, #daa520, transparent);
+  background: linear-gradient(180deg, #0ff, transparent);
 }
 
 .trk-timeline-dot {
@@ -1052,19 +1075,19 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: white;
-  border: 2px solid #daa520;
+  background: #0a1a1f;
+  border: 2px solid #0ff;
   transition: all 0.3s ease;
 }
 
 .trk-timeline-dot.active {
-  background: #daa520;
+  background: #0ff;
   transform: scale(1.2);
-  box-shadow: 0 0 0 4px rgba(218, 165, 32, 0.2);
+  box-shadow: 0 0 0 4px rgba(0, 255, 255, 0.2);
 }
 .trk-timeline-dot.delivered {
-  background: #22c55e;
-  border-color: #22c55e;
+  background: #0ff;
+  border-color: #0ff;
 }
 
 .trk-timeline-content {
@@ -1087,12 +1110,12 @@
 
 .trk-timeline-date {
   font-size: 0.65rem;
-  color: #999;
+  color: #88bbcc;
 }
 
 .trk-last-updated {
   font-size: 0.65rem;
-  color: #aaa;
+  color: #88bbcc;
   margin-top: 1rem;
   text-align: right;
 }
@@ -1110,35 +1133,35 @@
   }
 }
 
-/* ─── Scrollbar ─────────────────────────────────────────────────────────── */
+/* ─── Scrollbar - Aqua ─────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #f0ebe4;
+  background: #0a1a1f;
 }
 ::-webkit-scrollbar-thumb {
-  background: #daa520;
+  background: #0ff;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #b8860b;
+  background: #66ffff;
 }
 
-/* ─── Not Found State ────────────────────────────────────────────────────── */
+/* ─── Not Found State - Aqua ────────────────────────────────────────────────── */
 .trk-not-found {
   text-align: center;
   padding: 4rem 1.5rem;
-  background: white;
+  background: rgba(10, 26, 31, 0.9);
   border-radius: var(--trk-radius);
-  border: 1px solid var(--trk-border);
+  border: 1px solid rgba(0, 255, 255, 0.2);
 }
 
 .trk-not-found svg {
   width: 80px;
   height: 80px;
-  color: var(--trk-text-grey);
+  color: #88bbcc;
   margin: 0 auto 1.5rem;
   display: block;
   opacity: 0.5;
@@ -1157,7 +1180,7 @@
   margin: 0;
 }
 
-/* ─── Loading State ──────────────────────────────────────────────────────── */
+/* ─── Loading State - Aqua ──────────────────────────────────────────────────── */
 .trk-loading {
   text-align: center;
   padding: 4rem;
@@ -1166,9 +1189,81 @@
 .trk-loading-spinner {
   width: 48px;
   height: 48px;
-  border: 3px solid var(--trk-border);
-  border-top-color: #daa520;
+  border: 3px solid rgba(0, 255, 255, 0.2);
+  border-top-color: #0ff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 1rem;
+}
+
+/* ============================================================
+   RTL SUPPORT FOR TRACK ORDER PAGE
+   ============================================================ */
+[dir="rtl"] .trk-back-link:hover {
+  transform: translateX(4px);
+}
+[dir="rtl"] .trk-back-link:hover svg {
+  transform: translateX(4px);
+}
+[dir="rtl"] .trk-input-icon {
+  left: auto;
+  right: 14px;
+}
+[dir="rtl"] .trk-input {
+  padding-left: 1rem;
+  padding-right: 2.75rem;
+}
+[dir="rtl"] .trk-row span:last-child {
+  text-align: left;
+}
+[dir="rtl"] .trk-country-badge:hover {
+  transform: translateX(-4px);
+}
+[dir="rtl"] .trk-courier-link:hover {
+  transform: translateX(-4px);
+}
+[dir="rtl"] .trk-timeline {
+  padding-left: 0;
+  padding-right: 1.5rem;
+}
+[dir="rtl"] .trk-timeline-dot {
+  left: auto;
+  right: -0.9rem;
+}
+[dir="rtl"] .trk-timeline-line {
+  left: auto;
+  right: -0.5rem;
+}
+[dir="rtl"] .trk-timeline-content {
+  padding-left: 0;
+  padding-right: 0.5rem;
+}
+[dir="rtl"] .trk-last-updated {
+  text-align: left;
+}
+[dir="rtl"] .trk-result-header {
+  flex-direction: row;
+}
+@media (max-width: 700px) {
+  [dir="rtl"] .trk-result-header {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  [dir="rtl"] .trk-result-right {
+    align-items: flex-end;
+  }
+}
+@media (max-width: 480px) {
+  [dir="rtl"] .trk-row span:last-child {
+    text-align: right;
+  }
+  [dir="rtl"] .trk-timeline {
+    padding-right: 1rem;
+  }
+  [dir="rtl"] .trk-timeline-dot {
+    right: -0.7rem;
+  }
+  [dir="rtl"] .trk-timeline-line {
+    right: -0.3rem;
+  }
 }

@@ -1,27 +1,28 @@
 /* ============================================================
    ABOUT PAGE  ·  about.css
-   Premium Theme with High Contrast Text
+   BLACK & AQUA GRADIENT THEME
+   Matching Navbar & Explore Aurexia
    ============================================================ */
 
 @import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 :root {
-  --ab-gold: #daa520;
-  --ab-gold-dark: #b8860b;
-  --ab-gold-deep: #8b6914;
-  --ab-gold-light: #f0c040;
-  --ab-gold-soft: rgba(218, 165, 32, 0.12);
-  --ab-bg: #f9f5f0;
-  --ab-bg-light: #ffffff;
-  --ab-card-bg: #ffffff;
-  --ab-card-hover: #fffaf5;
-  --ab-border: rgba(184, 134, 11, 0.18);
-  --ab-border-hover: rgba(184, 134, 11, 0.35);
-  --ab-text-dark: #1a1a1a;
-  --ab-text-muted: #2a2a2a;
-  --ab-text-light: #444444;
-  --ab-text-grey: #666666;
-  --ab-text-gold: #8b6914;
+  --ab-aqua: #0ff;
+  --ab-aqua-dark: #00cccc;
+  --ab-aqua-deep: #0088aa;
+  --ab-aqua-light: #66ffff;
+  --ab-aqua-soft: rgba(0, 255, 255, 0.12);
+  --ab-bg: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
+  --ab-bg-light: #0a1a1f;
+  --ab-card-bg: #0a1f2a;
+  --ab-card-hover: #0a252f;
+  --ab-border: rgba(0, 255, 255, 0.18);
+  --ab-border-hover: rgba(0, 255, 255, 0.35);
+  --ab-text-dark: #e6f7ff;
+  --ab-text-muted: #bbd4e5;
+  --ab-text-light: #88bbcc;
+  --ab-text-grey: #88bbcc;
+  --ab-text-aqua: #0ff;
   --ab-serif: "Goldman", system-ui, sans-serif;
   --ab-sans: "Goldman", system-ui, sans-serif;
   --ab-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
@@ -32,13 +33,13 @@
   position: relative;
   min-height: 100vh;
   width: 100%;
-  background: linear-gradient(135deg, #f8f4ed 0%, #fdfaf5 50%, #fffdf9 100%);
+  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
   color: var(--ab-text-dark);
   overflow-x: hidden;
   isolation: isolate;
 }
 
-/* Ambient glow - gold */
+/* Ambient glow - Aqua */
 .ab-ambient {
   position: fixed;
   top: -200px;
@@ -48,7 +49,7 @@
   height: 700px;
   background: radial-gradient(
     circle,
-    rgba(218, 165, 32, 0.08) 0%,
+    rgba(0, 255, 255, 0.08) 0%,
     transparent 70%
   );
   pointer-events: none;
@@ -59,13 +60,13 @@
 .ab-grain {
   position: fixed;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.018'/%3E%3C/svg%3E");
-  opacity: 0.3;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.35;
   pointer-events: none;
   z-index: 0;
 }
 
-/* Vertical lines - soft gold */
+/* Vertical lines - Aqua tint */
 .ab-lines {
   position: fixed;
   inset: 0;
@@ -80,13 +81,13 @@
   background: linear-gradient(
     to bottom,
     transparent,
-    rgba(184, 134, 11, 0.12) 30%,
-    rgba(184, 134, 11, 0.12) 70%,
+    rgba(0, 255, 255, 0.08) 30%,
+    rgba(0, 255, 255, 0.08) 70%,
     transparent
   );
 }
 
-/* Corner marks - dark gold */
+/* Corner marks - Aqua */
 .ab-corner {
   position: fixed;
   width: 28px;
@@ -97,17 +98,17 @@
 .ab-corner--tl {
   top: 1.5rem;
   left: 1.5rem;
-  border-top: 1px solid rgba(184, 134, 11, 0.4);
-  border-left: 1px solid rgba(184, 134, 11, 0.4);
+  border-top: 1px solid rgba(0, 255, 255, 0.4);
+  border-left: 1px solid rgba(0, 255, 255, 0.4);
 }
 .ab-corner--tr {
   top: 1.5rem;
   right: 1.5rem;
-  border-top: 1px solid rgba(184, 134, 11, 0.4);
-  border-right: 1px solid rgba(184, 134, 11, 0.4);
+  border-top: 1px solid rgba(0, 255, 255, 0.4);
+  border-right: 1px solid rgba(0, 255, 255, 0.4);
 }
 
-/* Shared eyebrow - DARK GOLD */
+/* Shared eyebrow - AQUA */
 .ab-eyebrow {
   display: flex;
   align-items: center;
@@ -117,7 +118,7 @@
   font-weight: 700;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: #8b6914;
+  color: #66ffff;
   margin: 0;
   justify-content: center;
 }
@@ -125,7 +126,7 @@
   display: block;
   width: 27px;
   height: 3px;
-  background: #daa520;
+  background: #0ff;
   opacity: 0.7;
 }
 
@@ -142,13 +143,17 @@
   font-family: var(--ab-serif);
   font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 400;
-  color: #1a1a1a;
+  color: #e6f7ff;
   margin: 0;
   text-align: center;
+  text-shadow: 0 2px 10px rgba(0, 255, 255, 0.15);
 }
 .ab-section-title em {
   font-style: italic;
-  color: #8b6914;
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* ── HERO ── */
@@ -176,12 +181,16 @@
   font-size: clamp(2.5rem, 6vw, 4.5rem);
   font-weight: 400;
   line-height: 1.08;
-  color: #1a1a1a;
+  color: #e6f7ff;
   margin: 0;
+  text-shadow: 0 2px 10px rgba(0, 255, 255, 0.15);
 }
 .ab-hero-title em {
   font-style: italic;
-  color: #8b6914;
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .ab-hero-sub {
@@ -190,12 +199,12 @@
   font-weight: 500;
   line-height: 1.8;
   letter-spacing: 0.03em;
-  color: #444444;
+  color: #bbd4e5;
   max-width: 600px;
   margin: 0;
 }
 
-/* Stats - light theme with dark text */
+/* Stats - Dark theme with Aqua accents */
 .ab-stats {
   display: flex;
   gap: 0;
@@ -203,7 +212,8 @@
   border: 1px solid var(--ab-border);
   border-radius: 12px;
   overflow: hidden;
-  background: white;
+  background: rgba(10, 26, 31, 0.8);
+  backdrop-filter: blur(8px);
 }
 
 .ab-stat {
@@ -219,7 +229,7 @@
   border-right: none;
 }
 .ab-stat:hover {
-  background: var(--ab-gold-soft);
+  background: rgba(0, 255, 255, 0.08);
   transform: translateY(-2px);
 }
 
@@ -227,7 +237,10 @@
   font-family: var(--ab-serif);
   font-size: 1.8rem;
   font-weight: 500;
-  color: #8b6914;
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   line-height: 1;
 }
 
@@ -237,10 +250,10 @@
   font-weight: 700;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: #666666;
+  color: #88bbcc;
 }
 
-/* Decorative rings */
+/* Decorative rings - Aqua */
 .ab-hero-ring {
   position: absolute;
   bottom: -120px;
@@ -253,7 +266,7 @@
   width: 320px;
   height: 320px;
   border-radius: 50%;
-  border: 1px solid rgba(218, 165, 32, 0.12);
+  border: 1px solid rgba(0, 255, 255, 0.12);
   animation: ab-spin 35s linear infinite;
 }
 
@@ -261,7 +274,7 @@
   width: 220px;
   height: 220px;
   border-radius: 50%;
-  border: 1px solid rgba(218, 165, 32, 0.08);
+  border: 1px solid rgba(0, 255, 255, 0.08);
   position: absolute;
   top: 50px;
   left: 50px;
@@ -272,11 +285,12 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #daa520;
+  background: #0ff;
   opacity: 0.5;
   position: absolute;
   top: 157px;
   left: -3px;
+  box-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
 }
 
 @keyframes ab-spin {
@@ -294,7 +308,7 @@
   z-index: 1;
   background: linear-gradient(
     135deg,
-    rgba(218, 165, 32, 0.05) 0%,
+    rgba(0, 255, 255, 0.05) 0%,
     transparent 70%
   );
   border-top: 1px solid var(--ab-border);
@@ -315,7 +329,7 @@
 
 .ab-statement-num {
   font-size: 1.2rem;
-  color: #8b6914;
+  color: #0ff;
   opacity: 0.6;
   letter-spacing: 0.5em;
 }
@@ -325,9 +339,10 @@
   font-size: clamp(1.2rem, 2.5vw, 1.7rem);
   font-weight: 400;
   font-style: italic;
-  color: #1a1a1a;
+  color: #e6f7ff;
   line-height: 1.6;
   margin: 0;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.1);
 }
 
 /* ── VALUES ── */
@@ -348,8 +363,8 @@
 
 .ab-value-card {
   position: relative;
-  background: var(--ab-card-bg);
-  border: 1px solid var(--ab-border);
+  background: linear-gradient(145deg, #0a1a1f 0%, #0a1f2a 100%);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: 16px;
   padding: 2rem 1.8rem;
   display: flex;
@@ -357,7 +372,7 @@
   gap: 0.75rem;
   overflow: hidden;
   transition: all var(--ab-ease);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .ab-value-card::before {
@@ -366,7 +381,7 @@
   inset: 0;
   background: radial-gradient(
     circle at 0% 100%,
-    rgba(218, 165, 32, 0.06) 0%,
+    rgba(0, 255, 255, 0.08) 0%,
     transparent 70%
   );
   opacity: 0;
@@ -375,8 +390,8 @@
 
 .ab-value-card:hover {
   transform: translateY(-6px);
-  border-color: var(--ab-border-hover);
-  box-shadow: 0 15px 35px rgba(184, 134, 11, 0.1);
+  border-color: rgba(0, 255, 255, 0.4);
+  box-shadow: 0 15px 35px rgba(0, 255, 255, 0.15);
 }
 .ab-value-card:hover::before {
   opacity: 1;
@@ -387,20 +402,23 @@
   font-size: 0.75rem;
   font-weight: 500;
   letter-spacing: 0.2em;
-  color: #8b6914;
+  color: #0ff;
 }
 
 .ab-value-title {
   font-family: var(--ab-serif);
   font-size: 1.5rem;
   font-weight: 500;
-  color: #1a1a1a;
+  color: #e6f7ff;
   margin: 0;
   transition: color var(--ab-ease);
 }
 
 .ab-value-card:hover .ab-value-title {
-  color: #8b6914;
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .ab-value-desc {
@@ -409,7 +427,7 @@
   font-weight: 500;
   line-height: 1.7;
   letter-spacing: 0.02em;
-  color: #444444;
+  color: #bbd4e5;
   margin: 0;
 }
 
@@ -419,7 +437,7 @@
   left: 0;
   height: 3px;
   width: 0;
-  background: linear-gradient(90deg, #daa520, #f0c040);
+  background: linear-gradient(90deg, #0ff, #66ffff);
   transition: width 0.6s var(--ab-ease);
 }
 
@@ -436,7 +454,8 @@
   overflow: hidden;
   border-top: 1px solid var(--ab-border);
   margin-top: 2rem;
-  background: white;
+  background: rgba(10, 26, 31, 0.8);
+  backdrop-filter: blur(4px);
 }
 
 .ab-cta-inner {
@@ -454,13 +473,17 @@
   font-family: var(--ab-serif);
   font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 400;
-  color: #1a1a1a;
+  color: #e6f7ff;
   margin: 0;
   line-height: 1.1;
+  text-shadow: 0 2px 10px rgba(0, 255, 255, 0.15);
 }
 .ab-cta-title em {
   font-style: italic;
-  color: #8b6914;
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .ab-cta-btns {
@@ -488,31 +511,32 @@
 }
 
 .ab-cta-btn--primary {
-  background: #daa520;
-  border: 1px solid #daa520;
-  color: white;
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  border: 1px solid transparent;
+  color: #0a0f1a;
 }
 .ab-cta-btn--primary:hover {
   background: transparent;
-  color: #8b6914;
+  border-color: #0ff;
+  color: #0ff;
   transform: translateY(-3px);
-  box-shadow: 0 10px 25px rgba(218, 165, 32, 0.2);
+  box-shadow: 0 10px 25px rgba(0, 255, 255, 0.25);
   gap: 1rem;
 }
 
 .ab-cta-btn--ghost {
   background: transparent;
-  border: 1px solid var(--ab-border);
-  color: #666666;
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  color: #bbd4e5;
 }
 .ab-cta-btn--ghost:hover {
-  border-color: #daa520;
-  color: #8b6914;
-  background: var(--ab-gold-soft);
+  border-color: #0ff;
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.08);
   transform: translateY(-3px);
 }
 
-/* CTA deco rings */
+/* CTA deco rings - Aqua */
 .ab-cta-ring {
   position: absolute;
   border-radius: 50%;
@@ -521,7 +545,7 @@
 .ab-cta-ring--1 {
   width: 500px;
   height: 500px;
-  border: 1px solid rgba(218, 165, 32, 0.08);
+  border: 1px solid rgba(0, 255, 255, 0.08);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -530,7 +554,7 @@
 .ab-cta-ring--2 {
   width: 350px;
   height: 350px;
-  border: 1px solid rgba(218, 165, 32, 0.05);
+  border: 1px solid rgba(0, 255, 255, 0.05);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -591,7 +615,9 @@
   }
 }
 
-/* ========== RTL SUPPORT FOR ABOUT PAGE ========== */
+/* ============================================================
+   RTL SUPPORT FOR ABOUT PAGE
+   ============================================================ */
 [dir="rtl"] .ab-value-card {
   text-align: right;
 }
@@ -629,14 +655,14 @@
   left: auto;
   right: 1.5rem;
   border-left: none;
-  border-right: 1px solid rgba(184, 134, 11, 0.4);
+  border-right: 1px solid rgba(0, 255, 255, 0.4);
 }
 
 [dir="rtl"] .ab-corner--tr {
   right: auto;
   left: 1.5rem;
   border-right: none;
-  border-left: 1px solid rgba(184, 134, 11, 0.4);
+  border-left: 1px solid rgba(0, 255, 255, 0.4);
 }
 
 [dir="rtl"] .ab-statement-quote::before,

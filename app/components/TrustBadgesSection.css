@@ -1,6 +1,6 @@
 /* ============================================================
    TRUST BADGES SECTION  ·  tbs.css
-   Luxury Swiper Slider Design
+   Luxury Black & Aqua Gradient Design
    ============================================================ */
 
 @import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
@@ -9,12 +9,13 @@
   position: relative;
   width: 100%;
   padding: 5rem 2rem 6rem;
-  background: linear-gradient(135deg, #f8f4ed 0%, #fdfaf5 50%, #fffdf9 100%);
+  /* NEW: Black to Aqua Gradient Background */
+  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
   overflow: hidden;
   isolation: isolate;
 }
 
-/* Ambient Glow */
+/* Ambient Glow - Aqua */
 .tbs-ambient {
   position: absolute;
   top: 0;
@@ -24,8 +25,9 @@
   height: 600px;
   background: radial-gradient(
     circle,
-    rgba(218, 165, 32, 0.07) 0%,
-    transparent 70%
+    rgba(0, 255, 255, 0.12) 0%,
+    rgba(0, 200, 255, 0.05) 40%,
+    transparent 80%
   );
   pointer-events: none;
   z-index: 0;
@@ -58,15 +60,17 @@
   font-family: "Goldman", system-ui, sans-serif;
   font-size: clamp(1.9rem, 4vw, 2.9rem);
   font-weight: 400;
-  color: #1a1a1a;
+  color: #e6f7ff;
   margin: 0 0 1rem;
   line-height: 1.1;
+  text-shadow: 0 2px 5px rgba(0, 255, 255, 0.15);
 }
 
 .tbs-title em {
   font-style: italic;
-  color: #8b6914;
+  color: #0ff;
   font-weight: 600;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
 }
 
 .tbs-subtitle {
@@ -75,7 +79,7 @@
   font-weight: 500;
   line-height: 1.8;
   letter-spacing: 0.025em;
-  color: #444444;
+  color: #bbd4e5;
   max-width: 580px;
   margin: 0 auto;
 }
@@ -86,7 +90,7 @@
   padding: 0 2rem;
 }
 
-/* Navigation Buttons */
+/* Navigation Buttons - Aqua Theme */
 .tbs-nav-buttons {
   position: absolute;
   top: 50%;
@@ -105,39 +109,39 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: white;
-  border: 1px solid rgba(184, 134, 11, 0.2);
+  background: rgba(10, 20, 30, 0.9);
+  border: 1px solid rgba(0, 255, 255, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   pointer-events: auto;
   transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .tbs-nav-prev:hover,
 .tbs-nav-next:hover {
-  background: #daa520;
-  border-color: #daa520;
+  background: #0ff;
+  border-color: #0ff;
   transform: scale(1.1);
-  box-shadow: 0 8px 20px rgba(218, 165, 32, 0.2);
+  box-shadow: 0 8px 20px rgba(0, 255, 255, 0.4);
 }
 
 .tbs-nav-prev:hover svg,
 .tbs-nav-next:hover svg {
-  color: white;
+  color: #0a0f1a;
 }
 
 .tbs-nav-prev svg,
 .tbs-nav-next svg {
   width: 20px;
   height: 20px;
-  color: #8b6914;
+  color: #0ff;
   transition: all 0.3s;
 }
 
-/* ── Card Design ── */
+/* ── Card Design - Black & Aqua ── */
 .tbs-card {
   height: 100%;
   padding: 0.5rem;
@@ -145,8 +149,9 @@
 
 .tbs-card-inner {
   position: relative;
-  background: white;
-  border: 1px solid rgba(184, 134, 11, 0.12);
+  background: rgba(15, 25, 35, 0.85);
+  backdrop-filter: blur(2px);
+  border: 1px solid rgba(0, 255, 255, 0.2);
   border-radius: 20px;
   padding: 2rem 1.5rem;
   height: 100%;
@@ -157,22 +162,23 @@
   transition: all 0.45s cubic-bezier(0.22, 1, 0.36, 1);
   overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .tbs-card-inner:hover {
   transform: translateY(-8px);
-  border-color: rgba(184, 134, 11, 0.3);
-  box-shadow: 0 22px 40px rgba(184, 134, 11, 0.12);
+  border-color: rgba(0, 255, 255, 0.7);
+  box-shadow: 0 22px 40px rgba(0, 200, 255, 0.25);
+  background: rgba(10, 20, 30, 0.95);
 }
 
-/* Card Glow Effect */
+/* Card Glow Effect - Aqua */
 .tbs-card-glow {
   position: absolute;
   inset: 0;
   background: radial-gradient(
     circle at 50% 0%,
-    rgba(218, 165, 32, 0.06),
+    rgba(0, 255, 255, 0.15),
     transparent 70%
   );
   opacity: 0;
@@ -184,14 +190,14 @@
   opacity: 1;
 }
 
-/* Card Shimmer */
+/* Card Shimmer - Aqua */
 .tbs-card-shimmer {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     115deg,
     transparent 40%,
-    rgba(218, 165, 32, 0.05) 50%,
+    rgba(0, 255, 255, 0.1) 50%,
     transparent 60%
   );
   transform: translateX(-100%);
@@ -203,14 +209,14 @@
   transform: translateX(100%);
 }
 
-/* Card Bottom Bar */
+/* Card Bottom Bar - Aqua Gradient */
 .tbs-card-bar {
   position: absolute;
   bottom: 0;
   left: 0;
   height: 3px;
   width: 0;
-  background: linear-gradient(90deg, #daa520, #f0c040);
+  background: linear-gradient(90deg, #0ff, #00aaff, #0ff);
   transition: width 0.65s cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
 }
@@ -219,13 +225,13 @@
   width: 100%;
 }
 
-/* Icon */
+/* Icon - Aqua Theme */
 .tbs-icon-wrap {
   width: 70px;
   height: 70px;
   border-radius: 20px;
-  background: rgba(218, 165, 32, 0.08);
-  border: 1px solid rgba(218, 165, 32, 0.2);
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid rgba(0, 255, 255, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -234,16 +240,18 @@
 }
 
 .tbs-card-inner:hover .tbs-icon-wrap {
-  background: rgba(218, 165, 32, 0.15);
+  background: rgba(0, 255, 255, 0.25);
   transform: scale(1.05) rotate(-3deg);
-  border-color: rgba(218, 165, 32, 0.4);
+  border-color: rgba(0, 255, 255, 0.8);
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.4);
 }
 
 .tbs-icon-wrap svg {
   width: 32px;
   height: 32px;
-  color: #8b6914;
+  color: #0ff;
   stroke-width: 1.5;
+  filter: drop-shadow(0 0 3px rgba(0, 255, 255, 0.5));
 }
 
 /* Card Text */
@@ -251,13 +259,14 @@
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.1rem;
   font-weight: 600;
-  color: #1a1a1a;
+  color: #e0f0ff;
   margin: 0 0 0.75rem;
   transition: color 0.3s;
 }
 
 .tbs-card-inner:hover .tbs-card-title {
-  color: #8b6914;
+  color: #0ff;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
 }
 
 .tbs-card-desc {
@@ -265,11 +274,11 @@
   font-size: 0.8rem;
   font-weight: 500;
   line-height: 1.6;
-  color: #666666;
+  color: #aaccee;
   margin: 0;
 }
 
-/* Pagination */
+/* Pagination - Aqua */
 .tbs-pagination {
   display: flex;
   justify-content: center;
@@ -281,20 +290,21 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: rgba(184, 134, 11, 0.3);
+  background: rgba(0, 255, 255, 0.3);
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .tbs-bullet:hover {
-  background: rgba(184, 134, 11, 0.6);
+  background: rgba(0, 255, 255, 0.8);
   transform: scale(1.2);
 }
 
 .tbs-bullet-active {
   width: 28px;
   border-radius: 4px;
-  background: #daa520;
+  background: #0ff;
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
 }
 
 /* ── RTL Support ── */
@@ -316,7 +326,7 @@
   background: linear-gradient(
     -115deg,
     transparent 40%,
-    rgba(218, 165, 32, 0.05) 50%,
+    rgba(0, 255, 255, 0.1) 50%,
     transparent 60%
   );
 }

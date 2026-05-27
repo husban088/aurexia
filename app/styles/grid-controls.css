@@ -1,5 +1,6 @@
 /* ============================================================
-   GRID CONTROLS - Products Per Row & Sorting
+   GRID CONTROLS - BLACK & AQUA GRADIENT THEME
+   Products Per Row & Sorting
    ============================================================ */
 
 /* Grid Controls Bar */
@@ -11,7 +12,7 @@
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
   padding-bottom: 0.8rem;
-  border-bottom: 1px solid rgba(218, 165, 32, 0.12);
+  border-bottom: 1px solid rgba(0, 255, 255, 0.12);
 }
 
 .grid-controls-left {
@@ -20,29 +21,30 @@
   gap: 0.8rem;
 }
 
-/* Filter Trigger Button */
+/* Filter Trigger Button - Aqua */
 .filter-trigger {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.55rem 1rem;
-  background: rgba(218, 165, 32, 0.06);
-  border: 1px solid rgba(218, 165, 32, 0.2);
+  background: rgba(0, 255, 255, 0.08);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   border-radius: 40px;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #8b6914;
+  color: #66ffff;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .filter-trigger:hover {
-  background: rgba(218, 165, 32, 0.12);
-  border-color: #daa520;
+  background: rgba(0, 255, 255, 0.15);
+  border-color: #0ff;
   transform: translateY(-2px);
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
 }
 
 .filter-trigger svg {
@@ -53,18 +55,19 @@
 .filter-active-dot {
   width: 7px;
   height: 7px;
-  background: #daa520;
+  background: #0ff;
   border-radius: 50%;
+  box-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
   animation: filterPulse 1.5s ease-in-out infinite;
 }
 
-/* Products Per Row Selector */
+/* Products Per Row Selector - Aqua */
 .per-row-selector {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  background: rgba(218, 165, 32, 0.04);
-  border: 1px solid rgba(218, 165, 32, 0.12);
+  background: rgba(0, 255, 255, 0.06);
+  border: 1px solid rgba(0, 255, 255, 0.15);
   border-radius: 40px;
   padding: 0.15rem;
 }
@@ -82,7 +85,7 @@
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.65rem;
   font-weight: 600;
-  color: #999;
+  color: #88bbcc;
   transition: all 0.3s ease;
   position: relative;
 }
@@ -94,14 +97,14 @@
 }
 
 .per-row-btn:hover {
-  color: #8b6914;
-  background: rgba(218, 165, 32, 0.1);
+  color: #0ff;
+  background: rgba(0, 255, 255, 0.15);
 }
 
 .per-row-btn.active {
-  background: #daa520;
-  color: #1a1a1a;
-  box-shadow: 0 2px 8px rgba(218, 165, 32, 0.3);
+  background: linear-gradient(135deg, #0ff, #66ffff);
+  color: #0a0f1a;
+  box-shadow: 0 2px 8px rgba(0, 255, 255, 0.3);
 }
 
 /* Tooltip */
@@ -111,8 +114,8 @@
   bottom: -30px;
   left: 50%;
   transform: translateX(-50%);
-  background: #1a1a1a;
-  color: #daa520;
+  background: #0a1a1f;
+  color: #0ff;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.5rem;
   font-weight: 600;
@@ -125,6 +128,7 @@
   transition: all 0.2s ease;
   pointer-events: none;
   z-index: 100;
+  border: 1px solid rgba(0, 255, 255, 0.3);
 }
 
 .per-row-btn:hover::before {
@@ -133,20 +137,20 @@
   bottom: -35px;
 }
 
-/* Sort Select */
+/* Sort Select - Aqua */
 .grid-sort-select {
   padding: 0.55rem 2rem 0.55rem 1rem;
-  background: white;
-  border: 1px solid rgba(218, 165, 32, 0.2);
+  background: rgba(10, 26, 31, 0.8);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   border-radius: 40px;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 500;
   letter-spacing: 0.08em;
-  color: #444;
+  color: #bbd4e5;
   cursor: pointer;
   outline: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23daa520' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230ff' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.8rem center;
   background-size: 11px;
@@ -155,12 +159,12 @@
 }
 
 .grid-sort-select:hover {
-  border-color: #daa520;
+  border-color: #0ff;
 }
 
 .grid-sort-select:focus {
-  border-color: #daa520;
-  box-shadow: 0 0 0 3px rgba(218, 165, 32, 0.1);
+  border-color: #0ff;
+  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.1);
 }
 
 /* Result Count */
@@ -168,11 +172,11 @@
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 400;
-  color: #999;
+  color: #88bbcc;
 }
 
 .grid-result-count em {
-  color: #8b6914;
+  color: #0ff;
   font-style: normal;
   font-weight: 600;
 }
@@ -203,15 +207,12 @@
     align-items: stretch;
     gap: 0.6rem;
   }
-
   .grid-controls-left {
     justify-content: space-between;
   }
-
   .per-row-selector {
     display: none;
   }
-
   .pg-grid--cols-4,
   .pg-grid--cols-3 {
     grid-template-columns: repeat(2, 1fr);
@@ -226,7 +227,7 @@
   }
 }
 
-/* ========== RTL SUPPORT FOR GRID CONTROLS ========== */
+/* ========== RTL SUPPORT ========== */
 [dir="rtl"] .grid-controls-bar {
   flex-direction: row;
 }

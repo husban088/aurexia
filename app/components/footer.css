@@ -1,27 +1,28 @@
 /* ============================================================
-   FOOTER SECTION  ·  ULTIMATE LUXURY EDITION
+   FOOTER SECTION · ULTIMATE LUXURY EDITION
+   BLACK & AQUA GRADIENT THEME - Matching Navbar & Explore Aurexia
    TECH4U — Next Level Footer Design
    ============================================================ */
 
 @import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 :root {
-  --footer-gold: #daa520;
-  --footer-gold-light: #f0c040;
-  --footer-gold-dim: rgba(218, 165, 32, 0.12);
-  --footer-gold-deep: #8b6914;
-  --footer-gold-gradient: linear-gradient(
+  --footer-aqua: #0ff;
+  --footer-aqua-light: #66ffff;
+  --footer-aqua-dim: rgba(0, 255, 255, 0.12);
+  --footer-aqua-deep: #00cccc;
+  --footer-aqua-gradient: linear-gradient(
     135deg,
-    #daa520 0%,
-    #f0c040 50%,
-    #daa520 100%
+    #0ff 0%,
+    #66ffff 50%,
+    #0ff 100%
   );
-  --footer-bg: #0a0808;
-  --footer-bg-lighter: #11100e;
-  --footer-border: rgba(218, 165, 32, 0.15);
-  --footer-text: white;
-  --footer-text-muted: white;
-  --footer-text-dim: white;
+  --footer-bg: #0a0f1a;
+  --footer-bg-lighter: #0a1a1f;
+  --footer-border: rgba(0, 255, 255, 0.15);
+  --footer-text: #e6f7ff;
+  --footer-text-muted: #bbd4e5;
+  --footer-text-dim: #88bbcc;
   --footer-serif: var(--font-goldman), "Goldman", system-ui, sans-serif;
   --footer-sans: var(--font-goldman), "Goldman", system-ui, sans-serif;
   --footer-tech: var(--font-goldman), "Goldman", system-ui, sans-serif;
@@ -34,7 +35,7 @@
 /* ── Main Footer ── */
 .footer {
   position: relative;
-  background: linear-gradient(180deg, #0a0808 0%, #0c0a08 50%, #080606 100%);
+  background: linear-gradient(180deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
   color: var(--footer-text);
   margin-top: auto;
   overflow: hidden;
@@ -42,7 +43,7 @@
   z-index: 10;
 }
 
-/* Glass Overlay */
+/* Glass Overlay - Aqua */
 .footer-glass-overlay {
   position: absolute;
   top: 0;
@@ -51,13 +52,13 @@
   bottom: 0;
   background: radial-gradient(
     circle at 20% 30%,
-    rgba(218, 165, 32, 0.03) 0%,
+    rgba(0, 255, 255, 0.03) 0%,
     transparent 60%
   );
   pointer-events: none;
 }
 
-/* Floating Particles */
+/* Floating Particles - Aqua */
 .footer-particles {
   position: absolute;
   top: 0;
@@ -73,10 +74,11 @@
   bottom: -20px;
   width: 3px;
   height: 3px;
-  background: var(--footer-gold);
+  background: var(--footer-aqua);
   border-radius: 50%;
   opacity: 0;
   animation: particleFloat 8s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
 }
 
 @keyframes particleFloat {
@@ -96,19 +98,19 @@
   }
 }
 
-/* Gold decorative line top */
+/* Aqua decorative line top */
 .footer-gold-line {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 2px;
   background: linear-gradient(
     90deg,
     transparent,
-    var(--footer-gold),
-    var(--footer-gold-light),
-    var(--footer-gold),
+    var(--footer-aqua),
+    var(--footer-aqua-light),
+    var(--footer-aqua),
     transparent
   );
   overflow: hidden;
@@ -123,7 +125,7 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.4),
+    rgba(255, 255, 255, 0.3),
     transparent
   );
   animation: shineMove 4s ease-in-out infinite;
@@ -196,19 +198,21 @@
   align-items: center;
 }
 
-/* Logo Image Styling */
+/* Logo Image Styling - Aqua filter */
 .footer-logo-img {
   height: 45px;
   width: auto;
   max-width: 136px;
   object-fit: contain;
   transition: all 0.4s var(--footer-ease-bounce);
-  filter: drop-shadow(0 0 10px rgba(218, 165, 32, 0.3));
+  filter: brightness(1.05) contrast(1.05)
+    drop-shadow(0 0 10px rgba(0, 255, 255, 0.3));
 }
 
 .footer-logo-3d:hover .footer-logo-img {
   transform: scale(1.05);
-  filter: drop-shadow(0 0 20px rgba(218, 165, 32, 0.6));
+  filter: brightness(1.1) contrast(1.1)
+    drop-shadow(0 0 20px rgba(0, 255, 255, 0.6));
 }
 
 .footer-logo-gold-ring {
@@ -217,7 +221,7 @@
   top: 50%;
   transform: translateY(-50%);
   font-size: 1.2rem;
-  color: var(--footer-gold);
+  color: var(--footer-aqua);
   animation: ringRotate 4s linear infinite;
 }
 
@@ -236,7 +240,7 @@
   font-weight: 400;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--footer-gold);
+  color: var(--footer-aqua);
   margin-top: -0.2rem;
   display: flex;
   gap: 0.5rem;
@@ -244,6 +248,7 @@
 
 .tagline-gold {
   animation: taglineFade 2s ease-in-out infinite;
+  color: var(--footer-aqua);
 }
 
 @keyframes taglineFade {
@@ -253,6 +258,7 @@
   }
   50% {
     opacity: 1;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
   }
 }
 
@@ -270,7 +276,7 @@
   display: inline-block;
   margin-left: 0.5rem;
   font-size: 0.7rem;
-  color: var(--footer-gold);
+  color: var(--footer-aqua);
   opacity: 0.7;
   font-family: var(--footer-tech);
   letter-spacing: 0.1em;
@@ -284,16 +290,19 @@
 .footer-newsletter {
   position: relative;
   width: 100%;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(10, 26, 31, 0.8);
+  backdrop-filter: blur(10px);
   border-radius: 20px;
   padding: 1.5rem;
-  border: 1px solid var(--footer-border);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   transition: all var(--footer-ease);
 }
 
 .footer-newsletter:hover {
-  border-color: rgba(218, 165, 32, 0.3);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  border-color: rgba(0, 255, 255, 0.5);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(0, 255, 255, 0.1);
 }
 
 .footer-newsletter-header {
@@ -313,7 +322,7 @@
   height: 40px;
   background: radial-gradient(
     circle,
-    rgba(218, 165, 32, 0.15) 0%,
+    rgba(0, 255, 255, 0.15) 0%,
     transparent 70%
   );
   pointer-events: none;
@@ -335,10 +344,10 @@
   padding: 0.2rem 0.5rem;
   background: linear-gradient(
     135deg,
-    var(--footer-gold),
-    var(--footer-gold-light)
+    var(--footer-aqua),
+    var(--footer-aqua-light)
   );
-  color: #0a0808;
+  color: #0a0f1a;
   border-radius: 20px;
   letter-spacing: 0.05em;
   animation: badgePulse 2s ease-in-out infinite;
@@ -348,9 +357,11 @@
   0%,
   100% {
     transform: scale(1);
+    box-shadow: 0 0 0px rgba(0, 255, 255, 0);
   }
   50% {
     transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
   }
 }
 
@@ -371,19 +382,19 @@
   position: relative;
   display: flex;
   align-items: center;
-  border: 1px solid var(--footer-border);
+  border: 1px solid rgba(0, 255, 255, 0.25);
   border-radius: 50px;
   overflow: hidden;
   transition: all var(--footer-ease);
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(10, 26, 31, 0.6);
   backdrop-filter: blur(10px);
 }
 
 .footer-input-wrapper:focus-within {
-  border-color: var(--footer-gold);
+  border-color: var(--footer-aqua);
   box-shadow:
-    0 0 0 4px rgba(218, 165, 32, 0.2),
-    0 0 20px rgba(218, 165, 32, 0.1);
+    0 0 0 4px rgba(0, 255, 255, 0.15),
+    0 0 20px rgba(0, 255, 255, 0.1);
   transform: scale(1.01);
 }
 
@@ -411,8 +422,8 @@
   padding: 0.9rem 1.8rem;
   background: linear-gradient(
     135deg,
-    var(--footer-gold),
-    var(--footer-gold-light)
+    var(--footer-aqua),
+    var(--footer-aqua-light)
   );
   border: none;
   font-family: var(--footer-sans);
@@ -420,7 +431,7 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #0a0808;
+  color: #0a0f1a;
   cursor: pointer;
   transition: all var(--footer-ease-bounce);
   position: relative;
@@ -456,7 +467,7 @@
 .footer-newsletter-btn:hover {
   gap: 0.8rem;
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(218, 165, 32, 0.3);
+  box-shadow: 0 5px 15px rgba(0, 255, 255, 0.3);
 }
 
 .footer-newsletter-btn:hover svg {
@@ -471,7 +482,7 @@
   padding: 0.5rem 0;
   font-family: var(--footer-sans);
   font-size: 0.75rem;
-  color: #4ade80;
+  color: var(--footer-aqua-light);
   animation: slideDown 0.4s ease forwards;
 }
 
@@ -491,7 +502,7 @@
   }
 }
 
-/* ── Social Links Premium ── */
+/* ── Social Links Premium - Aqua Gradient ── */
 .footer-social {
   display: flex;
   gap: 1rem;
@@ -549,6 +560,7 @@
 .footer-social-link:hover {
   transform: translateY(-5px) scale(1.15);
   filter: brightness(1.1);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
 }
 
 .footer-social-icon {
@@ -567,8 +579,8 @@
   bottom: -35px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.95);
-  color: var(--footer-gold);
+  background: #0a1a1f;
+  color: var(--footer-aqua);
   font-family: var(--footer-sans);
   font-size: 0.7rem;
   font-weight: 500;
@@ -581,7 +593,7 @@
   pointer-events: none;
   z-index: 10;
   letter-spacing: 0.05em;
-  border: 1px solid rgba(218, 165, 32, 0.3);
+  border: 1px solid rgba(0, 255, 255, 0.3);
 }
 
 .footer-social-link:hover .footer-social-tooltip {
@@ -596,13 +608,13 @@
   flex-direction: column;
   gap: 1.25rem;
   transition: all var(--footer-ease);
-  background: rgba(255, 255, 255, 0.01);
+  background: rgba(0, 255, 255, 0.02);
   border-radius: 16px;
   padding: 0.75rem;
 }
 
 .footer-links-column.hovered {
-  background: rgba(218, 165, 32, 0.03);
+  background: rgba(0, 255, 255, 0.06);
   transform: translateY(-5px);
 }
 
@@ -638,7 +650,7 @@
   left: 0;
   width: 4px;
   height: 4px;
-  background: var(--footer-gold);
+  background: var(--footer-aqua);
   border-radius: 50%;
   transition: all var(--footer-ease);
 }
@@ -646,13 +658,14 @@
 .footer-links-column:hover .footer-links-gold-dot {
   width: 20px;
   border-radius: 2px;
+  box-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
 }
 
 .footer-links-mobile-toggle {
   display: none;
   background: none;
   border: none;
-  color: var(--footer-gold);
+  color: var(--footer-aqua);
   cursor: pointer;
   transition: transform var(--footer-ease);
 }
@@ -734,7 +747,7 @@
 }
 
 .footer-link:hover {
-  color: var(--footer-gold-light);
+  color: var(--footer-aqua-light);
   gap: 0.75rem;
 }
 
@@ -777,9 +790,9 @@
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  border: 1px solid rgba(218, 165, 32, 0.2);
-  background: rgba(218, 165, 32, 0.06);
-  color: var(--footer-gold);
+  border: 1px solid rgba(0, 255, 255, 0.25);
+  background: rgba(0, 255, 255, 0.08);
+  color: var(--footer-aqua);
   transition: all 0.3s ease;
 }
 
@@ -789,9 +802,9 @@
 }
 
 .footer-contact-item:hover .footer-contact-icon {
-  background: rgba(218, 165, 32, 0.15);
-  border-color: var(--footer-gold);
-  box-shadow: 0 0 12px rgba(218, 165, 32, 0.2);
+  background: rgba(0, 255, 255, 0.18);
+  border-color: var(--footer-aqua);
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.25);
 }
 
 .footer-contact-text {
@@ -806,7 +819,7 @@
   font-size: 0.56rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--footer-gold);
+  color: var(--footer-aqua);
   opacity: 0.7;
 }
 
@@ -822,7 +835,7 @@
 }
 
 a.footer-contact-value:hover {
-  color: var(--footer-gold-light);
+  color: var(--footer-aqua-light);
 }
 
 /* ── Bottom Bar Premium ── */
@@ -830,7 +843,7 @@ a.footer-contact-value:hover {
   position: relative;
   z-index: 2;
   border-top: 1px solid var(--footer-border);
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(10, 15, 26, 0.8);
   backdrop-filter: blur(10px);
 }
 
@@ -845,7 +858,7 @@ a.footer-contact-value:hover {
   gap: 1.5rem;
 }
 
-/* Payment Methods Premium */
+/* Payment Methods Premium - Aqua Theme */
 .payment-label {
   font-family: var(--footer-sans);
   font-size: 0.65rem;
@@ -871,7 +884,7 @@ a.footer-contact-value:hover {
 .payment-card-front {
   width: 100%;
   height: 100%;
-  background: white;
+  background: #ffffff;
   border: 1px solid var(--footer-border);
   border-radius: 8px;
   display: flex;
@@ -884,8 +897,9 @@ a.footer-contact-value:hover {
 
 .footer-payment-icon:hover .payment-card-front {
   transform: rotateY(10deg) scale(1.05);
-  background: white;
-  border-color: var(--footer-gold);
+  background: #ffffff;
+  border-color: var(--footer-aqua);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
 }
 
 /* Copyright with Style */
@@ -904,27 +918,27 @@ a.footer-contact-value:hover {
 .copyright-gold-line {
   width: 30px;
   height: 1px;
-  background: linear-gradient(90deg, var(--footer-gold), transparent);
+  background: linear-gradient(90deg, var(--footer-aqua), transparent);
 }
 
 .copyright-gold-line.right {
-  background: linear-gradient(90deg, transparent, var(--footer-gold));
+  background: linear-gradient(90deg, transparent, var(--footer-aqua));
 }
 
 .copyright-separator {
   margin: 0 0.5rem;
   font-size: 0.5rem;
-  color: var(--footer-gold);
+  color: var(--footer-aqua);
   opacity: 0.5;
 }
 
 .footer-copyright-brand {
-  color: var(--footer-gold);
+  color: var(--footer-aqua);
   font-weight: 600;
   letter-spacing: 0.05em;
 }
 
-/* Back to Top Premium Button */
+/* Back to Top Premium Button - Aqua */
 .footer-back-to-top {
   display: flex;
   align-items: center;
@@ -964,17 +978,17 @@ a.footer-contact-value:hover {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(218, 165, 32, 0.3),
+    rgba(0, 255, 255, 0.3),
     transparent
   );
   transition: left 0.5s ease;
 }
 
 .footer-back-to-top:hover {
-  border-color: var(--footer-gold);
-  color: var(--footer-gold-light);
+  border-color: var(--footer-aqua);
+  color: var(--footer-aqua-light);
   transform: translateY(-3px);
-  box-shadow: 0 5px 20px rgba(218, 165, 32, 0.2);
+  box-shadow: 0 5px 20px rgba(0, 255, 255, 0.25);
 }
 
 .footer-back-to-top:hover .back-to-top-glow {
@@ -985,7 +999,7 @@ a.footer-contact-value:hover {
   transform: translateY(-3px);
 }
 
-/* Bottom Gold Border with Wave */
+/* Bottom Aqua Border with Wave */
 .footer-bottom-gold {
   position: absolute;
   bottom: 0;
@@ -1001,9 +1015,9 @@ a.footer-contact-value:hover {
   background: linear-gradient(
     90deg,
     transparent,
-    var(--footer-gold),
-    var(--footer-gold-light),
-    var(--footer-gold),
+    var(--footer-aqua),
+    var(--footer-aqua-light),
+    var(--footer-aqua),
     transparent
   );
   animation: waveMove 3s ease-in-out infinite;
@@ -1018,13 +1032,13 @@ a.footer-contact-value:hover {
   }
 }
 
-/* Floating Orbs */
+/* Floating Orbs - Aqua */
 .footer-orb {
   position: absolute;
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(218, 165, 32, 0.1) 0%,
+    rgba(0, 255, 255, 0.08) 0%,
     transparent 70%
   );
   pointer-events: none;
@@ -1068,7 +1082,7 @@ a.footer-contact-value:hover {
 }
 
 /* ══════════════════════════════════════════════════════════
-         FEATURES STRIP — 4 Luxury Cards
+         FEATURES STRIP — 4 Luxury Cards (Aqua Theme)
          ══════════════════════════════════════════════════════════ */
 .footer-features {
   position: relative;
@@ -1076,7 +1090,7 @@ a.footer-contact-value:hover {
   border-bottom: 1px solid var(--footer-border);
   background: linear-gradient(
     180deg,
-    rgba(218, 165, 32, 0.04) 0%,
+    rgba(0, 255, 255, 0.04) 0%,
     transparent 100%
   );
 }
@@ -1111,7 +1125,7 @@ a.footer-contact-value:hover {
   background: linear-gradient(
     135deg,
     transparent 0%,
-    rgba(218, 165, 32, 0.07) 50%,
+    rgba(0, 255, 255, 0.08) 50%,
     transparent 100%
   );
   opacity: 0;
@@ -1131,8 +1145,8 @@ a.footer-contact-value:hover {
   height: 2px;
   background: linear-gradient(
     90deg,
-    var(--footer-gold),
-    var(--footer-gold-light)
+    var(--footer-aqua),
+    var(--footer-aqua-light)
   );
   transform: translateX(-50%);
   transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
@@ -1151,22 +1165,22 @@ a.footer-contact-value:hover {
   align-items: center;
   justify-content: center;
   border-radius: 14px;
-  border: 1px solid rgba(218, 165, 32, 0.2);
-  background: rgba(218, 165, 32, 0.06);
+  border: 1px solid rgba(0, 255, 255, 0.25);
+  background: rgba(0, 255, 255, 0.08);
   transition: all 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
 .footer-feature-card:hover .footer-feature-icon-wrap {
-  background: rgba(218, 165, 32, 0.15);
-  border-color: var(--footer-gold);
+  background: rgba(0, 255, 255, 0.18);
+  border-color: var(--footer-aqua);
   transform: scale(1.1) rotate(-5deg);
-  box-shadow: 0 0 20px rgba(218, 165, 32, 0.25);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
 }
 
 .footer-feature-icon-wrap svg {
   width: 22px;
   height: 22px;
-  color: var(--footer-gold);
+  color: var(--footer-aqua);
   transition: transform 0.4s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
@@ -1180,7 +1194,7 @@ a.footer-contact-value:hover {
   border-radius: 18px;
   background: radial-gradient(
     circle,
-    rgba(218, 165, 32, 0.25) 0%,
+    rgba(0, 255, 255, 0.25) 0%,
     transparent 70%
   );
   opacity: 0;
@@ -1209,20 +1223,20 @@ a.footer-contact-value:hover {
 }
 
 .footer-feature-card:hover .footer-feature-title {
-  color: var(--footer-gold-light);
+  color: var(--footer-aqua-light);
 }
 
 .footer-feature-subtitle {
   font-family: var(--footer-sans);
   font-size: 0.66rem;
   font-weight: 300;
-  color: rgba(255, 255, 255, 0.42);
+  color: rgba(255, 255, 255, 0.5);
   line-height: 1.4;
   transition: color 0.3s ease;
 }
 
 .footer-feature-card:hover .footer-feature-subtitle {
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 /* Hover Animations for Links */
@@ -1231,7 +1245,7 @@ a.footer-contact-value:hover {
 }
 
 .footer-links-column:hover .footer-links-title {
-  color: var(--footer-gold-light);
+  color: var(--footer-aqua-light);
 }
 
 /* Smooth Scroll Behavior */
@@ -1544,11 +1558,11 @@ html {
 }
 
 [dir="rtl"] .copyright-gold-line {
-  background: linear-gradient(90deg, #daa520, transparent);
+  background: linear-gradient(90deg, var(--footer-aqua), transparent);
 }
 
 [dir="rtl"] .copyright-gold-line.right {
-  background: linear-gradient(90deg, transparent, #daa520);
+  background: linear-gradient(90deg, transparent, var(--footer-aqua));
 }
 
 [dir="rtl"] .footer-feature-card {
