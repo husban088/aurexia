@@ -3099,97 +3099,55 @@ export default function EditProduct() {
       <PanelNavbar />
 
       <div className="ap-content">
-        <div
-          className="ap-page-header"
-          style={{
-            position: "relative",
-            textAlign: "center",
-            marginBottom: "2.5rem",
-          }}
-        >
-          <Link
-            href="/panel"
-            style={{
-              position: "absolute",
-              left: 0,
-              top: "50%",
-              transform: "translateY(-50%)",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              fontFamily: "var(--ap-sans)",
-              fontSize: "0.75rem",
-              fontWeight: 600,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              color: "#8b6914",
-              textDecoration: "none",
-            }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              style={{ width: "16px", height: "16px" }}
-            >
-              <path
-                d="M19 12H5M12 19l-7-7 7-7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>{" "}
-            Back
-          </Link>
-          <div>
-            <p className="ap-eyebrow">
-              <span className="ap-ey-line" /> Inventory Management —{" "}
-              {currency.code} <span className="ap-ey-line" />
+        <div className="ep-page-header">
+          <div className="ep-header-left">
+            <Link href="/panel" className="ep-back-link">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path
+                  d="M19 12H5M12 19l-7-7 7-7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Back
+            </Link>
+          </div>
+          <div className="ep-header-center">
+            <p className="ep-eyebrow">
+              <span className="ep-ey-line" /> Inventory Management —{" "}
+              {currency.code} <span className="ep-ey-line" />
             </p>
-            <h1 className="ap-page-title">
+            <h1 className="ep-page-title">
               Edit <em>{productData.name || "Product"}</em>
             </h1>
-            <p className="ap-page-sub">
+            <p className="ep-page-sub">
               Update product information, images, and specifications
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleDelete}
-            style={{
-              position: "absolute",
-              right: 0,
-              top: "50%",
-              transform: "translateY(-50%)",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              padding: "0.5rem 1rem",
-              borderRadius: "6px",
-              background: "rgba(239,68,68,0.1)",
-              border: "1px solid rgba(239,68,68,0.3)",
-              color: "#ef4444",
-              fontFamily: "var(--ap-sans)",
-              fontSize: "0.7rem",
-              fontWeight: 600,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              cursor: "pointer",
-            }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              style={{ width: "14px", height: "14px" }}
+          <div className="ep-header-right">
+            <button
+              type="button"
+              className="ep-delete-btn"
+              onClick={handleDelete}
             >
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14H6L5 6" />
-              <path d="M10 11v6M14 11v6M9 6V4h6v2" />
-            </svg>{" "}
-            Delete
-          </button>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14H6L5 6" />
+                <path d="M10 11v6M14 11v6M9 6V4h6v2" />
+              </svg>
+              Delete
+            </button>
+          </div>
         </div>
 
         <div className="ap-mode-buttons">
