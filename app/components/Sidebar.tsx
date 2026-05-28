@@ -7,16 +7,107 @@ import { supabase } from "@/lib/supabase";
 import { isOwner } from "@/lib/checkOwner";
 import "./sidebar.css";
 import { signOutUser } from "@/lib/auth";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+// ── Translations ──
+const sidebarTranslations = {
+  navigation: { en: "Navigation", ar: "التنقل", de: "Navigation" },
+  account: { en: "Account", ar: "الحساب", de: "Konto" },
+  admin: { en: "Admin", ar: "المشرف", de: "Admin" },
+  welcome: { en: "Welcome,", ar: "مرحبًا،", de: "Willkommen," },
+  member: { en: "Member", ar: "عضو", de: "Mitglied" },
+  profileSettings: {
+    en: "Profile Settings",
+    ar: "إعدادات الملف الشخصي",
+    de: "Profileinstellungen",
+  },
+  signOut: { en: "Sign Out", ar: "تسجيل الخروج", de: "Abmelden" },
+  signingOut: { en: "Signing Out…", ar: "جاري تسجيل الخروج…", de: "Abmelden…" },
+  signIn: { en: "Sign In", ar: "تسجيل الدخول", de: "Anmelden" },
+  createAccount: {
+    en: "Create Account",
+    ar: "إنشاء حساب",
+    de: "Konto erstellen",
+  },
+  cart: { en: "Cart", ar: "السلة", de: "Warenkorb" },
+  addProduct: { en: "Add Product", ar: "إضافة منتج", de: "Produkt hinzufügen" },
+  manageProducts: {
+    en: "Manage Products",
+    ar: "إدارة المنتجات",
+    de: "Produkte verwalten",
+  },
+  home: { en: "Home", ar: "الرئيسية", de: "Startseite" },
+  accessories: { en: "Accessories", ar: "الإكسسوارات", de: "Zubehör" },
+  watches: { en: "Watches", ar: "الساعات", de: "Uhren" },
+  automotive: { en: "Automotive", ar: "السيارات", de: "Automobil" },
+  homeDecor: { en: "Home Decor", ar: "ديكور المنزل", de: "Wohnkultur" },
+  about: { en: "About", ar: "معلومات عنا", de: "Über uns" },
+  contact: { en: "Contact", ar: "اتصل بنا", de: "Kontakt" },
+  // Subcategories
+  chargers: { en: "Chargers", ar: "شواحن", de: "Ladegeräte" },
+  cables: { en: "Cables", ar: "كابلات", de: "Kabel" },
+  phoneHolders: {
+    en: "Phone Holders",
+    ar: "حاملات الهواتف",
+    de: "Telefonhalter",
+  },
+  techGadgets: { en: "Tech Gadgets", ar: "أدوات تقنية", de: "Tech-Gadgets" },
+  smartAccessories: {
+    en: "Smart Accessories",
+    ar: "إكسسوارات ذكية",
+    de: "Smartes Zubehör",
+  },
+  menWatches: { en: "Men Watches", ar: "ساعات رجالية", de: "Herrenuhren" },
+  womenWatches: { en: "Women Watches", ar: "ساعات نسائية", de: "Damenuhren" },
+  smartWatches: { en: "Smart Watches", ar: "ساعات ذكية", de: "Smartwatches" },
+  luxuryWatches: { en: "Luxury Watches", ar: "ساعات فاخرة", de: "Luxusuhren" },
+  carAccessories: {
+    en: "Car Accessories",
+    ar: "إكسسوارات السيارات",
+    de: "Auto-Zubehör",
+  },
+  carCleaningTools: {
+    en: "Car Cleaning Tools",
+    ar: "أدوات تنظيف السيارات",
+    de: "Auto-Reinigungswerkzeuge",
+  },
+  interiorAccessories: {
+    en: "Interior Accessories",
+    ar: "إكسسوارات داخلية",
+    de: "Innenausstattung",
+  },
+  wallDecor: { en: "Wall Decor", ar: "ديكور الحائط", de: "Wanddekoration" },
+  lighting: { en: "Lighting", ar: "الإضاءة", de: "Beleuchtung" },
+  kitchenEssentials: {
+    en: "Kitchen Essentials",
+    ar: "أساسيات المطبخ",
+    de: "Küchenutensilien",
+  },
+  storageOrganizers: {
+    en: "Storage & Organizers",
+    ar: "تخزين ومنظمات",
+    de: "Aufbewahrung & Organizer",
+  },
+};
+
+const getSidebarTranslation = (
+  key: keyof typeof sidebarTranslations,
+  lang: "en" | "ar" | "de",
+): string => {
+  return (
+    sidebarTranslations[key]?.[lang] || sidebarTranslations[key]?.en || key
+  );
+};
+
 const navLinks = [
   {
     href: "/",
-    label: "Home",
+    label: "home",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" />
@@ -26,7 +117,7 @@ const navLinks = [
   },
   {
     href: "/accessories",
-    label: "Accessories",
+    label: "accessories",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <rect x="7" y="2" width="10" height="20" rx="2" />
@@ -34,16 +125,16 @@ const navLinks = [
       </svg>
     ),
     subcategories: [
-      { name: "Chargers", href: "/accessories/chargers" },
-      { name: "Cables", href: "/accessories/cables" },
-      { name: "Phone Holders", href: "/accessories/phone-holders" },
-      { name: "Tech Gadgets", href: "/accessories/tech-gadgets" },
-      { name: "Smart Accessories", href: "/accessories/smart-accessories" },
+      { name: "chargers", href: "/accessories/chargers" },
+      { name: "cables", href: "/accessories/cables" },
+      { name: "phoneHolders", href: "/accessories/phone-holders" },
+      { name: "techGadgets", href: "/accessories/tech-gadgets" },
+      { name: "smartAccessories", href: "/accessories/smart-accessories" },
     ],
   },
   {
     href: "/watches",
-    label: "Watches",
+    label: "watches",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <circle cx="12" cy="12" r="7" />
@@ -52,15 +143,15 @@ const navLinks = [
       </svg>
     ),
     subcategories: [
-      { name: "Men Watches", href: "/watches/men-watches" },
-      { name: "Women Watches", href: "/watches/women-watches" },
-      { name: "Smart Watches", href: "/watches/smart-watches" },
-      { name: "Luxury Watches", href: "/watches/luxury-watches" },
+      { name: "menWatches", href: "/watches/men-watches" },
+      { name: "womenWatches", href: "/watches/women-watches" },
+      { name: "smartWatches", href: "/watches/smart-watches" },
+      { name: "luxuryWatches", href: "/watches/luxury-watches" },
     ],
   },
   {
     href: "/automotive",
-    label: "Automotive",
+    label: "automotive",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M5 8h14M5 8a2 2 0 00-2 2v6a2 2 0 002 2h14a2 2 0 002-2v-6a2 2 0 00-2-2M5 8L7 4h10l2 4" />
@@ -69,18 +160,15 @@ const navLinks = [
       </svg>
     ),
     subcategories: [
-      { name: "Car Accessories", href: "/automotive/car-accessories" },
-      { name: "Car Cleaning Tools", href: "/automotive/car-cleaning-tools" },
-      { name: "Phone Holders", href: "/automotive/phone-holders" },
-      {
-        name: "Interior Accessories",
-        href: "/automotive/interior-accessories",
-      },
+      { name: "carAccessories", href: "/automotive/car-accessories" },
+      { name: "carCleaningTools", href: "/automotive/car-cleaning-tools" },
+      { name: "phoneHolders", href: "/automotive/phone-holders" },
+      { name: "interiorAccessories", href: "/automotive/interior-accessories" },
     ],
   },
   {
     href: "/home-decor",
-    label: "Home Decor",
+    label: "homeDecor",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" />
@@ -88,15 +176,15 @@ const navLinks = [
       </svg>
     ),
     subcategories: [
-      { name: "Wall Decor", href: "/home-decor/wall-decor" },
-      { name: "Lighting", href: "/home-decor/lighting" },
-      { name: "Kitchen Essentials", href: "/home-decor/kitchen-essentials" },
-      { name: "Storage & Organizers", href: "/home-decor/storage-organizers" },
+      { name: "wallDecor", href: "/home-decor/wall-decor" },
+      { name: "lighting", href: "/home-decor/lighting" },
+      { name: "kitchenEssentials", href: "/home-decor/kitchen-essentials" },
+      { name: "storageOrganizers", href: "/home-decor/storage-organizers" },
     ],
   },
   {
     href: "/about",
-    label: "About",
+    label: "about",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <circle cx="12" cy="12" r="10" />
@@ -106,7 +194,7 @@ const navLinks = [
   },
   {
     href: "/contact",
-    label: "Contact",
+    label: "contact",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
@@ -119,6 +207,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
+  const { language, isRTLMode } = useLanguage();
+  const lang = language;
 
   const [user, setUser] = useState<any>(undefined);
   const [profile, setProfile] = useState<any>(null);
@@ -260,6 +350,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const showPanel = isClient && isOwner(userEmail);
   const isSignedIn = isClient && user !== undefined && user !== null;
 
+  // Get translated label for nav link
+  const getNavLabel = (labelKey: string): string => {
+    return getSidebarTranslation(
+      labelKey as keyof typeof sidebarTranslations,
+      lang,
+    );
+  };
+
   // Don't render anything on server to prevent hydration mismatch
   if (!isClient) {
     return null;
@@ -281,19 +379,33 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         aria-label="Navigation menu"
         onClick={(e) => e.stopPropagation()}
         suppressHydrationWarning
+        dir={isRTLMode ? "rtl" : "ltr"}
       >
+        {/* Decorative Rings - RED */}
+        <div className="sidebar-deco" aria-hidden="true">
+          <div className="sidebar-deco-ring" />
+          <div className="sidebar-deco-ring sidebar-deco-ring--2" />
+        </div>
+
         {/* Header with TEXT LOGO */}
         <div className="sidebar-header">
-          <Link
-            href="/"
-            className="sidebar-logo"
-            onClick={onClose}
-            prefetch={true}
-          >
-            <span className="sidebar-logo-tech">TECH</span>
-            <span className="sidebar-logo-four">4</span>
-            <span className="sidebar-logo-u">U</span>
-          </Link>
+          <div>
+            <p className="sidebar-eyebrow">
+              <span className="sidebar-ey-line" />
+              {getSidebarTranslation("navigation", lang)}
+              <span className="sidebar-ey-line" />
+            </p>
+            <Link
+              href="/"
+              className="sidebar-logo"
+              onClick={onClose}
+              prefetch={true}
+            >
+              <span className="sidebar-logo-tech">TECH</span>
+              <span className="sidebar-logo-four">4</span>
+              <span className="sidebar-logo-u">U</span>
+            </Link>
+          </div>
 
           <button
             className="sidebar-close-btn"
@@ -308,13 +420,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="sidebar-nav">
-          <p className="sidebar-section-label">Navigation</p>
           <ul className="sidebar-nav-list">
-            {navLinks.map((link) => {
+            {navLinks.map((link, index) => {
               const hasSubcategories =
                 link.subcategories && link.subcategories.length > 0;
               const isExpanded = expandedCategories[link.href];
               const isActive = pathname === link.href;
+              const linkLabel = getNavLabel(link.label);
 
               return (
                 <li key={link.href} className="sidebar-nav-item-wrapper">
@@ -328,7 +440,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                         onClick={() => handleNavigate(link.href)}
                         style={{ cursor: "pointer" }}
                       >
-                        {link.label}
+                        {linkLabel}
                       </span>
 
                       {hasSubcategories && (
@@ -353,17 +465,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   {/* Subcategories Dropdown */}
                   {hasSubcategories && isExpanded && (
                     <ul className="sidebar-subnav-list">
-                      {link.subcategories!.map((sub, index) => (
+                      {link.subcategories!.map((sub, subIndex) => (
                         <li key={sub.href} className="sidebar-subnav-item">
                           <Link
                             href={sub.href}
                             className={`sidebar-subnav-link${pathname === sub.href ? " active" : ""}`}
                             onClick={onClose}
                             prefetch={true}
-                            style={{ animationDelay: `${index * 0.03}s` }}
+                            style={{ animationDelay: `${subIndex * 0.03}s` }}
                           >
                             <span className="sidebar-subnav-dot" />
-                            {sub.name}
+                            {getNavLabel(sub.name)}
                           </Link>
                         </li>
                       ))}
@@ -377,8 +489,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <hr className="sidebar-hr" />
 
           {/* Account section */}
-          <p className="sidebar-section-label" style={{ marginTop: "1rem" }}>
-            Account
+          <p className="sidebar-section-label">
+            {getSidebarTranslation("account", lang)}
           </p>
 
           <ul className="sidebar-nav-list">
@@ -402,9 +514,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       </svg>
                     </span>
                     <span className="sidebar-welcome-text">
-                      <span className="sidebar-welcome-label">Welcome,</span>
+                      <span className="sidebar-welcome-label">
+                        {getSidebarTranslation("welcome", lang)}
+                      </span>
                       <span className="sidebar-welcome-name">
-                        {profile?.username || "Member"}
+                        {profile?.username ||
+                          getSidebarTranslation("member", lang)}
                       </span>
                     </span>
                     <span className="sidebar-welcome-dot" aria-hidden="true" />
@@ -427,7 +542,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                         <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
                       </svg>
                     </span>
-                    Profile Settings
+                    {getSidebarTranslation("profileSettings", lang)}
                   </Link>
                 </li>
                 <li className="sidebar-nav-item">
@@ -447,7 +562,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                         <line x1="21" y1="12" x2="9" y2="12" />
                       </svg>
                     </span>
-                    {signingOut ? "Signing Out…" : "Sign Out"}
+                    {signingOut
+                      ? getSidebarTranslation("signingOut", lang)
+                      : getSidebarTranslation("signOut", lang)}
                   </button>
                 </li>
               </>
@@ -470,7 +587,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                         <circle cx="12" cy="7" r="4" />
                       </svg>
                     </span>
-                    Sign In
+                    {getSidebarTranslation("signIn", lang)}
                   </Link>
                 </li>
                 <li className="sidebar-nav-item">
@@ -492,7 +609,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                         <line x1="22" y1="11" x2="16" y2="11" />
                       </svg>
                     </span>
-                    Create Account
+                    {getSidebarTranslation("createAccount", lang)}
                   </Link>
                 </li>
               </>
@@ -512,7 +629,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <path d="M16 10a4 4 0 01-8 0" />
                   </svg>
                 </span>
-                Cart
+                {getSidebarTranslation("cart", lang)}
               </Link>
             </li>
           </ul>
@@ -521,11 +638,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           {showPanel && (
             <>
               <hr className="sidebar-hr" />
-              <p
-                className="sidebar-section-label"
-                style={{ marginTop: "1rem" }}
-              >
-                Admin
+              <p className="sidebar-section-label">
+                {getSidebarTranslation("admin", lang)}
               </p>
               <ul className="sidebar-nav-list">
                 <li className="sidebar-nav-item">
@@ -544,7 +658,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                         <path d="M12 5v14M5 12h14" strokeLinecap="round" />
                       </svg>
                     </span>
-                    Add Product
+                    {getSidebarTranslation("addProduct", lang)}
                   </Link>
                 </li>
                 <li className="sidebar-nav-item">
@@ -566,7 +680,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                         <rect x="14" y="14" width="7" height="7" rx="1" />
                       </svg>
                     </span>
-                    Manage Products
+                    {getSidebarTranslation("manageProducts", lang)}
                   </Link>
                 </li>
               </ul>
@@ -577,7 +691,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Footer */}
         <div className="sidebar-footer">
           <p className="sidebar-footer-text">
-            © 2026 Tech4U — All Rights Reserved
+            © 2026 Tech4U —{" "}
+            {getSidebarTranslation("allRightsReserved", lang) ||
+              "All Rights Reserved"}
           </p>
         </div>
       </div>
