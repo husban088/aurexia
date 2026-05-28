@@ -109,7 +109,7 @@ const categories = [
     imageSrc: "/menwatch.jpg",
     placeholderClass: "ea-ph-men",
     tagKey: "tagWatches",
-    accentColor: "#0ff",
+    accentColor: "#dc2626",
   },
   {
     id: 2,
@@ -123,7 +123,7 @@ const categories = [
     imageSrc: "/womenwatch.jpg",
     placeholderClass: "ea-ph-women",
     tagKey: "tagWatches",
-    accentColor: "#0ff",
+    accentColor: "#dc2626",
   },
   {
     id: 3,
@@ -137,7 +137,7 @@ const categories = [
     imageSrc: "/mobacc.webp",
     placeholderClass: "ea-ph-mobile",
     tagKey: "tagAccessories",
-    accentColor: "#0ff",
+    accentColor: "#dc2626",
   },
   {
     id: 4,
@@ -151,7 +151,7 @@ const categories = [
     imageSrc: "/homedecor.jpg",
     placeholderClass: "ea-ph-decor",
     tagKey: "tagDecor",
-    accentColor: "#0ff",
+    accentColor: "#dc2626",
   },
 ];
 
@@ -207,7 +207,7 @@ function loadSwiperCDN(): Promise<void> {
 }
 
 /* ──────────────────────────────────────────
-   CARD COMPONENT — with Shimmer & Bar
+   CARD COMPONENT — Black + Red Mixed Gradients
 ────────────────────────────────────────── */
 function CategoryCard({
   cat,
@@ -234,7 +234,7 @@ function CategoryCard({
     >
       {/* Shimmer Effect */}
       <div className="ea-card-shimmer" aria-hidden="true" />
-      {/* Bottom Bar */}
+      {/* Bottom Bar - Black + Red Mixed Gradient */}
       <div className="ea-card-bar" aria-hidden="true" />
 
       <div className="ea-card-img-wrap">
@@ -311,7 +311,7 @@ function StaticSlides({
 }
 
 /* ──────────────────────────────────────────
-   INNER COMPONENT — remounts on bfcache via key prop
+   INNER COMPONENT
 ────────────────────────────────────────── */
 function ExploreInner() {
   const { language, isRTLMode } = useLanguage();
@@ -335,7 +335,6 @@ function ExploreInner() {
       )
         return;
 
-      // Destroy stale instance
       if (swiperInstRef.current) {
         try {
           swiperInstRef.current.destroy(true, true);
@@ -401,7 +400,6 @@ function ExploreInner() {
     };
   }, []);
 
-  // Resize handler
   useEffect(() => {
     let resizeTimeout: NodeJS.Timeout;
     const handleResize = () => {
@@ -427,11 +425,11 @@ function ExploreInner() {
       dir={isRTLMode ? "rtl" : "ltr"}
       suppressHydrationWarning
     >
-      {/* Decorative elements matching trust badges */}
+      {/* Decorative elements - Black + Red Mixed Theme */}
       <div className="ea-grain" aria-hidden="true" />
       <div className="ea-ambient" aria-hidden="true" />
-      <div className="ea-aqua-orb" aria-hidden="true" />
-      <div className="ea-aqua-orb-right" aria-hidden="true" />
+      <div className="ea-red-orb" aria-hidden="true" />
+      <div className="ea-red-orb-right" aria-hidden="true" />
 
       <div className="ea-bg-lines" aria-hidden="true">
         <span />
@@ -442,11 +440,12 @@ function ExploreInner() {
       </div>
 
       <div className="ea-header">
-        <p className="ea-header-eyebrow">
-          <span className="ea-eyebrow-line" />
-          {getTranslation("eyebrowText", language)}
-          <span className="ea-eyebrow-line" />
-        </p>
+        <div className="ea-eyebrow-row">
+          <span className="ea-eyebrow">
+            {getTranslation("eyebrowText", language)}
+          </span>
+          <div className="ea-eyebrow-line" />
+        </div>
         <h2 className="ea-header-title">
           {getTranslation("headerTitle", language)}{" "}
           <em>{getTranslation("brandName", language)}</em>
@@ -524,10 +523,6 @@ function ExploreInner() {
   );
 }
 
-/* ──────────────────────────────────────────
-   MAIN EXPORT
-   bfcache remount is handled by providers.tsx (shellKey)
-────────────────────────────────────────── */
 export default function ExploreAurexia() {
   return <ExploreInner />;
 }

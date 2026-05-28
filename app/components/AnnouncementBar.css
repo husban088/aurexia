@@ -1,5 +1,6 @@
 /* app/components/AnnouncementBar.css */
-/* BLACK & AQUA GRADIENT THEME - Matching Navbar & Explore Aurexia */
+/* RED + BLACK THEME | TOP RED → BOTTOM BLACK GRADIENTS | WHITE TEXT */
+/* ALWAYS VISIBLE - NEVER HIDES */
 
 @keyframes shimmer {
   0% {
@@ -17,7 +18,7 @@
     transform: scale(1);
   }
   50% {
-    opacity: 0.8;
+    opacity: 0.7;
     transform: scale(1.05);
   }
 }
@@ -41,7 +42,7 @@
   }
 }
 
-@keyframes aquaShimmer {
+@keyframes redShimmer {
   0% {
     left: -100%;
   }
@@ -50,88 +51,52 @@
   }
 }
 
-@keyframes aquaGlowPulse {
-  0%,
-  100% {
-    opacity: 0.3;
-    filter: blur(4px);
-  }
-  50% {
-    opacity: 0.8;
-    filter: blur(8px);
-  }
-}
-
-/* ── ANNOUNCEMENT BAR ── BLACK & AQUA GRADIENT ─────────────────────────── */
+/* ── ANNOUNCEMENT BAR ── TOP RED → BOTTOM BLACK GRADIENTS ─────────────────────────── */
 .announcement-bar {
   width: 100%;
-  background: linear-gradient(
-    135deg,
-    #0a0f1a 0%,
-    #0a1a1f 25%,
-    #0a1f2a 50%,
-    #0a1a1f 75%,
-    #0a0f1a 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 8s ease infinite;
-  border-bottom: 1px solid rgba(0, 255, 255, 0.25);
-  border-top: 1px solid rgba(0, 255, 255, 0.15);
-  box-shadow:
-    0 2px 10px rgba(0, 0, 0, 0.2),
-    0 0 15px rgba(0, 255, 255, 0.05);
-  overflow: hidden;
   position: relative;
+  z-index: 1;
+  background: #fff;
+  border-bottom: 1px solid rgba(220, 38, 38, 0.3);
+  border-top: 1px solid rgba(220, 38, 38, 0.2);
+  box-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.1),
+    0 0 15px rgba(220, 38, 38, 0.15);
+  overflow: hidden;
 
-  /* ── Slide in/out transition ─────────────────── */
+  /* ALWAYS VISIBLE - NEVER HIDDEN */
   max-height: 80px;
   opacity: 1;
-  transition:
-    max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.25s ease,
-    padding 0.35s ease;
+  display: block;
 }
 
-/* Scroll down → hide announcement bar */
-.announcement-bar.announcement-hidden {
-  max-height: 0;
-  opacity: 0;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  border-top-width: 0;
-  border-bottom-width: 0;
-  pointer-events: none;
-}
-
-/* Scroll up / at top → show announcement bar */
-.announcement-bar.announcement-visible {
-  max-height: 80px;
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* Aqua shimmer line on top */
+/* Top Border Line - RED */
 .announcement-bar::before {
   content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #fff;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* RED shimmer line on top - animated */
+.announcement-bar .red-shimmer {
   position: absolute;
   top: 0;
   left: -100%;
   width: 100%;
   height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    #0ff,
-    #66ffff,
-    #0ff,
-    transparent
-  );
-  animation: aquaShimmer 3s infinite;
+  background: #fff;
+  animation: redShimmer 3s infinite;
   pointer-events: none;
   z-index: 2;
 }
 
-/* Subtle aqua line at bottom */
+/* Subtle red line at bottom */
 .announcement-bar::after {
   content: "";
   position: absolute;
@@ -139,29 +104,18 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(0, 255, 255, 0.3),
-    rgba(0, 255, 255, 0.6),
-    rgba(0, 255, 255, 0.3),
-    transparent
-  );
+  background: #fff;
   pointer-events: none;
 }
 
-/* Aqua glow effect behind announcement bar */
+/* RED glow effect behind announcement bar */
 .announcement-bar .announcement-glow {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(
-    ellipse at 50% 0%,
-    rgba(0, 255, 255, 0.1) 0%,
-    transparent 70%
-  );
+  background: #fff;
   pointer-events: none;
   z-index: 0;
 }
@@ -188,7 +142,7 @@
 
 .announcement-icon {
   font-size: 1.2rem;
-  filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.5));
+  filter: drop-shadow(0 0 3px rgba(220, 38, 38, 0.4));
   animation: pulse 2s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -207,27 +161,20 @@
   font-size: clamp(0.75rem, 4vw, 0.9rem);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  background: linear-gradient(
-    135deg,
-    #0ff 0%,
-    #66ffff 40%,
-    #00cccc 60%,
-    #0ff 100%
-  );
-  background-size: 300% auto;
+  background: #000;
+  background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   animation: shimmer 3s linear infinite;
   white-space: nowrap;
-  text-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
 }
 
 .announcement-subtext {
   font-family: "Goldman", system-ui, sans-serif;
-  font-weight: 500;
+  font-weight: 600;
   font-size: clamp(0.6rem, 3vw, 1rem);
-  color: rgba(0, 255, 255, 0.7);
+  color: #000;
   letter-spacing: 0.06em;
   white-space: nowrap;
   position: relative;
@@ -236,9 +183,7 @@
 .announcement-subtext::before {
   content: "•";
   margin-right: 0.5rem;
-  color: #0ff;
-  font-weight: bold;
-  text-shadow: 0 0 3px rgba(0, 255, 255, 0.5);
+  font-weight: 600;
 }
 
 /* ── Responsive ───────────────────────────────────────────────────────────── */
@@ -268,6 +213,9 @@
   .announcement-icon {
     font-size: 1rem;
   }
+  .announcement-bar {
+    max-height: 100px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -295,9 +243,8 @@
     font-size: 0.65rem;
     letter-spacing: 0.04em;
   }
-
-  .announcement-bar.announcement-hidden {
-    max-height: 0;
+  .announcement-bar {
+    max-height: 110px;
   }
 }
 
@@ -314,6 +261,9 @@
   }
   .announcement-icon {
     font-size: 0.8rem;
+  }
+  .announcement-bar {
+    max-height: 120px;
   }
 }
 
@@ -337,11 +287,6 @@
   .announcement-text-wrapper {
     gap: 0.9rem;
   }
-
-  .announcement-bar,
-  .announcement-bar.announcement-visible {
-    max-height: 90px;
-  }
 }
 
 /* RTL Support for AnnouncementBar */
@@ -354,7 +299,22 @@
   flex-direction: row-reverse;
 }
 
-/* Optional: Add a subtle aqua corner accent */
+[dir="rtl"] .red-shimmer {
+  animation: redShimmerRTL 3s infinite;
+}
+
+@keyframes redShimmerRTL {
+  0% {
+    right: -100%;
+    left: auto;
+  }
+  100% {
+    right: 100%;
+    left: auto;
+  }
+}
+
+/* Corner accents - RED */
 .announcement-bar .corner-accent {
   position: absolute;
   width: 40px;
@@ -366,13 +326,13 @@
 .announcement-bar .corner-accent--tl {
   top: 0;
   left: 0;
-  border-top: 1px solid rgba(0, 255, 255, 0.4);
-  border-left: 1px solid rgba(0, 255, 255, 0.4);
+  border-top: 1px solid rgba(220, 38, 38, 0.4);
+  border-left: 1px solid rgba(220, 38, 38, 0.4);
 }
 
 .announcement-bar .corner-accent--tr {
   top: 0;
   right: 0;
-  border-top: 1px solid rgba(0, 255, 255, 0.4);
-  border-right: 1px solid rgba(0, 255, 255, 0.4);
+  border-top: 1px solid rgba(220, 38, 38, 0.4);
+  border-right: 1px solid rgba(220, 38, 38, 0.4);
 }

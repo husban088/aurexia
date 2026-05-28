@@ -7,7 +7,7 @@
 @import "tailwindcss";
 
 /* ============================================================
-   CSS VARIABLES — Black & Aqua Theme
+   CSS VARIABLES — RED + BLACK Theme
    ============================================================ */
 :root {
   --background: #0a0f1a;
@@ -18,16 +18,16 @@
     sans-serif;
   --font-cormorant: "Cormorant Garamond", serif;
 
-  /* Scrollbar Colors - Aqua Theme */
-  --scrollbar-thumb-start: #0ff;
-  --scrollbar-thumb-mid: #00cccc;
-  --scrollbar-thumb-end: #0088aa;
+  /* Scrollbar Colors - TOP RED → BOTTOM BLACK Gradient */
+  --scrollbar-thumb-start: #dc2626;
+  --scrollbar-thumb-mid: #b91c1c;
+  --scrollbar-thumb-end: #0f172a;
   --scrollbar-track: #0a0f1a;
-  --scrollbar-border: #00cccc;
-  --scrollbar-thumb-hover-start: #66ffff;
-  --scrollbar-thumb-hover-mid: #0ff;
-  --scrollbar-thumb-hover-end: #00cccc;
-  --scrollbar-thumb-active: #00aaff;
+  --scrollbar-border: #dc2626;
+  --scrollbar-thumb-hover-start: #ef4444;
+  --scrollbar-thumb-hover-mid: #dc2626;
+  --scrollbar-thumb-hover-end: #b91c1c;
+  --scrollbar-thumb-active: #dc2626;
 
   /* Navbar height — layout shift prevention */
   --navbar-height: 70px;
@@ -55,14 +55,14 @@
 html {
   scroll-behavior: auto;
   overflow-x: hidden;
-  /* Firefox scrollbar */
+  /* Firefox scrollbar - RED + BLACK */
   scrollbar-width: thin;
-  scrollbar-color: #0ff #0a0f1a;
+  scrollbar-color: #dc2626 #0a0f1a;
 }
 
-/* Firefox hover — subtle brightening via body */
+/* Firefox hover — brighten to lighter red */
 html:hover {
-  scrollbar-color: #66ffff #0a0f1a;
+  scrollbar-color: #ef4444 #0a0f1a;
 }
 
 body {
@@ -80,7 +80,7 @@ body {
 }
 
 /* ============================================================
-   AQUA GLOW SCROLLBAR — Chrome, Edge, Safari, Opera
+   TOP RED → BOTTOM BLACK GRADIENT SCROLLBAR — Chrome, Edge, Safari, Opera
    ============================================================ */
 
 /* ── Global scrollbar size ── */
@@ -95,25 +95,25 @@ body {
   border-radius: 10px;
 }
 
-/* ── Thumb ── */
+/* ── Thumb - TOP RED → BOTTOM BLACK Gradient ── */
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #0ff 0%, #00cccc 50%, #0088aa 100%);
+  background: linear-gradient(180deg, #dc2626 0%, #b91c1c 40%, #0f172a 100%);
   border-radius: 10px;
-  border: 1px solid rgba(0, 255, 255, 0.3);
+  border: 1px solid rgba(220, 38, 38, 0.3);
   transition: background 0.2s ease;
 }
 
-/* ── Thumb Hover ── */
+/* ── Thumb Hover - Brighter RED → BLACK ── */
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #66ffff 0%, #0ff 50%, #00cccc 100%);
-  border: 1px solid rgba(102, 255, 255, 0.5);
-  box-shadow: 0 0 8px rgba(0, 255, 255, 0.35);
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  box-shadow: 0 0 8px rgba(220, 38, 38, 0.35);
 }
 
 /* ── Thumb Active (click) ── */
 ::-webkit-scrollbar-thumb:active {
-  background: #00aaff;
-  border: 1px solid #0ff;
+  background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
+  border: 1px solid #ef4444;
 }
 
 /* ── Corner ── */
@@ -139,13 +139,13 @@ body {
 }
 .dropdown-menu::-webkit-scrollbar-thumb,
 .navbar-bottom::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #0ff, #00cccc);
+  background: linear-gradient(180deg, #dc2626, #b91c1c);
   border-radius: 4px;
   border: none;
 }
 .dropdown-menu::-webkit-scrollbar-thumb:hover,
 .navbar-bottom::-webkit-scrollbar-thumb:hover {
-  background: #66ffff;
+  background: #ef4444;
 }
 
 /* Cart Sidebar Items */
@@ -153,15 +153,15 @@ body {
   width: 3px;
 }
 .cs-items::-webkit-scrollbar-track {
-  background: rgba(0, 255, 255, 0.04);
+  background: rgba(220, 38, 38, 0.04);
   border-radius: 3px;
 }
 .cs-items::-webkit-scrollbar-thumb {
-  background: #0ff;
+  background: #dc2626;
   border-radius: 3px;
 }
 .cs-items::-webkit-scrollbar-thumb:hover {
-  background: #66ffff;
+  background: #ef4444;
 }
 
 /* Search Sidebar */
@@ -169,15 +169,15 @@ body {
   width: 3px;
 }
 .ss-content::-webkit-scrollbar-track {
-  background: rgba(0, 255, 255, 0.04);
+  background: rgba(220, 38, 38, 0.04);
   border-radius: 3px;
 }
 .ss-content::-webkit-scrollbar-thumb {
-  background: #0ff;
+  background: #dc2626;
   border-radius: 3px;
 }
 .ss-content::-webkit-scrollbar-thumb:hover {
-  background: #66ffff;
+  background: #ef4444;
 }
 
 /* Sidebar Nav */
@@ -189,12 +189,12 @@ body {
   border-radius: 5px;
 }
 .sidebar-nav::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #0ff, #00cccc);
+  background: linear-gradient(180deg, #dc2626, #b91c1c);
   border-radius: 5px;
   border: none;
 }
 .sidebar-nav::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #66ffff, #0ff);
+  background: linear-gradient(180deg, #ef4444, #dc2626);
 }
 
 /* Product Detail, Product Filter, Profile content */
@@ -215,7 +215,7 @@ body {
 .pf-content::-webkit-scrollbar-thumb,
 .pf-root::-webkit-scrollbar-thumb,
 .pf-nav::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #0ff, #00cccc);
+  background: linear-gradient(180deg, #dc2626, #b91c1c);
   border-radius: 5px;
   border: none;
 }
@@ -223,7 +223,7 @@ body {
 .pf-content::-webkit-scrollbar-thumb:hover,
 .pf-root::-webkit-scrollbar-thumb:hover,
 .pf-nav::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #66ffff, #0ff);
+  background: linear-gradient(180deg, #ef4444, #dc2626);
 }
 
 /* Modals */
@@ -241,14 +241,14 @@ body {
 .dm-modal-body::-webkit-scrollbar-thumb,
 .pd-toast-wrap::-webkit-scrollbar-thumb,
 .co-toast-wrap::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #0ff, #00cccc);
+  background: linear-gradient(180deg, #dc2626, #b91c1c);
   border-radius: 6px;
   border: none;
 }
 .dm-modal-body::-webkit-scrollbar-thumb:hover,
 .pd-toast-wrap::-webkit-scrollbar-thumb:hover,
 .co-toast-wrap::-webkit-scrollbar-thumb:hover {
-  background: #66ffff;
+  background: #ef4444;
 }
 
 /* Product Grid / Swiper */
@@ -263,12 +263,12 @@ body {
 }
 .pg-grid::-webkit-scrollbar-thumb,
 .fp-swiper::-webkit-scrollbar-thumb {
-  background: #0ff;
+  background: #dc2626;
   border-radius: 4px;
 }
 .pg-grid::-webkit-scrollbar-thumb:hover,
 .fp-swiper::-webkit-scrollbar-thumb:hover {
-  background: #66ffff;
+  background: #ef4444;
 }
 
 /* FAQ Accordion */
@@ -276,14 +276,14 @@ body {
   width: 4px;
 }
 .gfaq-accordion-container::-webkit-scrollbar-track {
-  background: rgba(0, 255, 255, 0.04);
+  background: rgba(220, 38, 38, 0.04);
 }
 .gfaq-accordion-container::-webkit-scrollbar-thumb {
-  background: #0ff;
+  background: #dc2626;
   border-radius: 4px;
 }
 .gfaq-accordion-container::-webkit-scrollbar-thumb:hover {
-  background: #66ffff;
+  background: #ef4444;
 }
 
 /* Checkout / Order Success Items */
@@ -294,11 +294,11 @@ body {
   background: transparent;
 }
 .co-success-items::-webkit-scrollbar-thumb {
-  background: #0ff;
+  background: #dc2626;
   border-radius: 2px;
 }
 .co-success-items::-webkit-scrollbar-thumb:hover {
-  background: #66ffff;
+  background: #ef4444;
 }
 
 /* Select dropdowns (ShippingSection, etc.) */
@@ -310,11 +310,11 @@ select::-webkit-scrollbar-track {
   border-radius: 6px;
 }
 select::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #0ff, #00cccc);
+  background: linear-gradient(180deg, #dc2626, #b91c1c);
   border-radius: 6px;
 }
 select::-webkit-scrollbar-thumb:hover {
-  background: #66ffff;
+  background: #ef4444;
 }
 
 /* ============================================================
@@ -479,21 +479,21 @@ var,
 }
 
 /* ============================================================
-   INTERACTIVE ELEMENT FOCUS STYLES
+   INTERACTIVE ELEMENT FOCUS STYLES - RED THEME
    ============================================================ */
 button {
   outline: none;
 }
 
 button:focus-visible {
-  outline: 2px solid rgba(0, 255, 255, 0.6);
+  outline: 2px solid rgba(220, 38, 38, 0.6);
   outline-offset: 2px;
 }
 
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 2px solid rgba(0, 255, 255, 0.4);
+  outline: 2px solid rgba(220, 38, 38, 0.4);
   outline-offset: 1px;
 }
 

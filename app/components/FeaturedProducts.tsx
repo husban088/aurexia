@@ -137,13 +137,13 @@ const getStockStatus = (
   return "in_stock";
 };
 
-/* ── Fetch function with retry — ERR_CONNECTION_CLOSED pe 3 baar try karo ── */
+/* ── Fetch function with retry ── */
 async function fetchFeaturedTabData(
   tab: string,
   attempt = 0,
 ): Promise<CachedData> {
   const MAX_RETRIES = 3;
-  const RETRY_DELAY = 600; // ms
+  const RETRY_DELAY = 600;
 
   try {
     const { data: productsData, error } = await supabase
@@ -155,7 +155,6 @@ async function fetchFeaturedTabData(
       .order("created_at", { ascending: false });
 
     if (error) {
-      // Network error — retry karo
       if (attempt < MAX_RETRIES) {
         await new Promise((r) => setTimeout(r, RETRY_DELAY * (attempt + 1)));
         return fetchFeaturedTabData(tab, attempt + 1);
@@ -224,7 +223,6 @@ async function fetchFeaturedTabData(
     tabCache[tab] = result;
     return result;
   } catch {
-    // Exception — retry karo
     if (attempt < MAX_RETRIES) {
       await new Promise((r) => setTimeout(r, RETRY_DELAY * (attempt + 1)));
       return fetchFeaturedTabData(tab, attempt + 1);
@@ -239,15 +237,15 @@ const ALL_TABS = ["Accessories", "Watches", "Automotive", "Home Decor"];
 const tabCache: Record<string, CachedData> = {};
 
 /* ─────────────────────────────────────────────────────────────
-   STAR COMPONENTS
+   STAR COMPONENTS - YELLOW COLOR
 ───────────────────────────────────────────────────────────── */
 function StarIcon({ filled, size = 11 }: { filled: boolean; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24">
       <polygon
         points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
-        fill={filled ? "#b8963e" : "none"}
-        stroke="#b8963e"
+        fill={filled ? "#fbbf24" : "none"}
+        stroke="#fbbf24"
         strokeWidth="1.5"
         opacity={filled ? 1 : 0.35}
       />
@@ -290,8 +288,8 @@ function LoadingSpinner({ size = 18 }: { size?: number }) {
       style={{
         width: size,
         height: size,
-        border: "2px solid rgba(218,165,32,0.2)",
-        borderTopColor: "#daa520",
+        border: "2px solid rgba(220, 38, 38, 0.2)",
+        borderTopColor: "#dc2626",
         borderRadius: "50%",
         animation: "fp-spin 0.8s linear infinite",
         display: "inline-block",
@@ -441,7 +439,6 @@ function ProductCard({
   ) => void;
   isRTL: boolean;
 }) {
-  // ✅ useCurrency never blocks rendering — currency is always available immediately
   const { formatPrice } = useCurrency();
   const { language: cardLang } = useLanguage();
   const router = useRouter();
@@ -809,7 +806,6 @@ export default function FeaturedProducts() {
   const activeTabRef = useRef("Accessories");
   const { language, isRTLMode } = useLanguage();
 
-  // ✅ Initialize directly from cache — no waiting, no hydration tricks
   const [products, setProducts] = useState<FeaturedProduct[]>(
     () => tabCache["Accessories"]?.products || [],
   );
@@ -819,7 +815,6 @@ export default function FeaturedProducts() {
   const [variantImagesMap, setVariantImagesMap] = useState<
     Record<string, string[]>
   >(() => tabCache["Accessories"]?.variantImagesMap || {});
-  // ✅ isLoading = true only if cache is empty
   const [isLoading, setIsLoading] = useState(
     () => (tabCache["Accessories"]?.products?.length ?? 0) === 0,
   );
@@ -841,12 +836,10 @@ export default function FeaturedProducts() {
   const nextRef = useRef<HTMLButtonElement>(null);
   const swiperRef = useRef<SwiperType | null>(null);
 
-  // ✅ Core loader — always sets isLoading false in finally, no exceptions
   const loadProductsForTab = useCallback(
     async (tab: string, forceRefresh = false) => {
       const cachedHasProducts = (tabCache[tab]?.products?.length ?? 0) > 0;
 
-      // Use cache immediately — no loading flash
       if (cachedHasProducts && !forceRefresh) {
         const cached = tabCache[tab];
         setProducts(cached.products);
@@ -857,14 +850,12 @@ export default function FeaturedProducts() {
         return;
       }
 
-      // Only show skeleton if truly no data
       if (!cachedHasProducts) {
         setIsLoading(true);
       }
 
       try {
         const data = await fetchFeaturedTabData(tab);
-        // Only update if user is still on same tab
         if (activeTabRef.current === tab) {
           setProducts(data.products);
           setVariantsMap(data.variantsMap);
@@ -872,9 +863,7 @@ export default function FeaturedProducts() {
           if (data.products.length > 0) setSwiperKey((prev) => prev + 1);
         }
       } catch {
-        // Silent fail — never leave skeleton stuck
       } finally {
-        // ✅ ALWAYS clear loading — this is the fix for stuck skeletons
         if (activeTabRef.current === tab) {
           setIsLoading(false);
         }
@@ -883,16 +872,13 @@ export default function FeaturedProducts() {
     [],
   );
 
-  // ✅ Initial mount — fast fetch, no isMounted complexity
   useEffect(() => {
     const tab = "Accessories";
     const alreadyCached = (tabCache[tab]?.products?.length ?? 0) > 0;
 
     if (alreadyCached) {
-      // Already showing from state init — just bump swiper key
       setSwiperKey((prev) => prev + 1);
       setIsLoading(false);
-      // Silent background refresh (no loading state change)
       fetchFeaturedTabData(tab)
         .then((data) => {
           if (activeTabRef.current === tab && data.products.length > 0) {
@@ -903,20 +889,16 @@ export default function FeaturedProducts() {
         })
         .catch(() => {});
     } else {
-      // No cache — load with skeleton
       loadProductsForTab(tab);
     }
 
-    // Prefetch all other tabs silently — so tab switches feel instant
     ALL_TABS.filter((t) => t !== tab).forEach((otherTab) => {
       if ((tabCache[otherTab]?.products?.length ?? 0) === 0) {
         fetchFeaturedTabData(otherTab).catch(() => {});
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadProductsForTab]);
 
-  // ✅ Tab change — instant from cache or fast fetch
   const handleTabChange = useCallback(
     async (tab: string) => {
       if (tab === activeTab) return;
@@ -927,7 +909,6 @@ export default function FeaturedProducts() {
     [activeTab, loadProductsForTab],
   );
 
-  // ✅ Realtime DB changes — only refreshes affected tab
   useEffect(() => {
     const channel = supabase
       .channel("fp-realtime-v2")
@@ -941,9 +922,7 @@ export default function FeaturedProducts() {
           const isFeaturedOld = payload.old?.is_featured ?? false;
           if (!isFeaturedNew && !isFeaturedOld) return;
           if (!affectedCategory || !ALL_TABS.includes(affectedCategory)) return;
-          // Invalidate cache for this category
           delete tabCache[affectedCategory];
-          // Refresh silently if it's the active tab
           if (activeTabRef.current === affectedCategory) {
             loadProductsForTab(affectedCategory, true);
           }
@@ -956,20 +935,16 @@ export default function FeaturedProducts() {
     };
   }, [loadProductsForTab]);
 
-  // ✅ Tab visibility fix — when user switches browser tabs and comes back
-  // ONLY does silent refresh — NEVER changes isLoading to true
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState !== "visible") return;
       const tab = activeTabRef.current;
-      // Always show current cached products immediately (no flicker)
       if ((tabCache[tab]?.products?.length ?? 0) > 0) {
         setProducts(tabCache[tab].products);
         setVariantsMap(tabCache[tab].variantsMap);
         setVariantImagesMap(tabCache[tab].variantImagesMap);
         setIsLoading(false);
       }
-      // Then silently refresh in background
       fetchFeaturedTabData(tab)
         .then((data) => {
           if (activeTabRef.current === tab && data.products.length > 0) {
@@ -986,22 +961,14 @@ export default function FeaturedProducts() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
-  // ✅ pageshow — bfcache (back/forward) fix
-  // e.persisted = true matlab page bfcache se aaya
-  // Is case mein Supabase connections closed hain (ERR_CONNECTION_CLOSED)
-  // Isliye tabCache clear karo aur fresh fetch karo retry ke saath
   useEffect(() => {
     const handlePageShow = (e: PageTransitionEvent) => {
       const tab = activeTabRef.current;
       if (e.persisted) {
-        // ✅ bfcache se aaya — cache stale hai, Supabase connection closed
-        // Sare tabs ka cache clear karo
         ALL_TABS.forEach((t) => delete tabCache[t]);
-        // Skeleton dikhao aur fresh fetch karo (retry logic ke saath)
         setIsLoading(true);
         loadProductsForTab(tab, true);
       } else {
-        // Normal page load — cache se ya fetch karo
         if ((tabCache[tab]?.products?.length ?? 0) > 0) {
           setProducts(tabCache[tab].products);
           setVariantsMap(tabCache[tab].variantsMap);
@@ -1017,7 +984,6 @@ export default function FeaturedProducts() {
     return () => window.removeEventListener("pageshow", handlePageShow);
   }, [loadProductsForTab]);
 
-  // ✅ Safety net — if somehow isLoading stuck for >4s, force clear it
   useEffect(() => {
     if (!isLoading) return;
     const timer = setTimeout(() => {
@@ -1026,7 +992,6 @@ export default function FeaturedProducts() {
     return () => clearTimeout(timer);
   }, [isLoading]);
 
-  // Swiper update when products arrive
   useEffect(() => {
     if (swiperRef.current && products.length > 0) {
       const t = setTimeout(() => swiperRef.current?.update(), 50);
@@ -1080,38 +1045,42 @@ export default function FeaturedProducts() {
   return (
     <>
       <section className="fp-section" dir={isRTLMode ? "rtl" : "ltr"}>
-        <div className="fp-header">
-          <p className="fp-eyebrow">
-            <span className="fp-ey-line" />
-            {getFpTranslation("eyebrow", language)}
-            <span className="fp-ey-line" />
-          </p>
-          <h2 className="fp-title">
-            {getFpTranslation("title", language)}{" "}
-            <em>{getFpTranslation("titleItalic", language)}</em>
-          </h2>
-          <p className="fp-subtitle">
-            {getFpTranslation("subtitle", language)}
-          </p>
-
-          <div className="fp-tabs" style={{ marginTop: "2rem" }}>
-            {ALL_TABS.map((tab) => (
-              <button
-                key={tab}
-                className={`fp-tab${activeTab === tab ? " fp-tab--active" : ""}`}
-                onClick={() => handleTabChange(tab)}
-              >
-                {
-                  fpTranslations.tabs[tab as keyof typeof fpTranslations.tabs][
-                    language
-                  ]
-                }
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Subtle grid texture */}
+        <div className="fp-grid-texture" aria-hidden="true" />
 
         <div className="fp-container">
+          <div className="fp-header">
+            <div className="fp-eyebrow-row">
+              <span className="fp-eyebrow">
+                {getFpTranslation("eyebrow", language)}
+              </span>
+              <div className="fp-eyebrow-line" />
+            </div>
+            <h2 className="fp-title">
+              {getFpTranslation("title", language)}{" "}
+              <em>{getFpTranslation("titleItalic", language)}</em>
+            </h2>
+            <p className="fp-subtitle">
+              {getFpTranslation("subtitle", language)}
+            </p>
+
+            <div className="fp-tabs" style={{ marginTop: "2rem" }}>
+              {ALL_TABS.map((tab) => (
+                <button
+                  key={tab}
+                  className={`fp-tab${activeTab === tab ? " fp-tab--active" : ""}`}
+                  onClick={() => handleTabChange(tab)}
+                >
+                  {
+                    fpTranslations.tabs[
+                      tab as keyof typeof fpTranslations.tabs
+                    ][language]
+                  }
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="fp-nav">
             <button ref={prevRef} className="fp-nav-btn" aria-label="Previous">
               <svg
@@ -1140,30 +1109,13 @@ export default function FeaturedProducts() {
           </div>
 
           {isLoading ? (
-            <div
-              className="fp-skeleton-grid"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: "1px",
-                paddingBottom: "3.5rem",
-              }}
-            >
+            <div className="fp-skeleton-grid">
               {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
                 <SkeletonCard key={i} />
               ))}
             </div>
           ) : products.length === 0 ? (
-            // ✅ Products not yet loaded — show skeleton instead of empty text
-            <div
-              className="fp-skeleton-grid"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: "1px",
-                paddingBottom: "3.5rem",
-              }}
-            >
+            <div className="fp-skeleton-grid">
               {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
                 <SkeletonCard key={i} />
               ))}

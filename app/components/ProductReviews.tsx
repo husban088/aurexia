@@ -3,7 +3,8 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import "@/app/components/ProductReviews.css";
+import { useLanguage } from "@/app/context/LanguageContext";
+import "./ProductReviews.css";
 
 export interface Review {
   id: string;
@@ -25,7 +26,104 @@ interface ProductReviewsProps {
 const reviewCache: Record<string, Review[]> = {};
 let activeFetches: Record<string, Promise<Review[]> | undefined> = {};
 
-// ── Stars Component ──
+// ── Translations ──
+const prTranslations = {
+  eyebrow: {
+    en: "Customer Reviews",
+    ar: "آراء العملاء",
+    de: "Kundenbewertungen",
+  },
+  title: { en: "Reviews &", ar: "التقييمات و", de: "Bewertungen &" },
+  titleItalic: { en: "Ratings", ar: "التقييمات", de: "Bewertungen" },
+  subtitle: {
+    en: "Real experiences from people who love this product",
+    ar: "تجارب حقيقية من الأشخاص الذين يحبون هذا المنتج",
+    de: "Echte Erfahrungen von Menschen, die dieses Produkt lieben",
+  },
+  writeReview: {
+    en: "Write a Review",
+    ar: "اكتب تقييمًا",
+    de: "Bewertung schreiben",
+  },
+  cancel: { en: "Cancel", ar: "إلغاء", de: "Abbrechen" },
+  submit: {
+    en: "Submit Review",
+    ar: "إرسال التقييم",
+    de: "Bewertung abschicken",
+  },
+  submitting: {
+    en: "Submitting...",
+    ar: "جاري الإرسال...",
+    de: "Wird gesendet...",
+  },
+  success: {
+    en: "Review submitted successfully — thank you!",
+    ar: "تم إرسال التقييم بنجاح - شكرًا لك!",
+    de: "Bewertung erfolgreich eingereicht — vielen Dank!",
+  },
+  noReviews: {
+    en: "No reviews yet",
+    ar: "لا توجد تقييمات بعد",
+    de: "Noch keine Bewertungen",
+  },
+  beFirst: {
+    en: "Be the first to share your experience",
+    ar: "كن أول من يشارك تجربتك",
+    de: "Seien Sie der Erste, der Ihre Erfahrungen teilt",
+  },
+  yourName: { en: "Your Name", ar: "اسمك", de: "Ihr Name" },
+  emailAddress: {
+    en: "Email Address",
+    ar: "البريد الإلكتروني",
+    de: "E-Mail-Adresse",
+  },
+  yourRating: { en: "Your Rating", ar: "تقييمك", de: "Ihre Bewertung" },
+  reviewTitle: {
+    en: "Review Title",
+    ar: "عنوان المراجعة",
+    de: "Bewertungstitel",
+  },
+  yourReview: { en: "Your Review", ar: "مراجعتك", de: "Ihre Bewertung" },
+  addPhotos: { en: "Add Photos", ar: "إضافة صور", de: "Fotos hinzufügen" },
+  optional: { en: "optional", ar: "اختياري", de: "optional" },
+  nameRequired: {
+    en: "Name is required",
+    ar: "الاسم مطلوب",
+    de: "Name ist erforderlich",
+  },
+  emailRequired: {
+    en: "Valid email required",
+    ar: "البريد الإلكتروني مطلوب",
+    de: "Gültige E-Mail erforderlich",
+  },
+  titleRequired: {
+    en: "Title is required",
+    ar: "العنوان مطلوب",
+    de: "Titel ist erforderlich",
+  },
+  reviewRequired: {
+    en: "Review is required",
+    ar: "المراجعة مطلوبة",
+    de: "Bewertung ist erforderlich",
+  },
+  ratingRequired: {
+    en: "Please select a rating",
+    ar: "الرجاء اختيار تقييم",
+    de: "Bitte wählen Sie eine Bewertung",
+  },
+};
+
+const getPrTranslation = (
+  key: keyof typeof prTranslations,
+  lang: "en" | "ar" | "de",
+): string => {
+  if (prTranslations[key] && (prTranslations[key] as any)[lang]) {
+    return (prTranslations[key] as any)[lang];
+  }
+  return (prTranslations[key] as any)?.en || "";
+};
+
+// ── Stars Component - YELLOW COLOR ──
 function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
   return (
     <div className="pr-stars">
@@ -37,7 +135,13 @@ function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
           height={size}
           viewBox="0 0 24 24"
         >
-          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+          <polygon
+            points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+            fill={i <= Math.round(rating) ? "#fbbf24" : "none"}
+            stroke="#fbbf24"
+            strokeWidth="1.5"
+            opacity={i <= Math.round(rating) ? 1 : 0.35}
+          />
         </svg>
       ))}
     </div>
@@ -45,7 +149,7 @@ function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
 }
 
 // ── Single Review Card ──
-function ReviewCard({ review }: { review: Review }) {
+function ReviewCard({ review, isRTL }: { review: Review; isRTL: boolean }) {
   const firstImage =
     review.images && review.images.length > 0 ? review.images[0] : null;
   const initial = review.name.charAt(0).toUpperCase();
@@ -61,6 +165,7 @@ function ReviewCard({ review }: { review: Review }) {
             alt={review.name}
             className="pr-card-avatar-img"
             draggable={false}
+            suppressHydrationWarning
             onError={(e) => {
               e.currentTarget.style.display = "none";
               const sib = e.currentTarget
@@ -71,7 +176,7 @@ function ReviewCard({ review }: { review: Review }) {
         ) : null}
         <div
           className="pr-card-avatar-fallback"
-          style={{ display: firstImage ? "none" : undefined }}
+          style={{ display: firstImage ? "none" : "flex" }}
         >
           {initial}
         </div>
@@ -95,8 +200,28 @@ function ReviewCard({ review }: { review: Review }) {
   );
 }
 
+// ── Skeleton Card Component ──
+function SkeletonCard() {
+  return (
+    <div className="pr-skeleton-card">
+      <div className="pr-skeleton-circle" />
+      <div className="pr-skeleton-line pr-skeleton-line--short" />
+      <div className="pr-skeleton-stars-skel" />
+      <div className="pr-skeleton-line" />
+      <div className="pr-skeleton-line" />
+      <div className="pr-skeleton-line pr-skeleton-line--short" />
+    </div>
+  );
+}
+
 // ── Reviews Slider ──
-function ReviewsSlider({ reviews }: { reviews: Review[] }) {
+function ReviewsSlider({
+  reviews,
+  isRTL,
+}: {
+  reviews: Review[];
+  isRTL: boolean;
+}) {
   const [visibleCount, setVisibleCount] = useState(3);
   const [offset, setOffset] = useState(0);
   const [animDir, setAnimDir] = useState<"idle" | "left" | "right">("idle");
@@ -225,7 +350,7 @@ function ReviewsSlider({ reviews }: { reviews: Review[] }) {
               stroke="currentColor"
               strokeWidth="2.2"
             >
-              <polyline points="15 18 9 12 15 6" />
+              <polyline points={isRTL ? "9 18 15 12 9 6" : "15 18 9 12 15 6"} />
             </svg>
           </button>
         )}
@@ -233,7 +358,7 @@ function ReviewsSlider({ reviews }: { reviews: Review[] }) {
           className={`pr-cards-grid pr-cards-grid--${visibleCount} pr-cards-grid--anim-${animDir}`}
         >
           {visibleReviews.map((review) => (
-            <ReviewCard key={review.id} review={review} />
+            <ReviewCard key={review.id} review={review} isRTL={isRTL} />
           ))}
         </div>
         {showNav && (
@@ -248,7 +373,7 @@ function ReviewsSlider({ reviews }: { reviews: Review[] }) {
               stroke="currentColor"
               strokeWidth="2.2"
             >
-              <polyline points="9 18 15 12 9 6" />
+              <polyline points={isRTL ? "15 18 9 12 15 6" : "9 18 15 12 9 6"} />
             </svg>
           </button>
         )}
@@ -358,6 +483,7 @@ function compressImage(
 
 // ── Main ProductReviews Component ──
 export default function ProductReviews({ productId }: ProductReviewsProps) {
+  const { language, isRTLMode } = useLanguage();
   const [reviews, setReviews] = useState<Review[]>(
     () => reviewCache[productId] ?? [],
   );
@@ -393,14 +519,12 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     async (forceRefresh = false) => {
       if (!productId) return;
 
-      // Cache hit - skip fetch
       if (!forceRefresh && reviewCache[productId]) {
         setReviews(reviewCache[productId]);
         setLoadingReviews(false);
         return;
       }
 
-      // Already fetching - wait for it
       if (activeFetches[productId]) {
         const data = await activeFetches[productId];
         if (mountedRef.current) {
@@ -511,14 +635,16 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!name.trim()) e.name = "Name is required";
+    if (!name.trim()) e.name = getPrTranslation("nameRequired", language);
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      e.email = "Valid email required";
-    if (!title.trim()) e.title = "Title is required";
-    if (!body.trim()) e.body = "Review is required";
-    if (rating === 0) e.rating = "Please select a rating";
+      e.email = getPrTranslation("emailRequired", language);
+    if (!title.trim()) e.title = getPrTranslation("titleRequired", language);
+    if (!body.trim()) e.body = getPrTranslation("reviewRequired", language);
+    if (rating === 0) e.rating = getPrTranslation("ratingRequired", language);
     return e;
   };
+
+  const ratingLabels = ["", "Poor", "Fair", "Good", "Great", "Excellent"];
 
   const handleSubmit = async () => {
     if (submitting) return;
@@ -577,7 +703,6 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       resetForm();
       setShowForm(false);
       setSubmitted(true);
-      // Clear cache for this product
       delete reviewCache[productId];
       await fetchReviews(true);
       setTimeout(() => {
@@ -593,16 +718,17 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     }
   };
 
-  const ratingLabels = ["", "Poor", "Fair", "Good", "Great", "Excellent"];
-
   return (
-    <section className="pr-section">
+    <section className="pr-section" dir={isRTLMode ? "rtl" : "ltr"}>
+      {/* Background Orbs - RED */}
       <div className="pr-bg-orb pr-bg-orb--1" />
       <div className="pr-bg-orb pr-bg-orb--2" />
       <div className="pr-bg-orb pr-bg-orb--3" />
+
+      {/* Grid Pattern - Red tint */}
       <div className="pr-bg-grid" />
 
-      {/* Decorative bg lines — matching HomeReviews */}
+      {/* Decorative Lines - Red tint */}
       <div className="pr-bg-lines">
         <span />
         <span />
@@ -611,6 +737,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
         <span />
       </div>
 
+      {/* Sparkles - Red */}
       <div className="pr-sparkle pr-sparkle--1" />
       <div className="pr-sparkle pr-sparkle--2" />
       <div className="pr-sparkle pr-sparkle--3" />
@@ -620,14 +747,20 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
 
       <div className="pr-content">
         <div className="pr-header">
-          <p className="pr-eyebrow">
-            <span className="pr-eye-line" />
-            Customer Voices
-            <span className="pr-eye-line" />
-          </p>
+          <div className="pr-eyebrow-row">
+            <span className="pr-eyebrow">
+              {getPrTranslation("eyebrow", language)}
+            </span>
+            <div className="pr-eyebrow-line" />
+          </div>
           <h2 className="pr-title">
-            Reviews &amp; <em>Ratings</em>
+            {getPrTranslation("title", language)}{" "}
+            <em>{getPrTranslation("titleItalic", language)}</em>
           </h2>
+          <div className="pr-accent-bar" />
+          <p className="pr-subtitle">
+            {getPrTranslation("subtitle", language)}
+          </p>
         </div>
 
         {reviews.length > 0 && (
@@ -646,7 +779,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                   <svg width="11" height="11" viewBox="0 0 24 24">
                     <polygon
                       points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
-                      fill="#0ff"
+                      fill="#fbbf24"
                     />
                   </svg>
                   <div className="pr-bar-track">
@@ -678,7 +811,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
               <circle cx="12" cy="12" r="10" />
               <polyline points="9 12 11 14 15 10" />
             </svg>
-            Review submitted successfully — thank you!
+            {getPrTranslation("success", language)}
           </div>
         )}
 
@@ -699,16 +832,18 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
               <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
-            Write a Review
+            {getPrTranslation("writeReview", language)}
           </button>
         )}
 
         {showForm && (
           <div className="pr-form-wrap">
             <div className="pr-form-header">
-              <h3 className="pr-form-title">Share Your Experience</h3>
+              <h3 className="pr-form-title">
+                {getPrTranslation("writeReview", language)}
+              </h3>
               <p className="pr-form-sub">
-                Your review helps others make confident decisions
+                {getPrTranslation("subtitle", language)}
               </p>
             </div>
 
@@ -732,7 +867,8 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
               <div className="pr-form-row">
                 <div className="pr-form-group">
                   <label className="pr-form-label">
-                    Your Name <span className="pr-req">*</span>
+                    {getPrTranslation("yourName", language)}{" "}
+                    <span className="pr-req">*</span>
                   </label>
                   <input
                     className={`pr-form-input${errors.name ? " pr-input--error" : ""}`}
@@ -746,7 +882,8 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                 </div>
                 <div className="pr-form-group">
                   <label className="pr-form-label">
-                    Email Address <span className="pr-req">*</span>
+                    {getPrTranslation("emailAddress", language)}{" "}
+                    <span className="pr-req">*</span>
                   </label>
                   <input
                     className={`pr-form-input${errors.email ? " pr-input--error" : ""}`}
@@ -763,7 +900,8 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
 
               <div className="pr-form-group">
                 <label className="pr-form-label">
-                  Your Rating <span className="pr-req">*</span>
+                  {getPrTranslation("yourRating", language)}{" "}
+                  <span className="pr-req">*</span>
                 </label>
                 <div className="pr-star-picker">
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -794,7 +932,8 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
 
               <div className="pr-form-group">
                 <label className="pr-form-label">
-                  Review Title <span className="pr-req">*</span>
+                  {getPrTranslation("reviewTitle", language)}{" "}
+                  <span className="pr-req">*</span>
                 </label>
                 <input
                   className={`pr-form-input${errors.title ? " pr-input--error" : ""}`}
@@ -809,7 +948,8 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
 
               <div className="pr-form-group">
                 <label className="pr-form-label">
-                  Your Review <span className="pr-req">*</span>
+                  {getPrTranslation("yourReview", language)}{" "}
+                  <span className="pr-req">*</span>
                 </label>
                 <textarea
                   className={`pr-form-textarea${errors.body ? " pr-input--error" : ""}`}
@@ -825,8 +965,10 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
 
               <div className="pr-form-group">
                 <label className="pr-form-label">
-                  Add Photos{" "}
-                  <span className="pr-optional">(optional, up to 5)</span>
+                  {getPrTranslation("addPhotos", language)}{" "}
+                  <span className="pr-optional">
+                    ({getPrTranslation("optional", language)}, up to 5)
+                  </span>
                 </label>
                 <input
                   ref={fileInputRef}
@@ -894,7 +1036,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                   }}
                   disabled={submitting}
                 >
-                  Cancel
+                  {getPrTranslation("cancel", language)}
                 </button>
                 <button
                   type="button"
@@ -905,7 +1047,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                   {submitting ? (
                     <>
                       <span className="pr-spinner" />
-                      {uploadStatus || "Submitting…"}
+                      {uploadStatus || getPrTranslation("submitting", language)}
                     </>
                   ) : (
                     <>
@@ -918,7 +1060,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                         <line x1="22" y1="2" x2="11" y2="13" />
                         <polygon points="22 2 15 22 11 13 2 9 22 2" />
                       </svg>
-                      Submit Review
+                      {getPrTranslation("submit", language)}
                     </>
                   )}
                 </button>
@@ -928,7 +1070,9 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
         )}
 
         <div className="pr-list-header">
-          <h3 className="pr-list-title">Customer Reviews</h3>
+          <h3 className="pr-list-title">
+            {getPrTranslation("eyebrow", language)}
+          </h3>
           {reviews.length > 0 && (
             <span className="pr-list-count">
               {reviews.length} review{reviews.length !== 1 ? "s" : ""}
@@ -939,14 +1083,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
         {loadingReviews ? (
           <div className="pr-skeleton-row">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="pr-skeleton-card">
-                <div className="pr-skeleton-circle" />
-                <div className="pr-skeleton-line pr-skeleton-line--short" />
-                <div className="pr-skeleton-stars-skel" />
-                <div className="pr-skeleton-line" />
-                <div className="pr-skeleton-line" />
-                <div className="pr-skeleton-line pr-skeleton-line--short" />
-              </div>
+              <SkeletonCard key={i} />
             ))}
           </div>
         ) : reviews.length === 0 ? (
@@ -961,36 +1098,26 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                 <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
               </svg>
             </div>
-            <p className="pr-empty-text">No reviews yet</p>
+            <p className="pr-empty-text">
+              {getPrTranslation("noReviews", language)}
+            </p>
             <p className="pr-empty-sub">
-              Be the first to share your experience
+              {getPrTranslation("beFirst", language)}
             </p>
           </div>
         ) : (
-          <ReviewsSlider reviews={reviews} />
+          <ReviewsSlider reviews={reviews} isRTL={isRTLMode} />
         )}
       </div>
 
       <style jsx>{`
-        .pr-error-banner {
-          display: flex;
-          align-items: flex-start;
-          gap: 10px;
-          padding: 14px 18px;
-          margin-bottom: 20px;
-          border-radius: 10px;
-          background: rgba(220, 38, 38, 0.12);
-          border: 1.5px solid rgba(220, 38, 38, 0.5);
-          color: #ef4444;
-          font-size: 14px;
-          line-height: 1.6;
-          word-break: break-word;
-        }
-        .pr-error-banner svg {
-          width: 20px;
-          height: 20px;
-          flex-shrink: 0;
-          margin-top: 2px;
+        @keyframes pr-spin {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
         }
       `}</style>
     </section>

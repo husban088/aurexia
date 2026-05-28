@@ -159,22 +159,17 @@ export default function Footer() {
   ];
 
   const paymentMethods = [
-    { name: "Visa", icon: <FaCcVisa />, color: "#1A1F71" },
-    { name: "Mastercard", icon: <FaCcMastercard />, color: "#EB001B" },
-    { name: "American Express", icon: <FaCcAmex />, color: "#006FCF" },
-    { name: "PayPal", icon: <FaPaypal />, color: "#003087" },
-    { name: "Apple Pay", icon: <FaApple />, color: "#000000" },
-    { name: "Google Pay", icon: <FaGoogle />, color: "#4285F4" },
+    { name: "Visa", icon: <FaCcVisa /> },
+    { name: "Mastercard", icon: <FaCcMastercard /> },
+    { name: "American Express", icon: <FaCcAmex /> },
+    { name: "PayPal", icon: <FaPaypal /> },
+    { name: "Apple Pay", icon: <FaApple /> },
+    { name: "Google Pay", icon: <FaGoogle /> },
   ];
 
   const categories = [
-    { id: "pages", title: "Quick Links", icon: <MdHome />, color: "#daa520" },
-    {
-      id: "company",
-      title: "Company",
-      icon: <MdBusinessCenter />,
-      color: "#f0c040",
-    },
+    { id: "pages", title: "Quick Links", icon: <MdHome /> },
+    { id: "company", title: "Company", icon: <MdBusinessCenter /> },
   ];
 
   const features = [
@@ -389,12 +384,7 @@ export default function Footer() {
                 }
               >
                 <div className="footer-links-header">
-                  <div
-                    className="footer-links-icon"
-                    style={{ color: category.color }}
-                  >
-                    {category.icon}
-                  </div>
+                  <div className="footer-links-icon">{category.icon}</div>
                   <h4 className="footer-links-title">
                     {category.title}
                     <div className="footer-links-gold-dot" />
@@ -488,12 +478,7 @@ export default function Footer() {
                   className="footer-payment-icon"
                   title={method.name}
                 >
-                  <div
-                    className="payment-card-front"
-                    style={{ color: method.color }}
-                  >
-                    {method.icon}
-                  </div>
+                  <div className="payment-card-front">{method.icon}</div>
                 </div>
               ))}
             </div>

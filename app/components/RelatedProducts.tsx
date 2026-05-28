@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useCartStore } from "@/lib/cartStore";
 import { useCurrency } from "@/app/context/CurrencyContext";
+import { useLanguage } from "@/app/context/LanguageContext";
+import { useSaleSync, applyDiscount } from "@/lib/saleStore";
 import "./RelatedProducts.css";
 
 /* ─────────────────────────────────────────────
@@ -56,6 +59,48 @@ interface RelatedProductsProps {
   limit?: number;
 }
 
+/* ── Translations ── */
+const rpTranslations = {
+  eyebrow: {
+    en: "You May Also Like",
+    ar: "قد يعجبك أيضًا",
+    de: "Das könnte Ihnen auch gefallen",
+  },
+  title: { en: "You May Also", ar: "قد يعجبك", de: "Das könnte Ihnen" },
+  titleItalic: { en: "Like", ar: "أيضًا", de: "auch gefallen" },
+  subtitle: {
+    en: "Discover more premium products from the same collection",
+    ar: "اكتشف المزيد من المنتجات المميزة من نفس المجموعة",
+    de: "Entdecken Sie weitere Premium-Produkte aus derselben Kollektion",
+  },
+  inStock: { en: "In Stock", ar: "متوفر", de: "Auf Lager" },
+  outOfStock: { en: "Out of Stock", ar: "غير متوفر", de: "Nicht auf Lager" },
+  lowStock: {
+    en: "Only {stock} left",
+    ar: "متبقي فقط {stock}",
+    de: "Nur noch {stock} vorrätig",
+  },
+  new: { en: "New", ar: "جديد", de: "Neu" },
+  featured: { en: "Featured", ar: "مميز", de: "Ausgewählt" },
+};
+
+const getRpTranslation = (
+  key: keyof typeof rpTranslations,
+  lang: "en" | "ar" | "de",
+  params?: { stock?: number },
+): string => {
+  let text = "";
+  if (rpTranslations[key] && (rpTranslations[key] as any)[lang]) {
+    text = (rpTranslations[key] as any)[lang];
+  } else {
+    text = (rpTranslations[key] as any)?.en || "";
+  }
+  if (params?.stock && key === "lowStock") {
+    text = text.replace("{stock}", params.stock.toString());
+  }
+  return text;
+};
+
 /* ─────────────────────────────────────────────
    HELPERS
 ───────────────────────────────────────────── */
@@ -84,15 +129,15 @@ const typePriority: Record<string, number> = {
 };
 
 /* ─────────────────────────────────────────────
-   STAR COMPONENTS
+   STAR COMPONENTS - YELLOW COLOR (Same as Featured)
 ───────────────────────────────────────────── */
 function StarIcon({ filled, size = 11 }: { filled: boolean; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24">
       <polygon
         points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
-        fill={filled ? "#b8963e" : "none"}
-        stroke="#b8963e"
+        fill={filled ? "#fbbf24" : "none"}
+        stroke="#fbbf24"
         strokeWidth="1.5"
         opacity={filled ? 1 : 0.35}
       />
@@ -116,11 +161,12 @@ function StarDisplay({ rating, size = 11 }: { rating: number; size?: number }) {
 function LoadingSpinner({ size = 18 }: { size?: number }) {
   return (
     <div
+      className="rp-spinner"
       style={{
         width: size,
         height: size,
-        border: "2px solid rgba(218,165,32,0.2)",
-        borderTopColor: "#daa520",
+        border: "2px solid rgba(0, 255, 255, 0.2)",
+        borderTopColor: "#0ff",
         borderRadius: "50%",
         animation: "rp-spin 0.8s linear infinite",
         display: "inline-block",
@@ -138,13 +184,17 @@ function VariantThumbnails({
   onSelect,
   currentValue,
   variantImagesMap,
+  isRTL,
 }: {
   variants: ProductVariant[];
   type: string;
   onSelect: (variant: ProductVariant) => void;
   currentValue: string;
   variantImagesMap: VariantImagesMap;
+  isRTL: boolean;
 }) {
+  const { language } = useLanguage();
+
   if (!variants || variants.length === 0) return null;
 
   const getIcon = () => {
@@ -163,6 +213,20 @@ function VariantThumbnails({
   };
 
   const getTypeLabel = () => {
+    if (language === "de") {
+      switch (type) {
+        case "color":
+          return "Farben";
+        case "size":
+          return "Größen";
+        case "material":
+          return "Materialien";
+        case "capacity":
+          return "Kapazitäten";
+        default:
+          return type;
+      }
+    }
     switch (type) {
       case "color":
         return "Colors";
@@ -186,7 +250,7 @@ function VariantThumbnails({
   };
 
   return (
-    <div className="rp-card-variants">
+    <div className="rp-card-variants" dir={isRTL ? "rtl" : "ltr"}>
       <span className="rp-variant-label">
         {getIcon()} {getTypeLabel()}:
       </span>
@@ -206,22 +270,28 @@ function VariantThumbnails({
               title={variant.attribute_value}
             >
               {variantImage ? (
-                <img src={variantImage} alt={variant.attribute_value} />
+                <div className="rp-variant-thumb-img">
+                  <img
+                    src={variantImage}
+                    alt={variant.attribute_value}
+                    suppressHydrationWarning
+                  />
+                </div>
               ) : (
-                <span className="rp-variant-text">
-                  {variant.attribute_value.charAt(0)}
-                </span>
+                <div className="rp-variant-thumb-placeholder">
+                  <span className="rp-variant-thumb-text">
+                    {variant.attribute_value.charAt(0).toUpperCase()}
+                  </span>
+                </div>
               )}
-              <span className="rp-variant-label-text">
-                {variant.attribute_value.length > 10
-                  ? variant.attribute_value.slice(0, 8) + "..."
-                  : variant.attribute_value}
+              <span className="rp-variant-thumb-label">
+                {variant.attribute_value}
               </span>
             </button>
           );
         })}
         {hasMore && (
-          <span className="rp-variant-more">+{variants.length - 4}</span>
+          <div className="rp-variant-more">+{variants.length - 4}</div>
         )}
       </div>
     </div>
@@ -256,7 +326,6 @@ async function fetchRelatedProducts(
     }
 
     return data.map((item: any) => {
-      // Build variants array
       const variants: ProductVariant[] = (item.product_variants || []).map(
         (variant: any) => {
           const variantImages = (variant.variant_images || [])
@@ -282,14 +351,12 @@ async function fetchRelatedProducts(
         },
       );
 
-      // Sort variants by priority
       const sortedVariants = [...variants].sort(
         (a, b) =>
           (typePriority[a.attribute_type] ?? 5) -
           (typePriority[b.attribute_type] ?? 5),
       );
 
-      // Build variant images map
       const variantImagesMap: VariantImagesMap = {};
       variants.forEach((v) => {
         if (v.images && v.images.length > 0) {
@@ -297,10 +364,8 @@ async function fetchRelatedProducts(
         }
       });
 
-      // Get best variant (first in priority)
       const bestVariant = sortedVariants[0];
 
-      // Get images - prefer variant images, fallback to product images
       const images =
         bestVariant?.images?.length > 0
           ? bestVariant.images
@@ -340,12 +405,13 @@ async function fetchRelatedProducts(
 }
 
 /* ─────────────────────────────────────────────
-   RELATED PRODUCT CARD - Like FeaturedProducts Card
+   RELATED PRODUCT CARD
 ───────────────────────────────────────────── */
 function RelatedProductCard({
   product,
   formatPrice,
   addToCart,
+  isRTL,
 }: {
   product: ExtendedProduct;
   formatPrice: (value: number) => string;
@@ -355,9 +421,12 @@ function RelatedProductCard({
     quantity: number,
     maxStock?: number,
   ) => Promise<void>;
+  isRTL: boolean;
 }) {
+  const { language } = useLanguage();
+  const { saleData } = useSaleSync();
+
   const [isHovered, setIsHovered] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     product.variants.length > 0 ? product.variants[0] : null,
   );
@@ -371,8 +440,8 @@ function RelatedProductCard({
     return product.images || [];
   });
   const [addToCartLoading, setAddToCartLoading] = useState(false);
+  const [quickViewLoading, setQuickViewLoading] = useState(false);
 
-  /* ── Live rating state ── */
   const [liveRating, setLiveRating] = useState<number | null>(
     product.rating != null && product.rating > 0 ? product.rating : null,
   );
@@ -382,7 +451,7 @@ function RelatedProductCard({
       : null,
   );
 
-  /* ── Realtime subscription for new reviews ── */
+  // Realtime subscription for new reviews
   useEffect(() => {
     const channel = supabase
       .channel(`rp-live-${product.id}`)
@@ -417,7 +486,6 @@ function RelatedProductCard({
     };
   }, [product.id]);
 
-  // Filter variants by type
   const colorVariants = product.variants.filter(
     (v) => v.attribute_type === "color",
   );
@@ -440,47 +508,47 @@ function RelatedProductCard({
     setSelectedVariant(variant);
     const newImages = getVariantImages(variant.id);
     setCurrentImages(newImages);
-    setCurrentImageIndex(0);
     setIsHovered(false);
   };
 
   const handleMouseEnter = () => {
     setIsHovered(true);
-    if (currentImages.length > 1) setCurrentImageIndex(1);
   };
 
   const handleMouseLeave = () => {
     setIsHovered(false);
-    setCurrentImageIndex(0);
   };
 
-  const getDisplayImage = () => {
-    if (currentImages.length === 0) return null;
-    if (isHovered && currentImages.length > 1) return currentImages[1];
-    return currentImages[currentImageIndex];
-  };
+  const displayImage = currentImages[0] ?? null;
 
-  const displayImage = getDisplayImage();
+  const basePrice = selectedVariant?.price ?? product.price;
+  const activeSalePercent = saleData?.percent;
+  const discountedPrice =
+    activeSalePercent && activeSalePercent > 0
+      ? applyDiscount(basePrice, activeSalePercent)
+      : basePrice;
+  const originalForDisplay =
+    activeSalePercent && activeSalePercent > 0 && basePrice > 0
+      ? basePrice
+      : (selectedVariant?.original_price ?? product.original_price ?? null);
+  const displaySalePrice = formatPrice(discountedPrice);
+  const displayOriginalPrice =
+    originalForDisplay && originalForDisplay > discountedPrice
+      ? formatPrice(originalForDisplay)
+      : null;
+  const totalDiscount =
+    activeSalePercent && activeSalePercent > 0 ? activeSalePercent : null;
 
-  const currentPrice = selectedVariant?.price ?? product.price;
-  const currentOriginalPrice =
-    selectedVariant?.original_price ?? product.original_price;
   const currentStock = selectedVariant?.stock ?? product.stock;
   const stockStatus = getStockStatus(currentStock, product.low_stock_threshold);
   const isLowStock = stockStatus === "low_stock";
   const isOutOfStock = stockStatus === "out_of_stock";
 
-  const discount =
-    currentOriginalPrice && currentOriginalPrice > currentPrice
-      ? Math.round(
-          ((currentOriginalPrice - currentPrice) / currentOriginalPrice) * 100,
-        )
-      : 0;
-
   const getStockLabel = () => {
-    if (isOutOfStock) return "Out of Stock";
-    if (isLowStock) return `Only ${currentStock} left`;
-    return "In Stock";
+    if (isOutOfStock) return getRpTranslation("outOfStock", language);
+    if (isLowStock)
+      return getRpTranslation("lowStock", language, { stock: currentStock });
+    return getRpTranslation("inStock", language);
   };
 
   const getStockClass = () => {
@@ -491,13 +559,22 @@ function RelatedProductCard({
 
   const truncatedName = truncateProductName(product.name, 45);
 
+  const productSlug = product.name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .substring(0, 60);
+  const productHref = `/product/${productSlug}--${product.id}`;
+
   const handleAddToCartClick = async (
     e: React.MouseEvent<HTMLButtonElement>,
   ) => {
     e.preventDefault();
     e.stopPropagation();
     if (isOutOfStock) {
-      alert("This product is out of stock");
+      alert(getRpTranslation("outOfStock", language));
       return;
     }
     if (addToCartLoading) return;
@@ -514,8 +591,8 @@ function RelatedProductCard({
         is_featured: product.is_featured,
         is_active: product.is_active,
         images: currentImages.length > 0 ? currentImages : product.images,
-        price: currentPrice,
-        original_price: currentOriginalPrice,
+        price: discountedPrice,
+        original_price: originalForDisplay || undefined,
         stock: currentStock,
         low_stock_threshold: product.low_stock_threshold,
         stockStatus,
@@ -528,17 +605,23 @@ function RelatedProductCard({
     }
   };
 
+  const handleQuickViewClick = async (
+    e: React.MouseEvent<HTMLButtonElement>,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setQuickViewLoading(true);
+    await new Promise((r) => setTimeout(r, 80));
+    window.location.href = productHref;
+    setQuickViewLoading(false);
+  };
+
   return (
-    <a
-      href={`/product/${product.name
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, "")
-        .replace(/[\s_]+/g, "-")
-        .replace(/-+/g, "-")
-        .substring(0, 60)}--${product.id}`}
+    <Link
+      href={productHref}
+      prefetch={true}
       className="rp-card"
-      style={{ cursor: "pointer", textDecoration: "none", color: "inherit" }}
+      style={{ cursor: "pointer", display: "block", textDecoration: "none" }}
     >
       <div
         className="rp-card-img"
@@ -546,7 +629,12 @@ function RelatedProductCard({
         onMouseLeave={handleMouseLeave}
       >
         {displayImage ? (
-          <img src={displayImage} alt={product.name} loading="lazy" />
+          <img
+            src={displayImage}
+            alt={product.name}
+            loading="lazy"
+            suppressHydrationWarning
+          />
         ) : (
           <div className="rp-img-placeholder">
             <svg
@@ -562,54 +650,53 @@ function RelatedProductCard({
           </div>
         )}
 
-        {/* Badges */}
         <div className="rp-card-badges">
           {product.is_featured && (
-            <span className="rp-badge rp-badge--feat">Featured</span>
+            <span className="rp-badge rp-badge--feat">
+              {getRpTranslation("featured", language)}
+            </span>
           )}
-          {discount > 0 && (
-            <span className="rp-badge rp-badge--sale">-{discount}%</span>
+          {product.condition === "new" && !totalDiscount && (
+            <span className="rp-badge rp-badge--new">
+              {getRpTranslation("new", language)}
+            </span>
           )}
-          {product.condition === "new" && !discount && (
-            <span className="rp-badge rp-badge--new">New</span>
+          {totalDiscount && totalDiscount > 0 && (
+            <span className="rp-badge rp-badge--sale">-{totalDiscount}%</span>
           )}
           {isLowStock && (
-            <span className="rp-badge rp-badge--low">Low Stock</span>
+            <span className="rp-badge rp-badge--low">
+              {getRpTranslation("lowStock", language, { stock: currentStock })}
+            </span>
           )}
         </div>
 
-        {/* Quick Action Buttons — Cart + Quick View both always visible */}
         <div className="rp-icon-buttons">
           <button
             className="rp-icon-btn rp-icon-btn--view"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              window.location.href = `/product/${product.name
-                .toLowerCase()
-                .trim()
-                .replace(/[^\w\s-]/g, "")
-                .replace(/[\s_]+/g, "-")
-                .replace(/-+/g, "-")
-                .substring(0, 60)}--${product.id}`;
-            }}
+            onClick={handleQuickViewClick}
             aria-label="Quick View"
+            disabled={quickViewLoading}
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <circle cx="12" cy="12" r="3" />
-              <path d="M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10z" />
-            </svg>
+            {quickViewLoading ? (
+              <LoadingSpinner size={18} />
+            ) : (
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path d="M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2s10 4.48 10 10z" />
+              </svg>
+            )}
           </button>
           <button
             className="rp-icon-btn rp-icon-btn--cart"
             onClick={handleAddToCartClick}
             aria-label="Add to Cart"
-            disabled={isOutOfStock || addToCartLoading}
+            disabled={addToCartLoading || isOutOfStock}
           >
             {addToCartLoading ? (
               <LoadingSpinner size={18} />
@@ -629,26 +716,22 @@ function RelatedProductCard({
         </div>
       </div>
 
-      {/* Card Body */}
-      <div className="rp-card-body">
+      <div className="rp-card-body" dir={isRTL ? "rtl" : "ltr"}>
         <p className="rp-card-brand">{product.brand || "\u00A0"}</p>
         <h3 className="rp-card-name" title={product.name}>
           {truncatedName}
         </h3>
 
         <div className="rp-card-price-row">
-          <span className="rp-card-price">{formatPrice(currentPrice)}</span>
-          {currentOriginalPrice && currentOriginalPrice > currentPrice && (
-            <span className="rp-card-orig">
-              {formatPrice(currentOriginalPrice)}
-            </span>
+          <span className="rp-card-price">{displaySalePrice}</span>
+          {displayOriginalPrice && (
+            <span className="rp-card-orig">{displayOriginalPrice}</span>
           )}
-          {discount > 0 && (
-            <span className="rp-card-discount">-{discount}%</span>
+          {totalDiscount && totalDiscount > 0 && (
+            <span className="rp-card-discount">-{totalDiscount}%</span>
           )}
         </div>
 
-        {/* Rating — div hamesha render hoti hai space reserve karne ke liye */}
         <div className="rp-rating">
           {liveRating !== null &&
             liveReviewCount !== null &&
@@ -660,7 +743,6 @@ function RelatedProductCard({
             )}
         </div>
 
-        {/* Variants — wrapper hamesha render hota hai fixed height ke liye */}
         <div className="rp-card-variants-wrapper">
           {colorVariants.length > 0 && (
             <VariantThumbnails
@@ -669,6 +751,7 @@ function RelatedProductCard({
               onSelect={handleVariantSelect}
               currentValue={selectedVariant?.attribute_value || ""}
               variantImagesMap={product.variantImagesMap}
+              isRTL={isRTL}
             />
           )}
           {sizeVariants.length > 0 && (
@@ -678,6 +761,7 @@ function RelatedProductCard({
               onSelect={handleVariantSelect}
               currentValue={selectedVariant?.attribute_value || ""}
               variantImagesMap={product.variantImagesMap}
+              isRTL={isRTL}
             />
           )}
           {materialVariants.length > 0 && (
@@ -687,6 +771,7 @@ function RelatedProductCard({
               onSelect={handleVariantSelect}
               currentValue={selectedVariant?.attribute_value || ""}
               variantImagesMap={product.variantImagesMap}
+              isRTL={isRTL}
             />
           )}
           {capacityVariants.length > 0 && (
@@ -696,18 +781,34 @@ function RelatedProductCard({
               onSelect={handleVariantSelect}
               currentValue={selectedVariant?.attribute_value || ""}
               variantImagesMap={product.variantImagesMap}
+              isRTL={isRTL}
             />
           )}
         </div>
 
-        {/* Stock Status */}
         <div className={`rp-card-stock ${getStockClass()}`}>
           {getStockLabel()}
         </div>
       </div>
+    </Link>
+  );
+}
 
-      <div className="rp-card-line" />
-    </a>
+/* ─────────────────────────────────────────────
+   SKELETON CARD
+───────────────────────────────────────────── */
+function SkeletonCard() {
+  return (
+    <div className="rp-skeleton-card">
+      <div className="rp-skeleton-img" />
+      <div className="rp-skeleton-body">
+        <div className="rp-skeleton-line" style={{ width: "45%" }} />
+        <div className="rp-skeleton-line" style={{ width: "85%" }} />
+        <div className="rp-skeleton-line" style={{ width: "65%" }} />
+        <div className="rp-skeleton-line" style={{ width: "40%" }} />
+        <div className="rp-skeleton-line" style={{ width: "70%" }} />
+      </div>
+    </div>
   );
 }
 
@@ -724,8 +825,8 @@ export default function RelatedProducts({
   const sectionRef = useRef<HTMLElement>(null);
   const { formatPrice } = useCurrency();
   const { addToCart } = useCartStore();
+  const { language, isRTLMode } = useLanguage();
 
-  /* ── Load products ── */
   useEffect(() => {
     if (!productId || !category) {
       setLoading(false);
@@ -744,7 +845,6 @@ export default function RelatedProducts({
     };
   }, [productId, category, limit]);
 
-  /* ── IntersectionObserver for scroll-reveal ── */
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
@@ -765,41 +865,28 @@ export default function RelatedProducts({
     return () => observer.disconnect();
   }, [relatedProducts]);
 
-  const getCategoryLabel = (cat: string): string => {
-    const labels: Record<string, string> = {
-      Accessories: "Mobile Accessories",
-      Watches: "Watches",
-      Automotive: "Automotive",
-      "Home Decor": "Home Décor",
-    };
-    return labels[cat] || cat;
-  };
-
-  /* ── Skeleton while loading ── */
   if (loading) {
     return (
-      <section className="rp-section">
+      <section className="rp-section" dir={isRTLMode ? "rtl" : "ltr"}>
+        <div className="rp-grid-texture" aria-hidden="true" />
         <div className="rp-header">
-          <p className="rp-eyebrow">
-            <span className="rp-eye-line" />
-            More from this collection
-            <span className="rp-eye-line" />
-          </p>
+          <div className="rp-eyebrow-row">
+            <span className="rp-eyebrow">
+              {getRpTranslation("eyebrow", language)}
+            </span>
+            <div className="rp-eyebrow-line" />
+          </div>
           <h2 className="rp-title">
-            You May Also <em>Like</em>
+            {getRpTranslation("title", language)}{" "}
+            <em>{getRpTranslation("titleItalic", language)}</em>
           </h2>
+          <p className="rp-subtitle">
+            {getRpTranslation("subtitle", language)}
+          </p>
         </div>
         <div className="rp-grid">
           {[...Array(limit)].map((_, i) => (
-            <div key={i} className="rp-skeleton-card">
-              <div className="rp-skeleton-img" />
-              <div className="rp-skeleton-body">
-                <div className="rp-skeleton-line" style={{ width: "60%" }} />
-                <div className="rp-skeleton-line" style={{ width: "80%" }} />
-                <div className="rp-skeleton-line" style={{ width: "50%" }} />
-                <div className="rp-skeleton-line" style={{ width: "70%" }} />
-              </div>
-            </div>
+            <SkeletonCard key={i} />
           ))}
         </div>
       </section>
@@ -808,19 +895,25 @@ export default function RelatedProducts({
 
   if (relatedProducts.length === 0) return null;
 
-  const catLabel = getCategoryLabel(category);
-
   return (
-    <section className="rp-section rp-reveal" ref={sectionRef}>
+    <section
+      className="rp-section rp-reveal"
+      ref={sectionRef}
+      dir={isRTLMode ? "rtl" : "ltr"}
+    >
+      <div className="rp-grid-texture" aria-hidden="true" />
       <div className="rp-header">
-        <p className="rp-eyebrow">
-          <span className="rp-eye-line" />
-          More from {catLabel}
-          <span className="rp-eye-line" />
-        </p>
+        <div className="rp-eyebrow-row">
+          <span className="rp-eyebrow">
+            {getRpTranslation("eyebrow", language)}
+          </span>
+          <div className="rp-eyebrow-line" />
+        </div>
         <h2 className="rp-title">
-          You May Also <em>Like</em>
+          {getRpTranslation("title", language)}{" "}
+          <em>{getRpTranslation("titleItalic", language)}</em>
         </h2>
+        <p className="rp-subtitle">{getRpTranslation("subtitle", language)}</p>
       </div>
       <div className="rp-grid">
         {relatedProducts.map((product) => (
@@ -829,6 +922,7 @@ export default function RelatedProducts({
             product={product}
             formatPrice={formatPrice}
             addToCart={addToCart}
+            isRTL={isRTLMode}
           />
         ))}
       </div>
@@ -837,6 +931,10 @@ export default function RelatedProducts({
         @keyframes rp-spin {
           0%   { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+        @keyframes rp-skeleton {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
         }
       `}</style>
     </section>

@@ -6,9 +6,9 @@ import Link from "next/link";
 import "./hero-explore.css";
 
 /* ──────────────────────────────────────────
-   HERO EXPLORE SECTION
-   Left: Heading + Para + CTA Button
-   Right: 4 Images Grid (fully visible, no crop)
+   HERO EXPLORE SECTION - TOP RED TO BOTTOM BLACK GRADIENT
+   Left: Heading + Para + Button | Right: 4 Images Grid (uniform sizes, fully visible)
+   All Text: WHITE
 ────────────────────────────────────────── */
 
 const images = [
@@ -80,10 +80,10 @@ export default function HeroExplore() {
         {/* ── LEFT SIDE ── */}
         <div className="he-left">
           {/* Eyebrow */}
-          <p className="he-eyebrow">
-            <span className="he-eyebrow-dot" />
-            Luxury Collections
-          </p>
+          <div className="he-eyebrow-row">
+            <span className="he-eyebrow">Luxury Collections</span>
+            <div className="he-eyebrow-line" />
+          </div>
 
           {/* Heading */}
           <h2 className="he-heading">
@@ -108,7 +108,7 @@ export default function HeroExplore() {
             living.
           </p>
 
-          {/* CTA Button */}
+          {/* CTA Button - White text on Red/Black gradient */}
           <Link href="/accessories" className="he-btn" aria-label="Shop Now">
             <span className="he-btn-text">Shop Now</span>
             <span className="he-btn-icon" aria-hidden="true">
@@ -128,34 +128,34 @@ export default function HeroExplore() {
             <span className="he-btn-glow" aria-hidden="true" />
           </Link>
 
-          {/* Stats Row */}
+          {/* Stats Row - White Text */}
           <div className="he-stats">
             <div className="he-stat">
               <span className="he-stat-num">
-                500<em>+</em>
+                500<span className="he-stat-plus">+</span>
               </span>
               <span className="he-stat-label">Products</span>
             </div>
             <div className="he-stat-divider" />
             <div className="he-stat">
               <span className="he-stat-num">
-                50<em>k+</em>
+                50<span className="he-stat-plus">k+</span>
               </span>
               <span className="he-stat-label">Customers</span>
             </div>
             <div className="he-stat-divider" />
             <div className="he-stat">
               <span className="he-stat-num">
-                4<em>.9★</em>
+                4<span className="he-stat-star">.9★</span>
               </span>
               <span className="he-stat-label">Rating</span>
             </div>
           </div>
         </div>
 
-        {/* ── RIGHT SIDE — 4 Images Grid ── */}
+        {/* ── RIGHT SIDE — 4 Images Grid (Uniform Sizes, Fully Visible) ── */}
         <div className="he-right">
-          {/* Corner ornaments */}
+          {/* Corner ornaments - Red */}
           <div
             className="he-grid-corner he-grid-corner--tl"
             aria-hidden="true"
@@ -169,34 +169,34 @@ export default function HeroExplore() {
             {images.map((img, i) => (
               <div
                 key={i}
-                className={`he-img-card he-img-card--${i + 1}`}
+                className="he-img-card"
                 style={{ "--delay": `${i * 0.12}s` } as React.CSSProperties}
               >
                 {/* Shimmer */}
                 <div className="he-img-shimmer" aria-hidden="true" />
-                {/* Label */}
+                {/* Label - White text on gradient */}
                 <span className="he-img-label">{img.label}</span>
-                {/* Image */}
+                {/* Image - Uniform aspect ratio, fully visible */}
                 <div className="he-img-wrap">
                   <Image
                     src={img.src}
                     alt={img.alt}
                     fill
                     className="he-img"
-                    sizes="(max-width: 768px) 50vw, 25vw"
+                    sizes="(max-width: 640px) 45vw, (max-width: 1024px) 25vw, 20vw"
                     quality={85}
-                    style={{ objectFit: "cover" }}
+                    style={{ objectFit: "contain" }}
                   />
                 </div>
                 {/* Overlay */}
                 <div className="he-img-overlay" aria-hidden="true" />
-                {/* Bottom glow bar */}
+                {/* Bottom glow bar - Gradient */}
                 <div className="he-img-bar" aria-hidden="true" />
               </div>
             ))}
           </div>
 
-          {/* Floating ring decoration */}
+          {/* Floating ring decoration - Red */}
           <div className="he-ring" aria-hidden="true" />
         </div>
       </div>

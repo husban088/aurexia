@@ -1,30 +1,41 @@
 // app/components/AnnouncementBar.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import { useLanguage } from "@/app/context/LanguageContext";
 import "./AnnouncementBar.css";
 
 export default function AnnouncementBar() {
+  const { language } = useLanguage();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [visible, setVisible] = useState(true);
-  const lastScrollY = useRef(0);
-  const ticking = useRef(false);
 
   const messages = [
     {
       icon: "🚚",
-      text: "FREE SHIPPING WORLDWIDE",
-      subtext: "",
+      textEn: "FREE SHIPPING WORLDWIDE",
+      textAr: "شحن مجاني حول العالم",
+      textDe: "KOSTENLOSER WELTWEITER VERSAND",
+      subtextEn: "",
+      subtextAr: "",
+      subtextDe: "",
     },
     {
       icon: "⚡",
-      text: "HURRY UP! LIMITED TIME OFFER",
-      subtext: "",
+      textEn: "HURRY UP! LIMITED TIME OFFER",
+      textAr: "اسرع! عرض لفترة محدودة",
+      textDe: "BEEILEN SIE SICH! BEFRISTETES ANGEBOT",
+      subtextEn: "",
+      subtextAr: "",
+      subtextDe: "",
     },
     {
       icon: "✨",
-      text: "LUXURY IN EVERY DETAIL",
-      subtext: "Premium quality guaranteed",
+      textEn: "LUXURY IN EVERY DETAIL",
+      textAr: "الفخامة في كل التفاصيل",
+      textDe: "LUXUS IN JEDEM DETAIL",
+      subtextEn: "Premium quality guaranteed",
+      subtextAr: "جودة ممتازة مضمونة",
+      subtextDe: "Premium Qualität garantiert",
     },
   ];
 
@@ -36,56 +47,46 @@ export default function AnnouncementBar() {
     return () => clearInterval(interval);
   }, [messages.length]);
 
-  // ── Scroll logic:
-  //    - At very top (scrollY <= 10) → always show
-  //    - Scrolling DOWN → hide announcement bar
-  //    - Scrolling UP → show announcement bar again
-  // ─────────────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const handleScroll = () => {
-      if (ticking.current) return;
-      ticking.current = true;
-
-      requestAnimationFrame(() => {
-        const currentY = window.scrollY;
-
-        if (currentY <= 10) {
-          // At top — always show
-          setVisible(true);
-        } else if (currentY > lastScrollY.current) {
-          // Scrolling DOWN — hide announcement
-          setVisible(false);
-        } else {
-          // Scrolling UP — show announcement
-          setVisible(true);
-        }
-
-        lastScrollY.current = currentY;
-        ticking.current = false;
-      });
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   const currentMessage = messages[currentIndex];
 
+  const getText = () => {
+    if (language === "ar") return currentMessage.textAr;
+    if (language === "de") return currentMessage.textDe;
+    return currentMessage.textEn;
+  };
+
+  const getSubtext = () => {
+    if (
+      !currentMessage.subtextEn &&
+      !currentMessage.subtextAr &&
+      !currentMessage.subtextDe
+    )
+      return null;
+    if (language === "ar") return currentMessage.subtextAr;
+    if (language === "de") return currentMessage.subtextDe;
+    return currentMessage.subtextEn;
+  };
+
+  const subtext = getSubtext();
+
   return (
-    <div
-      className={`announcement-bar${visible ? " announcement-visible" : " announcement-hidden"}`}
-      aria-hidden={!visible}
-    >
+    <div className="announcement-bar">
+      {/* RED shimmer line */}
+      <div className="red-shimmer" aria-hidden="true" />
+
+      {/* Ambient glow */}
+      <div className="announcement-glow" aria-hidden="true" />
+
+      {/* Corner accents */}
+      <div className="corner-accent corner-accent--tl" aria-hidden="true" />
+      <div className="corner-accent corner-accent--tr" aria-hidden="true" />
+
       <div className="announcement-container">
         <div className="announcement-content">
           <span className="announcement-icon">{currentMessage.icon}</span>
           <div className="announcement-text-wrapper">
-            <span className="announcement-text">{currentMessage.text}</span>
-            {currentMessage.subtext && (
-              <span className="announcement-subtext">
-                {currentMessage.subtext}
-              </span>
-            )}
+            <span className="announcement-text">{getText()}</span>
+            {subtext && <span className="announcement-subtext">{subtext}</span>}
           </div>
         </div>
       </div>

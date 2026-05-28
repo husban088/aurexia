@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation, Pagination } from "swiper/modules";
 import { useLanguage } from "@/app/context/LanguageContext";
@@ -33,6 +33,7 @@ const t = {
   badges: [
     {
       icon: "shipping",
+      num: "01",
       titleEn: "Free Worldwide Shipping",
       titleAr: "شحن مجاني حول العالم",
       titleDe: "Kostenloser Weltweiter Versand",
@@ -45,6 +46,7 @@ const t = {
     },
     {
       icon: "secure",
+      num: "02",
       titleEn: "Secure Payments",
       titleAr: "مدفوعات آمنة",
       titleDe: "Sichere Zahlungen",
@@ -57,6 +59,7 @@ const t = {
     },
     {
       icon: "support",
+      num: "03",
       titleEn: "24/7 Concierge Support",
       titleAr: "دعم كونسيرج على مدار الساعة",
       titleDe: "24/7 Concierge-Support",
@@ -69,6 +72,7 @@ const t = {
     },
     {
       icon: "guarantee",
+      num: "04",
       titleEn: "100% Money-Back Guarantee",
       titleAr: "ضمان استعادة الأموال بنسبة 100%",
       titleDe: "100% Geld-zurück-Garantie",
@@ -81,6 +85,7 @@ const t = {
     },
     {
       icon: "authentic",
+      num: "05",
       titleEn: "100% Authentic",
       titleAr: "أصلي 100%",
       titleDe: "100% Authentisch",
@@ -91,6 +96,7 @@ const t = {
     },
     {
       icon: "returns",
+      num: "06",
       titleEn: "Easy Returns",
       titleAr: "إرجاع سهل",
       titleDe: "Einfache Rückgaben",
@@ -104,7 +110,7 @@ const t = {
 };
 
 /* ═══════════════════════════════════════════
-   SVG ICONS
+   SVG ICONS - White color
 ═══════════════════════════════════════════ */
 function BadgeIcon({ name }: { name: string }) {
   switch (name) {
@@ -114,7 +120,7 @@ function BadgeIcon({ name }: { name: string }) {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.5"
+          strokeWidth="1.8"
         >
           <rect x="1" y="3" width="15" height="13" rx="1" />
           <path d="M16 8h4l3 5v3h-7V8z" />
@@ -128,7 +134,7 @@ function BadgeIcon({ name }: { name: string }) {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.5"
+          strokeWidth="1.8"
         >
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           <path d="M9 12l2 2 4-4" />
@@ -140,7 +146,7 @@ function BadgeIcon({ name }: { name: string }) {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.5"
+          strokeWidth="1.8"
         >
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           <path d="M8 10h8M8 14h5" />
@@ -152,7 +158,7 @@ function BadgeIcon({ name }: { name: string }) {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.5"
+          strokeWidth="1.8"
         >
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
           <polyline points="22 4 12 14.01 9 11.01" />
@@ -164,7 +170,7 @@ function BadgeIcon({ name }: { name: string }) {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.5"
+          strokeWidth="1.8"
         >
           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26" />
         </svg>
@@ -175,7 +181,7 @@ function BadgeIcon({ name }: { name: string }) {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.5"
+          strokeWidth="1.8"
         >
           <path d="M3 10h13a5 5 0 0 1 0 10h-4" />
           <polyline points="8 15 3 10 8 5" />
@@ -193,20 +199,52 @@ export default function TrustBadgesSection() {
   const { language, isRTLMode } = useLanguage();
   const lang = language as "en" | "ar" | "de";
   const swiperRef = useRef<any>(null);
-
+  const sectionRef = useRef<HTMLElement | null>(null);
   const isRTL = isRTLMode;
 
+  // Scroll reveal animation
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const cards =
+            entry.target.querySelectorAll<HTMLElement>(".tbs-card-inner");
+          cards.forEach((card) => {
+            if (entry.isIntersecting) card.classList.add("tbs-visible");
+            else card.classList.remove("tbs-visible");
+          });
+        });
+      },
+      { threshold: 0.15 },
+    );
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <section className="tbs-root" dir={isRTL ? "rtl" : "ltr"}>
+    <section ref={sectionRef} className="tbs-root" dir={isRTL ? "rtl" : "ltr"}>
+      {/* Fine grid texture - Red tint */}
+      <div className="tbs-texture" aria-hidden="true" />
+
+      {/* Top fade - Red gradient */}
+      <div className="tbs-top-fade" aria-hidden="true" />
+
+      {/* Ambient Glow - Red glow */}
       <div className="tbs-ambient" aria-hidden="true" />
-      <div className="tbs-grain" aria-hidden="true" />
 
       <div className="tbs-container">
-        {/* Header Section */}
+        {/* Header Section - Black + Red Gradient similar to QuickHighlights */}
         <div className="tbs-header">
+          <div className="tbs-eyebrow-row">
+            <span className="tbs-eyebrow">Why Choose Us</span>
+            <div className="tbs-eyebrow-line" />
+          </div>
           <h2 className="tbs-title">
-            {t.title[lang]} <em>{t.titleEm[lang]}</em>
+            Shop with <span className="tbs-title-gradient">Confidence</span>
           </h2>
+          <div className="tbs-accent-bar" />
           <p className="tbs-subtitle">{t.subtitle[lang]}</p>
         </div>
 
@@ -215,12 +253,16 @@ export default function TrustBadgesSection() {
           <div className="tbs-nav-buttons">
             <button className="tbs-nav-prev" aria-label="Previous">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="15 18 9 12 15 6" />
+                <polyline
+                  points={isRTL ? "9 18 15 12 9 6" : "15 18 9 12 15 6"}
+                />
               </svg>
             </button>
             <button className="tbs-nav-next" aria-label="Next">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="9 18 15 12 9 6" />
+                <polyline
+                  points={isRTL ? "15 18 9 12 15 6" : "9 18 15 12 9 6"}
+                />
               </svg>
             </button>
           </div>
@@ -266,34 +308,59 @@ export default function TrustBadgesSection() {
               },
             }}
           >
-            {t.badges.map((badge, idx) => (
-              <SwiperSlide key={idx}>
-                <div className="tbs-card">
-                  <div className="tbs-card-inner">
-                    <div className="tbs-card-glow" aria-hidden="true" />
-                    <div className="tbs-icon-wrap">
-                      <BadgeIcon name={badge.icon} />
+            {t.badges.map((badge, idx) => {
+              return (
+                <SwiperSlide key={idx}>
+                  <div className="tbs-card">
+                    <div
+                      className="tbs-card-inner"
+                      style={
+                        { "--delay": `${idx * 0.1}s` } as React.CSSProperties
+                      }
+                    >
+                      {/* Number watermark - Red gradient */}
+                      <span className="tbs-watermark">{badge.num}</span>
+
+                      {/* Icon with Red + Black gradient background (like QuickHighlights) */}
+                      <div className="tbs-icon-wrap tbs-icon-gradient">
+                        <BadgeIcon name={badge.icon} />
+                        <div className="tbs-icon-ring" />
+                      </div>
+
+                      {/* Title - Black with Red hover */}
+                      <h3 className="tbs-card-title">
+                        {lang === "en"
+                          ? badge.titleEn
+                          : lang === "ar"
+                            ? badge.titleAr
+                            : badge.titleDe}
+                      </h3>
+
+                      {/* Description */}
+                      <p className="tbs-card-desc">
+                        {lang === "en"
+                          ? badge.descEn
+                          : lang === "ar"
+                            ? badge.descAr
+                            : badge.descDe}
+                      </p>
+
+                      {/* Decorative line - Red gradient */}
+                      <div className="tbs-line tbs-line-gradient" />
+
+                      {/* Shine sweep */}
+                      <div className="tbs-shine" aria-hidden="true" />
+
+                      {/* Bottom accent bar - Red gradient */}
+                      <div className="tbs-bottom-bar tbs-bottom-gradient" />
+
+                      {/* Hover glow overlay - Red glow */}
+                      <div className="tbs-glow-overlay" aria-hidden="true" />
                     </div>
-                    <h3 className="tbs-card-title">
-                      {lang === "en"
-                        ? badge.titleEn
-                        : lang === "ar"
-                          ? badge.titleAr
-                          : badge.titleDe}
-                    </h3>
-                    <p className="tbs-card-desc">
-                      {lang === "en"
-                        ? badge.descEn
-                        : lang === "ar"
-                          ? badge.descAr
-                          : badge.descDe}
-                    </p>
-                    <div className="tbs-card-shimmer" aria-hidden="true" />
-                    <div className="tbs-card-bar" aria-hidden="true" />
                   </div>
-                </div>
-              </SwiperSlide>
-            ))}
+                </SwiperSlide>
+              );
+            })}
           </Swiper>
 
           <div className="tbs-pagination" />

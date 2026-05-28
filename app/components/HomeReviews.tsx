@@ -22,7 +22,7 @@ interface HomeReview {
 let cachedReviews: HomeReview[] | null = null;
 let fetchPromise: Promise<void> | null = null;
 
-// ── Stars Component ─────────────────────────────────────────────────────
+// ── Stars Component - YELLOW COLOR ─────────────────────────────────────
 function StarDisplay({ rating }: { rating: number }) {
   return (
     <div className="hr-stars">
@@ -32,7 +32,13 @@ function StarDisplay({ rating }: { rating: number }) {
           className={`hr-star${i <= Math.round(rating) ? " hr-star--filled" : ""}`}
           viewBox="0 0 24 24"
         >
-          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+          <polygon
+            points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+            fill={i <= Math.round(rating) ? "#fbbf24" : "none"}
+            stroke="#fbbf24"
+            strokeWidth="1.5"
+            opacity={i <= Math.round(rating) ? 1 : 0.35}
+          />
         </svg>
       ))}
     </div>
@@ -353,11 +359,10 @@ export default function HomeReviews() {
         <div className="hr-bg-grid" />
         <div className="hr-content">
           <div className="hr-header">
-            <p className="hr-eyebrow">
-              <span className="hr-eye-line" />
-              Customer Voices
-              <span className="hr-eye-line" />
-            </p>
+            <div className="hr-eyebrow-row">
+              <span className="hr-eyebrow">Customer Voices</span>
+              <div className="hr-eyebrow-line" />
+            </div>
             <h2 className="hr-title">
               What Our Customers <em>Say</em>
             </h2>
@@ -376,15 +381,15 @@ export default function HomeReviews() {
 
   return (
     <section className="hr-section" dir={isRTLMode ? "rtl" : "ltr"}>
-      {/* Background Orbs */}
+      {/* Background Orbs - Red */}
       <div className="hr-bg-orb hr-bg-orb--1" />
       <div className="hr-bg-orb hr-bg-orb--2" />
       <div className="hr-bg-orb hr-bg-orb--3" />
 
-      {/* Grid Pattern */}
+      {/* Grid Pattern - Red tint */}
       <div className="hr-bg-grid" />
 
-      {/* Decorative Lines */}
+      {/* Decorative Lines - Red tint */}
       <div className="hr-bg-lines">
         <span />
         <span />
@@ -393,7 +398,7 @@ export default function HomeReviews() {
         <span />
       </div>
 
-      {/* Sparkles */}
+      {/* Sparkles - Red */}
       <div className="hr-sparkle hr-sparkle--1" />
       <div className="hr-sparkle hr-sparkle--2" />
       <div className="hr-sparkle hr-sparkle--3" />
@@ -403,14 +408,14 @@ export default function HomeReviews() {
 
       <div className="hr-content">
         <div className="hr-header">
-          <p className="hr-eyebrow">
-            <span className="hr-eye-line" />
-            Customer Voices
-            <span className="hr-eye-line" />
-          </p>
+          <div className="hr-eyebrow-row">
+            <span className="hr-eyebrow">Customer Voices</span>
+            <div className="hr-eyebrow-line" />
+          </div>
           <h2 className="hr-title">
             What Our Customers <em>Say</em>
           </h2>
+          <div className="hr-accent-bar" />
           <p className="hr-subtitle">
             Real experiences from people who love what they bought
           </p>
@@ -455,7 +460,9 @@ export default function HomeReviews() {
                 stroke="currentColor"
                 strokeWidth="2.2"
               >
-                <polyline points="15 18 9 12 15 6" />
+                <polyline
+                  points={isRTLMode ? "9 18 15 12 9 6" : "15 18 9 12 15 6"}
+                />
               </svg>
             </button>
           )}
@@ -480,7 +487,9 @@ export default function HomeReviews() {
                 stroke="currentColor"
                 strokeWidth="2.2"
               >
-                <polyline points="9 18 15 12 9 6" />
+                <polyline
+                  points={isRTLMode ? "15 18 9 12 15 6" : "9 18 15 12 9 6"}
+                />
               </svg>
             </button>
           )}

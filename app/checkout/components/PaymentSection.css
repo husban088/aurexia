@@ -1,4 +1,4 @@
-/* PaymentSection.css — BLACK & AQUA THEME matching signin.css */
+/* PaymentSection.css — WHITE BACKGROUND | BLACK TEXT | RED GRADIENTS */
 
 .ps-payment-section {
   display: flex;
@@ -21,15 +21,14 @@
 .ps-section-title {
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.4rem;
-  font-weight: 500;
-  color: #e6f7ff;
+  font-weight: 600;
+  color: #0f172a;
   margin: 0;
-  text-shadow: 0 2px 8px rgba(0, 255, 255, 0.15);
 }
 
 .ps-section-title em {
   font-style: italic;
-  background: linear-gradient(135deg, #0ff, #66ffff);
+  background: linear-gradient(180deg, #dc2626 0%, #ef4444 50%, #0f172a 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -39,8 +38,8 @@
 /* Card Preview */
 .ps-card-preview {
   position: relative;
-  background: linear-gradient(135deg, #0a1a1f 0%, #0a1f2a 50%, #0a2535 100%);
-  border: 1px solid rgba(0, 255, 255, 0.2);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid rgba(220, 38, 38, 0.2);
   border-radius: 16px;
   padding: 1.75rem;
   min-height: 140px;
@@ -56,7 +55,7 @@
   inset: 0;
   background: radial-gradient(
     circle at 30% 50%,
-    rgba(0, 255, 255, 0.05) 0%,
+    rgba(220, 38, 38, 0.05) 0%,
     transparent 60%
   );
   pointer-events: none;
@@ -66,8 +65,8 @@
   width: 36px;
   height: 28px;
   border-radius: 4px;
-  background: linear-gradient(135deg, #0ff, #66ffff);
-  border: 1px solid rgba(0, 255, 255, 0.3);
+  background: linear-gradient(180deg, #dc2626, #ef4444);
+  border: 1px solid rgba(220, 38, 38, 0.3);
   opacity: 0.8;
 }
 
@@ -75,7 +74,7 @@
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.1rem;
   font-weight: 500;
-  color: #e6f7ff;
+  color: #0f172a;
   margin: 0.75rem 0 0;
   letter-spacing: 0.15em;
 }
@@ -92,7 +91,7 @@
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.15em;
-  color: #0ff;
+  color: #dc2626;
   text-transform: uppercase;
 }
 
@@ -101,7 +100,7 @@
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.1em;
-  color: #88bbcc;
+  color: #64748b;
 }
 
 .ps-card-brand {
@@ -111,7 +110,7 @@
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 1rem;
   font-style: italic;
-  color: rgba(0, 255, 255, 0.35);
+  color: rgba(220, 38, 38, 0.35);
   letter-spacing: 0.05em;
 }
 
@@ -140,13 +139,13 @@
   font-weight: 600;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: #88bbcc;
+  color: #64748b;
   transition: color 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .ps-field--focused .ps-label,
 .ps-field--filled .ps-label {
-  color: #0ff;
+  color: #dc2626;
 }
 
 .ps-input-wrap {
@@ -163,17 +162,18 @@
   font-size: 0.8rem;
   font-weight: 400;
   letter-spacing: 0.05em;
-  color: #e6f7ff;
-  caret-color: #0ff;
+  color: #0f172a;
+  caret-color: #dc2626;
 }
 
 .ps-input::placeholder {
-  color: rgba(136, 187, 204, 0.5);
+  color: #94a3b8;
+  opacity: 0.5;
 }
 
 .ps-field-line {
   height: 1px;
-  background: rgba(0, 255, 255, 0.15);
+  background: rgba(220, 38, 38, 0.15);
   position: relative;
   overflow: hidden;
 }
@@ -185,7 +185,7 @@
   top: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, #0ff, #66ffff);
+  background: linear-gradient(90deg, #dc2626, #ef4444);
   transition: left 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -217,12 +217,12 @@
   font-size: 0.62rem;
   font-weight: 400;
   letter-spacing: 0.06em;
-  color: #66aacc;
+  color: #64748b;
 }
 
 .ps-secure-note svg {
   flex-shrink: 0;
-  color: #0ff;
+  color: #dc2626;
   opacity: 0.6;
 }
 
@@ -248,12 +248,12 @@
   gap: 0.75rem;
   padding: 1rem;
   background: transparent;
-  border: 1px solid rgba(0, 255, 255, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.15);
   border-radius: 12px;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.8rem;
   font-weight: 500;
-  color: #88bbcc;
+  color: #64748b;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -263,29 +263,29 @@
 }
 
 .ps-method-btn--active {
-  border-color: #0ff;
-  background: rgba(0, 255, 255, 0.08);
-  color: #0ff;
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
 }
 
 .ps-method-btn--active svg {
   opacity: 1;
-  color: #0ff;
+  color: #dc2626;
 }
 
 .ps-method-btn:hover {
-  border-color: rgba(0, 255, 255, 0.5);
+  border-color: rgba(220, 38, 38, 0.4);
   transform: translateY(-1px);
-  background: rgba(0, 255, 255, 0.05);
+  background: rgba(220, 38, 38, 0.05);
 }
 
 /* Stripe Container */
 .ps-stripe-container {
   margin-top: 1rem;
   padding: 1rem;
-  background: rgba(10, 26, 31, 0.7);
+  background: #ffffff;
   border-radius: 12px;
-  border: 1px solid rgba(0, 255, 255, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.12);
 }
 
 .ps-stripe-container .sp-stripe-form {
@@ -299,11 +299,11 @@
 }
 
 .ps-stripe-container .sp-pay-button {
-  background: linear-gradient(135deg, #0ff, #66ffff);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   border: none;
   border-radius: 40px;
   padding: 0.85rem 2rem;
-  color: #0a0f1a;
+  color: #ffffff;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.68rem;
   font-weight: 700;
@@ -315,10 +315,10 @@
 
 .ps-stripe-container .sp-pay-button:hover:not(:disabled) {
   background: transparent;
-  color: #0ff;
-  border: 1px solid #0ff;
+  color: #dc2626;
+  border: 1px solid #dc2626;
   transform: translateY(-2px);
-  box-shadow: 0 10px 35px rgba(0, 255, 255, 0.25);
+  box-shadow: 0 10px 35px rgba(220, 38, 38, 0.15);
 }
 
 .ps-stripe-container .sp-pay-button:disabled {
@@ -340,8 +340,8 @@
 .sp-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(0, 255, 255, 0.2);
-  border-top-color: #0ff;
+  border: 2px solid rgba(220, 38, 38, 0.2);
+  border-top-color: #dc2626;
   border-radius: 50%;
   animation: co-spin 0.8s linear infinite;
   display: inline-block;
@@ -352,9 +352,9 @@
 .ps-paypal-container {
   margin-top: 1rem;
   padding: 1rem;
-  background: rgba(10, 26, 31, 0.7);
+  background: #ffffff;
   border-radius: 12px;
-  border: 1px solid rgba(0, 255, 255, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.12);
 }
 
 /* Loading state */
@@ -365,7 +365,7 @@
   gap: 1rem;
   padding: 2rem;
   text-align: center;
-  color: #66aacc;
+  color: #64748b;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.75rem;
 }
@@ -377,15 +377,15 @@
   gap: 0.5rem;
   margin-top: 1rem;
   padding: 0.6rem;
-  background: rgba(0, 255, 255, 0.05);
+  background: rgba(220, 38, 38, 0.05);
   border-radius: 30px;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   letter-spacing: 0.05em;
-  color: #66aacc;
+  color: #64748b;
 }
 
 .ps-paypal-currency-info svg {
   flex-shrink: 0;
-  color: #0ff;
+  color: #dc2626;
 }

@@ -1,39 +1,41 @@
 /* ============================================================
    PROFILE PAGE  ·  profile.css
-   BLACK & AQUA GRADIENT THEME
-   Matching Navbar & Explore Aurexia
+   WHITE BACKGROUND | BLACK TEXT | TOP RED → BOTTOM BLACK GRADIENT
+   Matching Explore Aurexia and Contact Page style
    ============================================================ */
 
 @import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 :root {
-  --pf-aqua: #0ff;
-  --pf-aqua-dark: #00cccc;
-  --pf-aqua-deep: #0088aa;
-  --pf-aqua-light: #66ffff;
-  --pf-aqua-soft: rgba(0, 255, 255, 0.12);
-  --pf-bg: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
-  --pf-bg-light: #0a1a1f;
-  --pf-card-bg: #0a1f2a;
-  --pf-card-hover: #0a252f;
-  --pf-border: rgba(0, 255, 255, 0.18);
-  --pf-border-hover: rgba(0, 255, 255, 0.35);
-  --pf-text-dark: #e6f7ff;
-  --pf-text-muted: #bbd4e5;
-  --pf-text-light: #88bbcc;
-  --pf-text-grey: #88bbcc;
-  --pf-text-aqua: #0ff;
+  --pf-red: #dc2626;
+  --pf-red-dark: #b91c1c;
+  --pf-red-deep: #991b1b;
+  --pf-red-light: #ef4444;
+  --pf-black: #0f172a;
+  --pf-black-soft: #1e293b;
+  --pf-red-soft: rgba(220, 38, 38, 0.08);
+  --pf-bg: #ffffff;
+  --pf-bg-light: #f8fafc;
+  --pf-card-bg: #ffffff;
+  --pf-card-hover: #f8fafc;
+  --pf-border: rgba(220, 38, 38, 0.18);
+  --pf-border-hover: rgba(220, 38, 38, 0.35);
+  --pf-text-dark: #0f172a;
+  --pf-text-muted: #475569;
+  --pf-text-light: #64748b;
+  --pf-text-grey: #64748b;
+  --pf-text-red: #dc2626;
   --pf-serif: "Goldman", system-ui, sans-serif;
   --pf-sans: "Goldman", system-ui, sans-serif;
   --pf-ease: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
   --pf-error: #ff6b6b;
-  --pf-success: #0ff;
+  --pf-success: #dc2626;
 }
 
 /* ── Loading ── */
 .pf-loading {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
+  background: #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -43,15 +45,15 @@
 .pf-loading-ring {
   width: 60px;
   height: 60px;
-  border: 1px solid rgba(0, 255, 255, 0.2);
-  border-top-color: #0ff;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-top-color: #dc2626;
   border-radius: 50%;
   animation: pf-spin 1.2s linear infinite;
 }
 .pf-loading-inner {
   position: absolute;
   inset: 8px;
-  border: 1px solid rgba(0, 255, 255, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.1);
   border-radius: 50%;
 }
 .pf-loading-text {
@@ -60,7 +62,7 @@
   font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: #88bbcc;
+  color: #64748b;
   margin: 0;
 }
 
@@ -69,7 +71,7 @@
   position: relative;
   min-height: 100vh;
   width: 100%;
-  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
+  background: #ffffff;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -78,14 +80,58 @@
   isolation: isolate;
 }
 
+/* Fine grid texture - Red + Black Mixed (like Explore Aurexia) */
 .pf-grain {
   position: absolute;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(220, 38, 38, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
   pointer-events: none;
   z-index: 0;
 }
+
+/* Ambient Glow - Mixed */
+.pf-ambient {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 800px;
+  height: 600px;
+  background: radial-gradient(
+    circle,
+    rgba(220, 38, 38, 0.04) 0%,
+    rgba(15, 23, 42, 0.02) 40%,
+    transparent 80%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Top Border Line - RED + BLACK */
+.pf-root::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(700px, 90%);
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(220, 38, 38, 0.5),
+    rgba(15, 23, 42, 0.2),
+    rgba(220, 38, 38, 0.5),
+    transparent
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Background Lines */
 .pf-bg-lines {
   position: absolute;
   inset: 0;
@@ -100,11 +146,13 @@
   background: linear-gradient(
     to bottom,
     transparent 0%,
-    rgba(0, 255, 255, 0.08) 30%,
-    rgba(0, 255, 255, 0.08) 70%,
+    rgba(220, 38, 38, 0.06) 30%,
+    rgba(15, 23, 42, 0.03) 70%,
     transparent 100%
   );
 }
+
+/* Corner accents - RED */
 .pf-corner {
   position: absolute;
   width: 32px;
@@ -115,26 +163,26 @@
 .pf-corner--tl {
   top: 1.5rem;
   left: 1.5rem;
-  border-top: 1px solid rgba(0, 255, 255, 0.4);
-  border-left: 1px solid rgba(0, 255, 255, 0.4);
+  border-top: 1px solid rgba(220, 38, 38, 0.4);
+  border-left: 1px solid rgba(220, 38, 38, 0.4);
 }
 .pf-corner--tr {
   top: 1.5rem;
   right: 1.5rem;
-  border-top: 1px solid rgba(0, 255, 255, 0.4);
-  border-right: 1px solid rgba(0, 255, 255, 0.4);
+  border-top: 1px solid rgba(220, 38, 38, 0.4);
+  border-right: 1px solid rgba(220, 38, 38, 0.4);
 }
 .pf-corner--bl {
   bottom: 1.5rem;
   left: 1.5rem;
-  border-bottom: 1px solid rgba(0, 255, 255, 0.4);
-  border-left: 1px solid rgba(0, 255, 255, 0.4);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.4);
+  border-left: 1px solid rgba(220, 38, 38, 0.4);
 }
 .pf-corner--br {
   bottom: 1.5rem;
   right: 1.5rem;
-  border-bottom: 1px solid rgba(0, 255, 255, 0.4);
-  border-right: 1px solid rgba(0, 255, 255, 0.4);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.4);
+  border-right: 1px solid rgba(220, 38, 38, 0.4);
 }
 
 /* ── Layout ── */
@@ -146,18 +194,17 @@
   display: grid;
   grid-template-columns: 280px 1fr;
   gap: 0;
-  border: 1px solid rgba(0, 255, 255, 0.2);
+  border: 1px solid rgba(220, 38, 38, 0.2);
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
-  background: rgba(10, 26, 31, 0.9);
-  backdrop-filter: blur(4px);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.05);
+  background: #ffffff;
 }
 
 /* ── Aside ── */
 .pf-aside {
-  background: linear-gradient(135deg, #0a1a1f 0%, #0a1f2a 100%);
-  border-right: 1px solid rgba(0, 255, 255, 0.18);
+  background: #f8fafc;
+  border-right: 1px solid rgba(220, 38, 38, 0.15);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -176,13 +223,13 @@
   height: 300px;
   background: radial-gradient(
     circle,
-    rgba(0, 255, 255, 0.08) 0%,
+    rgba(220, 38, 38, 0.04) 0%,
     transparent 70%
   );
   pointer-events: none;
 }
 
-/* Avatar - Aqua */
+/* Avatar - RED gradient */
 .pf-avatar-wrap {
   position: relative;
   display: flex;
@@ -195,7 +242,7 @@
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(0, 255, 255, 0.15) 0%,
+    rgba(220, 38, 38, 0.1) 0%,
     transparent 70%
   );
   animation: pf-pulse 3s ease-in-out infinite;
@@ -215,21 +262,21 @@
 .pf-avatar-ring {
   width: 100px;
   height: 100px;
-  border: 1px solid rgba(0, 255, 255, 0.3);
+  border: 1px solid rgba(220, 38, 38, 0.25);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  background: rgba(10, 26, 31, 0.9);
-  box-shadow: 0 4px 15px rgba(0, 255, 255, 0.15);
+  background: #ffffff;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 .pf-avatar {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0ff 0%, #00cccc 100%);
-  border: 2px solid #0ff;
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
+  border: 2px solid #dc2626;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -238,7 +285,7 @@
   font-family: var(--pf-serif);
   font-size: 1.8rem;
   font-weight: 500;
-  color: #0a0f1a;
+  color: #ffffff;
   letter-spacing: 0.05em;
 }
 
@@ -260,38 +307,37 @@
   font-weight: 700;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: #66ffff;
+  color: #dc2626;
   margin: 0;
 }
 .pf-ey-line {
   display: block;
   width: 20px;
   height: 1px;
-  background: #0ff;
+  background: #dc2626;
   opacity: 0.6;
 }
 .pf-aside-name {
   font-family: var(--pf-serif);
   font-size: 1.5rem;
-  font-weight: 500;
-  color: #e6f7ff;
+  font-weight: 600;
+  color: #0f172a;
   letter-spacing: 0.06em;
   margin: 0.2rem 0 0;
-  text-shadow: 0 2px 8px rgba(0, 255, 255, 0.15);
 }
 .pf-aside-email {
   font-family: var(--pf-sans);
   font-size: 0.65rem;
   font-weight: 500;
   letter-spacing: 0.05em;
-  color: #88bbcc;
+  color: #64748b;
   margin: 0;
   word-break: break-all;
 }
 .pf-aside-divider {
   width: 40px;
   height: 1px;
-  background: #0ff;
+  background: #dc2626;
   opacity: 0.6;
   margin: 0.5rem auto;
 }
@@ -300,11 +346,12 @@
   flex-direction: column;
   gap: 0.7rem;
   width: 100%;
-  background: rgba(10, 26, 31, 0.8);
-  border: 1px solid rgba(0, 255, 255, 0.2);
+  background: #ffffff;
+  border: 1px solid rgba(220, 38, 38, 0.15);
   border-radius: 12px;
   padding: 1rem;
   margin-top: 0.2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 .pf-meta-item {
   display: flex;
@@ -317,27 +364,27 @@
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: #88bbcc;
+  color: #64748b;
 }
 .pf-meta-value {
   font-family: var(--pf-sans);
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.05em;
-  color: #e6f7ff;
+  color: #0f172a;
   display: flex;
   align-items: center;
   gap: 0.35rem;
 }
 .pf-meta-active {
-  color: #0ff;
+  color: #dc2626;
 }
 .pf-dot {
   width: 7px;
   height: 7px;
-  background: #0ff;
+  background: #dc2626;
   border-radius: 50%;
-  box-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
+  box-shadow: 0 0 6px rgba(220, 38, 38, 0.3);
   animation: pf-blink 2s ease-in-out infinite;
 }
 @keyframes pf-blink {
@@ -350,15 +397,15 @@
   }
 }
 
-/* Sign out button - Aqua */
+/* Sign out button - RED */
 .pf-signout-btn {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.7rem 1.2rem;
   background: transparent;
-  border: 1px solid rgba(255, 107, 107, 0.3);
-  color: #ff6b6b;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  color: #dc2626;
   font-family: var(--pf-sans);
   font-size: 0.65rem;
   font-weight: 600;
@@ -368,6 +415,7 @@
   border-radius: 30px;
   transition: all var(--pf-ease);
   margin-top: auto;
+  background: #ffffff;
 }
 .pf-signout-btn svg {
   width: 14px;
@@ -375,9 +423,9 @@
   transition: transform var(--pf-ease);
 }
 .pf-signout-btn:hover {
-  background: rgba(255, 107, 107, 0.1);
-  color: #ff6b6b;
-  border-color: rgba(255, 107, 107, 0.6);
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+  border-color: #dc2626;
   transform: translateX(3px);
 }
 .pf-signout-btn:hover svg {
@@ -386,7 +434,7 @@
 
 /* ── Main ── */
 .pf-main {
-  background: rgba(10, 26, 31, 0.7);
+  background: #ffffff;
   display: flex;
   flex-direction: column;
   padding: 3rem 2.5rem;
@@ -407,21 +455,20 @@
   font-weight: 700;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: #66ffff;
+  color: #dc2626;
   margin: 0;
 }
 .pf-main-title {
   font-family: var(--pf-serif);
   font-size: clamp(1.6rem, 2.5vw, 2.2rem);
-  font-weight: 500;
-  color: #e6f7ff;
+  font-weight: 600;
+  color: #0f172a;
   line-height: 1.05;
   margin: 0;
-  text-shadow: 0 2px 8px rgba(0, 255, 255, 0.15);
 }
 .pf-main-title em {
   font-style: italic;
-  background: linear-gradient(135deg, #0ff, #66ffff);
+  background: linear-gradient(180deg, #dc2626 0%, #ef4444 50%, #0f172a 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -431,15 +478,15 @@
   font-size: 0.7rem;
   font-weight: 500;
   letter-spacing: 0.05em;
-  color: #88bbcc;
+  color: #64748b;
   margin: 0;
 }
 
-/* Tabs - Aqua */
+/* Tabs - RED */
 .pf-tabs {
   display: flex;
   gap: 0;
-  border-bottom: 1px solid rgba(0, 255, 255, 0.18);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.15);
   margin-bottom: 2rem;
 }
 .pf-tab {
@@ -455,7 +502,7 @@
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: #88bbcc;
+  color: #64748b;
   cursor: pointer;
   margin-bottom: -1px;
   transition: all var(--pf-ease);
@@ -464,23 +511,23 @@
   width: 14px;
   height: 14px;
   transition: color var(--pf-ease);
-  stroke: #88bbcc;
+  stroke: #64748b;
 }
 .pf-tab:hover {
-  color: #0ff;
+  color: #dc2626;
 }
 .pf-tab:hover svg {
-  stroke: #0ff;
+  stroke: #dc2626;
 }
 .pf-tab--active {
-  color: #0ff;
-  border-bottom-color: #0ff;
+  color: #dc2626;
+  border-bottom-color: #dc2626;
 }
 .pf-tab--active svg {
-  stroke: #0ff;
+  stroke: #dc2626;
 }
 
-/* Alerts - Aqua */
+/* Alerts - RED */
 .pf-alert {
   display: flex;
   align-items: center;
@@ -499,12 +546,12 @@
   color: #ff6b6b;
 }
 .pf-alert--success {
-  background: rgba(0, 255, 255, 0.08);
-  border: 1px solid rgba(0, 255, 255, 0.25);
-  color: #0ff;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  color: #dc2626;
 }
 .pf-alert--success svg {
-  stroke: #0ff;
+  stroke: #dc2626;
 }
 
 /* Form */
@@ -523,7 +570,7 @@
   grid-template-columns: 1fr;
 }
 
-/* Fields - Aqua */
+/* Fields - RED */
 .pf-field {
   position: relative;
   display: flex;
@@ -536,13 +583,13 @@
   font-weight: 700;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: #88bbcc;
+  color: #64748b;
   transition: color var(--pf-ease);
   cursor: pointer;
 }
 .pf-field--focused .pf-label,
 .pf-field--filled .pf-label {
-  color: #0ff;
+  color: #dc2626;
 }
 .pf-input-wrap {
   position: relative;
@@ -556,7 +603,7 @@
   transform: translateY(-50%);
   width: 16px;
   height: 16px;
-  color: #88bbcc;
+  color: #94a3b8;
   transition: color var(--pf-ease);
   pointer-events: none;
 }
@@ -567,7 +614,7 @@
 }
 .pf-field--focused .pf-input-icon,
 .pf-field--filled .pf-input-icon {
-  color: #0ff;
+  color: #dc2626;
 }
 .pf-input {
   width: 100%;
@@ -579,11 +626,11 @@
   font-size: 0.85rem;
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: #e6f7ff;
-  caret-color: #0ff;
+  color: #0f172a;
+  caret-color: #dc2626;
 }
 .pf-input::placeholder {
-  color: #88bbcc;
+  color: #94a3b8;
   opacity: 0.5;
 }
 .pf-input:read-only {
@@ -591,7 +638,7 @@
 }
 .pf-field-line {
   height: 1px;
-  background: rgba(0, 255, 255, 0.15);
+  background: rgba(220, 38, 38, 0.15);
   position: relative;
   overflow: hidden;
 }
@@ -602,7 +649,7 @@
   top: 0;
   width: 100%;
   height: 100%;
-  background: #0ff;
+  background: #dc2626;
   transition: left var(--pf-ease);
 }
 .pf-field--focused .pf-field-line::after {
@@ -616,7 +663,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: #88bbcc;
+  color: #94a3b8;
   padding: 0;
   width: 18px;
   height: 18px;
@@ -626,7 +673,7 @@
   transition: color var(--pf-ease);
 }
 .pf-eye-btn:hover {
-  color: #0ff;
+  color: #dc2626;
 }
 .pf-eye-btn svg {
   width: 16px;
@@ -634,7 +681,7 @@
   stroke: currentColor;
 }
 
-/* Info note - Aqua */
+/* Info note - RED */
 .pf-form-info {
   display: flex;
   align-items: center;
@@ -643,15 +690,15 @@
   font-size: 0.62rem;
   font-weight: 500;
   letter-spacing: 0.03em;
-  color: #88bbcc;
+  color: #64748b;
   margin: 0.5rem 0 1.5rem;
 }
 .pf-form-info svg {
-  stroke: #0ff;
+  stroke: #dc2626;
   opacity: 0.7;
 }
 
-/* Save button - Aqua */
+/* Save button - RED gradient */
 .pf-save-btn {
   display: flex;
   align-items: center;
@@ -659,9 +706,9 @@
   gap: 0.6rem;
   align-self: flex-start;
   padding: 0.9rem 2rem;
-  background: linear-gradient(135deg, #0ff, #66ffff);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   border: 1px solid transparent;
-  color: #0a0f1a;
+  color: #ffffff;
   font-family: var(--pf-sans);
   font-size: 0.7rem;
   font-weight: 700;
@@ -681,35 +728,35 @@
   width: 14px;
   height: 14px;
   transition: transform var(--pf-ease);
-  stroke: #0a0f1a;
+  stroke: #ffffff;
 }
 .pf-save-btn:hover:not(:disabled) {
   background: transparent;
-  border-color: #0ff;
-  color: #0ff;
-  box-shadow: 0 8px 25px rgba(0, 255, 255, 0.25);
+  border-color: #dc2626;
+  color: #dc2626;
+  box-shadow: 0 8px 25px rgba(220, 38, 38, 0.15);
   transform: translateY(-2px);
   gap: 1rem;
 }
 .pf-save-btn:hover:not(:disabled) svg {
-  stroke: #0ff;
+  stroke: #dc2626;
   transform: translateX(4px);
 }
 
-/* Spinner - Aqua */
+/* Spinner - RED */
 .pf-spinner {
   display: inline-block;
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(10, 15, 26, 0.2);
-  border-top-color: #0a0f1a;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #ffffff;
   border-radius: 50%;
   animation: pf-spin 0.7s linear infinite;
   flex-shrink: 0;
 }
 .pf-spinner--red {
-  border-color: rgba(255, 107, 107, 0.2);
-  border-top-color: #ff6b6b;
+  border-color: rgba(220, 38, 38, 0.2);
+  border-top-color: #dc2626;
   width: 14px;
   height: 14px;
 }
@@ -784,25 +831,25 @@
   left: auto;
   right: 1.5rem;
   border-left: none;
-  border-right: 1px solid rgba(0, 255, 255, 0.4);
+  border-right: 1px solid rgba(220, 38, 38, 0.4);
 }
 [dir="rtl"] .pf-corner--tr {
   right: auto;
   left: 1.5rem;
   border-right: none;
-  border-left: 1px solid rgba(0, 255, 255, 0.4);
+  border-left: 1px solid rgba(220, 38, 38, 0.4);
 }
 [dir="rtl"] .pf-corner--bl {
   left: auto;
   right: 1.5rem;
   border-left: none;
-  border-right: 1px solid rgba(0, 255, 255, 0.4);
+  border-right: 1px solid rgba(220, 38, 38, 0.4);
 }
 [dir="rtl"] .pf-corner--br {
   right: auto;
   left: 1.5rem;
   border-right: none;
-  border-left: 1px solid rgba(0, 255, 255, 0.4);
+  border-left: 1px solid rgba(220, 38, 38, 0.4);
 }
 [dir="rtl"] .pf-input-icon {
   left: auto;

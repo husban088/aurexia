@@ -1,36 +1,36 @@
 /* =============================================
    NAVBAR CSS - TECH4U Luxury Store
-   BLACK & AQUA GRADIENT THEME | TEXT LOGO
-   Fully Responsive | Luxury Design | Smooth Animations
+   RED + BLACK MIXED GRADIENTS | WHITE BACKGROUND | BLACK TEXT
+   FULLY RESPONSIVE | FIXED POSITION (NO SCROLL MOVE)
    ============================================= */
 
 @import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 :root {
-  /* === BLACK & AQUA GRADIENT VARIABLES === */
+  /* === LIGHT THEME - BLACK & RED MIXED VARIABLES === */
   --nav-bg-gradient: linear-gradient(
     135deg,
-    #0a0f1a 0%,
-    #0a1a1f 50%,
-    #0a1f2a 100%
+    #ffffff 0%,
+    #f8fafc 50%,
+    #f1f5f9 100%
   );
   --nav-bg-scroll-gradient: linear-gradient(
     135deg,
-    rgba(10, 15, 26, 0.98) 0%,
-    rgba(10, 26, 31, 0.98) 50%,
-    rgba(10, 31, 42, 0.98) 100%
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(248, 250, 252, 0.98) 50%,
+    rgba(241, 245, 249, 0.98) 100%
   );
 
-  --nav-bg: #0a0f1a;
-  --nav-bg-scroll: rgba(10, 26, 31, 0.98);
-  --nav-border: rgba(0, 255, 255, 0.18);
-  --nav-gold: #0ff;
-  --nav-gold-light: #66ffff;
-  --nav-gold-dim: rgba(0, 255, 255, 0.08);
-  --nav-gold-deep: #00cccc;
-  --nav-white: #e6f7ff;
-  --nav-muted: #bbd4e5;
-  --nav-muted-light: #aaccee;
+  --nav-bg: #ffffff;
+  --nav-bg-scroll: rgba(248, 250, 252, 0.98);
+  --nav-border: rgba(220, 38, 38, 0.2);
+  --nav-red: #dc2626;
+  --nav-red-light: #ef4444;
+  --nav-red-dim: rgba(220, 38, 38, 0.08);
+  --nav-red-deep: #b91c1c;
+  --nav-black: #0f172a;
+  --nav-muted: #475569;
+  --nav-muted-light: #64748b;
   --nav-height: 70px;
   --nav-font-body: var(--font-goldman), "Goldman", system-ui, sans-serif;
   --nav-font-display: var(--font-goldman), "Goldman", system-ui, sans-serif;
@@ -49,22 +49,20 @@
          9999 — Lightbox
          ───────────────────────────────────────────────────────────── */
 
-/* Main Navbar — Gradient Background */
+/* Main Navbar — White/Light Background - RELATIVE inside fixed wrapper */
 .navbar {
   position: relative;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
-  border-bottom: 1px solid rgba(0, 255, 255, 0.18);
+  width: 100%;
+  z-index: 1;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.2);
   backdrop-filter: blur(0px);
   transition:
     background var(--transition),
     box-shadow var(--transition);
 }
 
-/* Top Aqua Glow Line */
+/* Top Red Glow Line */
 .navbar::before {
   content: "";
   position: absolute;
@@ -75,9 +73,9 @@
   background: linear-gradient(
     90deg,
     transparent,
-    #0ff,
-    #66ffff,
-    #0ff,
+    #dc2626,
+    #ef4444,
+    #dc2626,
     transparent
   );
   opacity: 0.5;
@@ -85,17 +83,18 @@
   z-index: 101;
 }
 
+/* Scrolled effect - subtle shadow */
 .navbar.scrolled {
   background: linear-gradient(
     135deg,
-    rgba(10, 15, 26, 0.98) 0%,
-    rgba(10, 26, 31, 0.98) 50%,
-    rgba(10, 31, 42, 0.98) 100%
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(248, 250, 252, 0.98) 50%,
+    rgba(241, 245, 249, 0.98) 100%
   );
   backdrop-filter: blur(12px);
   box-shadow:
-    0 4px 40px rgba(0, 0, 0, 0.3),
-    0 0 20px rgba(0, 255, 255, 0.1);
+    0 4px 40px rgba(0, 0, 0, 0.05),
+    0 0 20px rgba(220, 38, 38, 0.08);
 }
 
 .navbar.scrolled::after {
@@ -105,7 +104,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, #0ff, transparent);
+  background: linear-gradient(90deg, transparent, #dc2626, transparent);
   opacity: 0.3;
   pointer-events: none;
 }
@@ -154,51 +153,49 @@
   transform: scale(1.02);
 }
 
-/* TECH part of logo */
+/* TECH part of logo - Black with Red gradient */
 .logo-tech {
   font-family: var(--nav-font-tech);
   font-size: 1.9rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #e6f7ff 0%, #0ff 50%, #66ffff 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #dc2626 50%, #b91c1c 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   transition: all 0.4s ease;
-  text-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
   position: relative;
 }
 
 .navbar-logo:hover .logo-tech {
   background-position: 100% 0;
-  text-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
   letter-spacing: -0.01em;
 }
 
-/* 4 part of logo */
+/* 4 part of logo - Red pulse */
 .logo-four {
   font-family: var(--nav-font-tech);
   font-size: 1.9rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #0ff 0%, #66ffff 50%, #0ff 100%);
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #dc2626 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   transition: all 0.4s ease;
   position: relative;
-  animation: aquaPulse 2s ease-in-out infinite;
+  animation: redPulse 2s ease-in-out infinite;
 }
 
-@keyframes aquaPulse {
+@keyframes redPulse {
   0%,
   100% {
-    text-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    text-shadow: 0 0 5px rgba(220, 38, 38, 0.3);
   }
   50% {
-    text-shadow: 0 0 25px rgba(0, 255, 255, 0.7);
+    text-shadow: 0 0 15px rgba(220, 38, 38, 0.5);
   }
 }
 
@@ -208,13 +205,13 @@
   display: inline-block;
 }
 
-/* U part of logo (optional - if you want TECH4U) */
+/* U part of logo */
 .logo-u {
   font-family: var(--nav-font-tech);
   font-size: 1.9rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #e6f7ff 0%, #0ff 50%, #66ffff 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #dc2626 50%, #ef4444 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
@@ -233,7 +230,7 @@
   font-weight: 400;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  background: linear-gradient(135deg, #66ffff 0%, #0ff 50%, #00cccc 100%);
+  background: linear-gradient(135deg, #b91c1c 0%, #dc2626 50%, #ef4444 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -247,10 +244,10 @@
 .navbar-logo:hover .logo-luxury {
   letter-spacing: 0.45em;
   opacity: 1;
-  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+  text-shadow: 0 0 8px rgba(220, 38, 38, 0.3);
 }
 
-/* Aqua underline animation on hover */
+/* Red underline animation on hover */
 .navbar-logo::after {
   content: "";
   position: absolute;
@@ -261,9 +258,9 @@
   background: linear-gradient(
     90deg,
     transparent,
-    #0ff,
-    #66ffff,
-    #0ff,
+    #dc2626,
+    #ef4444,
+    #dc2626,
     transparent
   );
   transform: scaleX(0);
@@ -275,7 +272,7 @@
   transform: scaleX(1);
 }
 
-/* Optional: Glow effect behind logo */
+/* Glow effect behind logo */
 .navbar-logo::before {
   content: "";
   position: absolute;
@@ -285,7 +282,7 @@
   height: 0;
   background: radial-gradient(
     circle,
-    rgba(0, 255, 255, 0.15) 0%,
+    rgba(220, 38, 38, 0.08) 0%,
     transparent 70%
   );
   transition: all 0.5s ease;
@@ -320,7 +317,7 @@
   border-radius: 50%;
   border: none;
   background: transparent;
-  color: #bbd4e5;
+  color: #475569;
   cursor: pointer;
   transition: all var(--transition);
   text-decoration: none;
@@ -334,10 +331,10 @@
 }
 
 .nav-icon-btn:hover {
-  color: #0ff;
-  background: rgba(0, 255, 255, 0.12);
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
   transform: scale(1.05);
-  box-shadow: 0 0 12px rgba(0, 255, 255, 0.2);
+  box-shadow: 0 0 12px rgba(220, 38, 38, 0.15);
 }
 
 .nav-icon-btn:hover svg {
@@ -350,8 +347,8 @@
   bottom: -30px;
   left: 50%;
   transform: translateX(-50%);
-  background: #0a0f1a;
-  color: #0ff;
+  background: #ffffff;
+  color: #dc2626;
   font-family: var(--nav-font-body);
   font-size: 0.65rem;
   font-weight: 500;
@@ -365,7 +362,8 @@
   transition: all 0.2s ease;
   pointer-events: none;
   z-index: 150;
-  border: 1px solid rgba(0, 255, 255, 0.2);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .nav-icon-btn:hover .nav-icon-tooltip {
@@ -389,13 +387,13 @@
   display: block;
   width: 22px;
   height: 2px;
-  background: #bbd4e5;
+  background: #475569;
   border-radius: 2px;
   transition: all var(--transition);
 }
 
 .menu-btn:hover span {
-  background: #0ff;
+  background: #dc2626;
 }
 
 .menu-btn:hover span:nth-child(1) {
@@ -413,10 +411,10 @@
   right: 4px;
   width: 10px;
   height: 10px;
-  background: #0ff;
+  background: #dc2626;
   border-radius: 50%;
-  border: 2px solid #0a0f1a;
-  box-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 6px rgba(220, 38, 38, 0.5);
   animation: pulse 2s ease-in-out infinite;
 }
 
@@ -439,8 +437,8 @@
   right: -2px;
   min-width: 18px;
   height: 18px;
-  background: #0ff;
-  color: #0a0f1a;
+  background: #dc2626;
+  color: #ffffff;
   font-family: var(--nav-font-body);
   font-size: 10px;
   font-weight: 700;
@@ -449,7 +447,7 @@
   align-items: center;
   justify-content: center;
   padding: 0 4px;
-  box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+  box-shadow: 0 0 8px rgba(220, 38, 38, 0.5);
   animation: cartBounce 0.5s ease;
 }
 
@@ -474,24 +472,24 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(0, 255, 255, 0.08);
-  border: 1px solid rgba(0, 255, 255, 0.2);
+  background: rgba(220, 38, 38, 0.05);
+  border: 1px solid rgba(220, 38, 38, 0.25);
   border-radius: 40px;
   padding: 6px 12px;
   font-family: var(--nav-font-body);
   font-size: 0.75rem;
   font-weight: 500;
-  color: #bbd4e5;
+  color: #475569;
   cursor: pointer;
   transition: all var(--transition);
 }
 
 .currency-btn:hover {
-  border-color: #0ff;
-  color: #0ff;
-  background: rgba(0, 255, 255, 0.15);
+  border-color: #dc2626;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
   transform: translateY(-1px);
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.15);
 }
 
 .currency-flag {
@@ -522,14 +520,14 @@
   top: 100%;
   left: 0;
   min-width: 220px;
-  background: linear-gradient(135deg, #0a1a1f 0%, #0a1f2a 100%);
-  border: 1px solid rgba(0, 255, 255, 0.2);
+  background: #ffffff;
+  border: 1px solid rgba(220, 38, 38, 0.25);
   border-radius: 16px;
   margin-top: 12px;
   overflow: hidden;
   z-index: 150;
   backdrop-filter: blur(20px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
   animation: currencySlideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -555,21 +553,21 @@
   font-family: var(--nav-font-body);
   font-size: 0.8rem;
   font-weight: 400;
-  color: #bbd4e5;
+  color: #475569;
   cursor: pointer;
   text-align: left;
   transition: all 0.25s ease;
 }
 
 .currency-option:hover {
-  background: rgba(0, 255, 255, 0.1);
-  color: #0ff;
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
   padding-left: 22px;
 }
 
 .currency-option.active {
-  color: #0ff;
-  background: rgba(0, 255, 255, 0.15);
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.12);
 }
 
 .currency-option-flag {
@@ -593,8 +591,8 @@
 
 /* ========== BOTTOM NAVIGATION ========== */
 .navbar-bottom {
-  border-top: 1px solid rgba(0, 255, 255, 0.15);
-  background: rgba(10, 26, 31, 0.9);
+  border-top: 1px solid rgba(220, 38, 38, 0.15);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(8px);
 }
 
@@ -623,7 +621,7 @@
   font-weight: 500;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #bbd4e5;
+  color: #475569;
   text-decoration: none;
   border-radius: 2px;
   transition: all var(--transition);
@@ -637,7 +635,7 @@
   left: 50%;
   width: 0;
   height: 2px;
-  background: linear-gradient(90deg, #0ff, #66ffff);
+  background: linear-gradient(90deg, #dc2626, #ef4444);
   transition: all 0.3s ease;
   transform: translateX(-50%);
 }
@@ -647,13 +645,13 @@
 }
 
 .nav-item > a:hover {
-  color: #0ff;
+  color: #dc2626;
   letter-spacing: 0.18em;
-  text-shadow: 0 0 4px rgba(0, 255, 255, 0.3);
+  text-shadow: 0 0 4px rgba(220, 38, 38, 0.2);
 }
 
 .nav-item > a.active {
-  color: #0ff;
+  color: #dc2626;
 }
 
 .nav-item > a.active::before {
@@ -676,14 +674,14 @@
   top: 100%;
   left: 0;
   min-width: 240px;
-  background: linear-gradient(135deg, #0a1a1f 0%, #0a1f2a 100%);
-  border: 1px solid rgba(0, 255, 255, 0.2);
+  background: #ffffff;
+  border: 1px solid rgba(220, 38, 38, 0.25);
   border-top: none;
   border-radius: 0 0 16px 16px;
   backdrop-filter: blur(20px);
   box-shadow:
-    0 20px 40px rgba(0, 0, 0, 0.3),
-    0 0 20px rgba(0, 255, 255, 0.1);
+    0 20px 40px rgba(0, 0, 0, 0.08),
+    0 0 20px rgba(220, 38, 38, 0.05);
   opacity: 0;
   visibility: hidden;
   transform: translateY(-10px);
@@ -704,7 +702,7 @@
   font-size: 0.7rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #bbd4e5;
+  color: #475569;
   text-decoration: none;
   transition: all 0.25s ease;
   position: relative;
@@ -717,14 +715,14 @@
   top: 0;
   bottom: 0;
   width: 3px;
-  background: #0ff;
+  background: #dc2626;
   transform: scaleY(0);
   transition: transform 0.2s ease;
 }
 
 .dropdown-item:hover {
-  background: rgba(0, 255, 255, 0.1);
-  color: #0ff;
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
   padding-left: 2rem;
 }
 
@@ -733,8 +731,8 @@
 }
 
 .dropdown-item.active {
-  color: #0ff;
-  background: rgba(0, 255, 255, 0.15);
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.12);
 }
 
 /* ========== RESPONSIVE DESIGN ========== */
@@ -823,7 +821,7 @@
     font-size: 0.5rem;
     letter-spacing: 0.2em;
     top: 3px;
-    display: none; /* Hide on very small screens */
+    display: none;
   }
 
   .nav-icon-btn {
@@ -1019,37 +1017,18 @@ button,
   margin-right: 6px;
 }
 
-/* ========== NAVBAR STICKY WRAPPER ========== */
+/* ========== NAVBAR STICKY WRAPPER - FIXED POSITION ========== */
 .navbar-sticky-wrapper {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 100;
-  will-change: transform;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
 .navbar-announcement-wrapper {
   width: 100%;
-}
-
-/* ========== NAVBAR HIDE ON SCROLL DOWN ========== */
-.navbar {
-  transition:
-    background var(--transition),
-    box-shadow var(--transition),
-    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.25s ease;
-}
-
-.navbar.navbar-hidden {
-  transform: translateY(-100%);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.navbar:not(.navbar-hidden) {
-  transform: translateY(0);
-  opacity: 1;
-  pointer-events: auto;
 }

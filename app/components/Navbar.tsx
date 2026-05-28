@@ -135,9 +135,6 @@ export default function Navbar({
 }: NavbarProps) {
   const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [navVisible, setNavVisible] = useState(true);
-  const lastScrollY = useRef(0);
-  const scrollTicking = useRef(false);
   const [user, setUser] = useState<any>(undefined);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [currencyOpen, setCurrencyOpen] = useState(false);
@@ -169,27 +166,13 @@ export default function Navbar({
     { href: "/contact", label: t.nav.contact },
   ];
 
+  // Only track scroll for shadow effect, not for hiding navbar
   useEffect(() => {
     setMounted(true);
     const handleScroll = () => {
-      if (scrollTicking.current) return;
-      scrollTicking.current = true;
-      requestAnimationFrame(() => {
-        const currentY = window.scrollY;
-        setScrolled(currentY > 20);
-        if (currentY <= 10) {
-          setNavVisible(true);
-        } else if (currentY > lastScrollY.current) {
-          setNavVisible(false);
-        } else {
-          setNavVisible(true);
-        }
-        lastScrollY.current = currentY;
-        scrollTicking.current = false;
-      });
+      setScrolled(window.scrollY > 20);
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
-
     return () => {
       window.removeEventListener("scroll", handleScroll);
     };
@@ -285,7 +268,7 @@ export default function Navbar({
 
   return (
     <nav
-      className={`navbar${scrolled ? " scrolled" : ""}${navVisible ? "" : " navbar-hidden"}`}
+      className={`navbar${scrolled ? " scrolled" : ""}`}
       dir={isRTLMode ? "rtl" : "ltr"}
     >
       <div className="navbar-container">

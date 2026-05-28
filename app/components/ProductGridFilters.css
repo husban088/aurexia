@@ -1,5 +1,5 @@
 /* ============================================================
-   FILTER SIDEBAR - BLACK & AQUA GRADIENT THEME
+   FILTER SIDEBAR - TOP RED → BOTTOM BLACK GRADIENT THEME
    Premium Dark Theme
    ============================================================ */
 
@@ -55,28 +55,28 @@
   width: 100%;
   max-width: 420px;
   height: 100vh;
-  background: linear-gradient(145deg, #0a1a1f 0%, #0a1f2a 100%);
+  background: linear-gradient(145deg, #0f172a 0%, #1a1a2e 100%);
   z-index: 10001;
   transform: translateX(100%);
   transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   flex-direction: column;
   box-shadow: -8px 0 40px rgba(0, 0, 0, 0.4);
-  border-left: 1px solid rgba(0, 255, 255, 0.25);
+  border-left: 1px solid rgba(220, 38, 38, 0.25);
 }
 
 .filter-sidebar.open {
   transform: translateX(0);
 }
 
-/* Header - Aqua */
+/* Header - RED */
 .filter-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 1.5rem 1.5rem 1rem;
-  border-bottom: 1px solid rgba(0, 255, 255, 0.12);
-  background: rgba(0, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.12);
+  background: rgba(220, 38, 38, 0.03);
 }
 
 .filter-header-left {
@@ -93,7 +93,7 @@
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.3rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #0ff, #66ffff);
+  background: linear-gradient(180deg, #dc2626 0%, #ef4444 50%, #0f172a 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -101,8 +101,8 @@
 }
 
 .filter-count {
-  background: #0ff;
-  color: #0a0f1a;
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
+  color: #ffffff;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 700;
@@ -114,22 +114,22 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: rgba(0, 255, 255, 0.1);
-  border: 1px solid rgba(0, 255, 255, 0.25);
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.25);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #bbd4e5;
+  color: #cbd5e1;
   transition: all 0.3s ease;
 }
 
 .filter-close:hover {
-  background: #0ff;
-  border-color: #0ff;
-  color: #0a0f1a;
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
+  border-color: #dc2626;
+  color: #ffffff;
   transform: rotate(90deg);
-  box-shadow: 0 0 12px rgba(0, 255, 255, 0.2);
+  box-shadow: 0 0 12px rgba(220, 38, 38, 0.2);
 }
 
 .filter-close svg {
@@ -145,7 +145,7 @@
 }
 
 .filter-section {
-  border-bottom: 1px solid rgba(0, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.08);
 }
 
 .filter-section-header {
@@ -162,19 +162,19 @@
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #bbd4e5;
+  color: #cbd5e1;
   transition: all 0.3s ease;
   position: relative;
 }
 
 .filter-section-header:hover {
-  background: rgba(0, 255, 255, 0.08);
-  color: #0ff;
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
 }
 
 .filter-section-header.active {
-  background: rgba(0, 255, 255, 0.12);
-  color: #0ff;
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
 }
 
 .filter-section-icon {
@@ -189,9 +189,9 @@
 .filter-section-active-dot {
   width: 8px;
   height: 8px;
-  background: #0ff;
+  background: #dc2626;
   border-radius: 50%;
-  box-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
+  box-shadow: 0 0 6px rgba(220, 38, 38, 0.5);
   animation: filterPulse 1.5s ease-in-out infinite;
 }
 
@@ -210,7 +210,7 @@
 .filter-section-arrow {
   width: 14px;
   height: 14px;
-  color: #0ff;
+  color: #dc2626;
   transition: transform 0.3s ease;
 }
 
@@ -239,14 +239,14 @@
 
 .filter-chip {
   padding: 0.5rem 1rem;
-  background: rgba(0, 255, 255, 0.08);
-  border: 1px solid rgba(0, 255, 255, 0.25);
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.25);
   border-radius: 40px;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 500;
   letter-spacing: 0.05em;
-  color: #bbd4e5;
+  color: #cbd5e1;
   cursor: pointer;
   transition: all 0.25s ease;
   display: inline-flex;
@@ -255,17 +255,17 @@
 }
 
 .filter-chip:hover {
-  border-color: #0ff;
-  color: #0ff;
+  border-color: #dc2626;
+  color: #dc2626;
   transform: translateY(-2px);
-  background: rgba(0, 255, 255, 0.15);
-  box-shadow: 0 0 8px rgba(0, 255, 255, 0.2);
+  background: rgba(220, 38, 38, 0.15);
+  box-shadow: 0 0 8px rgba(220, 38, 38, 0.2);
 }
 
 .filter-chip.active {
-  background: linear-gradient(135deg, #0ff, #66ffff);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   border-color: transparent;
-  color: #0a0f1a;
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -276,27 +276,27 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Footer - Aqua */
+/* Footer - RED */
 .filter-footer {
   padding: 1rem 1.5rem 1.5rem;
-  border-top: 1px solid rgba(0, 255, 255, 0.12);
+  border-top: 1px solid rgba(220, 38, 38, 0.12);
   display: flex;
   gap: 1rem;
-  background: rgba(0, 255, 255, 0.03);
+  background: rgba(220, 38, 38, 0.03);
 }
 
 .filter-clear-btn {
   flex: 1;
   padding: 0.8rem;
   background: transparent;
-  border: 1px solid rgba(0, 255, 255, 0.3);
+  border: 1px solid rgba(220, 38, 38, 0.3);
   border-radius: 40px;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #88bbcc;
+  color: #fca5a5;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -318,7 +318,7 @@
 .filter-apply-btn {
   flex: 1;
   padding: 0.8rem;
-  background: linear-gradient(135deg, #0ff, #66ffff);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   border: none;
   border-radius: 40px;
   font-family: "Goldman", system-ui, sans-serif;
@@ -326,14 +326,14 @@
   font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #0a0f1a;
+  color: #ffffff;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .filter-apply-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 255, 255, 0.4);
+  box-shadow: 0 8px 25px rgba(220, 38, 38, 0.4);
 }
 
 /* Responsive */
@@ -361,7 +361,7 @@
   left: 0;
   transform: translateX(-100%);
   border-left: none;
-  border-right: 1px solid rgba(0, 255, 255, 0.25);
+  border-right: 1px solid rgba(220, 38, 38, 0.25);
 }
 
 [dir="rtl"] .filter-sidebar.open {

@@ -1,35 +1,34 @@
 /* app/components/ProductVideoSection.css */
 
 /* ============================================================
-   PRODUCT VIDEO SECTION — NEXT LEVEL LUXURY DESIGN
-   Fully Responsive · Auto-play on scroll · Glassmorphism
+   PRODUCT VIDEO SECTION — WHITE BACKGROUND | BLACK TEXT | RED + BLACK GRADIENTS
+   Matching Explore Aurexia style
    ============================================================ */
 
 @import url("https://fonts.googleapis.com/css2?family=Russo+One&display=swap");
 
 :root {
-  /* ── Aqua accent (matching Explore Aurexia) ── */
-  --pvs-aqua: #0ff;
-  --pvs-aqua-dark: #00cccc;
-  --pvs-aqua-deep: #0088aa;
-  --pvs-aqua-light: #66ffff;
-  --pvs-aqua-dim: rgba(0, 255, 255, 0.12);
-  --pvs-aqua-glow: rgba(0, 255, 255, 0.25);
+  /* ── RED + BLACK accents (matching Explore Aurexia) ── */
+  --pvs-red: #dc2626;
+  --pvs-red-dark: #b91c1c;
+  --pvs-red-deep: #991b1b;
+  --pvs-red-light: #ef4444;
+  --pvs-black: #0f172a;
+  --pvs-red-dim: rgba(220, 38, 38, 0.08);
+  --pvs-red-glow: rgba(220, 38, 38, 0.12);
 
-  /* ── Kept for any legacy references ── */
-  --pvs-gold: #0ff;
-  --pvs-gold-dark: #00cccc;
-  --pvs-gold-light: #66ffff;
-  --pvs-gold-glow: rgba(0, 255, 255, 0.15);
+  /* ── White Background ── */
+  --pvs-bg: #ffffff;
+  --pvs-glass: rgba(220, 38, 38, 0.03);
+  --pvs-glass-border: rgba(220, 38, 38, 0.15);
 
-  /* ── Dark background ── */
-  --pvs-dark: #e6f7ff;
-  --pvs-bg: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
-  --pvs-glass: rgba(0, 255, 255, 0.03);
-  --pvs-glass-border: rgba(0, 255, 255, 0.15);
+  /* ── Text Colors ── */
+  --pvs-text-dark: #0f172a;
+  --pvs-text-muted: #475569;
+  --pvs-text-light: #64748b;
 
   --pvs-serif: "Russo One", sans-serif;
-  --pvs-sans: "Russo One", sans-serif;
+  --pvs-sans: "Goldman", system-ui, sans-serif;
   --pvs-ease: 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -42,9 +41,7 @@
   transform: translateY(40px);
   transition: all var(--pvs-ease);
   isolation: isolate;
-
-  /* ── Dark background matching Explore Aurexia ── */
-  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
+  background: #ffffff;
   padding: 3rem 0;
 }
 
@@ -58,8 +55,41 @@
   display: none;
 }
 
-/* ── Top radial glow — Aqua (matching ea-section::before) ── */
+/* Fine grid texture - Red + Black Mixed */
+.pvs-grain {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(220, 38, 38, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Top Border Line - RED + BLACK */
 .pvs-root::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(700px, 90%);
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(220, 38, 38, 0.5),
+    rgba(15, 23, 42, 0.2),
+    rgba(220, 38, 38, 0.5),
+    transparent
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Top radial glow — RED */
+.pvs-root::after {
   content: "";
   position: absolute;
   top: -40%;
@@ -68,37 +98,10 @@
   height: 130%;
   background: radial-gradient(
     ellipse at 60% 30%,
-    rgba(0, 255, 255, 0.08) 0%,
-    rgba(0, 200, 255, 0.04) 40%,
+    rgba(220, 38, 38, 0.05) 0%,
+    rgba(200, 50, 50, 0.03) 40%,
     transparent 70%
   );
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* ── Bottom corner glow — Aqua (matching ea-section::after) ── */
-.pvs-root::after {
-  content: "";
-  position: absolute;
-  bottom: -30%;
-  right: -10%;
-  width: 80%;
-  height: 80%;
-  background: radial-gradient(
-    circle,
-    rgba(0, 255, 255, 0.06) 0%,
-    transparent 65%
-  );
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* ── Grain Texture (matching ea-grain) ── */
-.pvs-grain {
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-  opacity: 0.35;
   pointer-events: none;
   z-index: 0;
 }
@@ -119,14 +122,14 @@
   background: linear-gradient(
     to bottom,
     transparent 0%,
-    rgba(0, 255, 255, 0.08) 30%,
-    rgba(0, 255, 255, 0.08) 70%,
+    rgba(220, 38, 38, 0.06) 30%,
+    rgba(220, 38, 38, 0.06) 70%,
     transparent 100%
   );
 }
 
-/* ── Aqua Orbs (matching ea-aqua-orb) ── */
-.pvs-aqua-orb {
+/* ── RED Orbs ── */
+.pvs-red-orb {
   position: absolute;
   bottom: -150px;
   left: -150px;
@@ -134,8 +137,8 @@
   height: 500px;
   background: radial-gradient(
     circle,
-    rgba(0, 255, 255, 0.08) 0%,
-    rgba(0, 200, 255, 0.03) 50%,
+    rgba(220, 38, 38, 0.05) 0%,
+    rgba(200, 50, 50, 0.02) 50%,
     transparent 80%
   );
   border-radius: 50%;
@@ -143,7 +146,7 @@
   z-index: 0;
 }
 
-.pvs-aqua-orb-right {
+.pvs-red-orb-right {
   position: absolute;
   top: -100px;
   right: -100px;
@@ -151,7 +154,7 @@
   height: 400px;
   background: radial-gradient(
     circle,
-    rgba(0, 255, 255, 0.06) 0%,
+    rgba(220, 38, 38, 0.04) 0%,
     transparent 70%
   );
   border-radius: 50%;
@@ -159,7 +162,7 @@
   z-index: 0;
 }
 
-/* ── Ambient Glow Behind Video — Aqua (matching ea-ambient) ── */
+/* ── Ambient Glow Behind Video — RED ── */
 .pvs-ambient {
   position: absolute;
   top: 0;
@@ -169,8 +172,8 @@
   height: 600px;
   background: radial-gradient(
     circle,
-    rgba(0, 255, 255, 0.12) 0%,
-    rgba(0, 200, 255, 0.05) 40%,
+    rgba(220, 38, 38, 0.08) 0%,
+    rgba(200, 50, 50, 0.03) 40%,
     transparent 80%
   );
   pointer-events: none;
@@ -218,8 +221,8 @@
 .pvs-corner--tl {
   top: 0;
   left: 0;
-  border-top: 2px solid var(--pvs-aqua);
-  border-left: 2px solid var(--pvs-aqua);
+  border-top: 2px solid #dc2626;
+  border-left: 2px solid #dc2626;
   border-radius: 20px 0 0 0;
   transform: translate(-10px, -10px);
 }
@@ -231,8 +234,8 @@
 .pvs-corner--tr {
   top: 0;
   right: 0;
-  border-top: 2px solid var(--pvs-aqua);
-  border-right: 2px solid var(--pvs-aqua);
+  border-top: 2px solid #dc2626;
+  border-right: 2px solid #dc2626;
   border-radius: 0 20px 0 0;
   transform: translate(10px, -10px);
 }
@@ -244,8 +247,8 @@
 .pvs-corner--bl {
   bottom: 0;
   left: 0;
-  border-bottom: 2px solid var(--pvs-aqua);
-  border-left: 2px solid var(--pvs-aqua);
+  border-bottom: 2px solid #dc2626;
+  border-left: 2px solid #dc2626;
   border-radius: 0 0 0 20px;
   transform: translate(-10px, 10px);
 }
@@ -257,8 +260,8 @@
 .pvs-corner--br {
   bottom: 0;
   right: 0;
-  border-bottom: 2px solid var(--pvs-aqua);
-  border-right: 2px solid var(--pvs-aqua);
+  border-bottom: 2px solid #dc2626;
+  border-right: 2px solid #dc2626;
   border-radius: 0 0 20px 0;
   transform: translate(10px, 10px);
 }
@@ -292,11 +295,7 @@
 .pvs-ey-line {
   width: 40px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--pvs-aqua), transparent);
-}
-
-.pvs-ey-line--right {
-  background: linear-gradient(90deg, transparent, var(--pvs-aqua), transparent);
+  background: linear-gradient(90deg, transparent, #dc2626, transparent);
 }
 
 .pvs-ey-text {
@@ -305,22 +304,20 @@
   font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--pvs-aqua);
-  text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+  color: #dc2626;
 }
 
 .pvs-title {
   font-family: var(--pvs-serif);
   font-size: clamp(1.6rem, 4vw, 2.2rem);
-  font-weight: 500;
-  color: #e6f7ff;
+  font-weight: 600;
+  color: #0f172a;
   margin: 0 0 0.75rem;
-  text-shadow: 0 2px 10px rgba(0, 255, 255, 0.15);
 }
 
 .pvs-title em {
   font-style: italic;
-  background: linear-gradient(135deg, #0ff 0%, #00aaff 60%, #0ff 100%);
+  background: linear-gradient(180deg, #dc2626 0%, #ef4444 50%, #0f172a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -334,14 +331,14 @@
   gap: 1rem;
   font-family: var(--pvs-sans);
   font-size: 0.7rem;
-  color: #bbd4e5;
+  color: #64748b;
   letter-spacing: 0.05em;
 }
 
 .pvs-sub-line {
   width: 30px;
   height: 1px;
-  background: rgba(0, 255, 255, 0.3);
+  background: rgba(220, 38, 38, 0.3);
 }
 
 /* ── Video Wrapper ── */
@@ -350,17 +347,17 @@
   width: 100%;
   border-radius: 24px;
   overflow: hidden;
-  background: #0a0a0a;
+  background: #f8fafc;
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(0, 255, 255, 0.2);
+    0 20px 60px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(220, 38, 38, 0.2);
   transition: all 0.5s var(--pvs-ease);
 }
 
 .pvs-video-wrapper:hover {
   box-shadow:
-    0 30px 80px rgba(0, 255, 255, 0.15),
-    0 0 0 2px rgba(0, 255, 255, 0.4);
+    0 30px 80px rgba(220, 38, 38, 0.1),
+    0 0 0 2px rgba(220, 38, 38, 0.35);
   transform: scale(1.01);
 }
 
@@ -373,9 +370,9 @@
   bottom: 0;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.1) 0%,
     rgba(255, 255, 255, 0) 50%,
-    rgba(255, 255, 255, 0.02) 100%
+    rgba(255, 255, 255, 0.03) 100%
   );
   pointer-events: none;
   z-index: 1;
@@ -402,7 +399,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.2);
   opacity: 0;
   transition: opacity 0.4s ease;
   z-index: 2;
@@ -416,12 +413,12 @@
   opacity: 1;
 }
 
-/* Play/Pause Button */
+/* Play/Pause Button - RED */
 .pvs-play-btn {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: rgba(0, 255, 255, 0.9);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   border: none;
   cursor: pointer;
   display: flex;
@@ -429,14 +426,14 @@
   justify-content: center;
   transition: all 0.3s var(--pvs-ease);
   backdrop-filter: blur(4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-  color: #0a0f1a;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  color: #ffffff;
 }
 
 .pvs-play-btn:hover {
   transform: scale(1.1);
-  background: var(--pvs-aqua);
-  box-shadow: 0 12px 35px rgba(0, 255, 255, 0.4);
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 12px 35px rgba(220, 38, 38, 0.3);
 }
 
 .pvs-play-btn svg {
@@ -444,7 +441,7 @@
   height: 32px;
 }
 
-/* Mute Button */
+/* Mute Button - RED */
 .pvs-mute-btn {
   position: absolute;
   bottom: 20px;
@@ -453,7 +450,7 @@
   height: 40px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(0, 255, 255, 0.3);
+  border: 1px solid rgba(220, 38, 38, 0.3);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -461,13 +458,13 @@
   transition: all 0.3s ease;
   backdrop-filter: blur(4px);
   z-index: 3;
-  color: #0ff;
+  color: #dc2626;
 }
 
 .pvs-mute-btn:hover {
   background: rgba(0, 0, 0, 0.8);
-  border-color: var(--pvs-aqua);
-  box-shadow: 0 0 12px rgba(0, 255, 255, 0.3);
+  border-color: #dc2626;
+  box-shadow: 0 0 12px rgba(220, 38, 38, 0.2);
   transform: scale(1.05);
 }
 
@@ -476,7 +473,7 @@
   height: 18px;
 }
 
-/* Progress Bar */
+/* Progress Bar - RED */
 .pvs-progress-bar {
   position: absolute;
   bottom: 0;
@@ -490,12 +487,12 @@
 
 .pvs-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--pvs-aqua), var(--pvs-aqua-light));
+  background: linear-gradient(90deg, #dc2626, #ef4444);
   width: 0%;
   transition: width 0.1s linear;
 }
 
-/* Floating Particles */
+/* Floating Particles - RED */
 .pvs-particles {
   position: absolute;
   top: 0;
@@ -511,10 +508,10 @@
   position: absolute;
   width: 4px;
   height: 4px;
-  background: rgba(0, 255, 255, 0.4);
+  background: rgba(220, 38, 38, 0.3);
   border-radius: 50%;
   animation: pvs-float 12s infinite ease-in-out;
-  box-shadow: 0 0 6px rgba(0, 255, 255, 0.3);
+  box-shadow: 0 0 6px rgba(220, 38, 38, 0.2);
 }
 
 .pvs-particle:nth-child(1) {
@@ -581,6 +578,29 @@
     transform: translateY(-60px) translateX(20px) rotate(360deg);
     opacity: 0;
   }
+}
+
+/* ── Footer Ornament ── */
+.pvs-footer-ornament {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  color: #dc2626;
+  opacity: 0;
+  transition: opacity 0.8s var(--pvs-ease) 0.4s;
+}
+
+.pvs-root.visible .pvs-footer-ornament {
+  opacity: 1;
+}
+
+.pvs-orn-line {
+  width: 60px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #dc2626, transparent);
+  opacity: 0.6;
 }
 
 /* ── Responsive Design ── */
@@ -738,40 +758,6 @@
   .pvs-corner--bl,
   .pvs-corner--br {
     border-radius: 8px;
-  }
-}
-
-/* Footer Ornament (matching ea-footer-ornament) */
-.pvs-footer-ornament {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 2rem;
-  color: #0ff;
-  opacity: 0;
-  transition: opacity 0.8s var(--pvs-ease) 0.4s;
-}
-
-.pvs-root.visible .pvs-footer-ornament {
-  opacity: 1;
-}
-
-.pvs-orn-line {
-  width: 60px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, #0ff, transparent);
-  opacity: 0.6;
-}
-
-/* Dark mode — already dark, override if light mode is ever inherited */
-@media (prefers-color-scheme: light) {
-  .pvs-title {
-    color: #e6f7ff;
-  }
-
-  .pvs-subtitle {
-    color: #bbd4e5;
   }
 }
 

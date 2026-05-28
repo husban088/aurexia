@@ -1,28 +1,30 @@
 /* ============================================================
    ABOUT PAGE  ·  about.css
-   BLACK & AQUA GRADIENT THEME
-   Matching Navbar & Explore Aurexia
+   WHITE BACKGROUND | BLACK TEXT | TOP RED → BOTTOM BLACK GRADIENT
+   Matching Explore Aurexia and Contact Page style
    ============================================================ */
 
 @import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
 :root {
-  --ab-aqua: #0ff;
-  --ab-aqua-dark: #00cccc;
-  --ab-aqua-deep: #0088aa;
-  --ab-aqua-light: #66ffff;
-  --ab-aqua-soft: rgba(0, 255, 255, 0.12);
-  --ab-bg: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
-  --ab-bg-light: #0a1a1f;
-  --ab-card-bg: #0a1f2a;
-  --ab-card-hover: #0a252f;
-  --ab-border: rgba(0, 255, 255, 0.18);
-  --ab-border-hover: rgba(0, 255, 255, 0.35);
-  --ab-text-dark: #e6f7ff;
-  --ab-text-muted: #bbd4e5;
-  --ab-text-light: #88bbcc;
-  --ab-text-grey: #88bbcc;
-  --ab-text-aqua: #0ff;
+  --ab-red: #dc2626;
+  --ab-red-dark: #b91c1c;
+  --ab-red-deep: #991b1b;
+  --ab-red-light: #ef4444;
+  --ab-black: #0f172a;
+  --ab-black-soft: #1e293b;
+  --ab-red-soft: rgba(220, 38, 38, 0.08);
+  --ab-bg: #ffffff;
+  --ab-bg-light: #f8fafc;
+  --ab-card-bg: #ffffff;
+  --ab-card-hover: #f8fafc;
+  --ab-border: rgba(220, 38, 38, 0.18);
+  --ab-border-hover: rgba(220, 38, 38, 0.35);
+  --ab-text-dark: #0f172a;
+  --ab-text-muted: #475569;
+  --ab-text-light: #64748b;
+  --ab-text-grey: #64748b;
+  --ab-text-red: #dc2626;
   --ab-serif: "Goldman", system-ui, sans-serif;
   --ab-sans: "Goldman", system-ui, sans-serif;
   --ab-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
@@ -33,42 +35,66 @@
   position: relative;
   min-height: 100vh;
   width: 100%;
-  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
+  background: #ffffff;
   color: var(--ab-text-dark);
   overflow-x: hidden;
   isolation: isolate;
 }
 
-/* Ambient glow - Aqua */
+/* Fine grid texture - Red + Black Mixed (like Explore Aurexia) */
+.ab-grain {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(220, 38, 38, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Ambient Glow - Mixed */
 .ab-ambient {
-  position: fixed;
-  top: -200px;
+  position: absolute;
+  top: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 700px;
-  height: 700px;
+  width: 800px;
+  height: 600px;
   background: radial-gradient(
     circle,
-    rgba(0, 255, 255, 0.08) 0%,
-    transparent 70%
+    rgba(220, 38, 38, 0.04) 0%,
+    rgba(15, 23, 42, 0.02) 40%,
+    transparent 80%
   );
   pointer-events: none;
   z-index: 0;
 }
 
-/* Grain texture - subtle */
-.ab-grain {
-  position: fixed;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-  opacity: 0.35;
+/* Top Border Line - TOP RED → BOTTOM BLACK Gradient */
+.ab-root::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(700px, 90%);
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(220, 38, 38, 0.5),
+    rgba(15, 23, 42, 0.2),
+    rgba(220, 38, 38, 0.5),
+    transparent
+  );
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
 }
 
-/* Vertical lines - Aqua tint */
+/* Background Lines */
 .ab-lines {
-  position: fixed;
+  position: absolute;
   inset: 0;
   display: flex;
   justify-content: space-between;
@@ -80,14 +106,14 @@
   height: 100%;
   background: linear-gradient(
     to bottom,
-    transparent,
-    rgba(0, 255, 255, 0.08) 30%,
-    rgba(0, 255, 255, 0.08) 70%,
-    transparent
+    transparent 0%,
+    rgba(220, 38, 38, 0.06) 30%,
+    rgba(15, 23, 42, 0.03) 70%,
+    transparent 100%
   );
 }
 
-/* Corner marks - Aqua */
+/* Corner marks - RED */
 .ab-corner {
   position: fixed;
   width: 28px;
@@ -98,17 +124,17 @@
 .ab-corner--tl {
   top: 1.5rem;
   left: 1.5rem;
-  border-top: 1px solid rgba(0, 255, 255, 0.4);
-  border-left: 1px solid rgba(0, 255, 255, 0.4);
+  border-top: 1px solid rgba(220, 38, 38, 0.4);
+  border-left: 1px solid rgba(220, 38, 38, 0.4);
 }
 .ab-corner--tr {
   top: 1.5rem;
   right: 1.5rem;
-  border-top: 1px solid rgba(0, 255, 255, 0.4);
-  border-right: 1px solid rgba(0, 255, 255, 0.4);
+  border-top: 1px solid rgba(220, 38, 38, 0.4);
+  border-right: 1px solid rgba(220, 38, 38, 0.4);
 }
 
-/* Shared eyebrow - AQUA */
+/* Shared eyebrow - RED */
 .ab-eyebrow {
   display: flex;
   align-items: center;
@@ -118,7 +144,7 @@
   font-weight: 700;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: #66ffff;
+  color: #dc2626;
   margin: 0;
   justify-content: center;
 }
@@ -126,7 +152,7 @@
   display: block;
   width: 27px;
   height: 3px;
-  background: #0ff;
+  background: #dc2626;
   opacity: 0.7;
 }
 
@@ -142,15 +168,14 @@
 .ab-section-title {
   font-family: var(--ab-serif);
   font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 400;
-  color: #e6f7ff;
+  font-weight: 600;
+  color: #0f172a;
   margin: 0;
   text-align: center;
-  text-shadow: 0 2px 10px rgba(0, 255, 255, 0.15);
 }
 .ab-section-title em {
   font-style: italic;
-  background: linear-gradient(135deg, #0ff, #66ffff);
+  background: linear-gradient(180deg, #dc2626 0%, #ef4444 50%, #0f172a 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -179,15 +204,14 @@
 .ab-hero-title {
   font-family: var(--ab-serif);
   font-size: clamp(2.5rem, 6vw, 4.5rem);
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1.08;
-  color: #e6f7ff;
+  color: #0f172a;
   margin: 0;
-  text-shadow: 0 2px 10px rgba(0, 255, 255, 0.15);
 }
 .ab-hero-title em {
   font-style: italic;
-  background: linear-gradient(135deg, #0ff, #66ffff);
+  background: linear-gradient(180deg, #dc2626 0%, #ef4444 50%, #0f172a 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -199,21 +223,21 @@
   font-weight: 500;
   line-height: 1.8;
   letter-spacing: 0.03em;
-  color: #bbd4e5;
+  color: #475569;
   max-width: 600px;
   margin: 0;
 }
 
-/* Stats - Dark theme with Aqua accents */
+/* Stats - White cards with RED accents */
 .ab-stats {
   display: flex;
   gap: 0;
   margin-top: 1rem;
-  border: 1px solid var(--ab-border);
+  border: 1px solid rgba(220, 38, 38, 0.2);
   border-radius: 12px;
   overflow: hidden;
-  background: rgba(10, 26, 31, 0.8);
-  backdrop-filter: blur(8px);
+  background: #ffffff;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
 }
 
 .ab-stat {
@@ -222,22 +246,22 @@
   align-items: center;
   padding: 1.25rem 2rem;
   gap: 0.35rem;
-  border-right: 1px solid var(--ab-border);
+  border-right: 1px solid rgba(220, 38, 38, 0.15);
   transition: all var(--ab-ease);
 }
 .ab-stat:last-child {
   border-right: none;
 }
 .ab-stat:hover {
-  background: rgba(0, 255, 255, 0.08);
+  background: #f8fafc;
   transform: translateY(-2px);
 }
 
 .ab-stat-value {
   font-family: var(--ab-serif);
   font-size: 1.8rem;
-  font-weight: 500;
-  background: linear-gradient(135deg, #0ff, #66ffff);
+  font-weight: 600;
+  background: linear-gradient(180deg, #dc2626 0%, #ef4444 50%, #0f172a 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -250,10 +274,10 @@
   font-weight: 700;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: #88bbcc;
+  color: #64748b;
 }
 
-/* Decorative rings - Aqua */
+/* Decorative rings - RED (subtle) */
 .ab-hero-ring {
   position: absolute;
   bottom: -120px;
@@ -266,7 +290,7 @@
   width: 320px;
   height: 320px;
   border-radius: 50%;
-  border: 1px solid rgba(0, 255, 255, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.06);
   animation: ab-spin 35s linear infinite;
 }
 
@@ -274,7 +298,7 @@
   width: 220px;
   height: 220px;
   border-radius: 50%;
-  border: 1px solid rgba(0, 255, 255, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.04);
   position: absolute;
   top: 50px;
   left: 50px;
@@ -285,12 +309,12 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #0ff;
-  opacity: 0.5;
+  background: #dc2626;
+  opacity: 0.3;
   position: absolute;
   top: 157px;
   left: -3px;
-  box-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
+  box-shadow: 0 0 6px rgba(220, 38, 38, 0.3);
 }
 
 @keyframes ab-spin {
@@ -307,12 +331,12 @@
   position: relative;
   z-index: 1;
   background: linear-gradient(
-    135deg,
-    rgba(0, 255, 255, 0.05) 0%,
+    180deg,
+    rgba(220, 38, 38, 0.03) 0%,
     transparent 70%
   );
-  border-top: 1px solid var(--ab-border);
-  border-bottom: 1px solid var(--ab-border);
+  border-top: 1px solid rgba(220, 38, 38, 0.12);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.12);
   padding: 5rem 1.5rem;
   margin: 2rem 0;
 }
@@ -329,20 +353,19 @@
 
 .ab-statement-num {
   font-size: 1.2rem;
-  color: #0ff;
-  opacity: 0.6;
+  color: #dc2626;
+  opacity: 0.5;
   letter-spacing: 0.5em;
 }
 
 .ab-statement-quote {
   font-family: var(--ab-serif);
   font-size: clamp(1.2rem, 2.5vw, 1.7rem);
-  font-weight: 400;
+  font-weight: 600;
   font-style: italic;
-  color: #e6f7ff;
+  color: #0f172a;
   line-height: 1.6;
   margin: 0;
-  text-shadow: 0 0 5px rgba(0, 255, 255, 0.1);
 }
 
 /* ── VALUES ── */
@@ -363,8 +386,8 @@
 
 .ab-value-card {
   position: relative;
-  background: linear-gradient(145deg, #0a1a1f 0%, #0a1f2a 100%);
-  border: 1px solid rgba(0, 255, 255, 0.2);
+  background: #ffffff;
+  border: 1px solid rgba(220, 38, 38, 0.2);
   border-radius: 16px;
   padding: 2rem 1.8rem;
   display: flex;
@@ -372,7 +395,7 @@
   gap: 0.75rem;
   overflow: hidden;
   transition: all var(--ab-ease);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
 }
 
 .ab-value-card::before {
@@ -381,7 +404,7 @@
   inset: 0;
   background: radial-gradient(
     circle at 0% 100%,
-    rgba(0, 255, 255, 0.08) 0%,
+    rgba(220, 38, 38, 0.04) 0%,
     transparent 70%
   );
   opacity: 0;
@@ -390,8 +413,9 @@
 
 .ab-value-card:hover {
   transform: translateY(-6px);
-  border-color: rgba(0, 255, 255, 0.4);
-  box-shadow: 0 15px 35px rgba(0, 255, 255, 0.15);
+  border-color: rgba(220, 38, 38, 0.35);
+  box-shadow: 0 15px 35px rgba(220, 38, 38, 0.08);
+  background: #f8fafc;
 }
 .ab-value-card:hover::before {
   opacity: 1;
@@ -402,20 +426,20 @@
   font-size: 0.75rem;
   font-weight: 500;
   letter-spacing: 0.2em;
-  color: #0ff;
+  color: #dc2626;
 }
 
 .ab-value-title {
   font-family: var(--ab-serif);
   font-size: 1.5rem;
-  font-weight: 500;
-  color: #e6f7ff;
+  font-weight: 600;
+  color: #0f172a;
   margin: 0;
   transition: color var(--ab-ease);
 }
 
 .ab-value-card:hover .ab-value-title {
-  background: linear-gradient(135deg, #0ff, #66ffff);
+  background: linear-gradient(180deg, #dc2626 0%, #ef4444 50%, #0f172a 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -427,7 +451,7 @@
   font-weight: 500;
   line-height: 1.7;
   letter-spacing: 0.02em;
-  color: #bbd4e5;
+  color: #475569;
   margin: 0;
 }
 
@@ -437,7 +461,7 @@
   left: 0;
   height: 3px;
   width: 0;
-  background: linear-gradient(90deg, #0ff, #66ffff);
+  background: linear-gradient(90deg, #dc2626, #ef4444);
   transition: width 0.6s var(--ab-ease);
 }
 
@@ -452,10 +476,9 @@
   padding: 7rem 1.5rem;
   text-align: center;
   overflow: hidden;
-  border-top: 1px solid var(--ab-border);
+  border-top: 1px solid rgba(220, 38, 38, 0.12);
   margin-top: 2rem;
-  background: rgba(10, 26, 31, 0.8);
-  backdrop-filter: blur(4px);
+  background: #f8fafc;
 }
 
 .ab-cta-inner {
@@ -472,15 +495,14 @@
 .ab-cta-title {
   font-family: var(--ab-serif);
   font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 400;
-  color: #e6f7ff;
+  font-weight: 600;
+  color: #0f172a;
   margin: 0;
   line-height: 1.1;
-  text-shadow: 0 2px 10px rgba(0, 255, 255, 0.15);
 }
 .ab-cta-title em {
   font-style: italic;
-  background: linear-gradient(135deg, #0ff, #66ffff);
+  background: linear-gradient(180deg, #dc2626 0%, #ef4444 50%, #0f172a 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -511,32 +533,32 @@
 }
 
 .ab-cta-btn--primary {
-  background: linear-gradient(135deg, #0ff, #66ffff);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   border: 1px solid transparent;
-  color: #0a0f1a;
+  color: #ffffff;
 }
 .ab-cta-btn--primary:hover {
   background: transparent;
-  border-color: #0ff;
-  color: #0ff;
+  border-color: #dc2626;
+  color: #dc2626;
   transform: translateY(-3px);
-  box-shadow: 0 10px 25px rgba(0, 255, 255, 0.25);
+  box-shadow: 0 10px 25px rgba(220, 38, 38, 0.25);
   gap: 1rem;
 }
 
 .ab-cta-btn--ghost {
   background: transparent;
-  border: 1px solid rgba(0, 255, 255, 0.3);
-  color: #bbd4e5;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  color: #64748b;
 }
 .ab-cta-btn--ghost:hover {
-  border-color: #0ff;
-  color: #0ff;
-  background: rgba(0, 255, 255, 0.08);
+  border-color: #dc2626;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.05);
   transform: translateY(-3px);
 }
 
-/* CTA deco rings - Aqua */
+/* CTA deco rings - RED (subtle) */
 .ab-cta-ring {
   position: absolute;
   border-radius: 50%;
@@ -545,7 +567,7 @@
 .ab-cta-ring--1 {
   width: 500px;
   height: 500px;
-  border: 1px solid rgba(0, 255, 255, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.06);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -554,7 +576,7 @@
 .ab-cta-ring--2 {
   width: 350px;
   height: 350px;
-  border: 1px solid rgba(0, 255, 255, 0.05);
+  border: 1px solid rgba(220, 38, 38, 0.04);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -573,7 +595,7 @@
   }
   .ab-stat {
     flex: 1 1 45%;
-    border-bottom: 1px solid var(--ab-border);
+    border-bottom: 1px solid rgba(220, 38, 38, 0.1);
   }
   .ab-hero {
     padding: 6rem 1.25rem 4rem;
@@ -655,14 +677,14 @@
   left: auto;
   right: 1.5rem;
   border-left: none;
-  border-right: 1px solid rgba(0, 255, 255, 0.4);
+  border-right: 1px solid rgba(220, 38, 38, 0.4);
 }
 
 [dir="rtl"] .ab-corner--tr {
   right: auto;
   left: 1.5rem;
   border-right: none;
-  border-left: 1px solid rgba(0, 255, 255, 0.4);
+  border-left: 1px solid rgba(220, 38, 38, 0.4);
 }
 
 [dir="rtl"] .ab-statement-quote::before,

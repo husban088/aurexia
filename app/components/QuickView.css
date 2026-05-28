@@ -1,6 +1,24 @@
 /* ============================================================
-   QUICK VIEW POPUP - Tech4U Luxury
+   QUICK VIEW POPUP - WHITE BACKGROUND | BLACK TEXT | RED + BLACK GRADIENTS
+   Matching Explore Aurexia style
    ============================================================ */
+
+:root {
+  --qv-red: #dc2626;
+  --qv-red-dark: #b91c1c;
+  --qv-red-light: #ef4444;
+  --qv-black: #0f172a;
+  --qv-black-soft: #1e293b;
+  --qv-red-soft: rgba(220, 38, 38, 0.08);
+  --qv-border: rgba(220, 38, 38, 0.18);
+  --qv-border-hover: rgba(220, 38, 38, 0.35);
+  --qv-text-dark: #0f172a;
+  --qv-text-muted: #475569;
+  --qv-text-light: #64748b;
+  --qv-sans: "Goldman", system-ui, sans-serif;
+  --qv-serif: "Goldman", system-ui, sans-serif;
+  --qv-ease: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
 
 .qv-overlay {
   position: fixed;
@@ -36,11 +54,11 @@
   width: 90%;
   max-width: 1000px;
   max-height: 85vh;
-  background: white;
+  background: #ffffff;
   border-radius: 24px;
   overflow: hidden;
   animation: qvSlideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
   margin: auto;
   flex-shrink: 0;
 }
@@ -81,15 +99,15 @@
 }
 
 .qv-close:hover {
-  background: rgba(212, 175, 55, 0.15);
+  background: rgba(220, 38, 38, 0.15);
   transform: rotate(90deg);
 }
 
 .qv-close:hover svg {
-  color: var(--fp-gold);
+  color: #dc2626;
 }
 
-/* Decorative Corners */
+/* Decorative Corners - RED */
 .qv-corner {
   position: absolute;
   width: 20px;
@@ -101,29 +119,29 @@
 .qv-corner-tl {
   top: 16px;
   left: 16px;
-  border-top: 2px solid var(--fp-gold);
-  border-left: 2px solid var(--fp-gold);
+  border-top: 2px solid #dc2626;
+  border-left: 2px solid #dc2626;
 }
 
 .qv-corner-tr {
   top: 16px;
   right: 16px;
-  border-top: 2px solid var(--fp-gold);
-  border-right: 2px solid var(--fp-gold);
+  border-top: 2px solid #dc2626;
+  border-right: 2px solid #dc2626;
 }
 
 .qv-corner-bl {
   bottom: 16px;
   left: 16px;
-  border-bottom: 2px solid var(--fp-gold);
-  border-left: 2px solid var(--fp-gold);
+  border-bottom: 2px solid #dc2626;
+  border-left: 2px solid #dc2626;
 }
 
 .qv-corner-br {
   bottom: 16px;
   right: 16px;
-  border-bottom: 2px solid var(--fp-gold);
-  border-right: 2px solid var(--fp-gold);
+  border-bottom: 2px solid #dc2626;
+  border-right: 2px solid #dc2626;
 }
 
 /* Grid Layout */
@@ -135,7 +153,7 @@
 
 /* Gallery Section */
 .qv-gallery {
-  background: #faf8f5;
+  background: #f8fafc;
   padding: 1.25rem 1.5rem 1.5rem;
   display: flex;
   flex-direction: column;
@@ -169,8 +187,8 @@
   position: absolute;
   top: 1rem;
   left: 1rem;
-  background: #dc2626;
-  color: white;
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
+  color: #ffffff;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.78rem;
   font-weight: 700;
@@ -186,7 +204,9 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  background: white;
+  background: #ffffff;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .qv-eyebrow {
@@ -198,13 +218,13 @@
   font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--fp-gold);
+  color: #dc2626;
 }
 
 .qv-ey-line {
   width: 20px;
   height: 1px;
-  background: var(--fp-gold);
+  background: #dc2626;
 }
 
 .qv-brand {
@@ -213,15 +233,15 @@
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--fp-gold);
+  color: #dc2626;
   margin: 0;
 }
 
 .qv-title {
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.8rem;
-  font-weight: 500;
-  color: #0a0a0a;
+  font-weight: 600;
+  color: #0f172a;
   margin: 0;
   line-height: 1.2;
 }
@@ -236,15 +256,18 @@
 .qv-price {
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.8rem;
-  font-weight: 600;
-  color: var(--fp-gold);
+  font-weight: 700;
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .qv-orig {
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.9rem;
   font-weight: 400;
-  color: rgba(0, 0, 0, 0.4);
+  color: #94a3b8;
   text-decoration: line-through;
 }
 
@@ -253,7 +276,7 @@
   font-size: 0.85rem;
   font-weight: 400;
   line-height: 1.6;
-  color: #555;
+  color: #475569;
   margin: 0;
 }
 
@@ -299,8 +322,8 @@
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.65rem;
   font-weight: 500;
-  color: #666;
-  background: #f5f5f5;
+  color: #64748b;
+  background: #f8fafc;
   padding: 0.4rem 0.8rem;
   border-radius: 30px;
 }
@@ -308,7 +331,7 @@
 .qv-feature svg {
   width: 14px;
   height: 14px;
-  color: var(--fp-gold);
+  color: #dc2626;
 }
 
 /* Actions */
@@ -325,7 +348,7 @@
   justify-content: center;
   gap: 0.6rem;
   padding: 0.9rem 1rem;
-  background: var(--fp-gold);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   border: none;
   border-radius: 40px;
   font-family: "Goldman", system-ui, sans-serif;
@@ -333,7 +356,7 @@
   font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: white;
+  color: #ffffff;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -344,7 +367,9 @@
 }
 
 .qv-add-cart:hover:not(:disabled) {
-  background: #c9a03d;
+  background: transparent;
+  border: 1px solid #dc2626;
+  color: #dc2626;
   transform: translateY(-2px);
 }
 
@@ -361,21 +386,22 @@
   gap: 0.6rem;
   padding: 0.9rem 1rem;
   background: transparent;
-  border: 1px solid var(--fp-border);
+  border: 1px solid rgba(220, 38, 38, 0.3);
   border-radius: 40px;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #0a0a0a;
+  color: #dc2626;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .qv-buy-now:hover:not(:disabled) {
-  border-color: var(--fp-gold);
-  color: var(--fp-gold);
+  border-color: #dc2626;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
   transform: translateY(-2px);
 }
 
@@ -389,7 +415,7 @@
   font-size: 0.7rem;
   font-weight: 500;
   letter-spacing: 0.12em;
-  color: #888;
+  color: #64748b;
   text-decoration: none;
   text-align: center;
   transition: all 0.3s ease;
@@ -401,65 +427,15 @@
 }
 
 .qv-view-details:hover {
-  color: var(--fp-gold);
+  color: #dc2626;
   gap: 0.8rem;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .qv-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .qv-gallery {
-    padding: 1.5rem;
-  }
-
-  .qv-info {
-    padding: 1.5rem;
-  }
-
-  .qv-title {
-    font-size: 1.5rem;
-  }
-
-  .qv-price {
-    font-size: 1.5rem;
-  }
-
-  .qv-actions {
-    flex-direction: column;
-  }
-
-  .qv-modal {
-    max-height: 90vh;
-    overflow-y: auto;
-  }
-}
-
-@media (max-width: 480px) {
-  .qv-corner {
-    display: none;
-  }
-
-  .qv-gallery {
-    padding: 1rem;
-  }
-
-  .qv-info {
-    padding: 1.2rem;
-  }
-
-  .qv-title {
-    font-size: 1.3rem;
-  }
 }
 
 /* QuickView Attributes Styles */
 .qv-attributes {
   margin-top: 1rem;
   padding-top: 0.75rem;
-  border-top: 1px solid rgba(218, 165, 32, 0.15);
+  border-top: 1px solid rgba(220, 38, 38, 0.15);
 }
 
 .qv-attr {
@@ -468,12 +444,12 @@
 
 .qv-attr-label {
   display: block;
-  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.55rem;
   font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #8b6914;
+  color: #dc2626;
   margin-bottom: 0.4rem;
 }
 
@@ -484,42 +460,31 @@
 }
 
 .qv-attr-tag {
-  padding: 0.25rem 0.7rem;
-  background: rgba(218, 165, 32, 0.08);
-  border: 1px solid rgba(218, 165, 32, 0.15);
-  border-radius: 20px;
-  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
-  font-size: 0.6rem;
-  font-weight: 500;
-  color: #444;
-}
-
-/* Add to QuickView.css */
-.qv-attr-tag {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   padding: 0.4rem 0.8rem;
-  background: rgba(218, 165, 32, 0.08);
-  border: 1px solid rgba(218, 165, 32, 0.15);
+  background: #f8fafc;
+  border: 1px solid rgba(220, 38, 38, 0.15);
   border-radius: 30px;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.65rem;
   font-weight: 500;
-  color: #444;
+  color: #475569;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .qv-attr-tag.active {
-  background: #daa520;
-  border-color: #daa520;
-  color: white;
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
+  border-color: transparent;
+  color: #ffffff;
 }
 
 .qv-attr-tag:hover:not(.active) {
-  background: rgba(218, 165, 32, 0.15);
-  border-color: #daa520;
+  background: rgba(220, 38, 38, 0.1);
+  border-color: #dc2626;
+  color: #dc2626;
 }
 
 .qv-attr-img {
@@ -528,8 +493,6 @@
   border-radius: 50%;
   object-fit: cover;
 }
-
-/* Add these styles to QuickView.css */
 
 /* Per Piece Info */
 .qv-per-piece-info {
@@ -543,13 +506,13 @@
 }
 
 .qv-per-piece-label {
-  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.65rem;
-  color: #666666;
+  color: #64748b;
 }
 
 .qv-per-piece-saving {
-  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 600;
   color: #22c55e;
@@ -562,7 +525,7 @@
 .qv-bulk-section {
   margin-top: 0.5rem;
   padding-top: 0.5rem;
-  border-top: 1px solid rgba(218, 165, 32, 0.15);
+  border-top: 1px solid rgba(220, 38, 38, 0.15);
 }
 
 .qv-bulk-tiers {
@@ -579,12 +542,12 @@
 }
 
 .qv-bulk-tiers::-webkit-scrollbar-track {
-  background: rgba(218, 165, 32, 0.05);
+  background: rgba(220, 38, 38, 0.05);
   border-radius: 3px;
 }
 
 .qv-bulk-tiers::-webkit-scrollbar-thumb {
-  background: rgba(218, 165, 32, 0.3);
+  background: rgba(220, 38, 38, 0.3);
   border-radius: 3px;
 }
 
@@ -595,8 +558,8 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: rgba(218, 165, 32, 0.04);
-  border: 1px solid rgba(218, 165, 32, 0.15);
+  background: rgba(220, 38, 38, 0.03);
+  border: 1px solid rgba(220, 38, 38, 0.15);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -605,19 +568,19 @@
 }
 
 .qv-bulk-tier:hover {
-  background: rgba(218, 165, 32, 0.08);
-  border-color: #daa520;
+  background: rgba(220, 38, 38, 0.08);
+  border-color: #dc2626;
   transform: translateX(4px);
 }
 
 .qv-bulk-tier.active {
-  background: rgba(218, 165, 32, 0.12);
-  border-color: #daa520;
+  background: rgba(220, 38, 38, 0.12);
+  border-color: #dc2626;
   border-width: 2px;
 }
 
 .qv-bulk-tier.single-item {
-  background: rgba(218, 165, 32, 0.02);
+  background: rgba(220, 38, 38, 0.02);
 }
 
 .qv-bulk-tier.best-value {
@@ -634,51 +597,54 @@
   height: 0;
   border-style: solid;
   border-width: 0 30px 30px 0;
-  border-color: transparent #daa520 transparent transparent;
+  border-color: transparent #dc2626 transparent transparent;
 }
 
 .qv-bulk-best {
   font-size: 0.55rem;
   font-weight: 700;
-  background: #daa520;
-  color: white;
+  background: linear-gradient(180deg, #dc2626, #ef4444);
+  color: #ffffff;
   padding: 0.2rem 0.5rem;
   border-radius: 12px;
   margin-left: 0.5rem;
 }
 
 .qv-bulk-tier-qty {
-  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.7rem;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #0f172a;
   display: flex;
   align-items: center;
   gap: 0.3rem;
 }
 
 .qv-bulk-tier-price {
-  font-family: var(--fp-serif, "Goldman", system-ui, sans-serif);
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 1rem;
   font-weight: 700;
-  color: #8b6914;
+  background: linear-gradient(180deg, #dc2626, #ef4444);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .qv-bulk-tier-perpiece {
-  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
-  color: #666666;
+  color: #64748b;
 }
 
 .qv-bulk-tier-saving {
-  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.55rem;
   font-weight: 600;
   color: #22c55e;
 }
 
 .qv-bulk-tier-discount {
-  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.55rem;
   font-weight: 700;
   color: #f59e0b;
@@ -693,41 +659,44 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.6rem 0.8rem;
-  background: rgba(218, 165, 32, 0.08);
+  background: #f8fafc;
   border-radius: 10px;
   margin-top: 0.5rem;
   flex-wrap: wrap;
 }
 
 .qv-qty-label {
-  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #8b6914;
+  color: #dc2626;
 }
 
 .qv-qty-value {
-  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.7rem;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #0f172a;
   background: #ffffff;
   padding: 0.2rem 0.6rem;
   border-radius: 20px;
-  border: 1px solid rgba(218, 165, 32, 0.2);
+  border: 1px solid rgba(220, 38, 38, 0.2);
 }
 
 .qv-qty-total {
-  font-family: var(--fp-serif, "Goldman", system-ui, sans-serif);
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.85rem;
   font-weight: 700;
-  color: #8b6914;
+  background: linear-gradient(180deg, #dc2626, #ef4444);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   margin-left: auto;
 }
 
-/* ── Quantity selector row (increase / decrease) ── */
+/* Quantity selector row (increase / decrease) */
 .qv-qty-row {
   display: flex;
   align-items: center;
@@ -739,10 +708,10 @@
   display: flex;
   align-items: center;
   gap: 0;
-  border: 1px solid rgba(218, 165, 32, 0.35);
+  border: 1px solid rgba(220, 38, 38, 0.35);
   border-radius: 40px;
   overflow: hidden;
-  background: #fff;
+  background: #ffffff;
 }
 
 .qv-qty-btn {
@@ -754,7 +723,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  color: #8b6914;
+  color: #dc2626;
   transition:
     background 0.2s ease,
     color 0.2s ease;
@@ -767,8 +736,8 @@
 }
 
 .qv-qty-btn:hover:not(:disabled) {
-  background: rgba(218, 165, 32, 0.12);
-  color: #b8963e;
+  background: rgba(220, 38, 38, 0.12);
+  color: #ef4444;
 }
 
 .qv-qty-btn:disabled {
@@ -782,276 +751,12 @@
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.85rem;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #0f172a;
   padding: 0 0.25rem;
   user-select: none;
 }
 
-/* Responsive */
-@media (max-width: 500px) {
-  .qv-bulk-tier {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .qv-bulk-tier-price {
-    align-self: flex-end;
-  }
-  .qv-selected-qty {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .qv-qty-total {
-    margin-left: 0;
-  }
-}
-
-/* Description Section Styles */
-.qv-desc-section {
-  margin-top: 0.75rem;
-  margin-bottom: 0.5rem;
-  border-top: 1px solid rgba(218, 165, 32, 0.15);
-  padding-top: 0.75rem;
-}
-
-.qv-desc-header {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0;
-  transition: all 0.2s ease;
-}
-
-.qv-desc-header:hover {
-  gap: 0.8rem;
-}
-
-.qv-desc-icon {
-  width: 28px;
-  height: 28px;
-  background: rgba(218, 165, 32, 0.08);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.qv-desc-icon svg {
-  width: 14px;
-  height: 14px;
-  color: #daa520;
-}
-
-.qv-desc-label {
-  flex: 1;
-  font-family: "Goldman", system-ui, sans-serif;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #1a1a1a;
-}
-
-.qv-desc-label span {
-  display: block;
-  font-size: 0.55rem;
-  font-weight: 400;
-  letter-spacing: 0.05em;
-  text-transform: none;
-  color: #daa520;
-  margin-top: 0.15rem;
-}
-
-.qv-desc-toggle svg {
-  width: 14px;
-  height: 14px;
-  color: #daa520;
-}
-
-.qv-desc-preview {
-  font-family: "Goldman", system-ui, sans-serif;
-  font-size: 0.7rem;
-  line-height: 1.5;
-  color: #666;
-  margin-top: 0.25rem;
-  padding-left: 2.5rem;
-  border-left: 2px solid rgba(218, 165, 32, 0.3);
-}
-
-/* Description Modal Styles */
-.qv-desc-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.9);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 100000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: qvDescFadeIn 0.3s ease;
-}
-
-@keyframes qvDescFadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.qv-desc-modal {
-  position: relative;
-  width: 90%;
-  max-width: 800px;
-  max-height: 85vh;
-  background: white;
-  border-radius: 24px;
-  overflow: hidden;
-  animation: qvDescSlideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes qvDescSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.qv-desc-modal-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.05);
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-  transition: all 0.3s ease;
-}
-
-.qv-desc-modal-close svg {
-  width: 20px;
-  height: 20px;
-  color: #666;
-}
-
-.qv-desc-modal-close:hover {
-  background: rgba(218, 165, 32, 0.15);
-  transform: rotate(90deg);
-}
-
-.qv-desc-modal-close:hover svg {
-  color: #daa520;
-}
-
-.qv-desc-modal-header {
-  padding: 1.5rem 2rem;
-  border-bottom: 1px solid rgba(218, 165, 32, 0.15);
-  background: #faf8f5;
-}
-
-.qv-desc-modal-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-family: "Goldman", system-ui, sans-serif;
-  font-size: 0.55rem;
-  font-weight: 600;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: #daa520;
-  margin-bottom: 0.5rem;
-}
-
-.qv-desc-ey-line {
-  width: 30px;
-  height: 1px;
-  background: #daa520;
-}
-
-.qv-desc-modal-title {
-  font-family: "Goldman", system-ui, sans-serif;
-  font-size: 1.8rem;
-  font-weight: 500;
-  color: #1a1a1a;
-  margin: 0;
-}
-
-.qv-desc-modal-body {
-  padding: 2rem;
-  overflow-y: auto;
-  max-height: calc(85vh - 120px);
-}
-
-.qv-desc-modal-images {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.qv-desc-modal-images img {
-  max-width: 100%;
-  max-height: 200px;
-  border-radius: 12px;
-  border: 1px solid rgba(218, 165, 32, 0.2);
-}
-
-.qv-desc-modal-content {
-  font-family: "Goldman", system-ui, sans-serif;
-  font-size: 0.85rem;
-  line-height: 1.7;
-  color: #444;
-}
-
-.qv-desc-modal-content p {
-  margin-bottom: 1rem;
-}
-
-.qv-desc-modal-content img {
-  max-width: 100%;
-  border-radius: 12px;
-  margin: 1rem 0;
-}
-
-.qv-desc-modal-content ul,
-.qv-desc-modal-content ol {
-  margin: 0.5rem 0 1rem 1.5rem;
-}
-
-.qv-desc-modal-content li {
-  margin-bottom: 0.25rem;
-}
-
-.qv-desc-modal-content h1,
-.qv-desc-modal-content h2,
-.qv-desc-modal-content h3 {
-  font-family: "Goldman", system-ui, sans-serif;
-  margin: 1rem 0 0.5rem;
-  color: #1a1a1a;
-}
-
-@media (max-width: 768px) {
-  .qv-desc-modal-title {
-    font-size: 1.3rem;
-  }
-  .qv-desc-modal-body {
-    padding: 1.2rem;
-  }
-}
-
-/* Add to QuickView.css - Rating row styles */
+/* Rating row styles */
 .qv-rating-row {
   display: flex;
   align-items: center;
@@ -1061,16 +766,16 @@
 }
 
 .qv-rating-value {
-  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.7rem;
   font-weight: 600;
-  color: #daa520;
+  color: #dc2626;
 }
 
 .qv-rating-count {
-  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
-  color: #888;
+  color: #64748b;
 }
 
 /* Bulk header styles */
@@ -1092,7 +797,7 @@
   border: 1px solid rgba(220, 38, 38, 0.25);
   border-radius: 20px;
   color: #dc2626;
-  font-family: var(--fp-sans, "Goldman", system-ui, sans-serif);
+  font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.55rem;
   font-weight: 500;
   cursor: pointer;
@@ -1116,7 +821,7 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  background: #daa520;
+  background: linear-gradient(180deg, #dc2626, #ef4444);
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -1124,7 +829,7 @@
 .qv-tier-check svg {
   width: 12px;
   height: 12px;
-  color: white;
+  color: #ffffff;
 }
 
 /* Loading spinner for tiers */
@@ -1137,8 +842,8 @@
 .qv-tiers-spinner {
   width: 24px;
   height: 24px;
-  border: 2px solid rgba(218, 165, 32, 0.2);
-  border-top-color: #daa520;
+  border: 2px solid rgba(220, 38, 38, 0.2);
+  border-top-color: #dc2626;
   border-radius: 50%;
   animation: qv-spin 0.8s linear infinite;
 }
@@ -1182,7 +887,7 @@
   max-height: 82vh;
 }
 
-/* Gallery scroll — override the duplicate below */
+/* Gallery scroll */
 .qv-gallery {
   overflow-y: auto !important;
   scrollbar-width: thin;
@@ -1219,6 +924,10 @@
   .qv-modal {
     width: 96%;
   }
+
+  .qv-actions {
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1238,7 +947,38 @@
     font-size: 1.4rem;
   }
 
-  .qv-actions {
-    flex-direction: column;
+  .qv-corner {
+    display: none;
   }
+
+  .qv-bulk-tier {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .qv-bulk-tier-price {
+    align-self: flex-end;
+  }
+
+  .qv-selected-qty {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .qv-qty-total {
+    margin-left: 0;
+  }
+}
+
+/* Disabled variant styles */
+.qv-attr-tag.disabled-variant {
+  opacity: 0.5;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.qv-variant-oos {
+  font-size: 0.5rem;
+  margin-left: 0.25rem;
+  color: #ff6b6b;
 }

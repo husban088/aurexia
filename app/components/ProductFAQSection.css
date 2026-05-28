@@ -1,42 +1,43 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    ProductFAQSection.css
-   Pure CSS accordion — Dark, Luxury, Highly Readable Theme
+   Pure CSS accordion — WHITE BACKGROUND | BLACK TEXT | RED + BLACK GRADIENTS
+   Matching Explore Aurexia style
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Google Fonts ─────────────────────────────────────────────────────────── */
 @import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
 
-/* ── CSS Variables — Dark Luxury Theme ───────────────────────────────────── */
+/* ── CSS Variables — White & RED Theme ───────────────────────────────────── */
 :root {
-  --pfaq-gold: #daa520;
-  --pfaq-gold-light: #f0c040;
-  --pfaq-gold-dim: #b8860b;
-  --pfaq-gold-dark: #8b6914;
-  --pfaq-gold-border: rgba(218, 165, 32, 0.25);
-  --pfaq-gold-glow: rgba(218, 165, 32, 0.1);
-  --pfaq-gold-muted: rgba(218, 165, 32, 0.12);
+  --pfaq-red: #dc2626;
+  --pfaq-red-light: #ef4444;
+  --pfaq-red-dim: #b91c1c;
+  --pfaq-red-dark: #991b1b;
+  --pfaq-red-border: rgba(220, 38, 38, 0.25);
+  --pfaq-red-glow: rgba(220, 38, 38, 0.1);
+  --pfaq-red-muted: rgba(220, 38, 38, 0.08);
 
-  /* Main text colors — DARK and VISIBLE */
-  --pfaq-text-primary: #1a1a1a;
-  --pfaq-text-secondary: #2c2c2c;
-  --pfaq-text-tertiary: #3a3a3a;
-  --pfaq-text-dim: #666666;
-  --pfaq-text-light: #888888;
+  /* Main text colors — BLACK and VISIBLE */
+  --pfaq-text-primary: #0f172a;
+  --pfaq-text-secondary: #1e293b;
+  --pfaq-text-tertiary: #334155;
+  --pfaq-text-dim: #64748b;
+  --pfaq-text-light: #94a3b8;
 
   /* Answer text color */
-  --pfaq-text-ans: #2d2d2d;
-  --pfaq-text-ans-light: #4a4a4a;
+  --pfaq-text-ans: #475569;
+  --pfaq-text-ans-light: #64748b;
 
-  /* Background colors */
-  --pfaq-bg: #fdfaf5;
+  /* Background colors - WHITE */
+  --pfaq-bg: #ffffff;
   --pfaq-bg-card: #ffffff;
-  --pfaq-bg-hover: #fff8ed;
+  --pfaq-bg-hover: #f8fafc;
 
   --pfaq-serif: "Goldman", system-ui, sans-serif;
   --pfaq-sans: "Goldman", system-ui, sans-serif;
   --pfaq-mono: "Goldman", system-ui, sans-serif;
 
-  --pfaq-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --pfaq-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --pfaq-dur: 0.38s;
 }
 
@@ -55,23 +56,16 @@
   border-radius: 24px;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   BACKGROUND DECORATION
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* Fine grid texture - Red + Black Mixed */
 .pfaq-bg-grid {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(218, 165, 32, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(218, 165, 32, 0.06) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(
-    ellipse 75% 75% at 50% 50%,
-    black 20%,
-    transparent 100%
-  );
+    linear-gradient(rgba(220, 38, 38, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
 }
 
 .pfaq-bg-glow {
@@ -90,7 +84,7 @@
   left: -60px;
   background: radial-gradient(
     circle,
-    rgba(218, 165, 32, 0.12) 0%,
+    rgba(220, 38, 38, 0.08) 0%,
     transparent 70%
   );
 }
@@ -102,7 +96,7 @@
   right: -40px;
   background: radial-gradient(
     circle,
-    rgba(218, 165, 32, 0.08) 0%,
+    rgba(220, 38, 38, 0.05) 0%,
     transparent 70%
   );
   animation-direction: alternate-reverse;
@@ -119,7 +113,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   HEADER — DARK TEXT
+   HEADER — BLACK TEXT
    ═══════════════════════════════════════════════════════════════════════════ */
 .pfaq-header {
   position: relative;
@@ -141,12 +135,7 @@
   display: block;
   width: 36px;
   height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--pfaq-gold),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, #dc2626, transparent);
   flex-shrink: 0;
 }
 
@@ -156,8 +145,8 @@
   font-weight: 500;
   letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: var(--pfaq-gold-dim);
-  background: rgba(218, 165, 32, 0.1);
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
   padding: 0.3rem 1rem;
   border-radius: 30px;
   display: inline-block;
@@ -175,12 +164,7 @@
 
 .pfaq-header__title em {
   font-style: italic;
-  background: linear-gradient(
-    135deg,
-    var(--pfaq-gold) 0%,
-    var(--pfaq-gold-dim) 50%,
-    var(--pfaq-gold-dark) 100%
-  );
+  background: linear-gradient(180deg, #dc2626 0%, #ef4444 50%, #0f172a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -201,7 +185,7 @@
 .pfaq-list {
   position: relative;
   z-index: 1;
-  border-top: 1px solid var(--pfaq-gold-border);
+  border-top: 1px solid rgba(220, 38, 38, 0.15);
   max-width: 860px;
   margin: 0 auto;
 }
@@ -219,7 +203,7 @@
 }
 
 .pfaq-item:hover {
-  box-shadow: 0 4px 20px rgba(218, 165, 32, 0.08);
+  box-shadow: 0 4px 20px rgba(220, 38, 38, 0.08);
 }
 
 /* Hover background shimmer */
@@ -243,9 +227,9 @@
   opacity: 1;
   background: linear-gradient(
     105deg,
-    rgba(218, 165, 32, 0.04) 0%,
-    rgba(218, 165, 32, 0.08) 50%,
-    rgba(218, 165, 32, 0.03) 100%
+    rgba(220, 38, 38, 0.04) 0%,
+    rgba(220, 38, 38, 0.08) 50%,
+    rgba(220, 38, 38, 0.03) 100%
   );
 }
 
@@ -258,13 +242,13 @@
   font-size: 0.58rem;
   font-weight: 500;
   letter-spacing: 0.1em;
-  color: var(--pfaq-gold-dim);
+  color: #dc2626;
   opacity: 0.6;
   transition: all var(--pfaq-dur) var(--pfaq-ease);
   user-select: none;
   pointer-events: none;
   z-index: 1;
-  background: rgba(218, 165, 32, 0.1);
+  background: rgba(220, 38, 38, 0.08);
   padding: 0.2rem 0.5rem;
   border-radius: 20px;
 }
@@ -272,8 +256,8 @@
 .pfaq-item:hover .pfaq-item__num,
 .pfaq-item--open .pfaq-item__num {
   opacity: 1;
-  color: var(--pfaq-gold);
-  background: rgba(218, 165, 32, 0.2);
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.15);
 }
 
 /* ── Trigger (question) button ── */
@@ -295,12 +279,12 @@
 }
 
 .pfaq-item__trigger:focus-visible {
-  outline: 2px solid var(--pfaq-gold);
+  outline: 2px solid #dc2626;
   outline-offset: 2px;
   border-radius: 16px;
 }
 
-/* Question text — DARK and BOLD */
+/* Question text — BLACK and BOLD */
 .pfaq-item__question {
   font-family: var(--pfaq-serif);
   font-size: clamp(1rem, 1.8vw, 1.15rem);
@@ -313,7 +297,7 @@
 
 .pfaq-item:hover .pfaq-item__question,
 .pfaq-item--open .pfaq-item__question {
-  color: var(--pfaq-gold-dim);
+  color: #dc2626;
 }
 
 /* ── Plus/Minus icon ── */
@@ -324,9 +308,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1.5px solid var(--pfaq-gold-border);
+  border: 1.5px solid rgba(220, 38, 38, 0.25);
   border-radius: 50%;
-  color: var(--pfaq-gold-dim);
+  color: #dc2626;
   background: transparent;
   transition: all var(--pfaq-dur) var(--pfaq-ease);
 }
@@ -350,16 +334,16 @@
 
 /* Icon hover & open states */
 .pfaq-item:hover .pfaq-item__icon {
-  color: var(--pfaq-gold);
-  border-color: var(--pfaq-gold);
-  background: var(--pfaq-gold-muted);
+  color: #ef4444;
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
   transform: scale(1.05);
 }
 
 .pfaq-item--open .pfaq-item__icon {
-  color: var(--pfaq-gold);
-  border-color: var(--pfaq-gold);
-  background: var(--pfaq-gold-muted);
+  color: #dc2626;
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.12);
   transform: rotate(180deg);
 }
 
@@ -387,7 +371,7 @@
   padding: 0.2rem 1.5rem 1.5rem 3rem;
 }
 
-/* Gold left accent bar */
+/* Red left accent bar */
 .pfaq-answer-bar {
   flex-shrink: 0;
   width: 3px;
@@ -395,20 +379,20 @@
   align-self: stretch;
   background: linear-gradient(
     180deg,
-    var(--pfaq-gold) 0%,
-    var(--pfaq-gold-dim) 60%,
+    #dc2626 0%,
+    #ef4444 60%,
     transparent 100%
   );
   border-radius: 3px;
 }
 
-/* Answer text — DARK and READABLE */
+/* Answer text — BLACK and READABLE */
 .pfaq-item__answer p {
   font-family: var(--pfaq-sans);
   font-size: 1rem;
   font-weight: 500;
   line-height: 1.7;
-  color: var(--pfaq-text-secondary);
+  color: #475569;
   margin: 0;
   padding-top: 0.1rem;
   letter-spacing: 0.02em;
@@ -423,8 +407,8 @@
   background: linear-gradient(
     90deg,
     transparent,
-    var(--pfaq-gold-border) 20%,
-    var(--pfaq-gold-border) 80%,
+    rgba(220, 38, 38, 0.15) 20%,
+    rgba(220, 38, 38, 0.15) 80%,
     transparent
   );
   transition: background var(--pfaq-dur) var(--pfaq-ease);
@@ -434,8 +418,8 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(218, 165, 32, 0.5) 20%,
-    rgba(218, 165, 32, 0.5) 80%,
+    rgba(220, 38, 38, 0.4) 20%,
+    rgba(220, 38, 38, 0.4) 80%,
     transparent
   );
 }
@@ -459,11 +443,11 @@
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--pfaq-gold-dim);
-  border: 1.5px solid var(--pfaq-gold-border);
+  color: #dc2626;
+  border: 1.5px solid rgba(220, 38, 38, 0.25);
   padding: 0.6rem 1.5rem;
   border-radius: 100px;
-  background: var(--pfaq-gold-glow);
+  background: rgba(220, 38, 38, 0.04);
   backdrop-filter: blur(10px);
 }
 
@@ -474,7 +458,7 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(218, 165, 32, 0.15) 50%,
+    rgba(220, 38, 38, 0.1) 50%,
     transparent 100%
   );
   transform: translateX(-120%);
@@ -619,39 +603,6 @@
   .pfaq-footer__badge {
     font-size: 0.55rem;
     padding: 0.4rem 1rem;
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   DARK MODE SUPPORT (Optional)
-   ═══════════════════════════════════════════════════════════════════════════ */
-@media (prefers-color-scheme: dark) {
-  .pfaq-section {
-    background: #1a1a1a;
-  }
-
-  .pfaq-header__title {
-    color: #f5f0e8;
-  }
-
-  .pfaq-header__sub {
-    color: #c8b88a;
-  }
-
-  .pfaq-item {
-    background: #242424;
-  }
-
-  .pfaq-item::before {
-    background: #2a2a2a;
-  }
-
-  .pfaq-item__question {
-    color: #f5f0e8;
-  }
-
-  .pfaq-item__answer p {
-    color: #d4c8b0;
   }
 }
 
