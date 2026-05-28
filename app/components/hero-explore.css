@@ -33,43 +33,44 @@
   --he-sans: "Goldman", system-ui, sans-serif;
 }
 
-/* ── Section with SMOOTH TOP RED → BOTTOM BLACK Gradient (like premium banner) ── */
+/* ── Section with LUXURY TOP BLACK → BOTTOM DARK RED Gradient ── */
 .he-section {
   position: relative;
   background: linear-gradient(
     180deg,
-    #dc2626 0%,
-    #c71f1f 15%,
-    #b01a1a 30%,
-    #7a1010 50%,
-    #1a1a2e 75%,
-    #0f0f1a 100%
+    #000000 0%,
+    #0a0a0a 20%,
+    #0f0505 40%,
+    #1a0505 58%,
+    #3d0a0a 75%,
+    #6b0f0f 88%,
+    #8b1010 100%
   );
   padding: 6rem 0 6rem;
   isolation: isolate;
   overflow: hidden;
 }
 
-/* Premium glow overlay - soft red glow at top */
+/* Premium glow overlay - deep red glow at bottom */
 .he-section::before {
   content: "";
   position: absolute;
   inset: 0;
   background: radial-gradient(
-    circle at 50% 0%,
-    rgba(220, 38, 38, 0.25) 0%,
-    rgba(220, 38, 38, 0.05) 40%,
+    ellipse at 50% 100%,
+    rgba(180, 15, 15, 0.55) 0%,
+    rgba(139, 16, 16, 0.25) 40%,
     transparent 70%
   );
   pointer-events: none;
   z-index: 0;
 }
 
-/* Top highlight line - Premium White/Red glow */
+/* Bottom highlight line - deep red luxury glow */
 .he-section::after {
   content: "";
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 50%;
   transform: translateX(-50%);
   width: min(800px, 90%);
@@ -77,11 +78,11 @@
   background: linear-gradient(
     to right,
     transparent,
-    rgba(255, 255, 255, 0.4),
-    #dc2626,
-    #ef4444,
-    #dc2626,
-    rgba(255, 255, 255, 0.4),
+    rgba(139, 16, 16, 0.5),
+    #8b1010,
+    #b91c1c,
+    #8b1010,
+    rgba(139, 16, 16, 0.5),
     transparent
   );
   pointer-events: none;
@@ -99,34 +100,35 @@
   z-index: 0;
 }
 
-/* Ambient glow - soft red aura */
+/* Ambient glow - deep red aura at bottom */
 .he-ambient {
   position: absolute;
-  top: 30%;
+  bottom: 0;
   left: 50%;
-  transform: translate(-50%, -30%);
-  width: 1000px;
-  height: 500px;
+  transform: translateX(-50%);
+  width: 1100px;
+  height: 450px;
   background: radial-gradient(
     ellipse,
-    rgba(220, 38, 38, 0.12) 0%,
-    rgba(220, 38, 38, 0.04) 40%,
+    rgba(139, 16, 16, 0.35) 0%,
+    rgba(100, 10, 10, 0.15) 45%,
     transparent 70%
   );
   pointer-events: none;
   z-index: 0;
 }
 
-/* Orb decorations - soft red glow */
+/* Orb decorations - deep dark red at bottom */
 .he-orb-left {
   position: absolute;
-  bottom: -200px;
-  left: -200px;
-  width: 550px;
-  height: 550px;
+  bottom: -180px;
+  left: -160px;
+  width: 600px;
+  height: 600px;
   background: radial-gradient(
     circle,
-    rgba(220, 38, 38, 0.08) 0%,
+    rgba(139, 16, 16, 0.22) 0%,
+    rgba(100, 10, 10, 0.08) 50%,
     transparent 70%
   );
   border-radius: 50%;
@@ -136,13 +138,13 @@
 
 .he-orb-right {
   position: absolute;
-  top: -120px;
-  right: -100px;
-  width: 450px;
-  height: 450px;
+  bottom: -80px;
+  right: -80px;
+  width: 480px;
+  height: 480px;
   background: radial-gradient(
     circle,
-    rgba(220, 38, 38, 0.06) 0%,
+    rgba(120, 12, 12, 0.18) 0%,
     transparent 70%
   );
   border-radius: 50%;
@@ -351,7 +353,7 @@
   letter-spacing: 0.02em;
 }
 
-/* CTA Button - Premium Red/Black gradient with WHITE text */
+/* CTA Button - WHITE background with Red/Black gradient border + dark text */
 .he-btn {
   position: relative;
   display: inline-flex;
@@ -363,18 +365,44 @@
   letter-spacing: 0.3em;
   text-transform: uppercase;
   text-decoration: none;
-  color: #ffffff;
-  background: linear-gradient(135deg, #dc2626, #7a1010, #1a1a2e);
+  color: #1a0505;
+  background: #ffffff;
   background-size: 200% auto;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: none;
   padding: 1rem 2.2rem 1rem 2rem;
   border-radius: 3px;
   overflow: hidden;
   align-self: flex-start;
   cursor: pointer;
   transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-  box-shadow: 0 4px 20px rgba(220, 38, 38, 0.3);
+  box-shadow:
+    0 0 0 2px transparent,
+    0 4px 24px rgba(139, 16, 16, 0.22);
   margin-bottom: 2.8rem;
+  /* Gradient border via outline trick */
+  isolation: isolate;
+}
+
+/* Gradient border using pseudo-element */
+.he-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  padding: 2px;
+  background: linear-gradient(135deg, #8b1010, #b91c1c, #dc2626, #000000);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 0.4s;
+  opacity: 1;
 }
 
 .he-btn::before {
@@ -383,12 +411,12 @@
   inset: 0;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.15) 0%,
-    rgba(255, 255, 255, 0.05) 50%,
-    transparent 70%
+    rgba(139, 16, 16, 0.06) 0%,
+    rgba(255, 255, 255, 0) 60%
   );
-  opacity: 1;
+  opacity: 0;
   transition: opacity 0.3s;
+  z-index: 0;
 }
 
 .he-btn-text {
@@ -406,7 +434,7 @@
 .he-btn-icon svg {
   width: 16px;
   height: 16px;
-  stroke: #ffffff;
+  stroke: #8b1010;
   stroke-width: 2;
 }
 
@@ -424,10 +452,11 @@
 }
 
 .he-btn:hover {
-  background: linear-gradient(135deg, #b91c1c, #dc2626, #ef4444);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #ffffff;
-  box-shadow: 0 6px 30px rgba(220, 38, 38, 0.5);
+  background: #fff8f8;
+  color: #6b0f0f;
+  box-shadow:
+    0 0 0 2px transparent,
+    0 8px 32px rgba(139, 16, 16, 0.35);
   transform: translateY(-3px) scale(1.02);
   letter-spacing: 0.34em;
 }
