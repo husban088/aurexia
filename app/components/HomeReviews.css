@@ -620,7 +620,7 @@
 }
 
 .hr-card:hover .hr-card-name {
-  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
+  background: linear-gradient(180deg, #dc2626 0%, #dc2626 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -657,7 +657,7 @@
   filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.4));
 }
 
-/* ── Review Title - BLACK TEXT with RED hover gradient ── */
+/* ── Review Title - BLACK TEXT with RED hover ── */
 .hr-card-title {
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.2rem;
@@ -669,13 +669,10 @@
 }
 
 .hr-card:hover .hr-card-title {
-  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #dc2626;
 }
 
-/* ── Review Body (Description) - BLACK TEXT ── */
+/* ── Review Body (Description) - BLACK TEXT with RED hover ── */
 .hr-card-body {
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.9rem;
@@ -690,7 +687,7 @@
 }
 
 .hr-card:hover .hr-card-body {
-  color: #334155;
+  color: #dc2626;
 }
 
 /* ── Product Tag - TOP RED → BOTTOM BLACK Theme ── */
@@ -702,11 +699,8 @@
   font-size: 0.55rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  background-color: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
   border: 1px solid rgba(220, 38, 38, 0.25);
   padding: 0.4rem 1rem;
   border-radius: 50px;
@@ -715,9 +709,10 @@
 }
 
 .hr-card:hover .hr-card-product {
-  background: rgba(220, 38, 38, 0.12);
+  background: rgba(220, 38, 38, 0.15);
   border-color: #dc2626;
   transform: translateX(3px);
+  color: #dc2626;
 }
 
 .hr-card-product svg {
