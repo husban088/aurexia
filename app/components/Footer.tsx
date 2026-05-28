@@ -308,25 +308,26 @@ export default function Footer() {
       <div className={`footer-container ${isVisible ? "visible" : ""}`}>
         <div className="footer-brand">
           <div className="footer-logo-wrapper">
-            <div className="footer-logo-3d">
-              <img
-                src="/footer__logo.png"
-                alt="TECH4U Luxury Store"
-                className="footer-logo-img"
-              />
-            </div>
+            <Link href="/" className="footer-logo-3d">
+              {/* Premium Text Logo - TECH4U */}
+              <div className="footer-text-logo">
+                <span className="footer-logo-tech">TECH</span>
+                <span className="footer-logo-four">4</span>
+                <span className="footer-logo-u">U</span>
+              </div>
+            </Link>
             <div className="footer-logo-gold-ring">
               <GiLaurelCrown />
             </div>
           </div>
           <p className="footer-tagline">
-            <span className="tagline-gold">✦</span> Luxury in Every Detail{" "}
-            <span className="tagline-gold">✦</span>
+            <span className="tagline-gold">✦</span> WHERE INNOVATION MEETS
+            ELEGANCE <span className="tagline-gold">✦</span>
           </p>
           <p className="footer-description">
             Curating the finest in watches, automotive elegance, home decor, and
             tech accessories for those who demand nothing but the extraordinary.
-            <span className="footer-description-glow">Since 2026</span>
+            <span className="footer-description-glow">EST. 2026</span>
           </p>
           <div className="footer-social">
             {socialLinks.map((social, index) => (
@@ -488,8 +489,8 @@ export default function Footer() {
             <p>
               © {currentYear}{" "}
               <span className="footer-copyright-brand">TECH4U</span>{" "}
-              <span className="copyright-separator">◆</span> Luxury in Every
-              Detail <span className="copyright-separator">◆</span> All rights
+              <span className="copyright-separator">◆</span> LUXURY IN EVERY
+              DETAIL <span className="copyright-separator">◆</span> All rights
               reserved.
             </p>
             <div className="copyright-gold-line right" />

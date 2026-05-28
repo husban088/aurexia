@@ -1624,3 +1624,213 @@ html {
     transform: rotate(-90deg);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PREMIUM TEXT LOGO STYLES - TECH4U Luxury Edition
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.footer-text-logo {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+
+/* TECH part of logo */
+.footer-logo-tech {
+  font-family: "Goldman", system-ui, sans-serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #ffffff 0%, #ef4444 40%, #dc2626 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition: all 0.4s ease;
+  text-shadow: 0 0 20px rgba(220, 38, 38, 0.2);
+  position: relative;
+}
+
+/* 4 part of logo - RED PULSE */
+.footer-logo-four {
+  font-family: "Goldman", system-ui, sans-serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #ffffff 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition: all 0.4s ease;
+  position: relative;
+  animation: footerRedPulse 2s ease-in-out infinite;
+}
+
+@keyframes footerRedPulse {
+  0%,
+  100% {
+    text-shadow: 0 0 8px rgba(220, 38, 38, 0.3);
+    background-position: 0% 0%;
+  }
+  50% {
+    text-shadow: 0 0 25px rgba(220, 38, 38, 0.8);
+    background-position: 100% 0%;
+  }
+}
+
+/* U part of logo */
+.footer-logo-u {
+  font-family: "Goldman", system-ui, sans-serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #ffffff 0%, #dc2626 50%, #ef4444 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition: all 0.4s ease;
+}
+
+/* Hover effect on entire logo */
+.footer-logo-3d {
+  text-decoration: none;
+  display: inline-block;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.footer-logo-3d:hover {
+  transform: scale(1.02);
+}
+
+.footer-logo-3d:hover .footer-logo-tech {
+  background-position: 100% 0;
+  text-shadow: 0 0 30px rgba(220, 38, 38, 0.5);
+}
+
+.footer-logo-3d:hover .footer-logo-four {
+  background-position: 100% 0;
+  transform: scale(1.05);
+  display: inline-block;
+}
+
+.footer-logo-3d:hover .footer-logo-u {
+  background-position: 100% 0;
+}
+
+/* Luxury Subtitle under logo */
+.footer-logo-subtitle {
+  font-family: "Goldman", system-ui, sans-serif;
+  font-size: 0.55rem;
+  font-weight: 400;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #dc2626 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-top: 0.25rem;
+  text-align: left;
+  transition: all 0.4s ease;
+  opacity: 0.9;
+}
+
+.footer-logo-3d:hover .footer-logo-subtitle {
+  letter-spacing: 0.45em;
+  opacity: 1;
+  text-shadow: 0 0 8px rgba(220, 38, 38, 0.5);
+}
+
+/* Underline animation on hover */
+.footer-text-logo::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #dc2626,
+    #ef4444,
+    #dc2626,
+    transparent
+  );
+  transform: scaleX(0);
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-radius: 2px;
+}
+
+.footer-logo-3d:hover .footer-text-logo::after {
+  transform: scaleX(1);
+}
+
+/* Glow effect behind logo */
+.footer-text-logo::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(
+    circle,
+    rgba(220, 38, 38, 0.15) 0%,
+    transparent 70%
+  );
+  transition: all 0.5s ease;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  border-radius: 50%;
+  z-index: -1;
+}
+
+.footer-logo-3d:hover .footer-text-logo::before {
+  width: 200%;
+  height: 200%;
+}
+
+/* Responsive adjustments for text logo */
+@media (max-width: 768px) {
+  .footer-logo-tech,
+  .footer-logo-four,
+  .footer-logo-u {
+    font-size: 1.6rem;
+  }
+
+  .footer-logo-subtitle {
+    font-size: 0.45rem;
+    letter-spacing: 0.25em;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer-logo-tech,
+  .footer-logo-four,
+  .footer-logo-u {
+    font-size: 1.4rem;
+  }
+
+  .footer-logo-subtitle {
+    font-size: 0.4rem;
+    letter-spacing: 0.2em;
+  }
+}
+
+/* RTL Support for text logo */
+[dir="rtl"] .footer-text-logo {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .footer-logo-subtitle {
+  text-align: right;
+}
+
+[dir="rtl"] .footer-text-logo::after {
+  left: auto;
+  right: 0;
+}
