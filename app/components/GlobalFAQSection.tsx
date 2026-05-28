@@ -9,6 +9,11 @@ import "./GlobalFAQSection.css";
    TRANSLATIONS
 ═══════════════════════════════════════════ */
 const t = {
+  eyebrow: {
+    en: "FAQ",
+    ar: "الأسئلة الشائعة",
+    de: "FAQ",
+  },
   title: {
     en: "Why,",
     ar: "لماذا،",
@@ -159,50 +164,34 @@ function FAQAccordionItem({
   onToggle: () => void;
 }) {
   return (
-    <div className={`gfaq-item ${isOpen ? "open" : ""}`}>
+    <div className={`gfaq-item${isOpen ? " open" : ""}`}>
       <button
         className="gfaq-question-btn"
         onClick={onToggle}
         aria-expanded={isOpen}
+        aria-controls={`gfaq-answer-${item.id}`}
+        id={`gfaq-question-${item.id}`}
       >
         <div className="gfaq-question-left">
-          <span className="gfaq-question-num">{item.id}</span>
+          {/* Number badge — matching FAQSection .faq-num */}
+          <span className="gfaq-question-num" aria-hidden="true">
+            {item.id}
+          </span>
           <span className="gfaq-question-text">{item.question}</span>
         </div>
-        <div className="gfaq-icon-wrap">
-          <svg
-            className="gfaq-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            aria-hidden="true"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          <svg
-            className="gfaq-icon-close"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            aria-hidden="true"
-          >
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </div>
+
+        {/* Plus/X icon — CSS pseudo-elements handle the visual */}
+        <div className="gfaq-icon-wrap" aria-hidden="true" />
       </button>
 
+      {/* Answer — CSS grid animation */}
       <div
         className="gfaq-answer-container"
-        style={{
-          maxHeight: isOpen ? "500px" : "0",
-          opacity: isOpen ? 1 : 0,
-        }}
+        id={`gfaq-answer-${item.id}`}
+        role="region"
+        aria-labelledby={`gfaq-question-${item.id}`}
       >
         <div className="gfaq-answer-content">
-          <div className="gfaq-answer-line" aria-hidden="true" />
           <p className="gfaq-answer-text">{item.answer}</p>
         </div>
       </div>
@@ -249,42 +238,32 @@ export default function GlobalFAQSection() {
       dir={isRTLMode ? "rtl" : "ltr"}
       aria-label="Frequently Asked Questions"
     >
-      {/* Grain texture */}
+      {/* Radial glow (replaces grain — now top glow) */}
       <div className="gfaq-grain" aria-hidden="true" />
 
-      {/* Ambient glow - Red */}
-      <div className="gfaq-ambient" aria-hidden="true" />
+      {/* Animated grid pattern */}
+      <div className="gfaq-grid" aria-hidden="true" />
 
-      {/* Decorative lines - Red tint */}
-      <div className="gfaq-lines" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-        <span />
-      </div>
+      {/* Corner accent lines */}
+      <div className="gfaq-corner-tl" aria-hidden="true" />
+      <div className="gfaq-corner-br" aria-hidden="true" />
 
-      {/* Sparkles - Red */}
-      <div className="gfaq-sparkle gfaq-sparkle--1" />
-      <div className="gfaq-sparkle gfaq-sparkle--2" />
-      <div className="gfaq-sparkle gfaq-sparkle--3" />
-      <div className="gfaq-sparkle gfaq-sparkle--4" />
-
-      {/* Header Section */}
-      <div className="gfaq-header">
-        <div className="gfaq-eyebrow-row">
-          <span className="gfaq-eyebrow">FAQ</span>
-          <div className="gfaq-eyebrow-line" />
+      {/* Header */}
+      <header className="gfaq-header">
+        <div className="gfaq-eyebrow" aria-hidden="true">
+          <span className="gfaq-eyebrow-line" />
+          {t.eyebrow[lang]}
+          <span className="gfaq-eyebrow-line" />
         </div>
         <h2 className="gfaq-title">
           {t.title[lang]} <em>{t.titleEm[lang]}</em>
         </h2>
-        <div className="gfaq-accent-bar" />
         <p className="gfaq-subtitle">{t.subtitle[lang]}</p>
-      </div>
+      </header>
 
-      {/* FAQ Accordion - Centered */}
+      {/* FAQ Accordion */}
       <div className="gfaq-accordion-wrapper">
-        <div className="gfaq-accordion-container">
+        <div className="gfaq-accordion-container" role="list">
           {faqsData.map((faq) => (
             <FAQAccordionItem
               key={faq.id}
@@ -296,26 +275,29 @@ export default function GlobalFAQSection() {
         </div>
       </div>
 
-      {/* CTA Section with WhatsApp Button */}
+      {/* Bottom CTA strip */}
       <div className="gfaq-cta">
         <div className="gfaq-cta-inner">
-          <div className="gfaq-cta-glow" aria-hidden="true" />
-
-          <div className="gfaq-cta-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              <path d="M8 10h8M8 14h5" />
-            </svg>
-          </div>
-
-          <h3 className="gfaq-cta-title">{t.stillQuestions[lang]}</h3>
+          <p className="gfaq-cta-title">
+            <strong>{t.stillQuestions[lang]}</strong>{" "}
+            {lang === "en"
+              ? "Our team is ready to help."
+              : lang === "ar"
+                ? "فريقنا مستعد للمساعدة."
+                : "Unser Team ist bereit zu helfen."}
+          </p>
 
           <div className="gfaq-cta-buttons">
             <Link href="/contact" className="gfaq-cta-btn gfaq-cta-btn-primary">
               <span>{t.contactBtn[lang]}</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <line x1="5" y1="12" x2="19" y2="12" />
-                <polyline points="12 5 19 12 12 19" />
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  d="M3 8h10M9 4l4 4-4 4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </Link>
 
@@ -326,10 +308,13 @@ export default function GlobalFAQSection() {
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="currentColor"
                 strokeWidth="1.5"
+                aria-hidden="true"
               >
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                <path
+                  stroke="currentColor"
+                  d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+                />
               </svg>
               <span>{t.whatsappBtn[lang]}</span>
             </button>
