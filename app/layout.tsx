@@ -1,6 +1,6 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import { Poppins, Goldman } from "next/font/google";
+import { Goldman } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Providers from "./providers";
@@ -8,7 +8,7 @@ import { CurrencyProvider } from "./context/CurrencyContext";
 import { LanguageProvider } from "./context/LanguageContext";
 import { getInitialCurrency } from "@/lib/get-initial-currency";
 
-// ✅ Goldman — primary font for entire website
+// ✅ Goldman ONLY — single font for entire website
 const goldman = Goldman({
   variable: "--font-goldman",
   subsets: ["latin"],
@@ -16,17 +16,6 @@ const goldman = Goldman({
   display: "swap",
   preload: true,
   fallback: ["system-ui", "sans-serif"],
-});
-
-// ✅ Poppins — kept as backup/secondary font
-const poppins = Poppins({
-  variable: "--font-poppins",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  display: "swap",
-  preload: false,
-  fallback: ["Segoe UI", "system-ui", "sans-serif"],
 });
 
 export const metadata: Metadata = {
@@ -40,25 +29,17 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // getInitialCurrency() returns { currency, source } OR null
-  // null = no CDN header found → client-side detection will run
   const initialResult = await getInitialCurrency();
-
-  // Pass code only when actually detected — null triggers client-side detection
-  // "user" source = user manually picked, always pass it
-  // "server" source = CDN detected, always pass it
-  // null = unknown, pass undefined so client detects properly
   const initialCurrencyCode = initialResult?.currency.code ?? undefined;
 
   return (
     <html
       lang="en"
       dir="ltr"
-      className={`${goldman.variable} ${poppins.variable} h-full antialiased`}
+      className={`${goldman.variable} h-full`}
       suppressHydrationWarning
     >
       <head>
-        {/* ✅ DNS prefetch — Facebook pixel faster load */}
         <link rel="dns-prefetch" href="//connect.facebook.net" />
         <link
           rel="preconnect"
@@ -85,7 +66,6 @@ export default async function RootLayout({
             `,
           }}
         />
-        {/* ✅ Fallback for browsers with JavaScript disabled */}
         <noscript>
           <img
             height="1"
@@ -98,11 +78,6 @@ export default async function RootLayout({
       </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <LanguageProvider>
-          {/*
-            initialCurrencyCode:
-            - string (e.g. "EUR", "AED", "PKR") = server/user detected → skip client detection
-            - undefined = no detection → client will run IP-based detection
-          */}
           <CurrencyProvider initialCurrencyCode={initialCurrencyCode}>
             <Providers>{children}</Providers>
           </CurrencyProvider>

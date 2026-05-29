@@ -1,8 +1,3 @@
-/* ── Google Fonts — Goldman, Poppins and fallbacks ── */
-@import url("https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&display=swap");
-
 /* ── Tailwind ── */
 @import "tailwindcss";
 
@@ -13,31 +8,13 @@
   --background: #0a0f1a;
   --foreground: #e6f7ff;
   --font-goldman: "Goldman", system-ui, sans-serif;
-  --font-poppins:
-    "Poppins", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
-    sans-serif;
-  --font-cormorant: "Cormorant Garamond", serif;
-
-  /* Scrollbar Colors - TOP RED → BOTTOM BLACK Gradient */
-  --scrollbar-thumb-start: #dc2626;
-  --scrollbar-thumb-mid: #b91c1c;
-  --scrollbar-thumb-end: #0f172a;
-  --scrollbar-track: #0a0f1a;
-  --scrollbar-border: #dc2626;
-  --scrollbar-thumb-hover-start: #ef4444;
-  --scrollbar-thumb-hover-mid: #dc2626;
-  --scrollbar-thumb-hover-end: #b91c1c;
-  --scrollbar-thumb-active: #dc2626;
-
-  /* Navbar height — layout shift prevention */
   --navbar-height: 70px;
+  --scrollbar-track: #0a0f1a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 /* ============================================================
@@ -55,20 +32,13 @@
 html {
   scroll-behavior: auto;
   overflow-x: hidden;
-  /* Firefox scrollbar - RED + BLACK */
   scrollbar-width: thin;
   scrollbar-color: #dc2626 #0a0f1a;
-}
-
-/* Firefox hover — brighten to lighter red */
-html:hover {
-  scrollbar-color: #ef4444 #0a0f1a;
 }
 
 body {
   margin: 0;
   padding: 0;
-  box-sizing: inherit;
   overflow-x: hidden;
   background: var(--background);
   color: var(--foreground);
@@ -77,263 +47,133 @@ body {
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Performance: avoid unnecessary compositing */
+  contain: layout style;
 }
 
 /* ============================================================
-   TOP RED → BOTTOM BLACK GRADIENT SCROLLBAR — Chrome, Edge, Safari, Opera
+   SCROLLBAR — Chrome, Edge, Safari
    ============================================================ */
-
-/* ── Global scrollbar size ── */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
-/* ── Track ── */
 ::-webkit-scrollbar-track {
   background: #0a0f1a;
-  border-radius: 10px;
 }
 
-/* ── Thumb - TOP RED → BOTTOM BLACK Gradient ── */
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #dc2626 0%, #b91c1c 40%, #0f172a 100%);
-  border-radius: 10px;
-  border: 1px solid rgba(220, 38, 38, 0.3);
-  transition: background 0.2s ease;
+  background: #dc2626;
+  border-radius: 8px;
 }
 
-/* ── Thumb Hover - Brighter RED → BLACK ── */
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%);
-  border: 1px solid rgba(239, 68, 68, 0.5);
-  box-shadow: 0 0 8px rgba(220, 38, 38, 0.35);
+  background: #ef4444;
 }
 
-/* ── Thumb Active (click) ── */
-::-webkit-scrollbar-thumb:active {
-  background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
-  border: 1px solid #ef4444;
-}
-
-/* ── Corner ── */
 ::-webkit-scrollbar-corner {
   background: #0a0f1a;
 }
 
-/* ============================================================
-   COMPONENT-SPECIFIC SCROLLBARS
-   Smaller & lighter for sidebars, modals, dropdowns
-   ============================================================ */
-
-/* Navbar Dropdowns */
+/* Component scrollbars — unified small size */
 .dropdown-menu::-webkit-scrollbar,
-.navbar-bottom::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-.dropdown-menu::-webkit-scrollbar-track,
-.navbar-bottom::-webkit-scrollbar-track {
-  background: #0a1a1f;
-  border-radius: 4px;
-}
-.dropdown-menu::-webkit-scrollbar-thumb,
-.navbar-bottom::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #dc2626, #b91c1c);
-  border-radius: 4px;
-  border: none;
-}
-.dropdown-menu::-webkit-scrollbar-thumb:hover,
-.navbar-bottom::-webkit-scrollbar-thumb:hover {
-  background: #ef4444;
-}
-
-/* Cart Sidebar Items */
-.cs-items::-webkit-scrollbar {
-  width: 3px;
-}
-.cs-items::-webkit-scrollbar-track {
-  background: rgba(220, 38, 38, 0.04);
-  border-radius: 3px;
-}
-.cs-items::-webkit-scrollbar-thumb {
-  background: #dc2626;
-  border-radius: 3px;
-}
-.cs-items::-webkit-scrollbar-thumb:hover {
-  background: #ef4444;
-}
-
-/* Search Sidebar */
-.ss-content::-webkit-scrollbar {
-  width: 3px;
-}
-.ss-content::-webkit-scrollbar-track {
-  background: rgba(220, 38, 38, 0.04);
-  border-radius: 3px;
-}
-.ss-content::-webkit-scrollbar-thumb {
-  background: #dc2626;
-  border-radius: 3px;
-}
-.ss-content::-webkit-scrollbar-thumb:hover {
-  background: #ef4444;
-}
-
-/* Sidebar Nav */
-.sidebar-nav::-webkit-scrollbar {
-  width: 5px;
-}
-.sidebar-nav::-webkit-scrollbar-track {
-  background: #0a1a1f;
-  border-radius: 5px;
-}
-.sidebar-nav::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #dc2626, #b91c1c);
-  border-radius: 5px;
-  border: none;
-}
-.sidebar-nav::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #ef4444, #dc2626);
-}
-
-/* Product Detail, Product Filter, Profile content */
+.navbar-bottom::-webkit-scrollbar,
+.cs-items::-webkit-scrollbar,
+.ss-content::-webkit-scrollbar,
+.sidebar-nav::-webkit-scrollbar,
 .pd-content::-webkit-scrollbar,
 .pf-content::-webkit-scrollbar,
 .pf-root::-webkit-scrollbar,
-.pf-nav::-webkit-scrollbar {
-  width: 5px;
-}
-.pd-content::-webkit-scrollbar-track,
-.pf-content::-webkit-scrollbar-track,
-.pf-root::-webkit-scrollbar-track,
-.pf-nav::-webkit-scrollbar-track {
-  background: #0a1a1f;
-  border-radius: 5px;
-}
-.pd-content::-webkit-scrollbar-thumb,
-.pf-content::-webkit-scrollbar-thumb,
-.pf-root::-webkit-scrollbar-thumb,
-.pf-nav::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #dc2626, #b91c1c);
-  border-radius: 5px;
-  border: none;
-}
-.pd-content::-webkit-scrollbar-thumb:hover,
-.pf-content::-webkit-scrollbar-thumb:hover,
-.pf-root::-webkit-scrollbar-thumb:hover,
-.pf-nav::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #ef4444, #dc2626);
-}
-
-/* Modals */
+.pf-nav::-webkit-scrollbar,
 .dm-modal-body::-webkit-scrollbar,
 .pd-toast-wrap::-webkit-scrollbar,
-.co-toast-wrap::-webkit-scrollbar {
-  width: 6px;
-}
-.dm-modal-body::-webkit-scrollbar-track,
-.pd-toast-wrap::-webkit-scrollbar-track,
-.co-toast-wrap::-webkit-scrollbar-track {
-  background: #0a1a1f;
-  border-radius: 6px;
-}
-.dm-modal-body::-webkit-scrollbar-thumb,
-.pd-toast-wrap::-webkit-scrollbar-thumb,
-.co-toast-wrap::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #dc2626, #b91c1c);
-  border-radius: 6px;
-  border: none;
-}
-.dm-modal-body::-webkit-scrollbar-thumb:hover,
-.pd-toast-wrap::-webkit-scrollbar-thumb:hover,
-.co-toast-wrap::-webkit-scrollbar-thumb:hover {
-  background: #ef4444;
-}
-
-/* Product Grid / Swiper */
+.co-toast-wrap::-webkit-scrollbar,
 .pg-grid::-webkit-scrollbar,
-.fp-swiper::-webkit-scrollbar {
+.fp-swiper::-webkit-scrollbar,
+.gfaq-accordion-container::-webkit-scrollbar,
+.co-success-items::-webkit-scrollbar,
+select::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
+
+.dropdown-menu::-webkit-scrollbar-track,
+.navbar-bottom::-webkit-scrollbar-track,
+.cs-items::-webkit-scrollbar-track,
+.ss-content::-webkit-scrollbar-track,
+.sidebar-nav::-webkit-scrollbar-track,
+.pd-content::-webkit-scrollbar-track,
+.pf-content::-webkit-scrollbar-track,
+.pf-root::-webkit-scrollbar-track,
+.pf-nav::-webkit-scrollbar-track,
+.dm-modal-body::-webkit-scrollbar-track,
+.pd-toast-wrap::-webkit-scrollbar-track,
+.co-toast-wrap::-webkit-scrollbar-track,
 .pg-grid::-webkit-scrollbar-track,
-.fp-swiper::-webkit-scrollbar-track {
-  background: #0a1a1f;
-}
-.pg-grid::-webkit-scrollbar-thumb,
-.fp-swiper::-webkit-scrollbar-thumb {
-  background: #dc2626;
-  border-radius: 4px;
-}
-.pg-grid::-webkit-scrollbar-thumb:hover,
-.fp-swiper::-webkit-scrollbar-thumb:hover {
-  background: #ef4444;
-}
-
-/* FAQ Accordion */
-.gfaq-accordion-container::-webkit-scrollbar {
-  width: 4px;
-}
-.gfaq-accordion-container::-webkit-scrollbar-track {
-  background: rgba(220, 38, 38, 0.04);
-}
-.gfaq-accordion-container::-webkit-scrollbar-thumb {
-  background: #dc2626;
-  border-radius: 4px;
-}
-.gfaq-accordion-container::-webkit-scrollbar-thumb:hover {
-  background: #ef4444;
-}
-
-/* Checkout / Order Success Items */
-.co-success-items::-webkit-scrollbar {
-  width: 4px;
-}
-.co-success-items::-webkit-scrollbar-track {
-  background: transparent;
-}
-.co-success-items::-webkit-scrollbar-thumb {
-  background: #dc2626;
-  border-radius: 2px;
-}
-.co-success-items::-webkit-scrollbar-thumb:hover {
-  background: #ef4444;
-}
-
-/* Select dropdowns (ShippingSection, etc.) */
-select::-webkit-scrollbar {
-  width: 6px;
-}
+.fp-swiper::-webkit-scrollbar-track,
+.gfaq-accordion-container::-webkit-scrollbar-track,
+.co-success-items::-webkit-scrollbar-track,
 select::-webkit-scrollbar-track {
-  background: #0a1a1f;
-  border-radius: 6px;
+  background: #0a0f1a;
+  border-radius: 4px;
 }
+
+.dropdown-menu::-webkit-scrollbar-thumb,
+.navbar-bottom::-webkit-scrollbar-thumb,
+.cs-items::-webkit-scrollbar-thumb,
+.ss-content::-webkit-scrollbar-thumb,
+.sidebar-nav::-webkit-scrollbar-thumb,
+.pd-content::-webkit-scrollbar-thumb,
+.pf-content::-webkit-scrollbar-thumb,
+.pf-root::-webkit-scrollbar-thumb,
+.pf-nav::-webkit-scrollbar-thumb,
+.dm-modal-body::-webkit-scrollbar-thumb,
+.pd-toast-wrap::-webkit-scrollbar-thumb,
+.co-toast-wrap::-webkit-scrollbar-thumb,
+.pg-grid::-webkit-scrollbar-thumb,
+.fp-swiper::-webkit-scrollbar-thumb,
+.gfaq-accordion-container::-webkit-scrollbar-thumb,
+.co-success-items::-webkit-scrollbar-thumb,
 select::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #dc2626, #b91c1c);
-  border-radius: 6px;
+  background: #dc2626;
+  border-radius: 4px;
 }
+
+.dropdown-menu::-webkit-scrollbar-thumb:hover,
+.navbar-bottom::-webkit-scrollbar-thumb:hover,
+.cs-items::-webkit-scrollbar-thumb:hover,
+.ss-content::-webkit-scrollbar-thumb:hover,
+.sidebar-nav::-webkit-scrollbar-thumb:hover,
+.pd-content::-webkit-scrollbar-thumb:hover,
+.pf-content::-webkit-scrollbar-thumb:hover,
+.pf-root::-webkit-scrollbar-thumb:hover,
+.pf-nav::-webkit-scrollbar-thumb:hover,
+.dm-modal-body::-webkit-scrollbar-thumb:hover,
+.pd-toast-wrap::-webkit-scrollbar-thumb:hover,
+.co-toast-wrap::-webkit-scrollbar-thumb:hover,
+.pg-grid::-webkit-scrollbar-thumb:hover,
+.fp-swiper::-webkit-scrollbar-thumb:hover,
+.gfaq-accordion-container::-webkit-scrollbar-thumb:hover,
+.co-success-items::-webkit-scrollbar-thumb:hover,
 select::-webkit-scrollbar-thumb:hover {
   background: #ef4444;
 }
 
 /* ============================================================
-   PAGE TRANSITION ANIMATION
+   PAGE TRANSITION — lightweight
    ============================================================ */
 @keyframes pageFadeIn {
   from {
     opacity: 0;
-    transform: translateY(4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
 .page-fade-in {
-  animation: pageFadeIn 0.25s ease-out forwards;
-  will-change: opacity, transform;
+  animation: pageFadeIn 0.2s ease-out forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -343,42 +183,12 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 /* ============================================================
-   GOLDMAN FONT — PRIMARY FONT FOR ENTIRE WEBSITE
+   GOLDMAN FONT — ONLY FONT ON WEBSITE
    ============================================================ */
-body,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-p,
-a,
-span,
-div,
-button,
-input,
-textarea,
-select,
-label,
-.navbar,
-.nav-links,
-.footer,
-.card,
-.product-card,
-.cart-item,
-.checkout-form,
-.panel,
-.admin-panel,
-.ap-root,
-.ep-root,
-.pd-root,
-.co-root,
-.fp-root,
-.pg-root,
-.rp-root {
-  font-family: var(--font-goldman);
-  font-weight: 500;
+*,
+*::before,
+*::after {
+  font-family: var(--font-goldman) !important;
 }
 
 code,
@@ -386,89 +196,10 @@ pre,
 kbd,
 samp,
 .monospace {
-  font-family: monospace;
+  font-family: monospace !important;
 }
 
-h1,
-.h1,
-.page-title,
-.hero-title {
-  font-family: var(--font-goldman);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-h2,
-.h2,
-.section-title {
-  font-family: var(--font-goldman);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-h3,
-.h3,
-.card-title {
-  font-family: var(--font-goldman);
-  font-weight: 700;
-}
-
-button,
-.btn,
-.cta-button {
-  font-family: var(--font-goldman);
-  font-weight: 700;
-  letter-spacing: 0.03em;
-}
-
-.nav-links a,
-.navbar a,
-.menu-item {
-  font-family: var(--font-goldman);
-  font-weight: 400;
-  letter-spacing: 0.05em;
-}
-
-.product-name,
-.product-title,
-.fp-card-name,
-.pg-card-name {
-  font-family: var(--font-goldman);
-  font-weight: 700;
-}
-
-.price,
-.product-price,
-.fp-card-price,
-.pg-card-price {
-  font-family: var(--font-goldman);
-  font-weight: 700;
-}
-
-label,
-input,
-textarea,
-select {
-  font-family: var(--font-goldman);
-}
-
-.small-text,
-.meta,
-.eyebrow,
-.badge,
-.stock-status {
-  font-family: var(--font-goldman);
-  font-weight: 400;
-  letter-spacing: 0.05em;
-}
-
-.footer-text,
-.copyright {
-  font-family: var(--font-goldman);
-  font-weight: 400;
-}
-
-/* Prevent italic — Goldman has no italic variant */
+/* Italic prevention — Goldman has no italic */
 i,
 em,
 cite,
@@ -479,7 +210,39 @@ var,
 }
 
 /* ============================================================
-   INTERACTIVE ELEMENT FOCUS STYLES - RED THEME
+   FONT WEIGHT HELPERS
+   ============================================================ */
+.font-goldman,
+.font-goldman-regular,
+.font-poppins,
+.font-poppins-regular,
+.font-poppins-medium,
+.font-cormorant {
+  font-family: var(--font-goldman) !important;
+  font-weight: 400;
+}
+
+.font-goldman-bold,
+.font-poppins-bold,
+.font-poppins-semibold,
+.font-poppins-extrabold,
+.font-poppins-black {
+  font-family: var(--font-goldman) !important;
+  font-weight: 700;
+}
+
+.font-poppins-thin,
+.font-poppins-light {
+  font-family: var(--font-goldman) !important;
+  font-weight: 400;
+}
+
+.font-mono {
+  font-family: monospace !important;
+}
+
+/* ============================================================
+   FOCUS STYLES
    ============================================================ */
 button {
   outline: none;
@@ -512,7 +275,7 @@ a {
 }
 
 /* ============================================================
-   PERFORMANCE — GPU layers for sticky/animated elements
+   STICKY NAVBAR — GPU promoted, no scroll jank
    ============================================================ */
 .navbar-sticky-wrapper {
   position: sticky;
@@ -520,73 +283,11 @@ a {
   z-index: 50;
   transform: translateZ(0);
   will-change: transform;
+  contain: layout style;
 }
 
 /* ============================================================
-   FONT HELPER CLASSES
-   ============================================================ */
-
-/* Goldman */
-.font-goldman {
-  font-family: "Goldman", system-ui, sans-serif;
-  font-weight: 500;
-}
-.font-goldman-regular {
-  font-family: "Goldman", system-ui, sans-serif;
-  font-weight: 400;
-}
-.font-goldman-bold {
-  font-family: "Goldman", system-ui, sans-serif;
-  font-weight: 700;
-}
-
-/* Poppins */
-.font-poppins {
-  font-family: "Poppins", sans-serif;
-}
-.font-poppins-thin {
-  font-family: "Poppins", sans-serif;
-  font-weight: 100;
-}
-.font-poppins-light {
-  font-family: "Poppins", sans-serif;
-  font-weight: 300;
-}
-.font-poppins-regular {
-  font-family: "Poppins", sans-serif;
-  font-weight: 400;
-}
-.font-poppins-medium {
-  font-family: "Poppins", sans-serif;
-  font-weight: 500;
-}
-.font-poppins-semibold {
-  font-family: "Poppins", sans-serif;
-  font-weight: 600;
-}
-.font-poppins-bold {
-  font-family: "Poppins", sans-serif;
-  font-weight: 700;
-}
-.font-poppins-extrabold {
-  font-family: "Poppins", sans-serif;
-  font-weight: 800;
-}
-.font-poppins-black {
-  font-family: "Poppins", sans-serif;
-  font-weight: 900;
-}
-
-/* Cormorant & Mono */
-.font-cormorant {
-  font-family: "Cormorant Garamond", serif;
-}
-.font-mono {
-  font-family: monospace;
-}
-
-/* ============================================================
-   RTL SUPPORT — Arabic / UAE
+   RTL SUPPORT
    ============================================================ */
 body.rtl,
 [dir="rtl"] {
@@ -663,7 +364,6 @@ body.rtl .fp-card-price,
   direction: rtl;
 }
 
-/* RTL scrollbar — LTR direction rakhna for correct thumb position */
 [dir="rtl"] ::-webkit-scrollbar {
   direction: ltr;
 }
