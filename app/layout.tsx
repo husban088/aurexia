@@ -36,7 +36,7 @@ export default async function RootLayout({
     <html
       lang="en"
       dir="ltr"
-      className={`${goldman.variable} h-full`}
+      className={goldman.variable}
       suppressHydrationWarning
     >
       <head>
@@ -76,7 +76,15 @@ export default async function RootLayout({
           />
         </noscript>
       </head>
-      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+
+      {/*
+        ✅ DOUBLE SCROLLBAR FIX:
+        - html   → height: auto, overflow: visible  (scroll nahi karega)
+        - body   → min-h-screen, overflow-y: auto    (sirf body scroll karega)
+        "h-full" hataa diya — woh html+body dono ko 100vh banaata tha
+        jis se dono scroll karte the
+      */}
+      <body className="min-h-screen flex flex-col" suppressHydrationWarning>
         <LanguageProvider>
           <CurrencyProvider initialCurrencyCode={initialCurrencyCode}>
             <Providers>{children}</Providers>

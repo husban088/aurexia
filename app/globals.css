@@ -9,7 +9,6 @@
   --foreground: #e6f7ff;
   --font-goldman: "Goldman", system-ui, sans-serif;
   --navbar-height: 70px;
-  --scrollbar-track: #0a0f1a;
 }
 
 @theme inline {
@@ -32,6 +31,7 @@
 html {
   scroll-behavior: auto;
   overflow-x: hidden;
+  /* Firefox scrollbar */
   scrollbar-width: thin;
   scrollbar-color: #dc2626 #0a0f1a;
 }
@@ -40,6 +40,10 @@ body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  /* ✅ DOUBLE SCROLLBAR FIX: body sirf window ki tarah scroll kare */
+  /* html/body dono scroll nahi karenge — sirf ek window scrollbar */
+  overflow-y: auto;
+  height: auto;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-goldman);
@@ -47,8 +51,12 @@ body {
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Performance: avoid unnecessary compositing */
-  contain: layout style;
+}
+
+/* ✅ html ko scroll se rok do — sirf body scroll kare */
+html {
+  overflow-y: visible;
+  height: auto;
 }
 
 /* ============================================================
@@ -76,7 +84,7 @@ body {
   background: #0a0f1a;
 }
 
-/* Component scrollbars — unified small size */
+/* Component scrollbars — small size */
 .dropdown-menu::-webkit-scrollbar,
 .navbar-bottom::-webkit-scrollbar,
 .cs-items::-webkit-scrollbar,
@@ -283,7 +291,6 @@ a {
   z-index: 50;
   transform: translateZ(0);
   will-change: transform;
-  contain: layout style;
 }
 
 /* ============================================================
