@@ -50,16 +50,9 @@
   isolation: isolate;
 }
 
-/* Fine grid texture - Red + Black Mixed */
+/* No grid texture - plain white background */
 .co-grain {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(220, 38, 38, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
-  background-size: 48px 48px;
-  pointer-events: none;
-  z-index: 0;
+  display: none;
 }
 
 /* Ambient Glow - Mixed */

@@ -120,16 +120,7 @@
 }
 
 .ss-select {
-  width: 100%;
-  background: transparent;
-  border: none;
-  outline: none;
   padding: 0.6rem 2rem 0.6rem 0;
-  font-family: "Goldman", system-ui, sans-serif;
-  font-size: clamp(0.75rem, 3vw, 0.8rem);
-  font-weight: 400;
-  letter-spacing: 0.05em;
-  color: #0f172a;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
@@ -192,13 +183,14 @@
   opacity: 1;
 }
 
-/* Input */
+/* Input & Select - NO border, NO outline ever */
 .ss-input,
 .ss-select {
   width: 100%;
   background: transparent;
-  border: none;
-  outline: none;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
   padding: 0.6rem 0;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: clamp(0.75rem, 3vw, 0.8rem);
@@ -206,6 +198,19 @@
   letter-spacing: 0.05em;
   color: #0f172a;
   caret-color: #dc2626;
+}
+
+.ss-input:focus,
+.ss-input:active,
+.ss-input:hover,
+.ss-select:focus,
+.ss-select:active,
+.ss-select:hover,
+.ss-input:focus-visible,
+.ss-select:focus-visible {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .ss-input::placeholder {
@@ -369,9 +374,8 @@
 }
 
 .ss-select:focus-visible {
-  outline: 2px solid #dc2626;
-  outline-offset: 2px;
-  border-radius: 2px;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .ss-field--filled .ss-select {

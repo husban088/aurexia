@@ -621,6 +621,8 @@
   background: transparent;
   border: none;
   outline: none;
+  box-shadow: none;
+  -webkit-appearance: none;
   padding: 0.6rem 2rem 0.6rem 1.8rem;
   font-family: var(--pf-sans);
   font-size: 0.85rem;
@@ -882,4 +884,21 @@
 }
 [dir="rtl"] .pf-tab {
   flex-direction: row-reverse;
+}
+
+/* Remove all browser default focus borders/outlines on inputs */
+.pf-input:focus,
+.pf-input:hover,
+.pf-input:active,
+.pf-input:focus-visible {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove outline from eye/toggle buttons too */
+.pf-eye-btn:focus,
+.pf-eye-btn:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }

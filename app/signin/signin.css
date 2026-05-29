@@ -449,8 +449,9 @@
 .si-input {
   width: 100%;
   background: transparent;
-  border: none;
-  outline: none;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
   padding: 0.6rem 2rem 0.6rem 1.8rem;
   font-family: var(--si-sans);
   font-size: 0.85rem;
@@ -458,6 +459,14 @@
   letter-spacing: 0.02em;
   color: #0f172a;
   caret-color: #dc2626;
+}
+.si-input:focus,
+.si-input:active,
+.si-input:hover,
+.si-input:focus-visible {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 .si-input::placeholder {
   color: #94a3b8;
