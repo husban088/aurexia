@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useLanguage } from "../context/LanguageContext";
 import "./ProductGridFilters.css";
 
@@ -66,7 +67,13 @@ export default function FilterSidebar({
 }: FilterSidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   const { language, isRTLMode } = useLanguage();
+
+  // Wait for client mount before using portal (Next.js SSR safety)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -129,7 +136,7 @@ export default function FilterSidebar({
 
   const activeCount = getActiveCount();
 
-  return (
+  const content = (
     <>
       <div
         className={`filter-overlay ${isOpen ? "active" : ""}`}
@@ -272,4 +279,9 @@ export default function FilterSidebar({
       </div>
     </>
   );
+
+  // createPortal mounts directly on document.body — completely escapes
+  // any parent stacking context (navbar, layout wrappers, etc.)
+  if (!mounted) return null;
+  return createPortal(content, document.body);
 }

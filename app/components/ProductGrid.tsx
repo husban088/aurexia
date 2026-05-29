@@ -359,13 +359,17 @@ function VariantThumbnails({
               title={variant.attribute_value}
             >
               {variantImage ? (
-                <img src={variantImage} alt={variant.attribute_value} />
+                <div className="pg-variant-thumb-img">
+                  <img src={variantImage} alt={variant.attribute_value} />
+                </div>
               ) : (
-                <span className="pg-variant-text">
-                  {variant.attribute_value.charAt(0)}
-                </span>
+                <div className="pg-variant-thumb-placeholder">
+                  <span className="pg-variant-thumb-text">
+                    {variant.attribute_value.charAt(0).toUpperCase()}
+                  </span>
+                </div>
               )}
-              <span className="pg-variant-name">{labelText}</span>
+              <span className="pg-variant-thumb-label">{labelText}</span>
             </button>
           );
         })}
@@ -1193,11 +1197,6 @@ export default function ProductGrid({
     <>
       <style>{`
         @keyframes pg-spin { to { transform: rotate(360deg); } }
-        .pg-variant-thumb { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 3px !important; padding: 3px 4px 4px !important; }
-        .pg-variant-thumb img { width: 32px !important; height: 32px !important; object-fit: cover !important; border-radius: 4px !important; display: block !important; }
-        .pg-variant-name { display: block !important; font-size: 9px !important; line-height: 1.2 !important; text-align: center !important; color: rgba(0,0,0,0.6) !important; max-width: 40px !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; margin-top: 1px !important; font-weight: 500 !important; letter-spacing: 0.01em !important; }
-        .pg-variant-thumb.active .pg-variant-name { color: #b8963e !important; font-weight: 600 !important; }
-        .pg-variant-text { width: 32px !important; height: 32px !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 13px !important; font-weight: 600 !important; border-radius: 4px !important; background: rgba(184,150,62,0.12) !important; color: #b8963e !important; }
       `}</style>
       {!limit && (
         <>

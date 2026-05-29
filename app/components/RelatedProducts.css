@@ -1,5 +1,5 @@
 /* ============================================================
-   RELATED PRODUCTS SECTION - AQUA & BLACK GRADIENT THEME
+   RELATED PRODUCTS SECTION - TOP RED → BOTTOM BLACK GRADIENT
    MATCHING FEATURED PRODUCTS STRUCTURE
    ============================================================ */
 
@@ -7,15 +7,16 @@
 
 /* ── Design Tokens ── */
 :root {
-  /* Aqua Accents + Black mixed */
-  --rp-aqua: #0ff;
-  --rp-aqua-dark: #00cccc;
-  --rp-aqua-deep: #0088aa;
-  --rp-aqua-light: #66ffff;
-  --rp-aqua-dim: rgba(0, 255, 255, 0.1);
-  --rp-aqua-glow: rgba(0, 255, 255, 0.2);
-  --rp-aqua-border: rgba(0, 255, 255, 0.25);
-  --rp-aqua-border-h: rgba(0, 255, 255, 0.5);
+  /* Red Accents + Black mixed - TOP RED → BOTTOM BLACK */
+  --rp-red: #dc2626;
+  --rp-red-dark: #b91c1c;
+  --rp-red-deep: #991b1b;
+  --rp-black: #0f172a;
+  --rp-black-soft: #1e293b;
+  --rp-primary-dim: rgba(220, 38, 38, 0.1);
+  --rp-primary-glow: rgba(220, 38, 38, 0.2);
+  --rp-primary-border: rgba(220, 38, 38, 0.25);
+  --rp-primary-border-h: rgba(220, 38, 38, 0.5);
 
   /* Card Colors - White */
   --rp-bg: #ffffff;
@@ -43,30 +44,30 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-      SECTION WRAPPER - AQUA & BLACK GRADIENT
+      SECTION WRAPPER - WHITE BG with RED & BLACK GRADIENT ACCENTS
    ═══════════════════════════════════════════════════════ */
 .rp-section {
   position: relative;
   z-index: 1;
   padding: 5rem 0 6rem;
-  background: linear-gradient(135deg, #0a0f1a 0%, #0a1a1f 50%, #0a1f2a 100%);
+  background: #ffffff;
   overflow: hidden;
   margin-top: 2rem;
 }
 
-/* Subtle grid texture - Aqua + Black mixed */
+/* Subtle grid texture - Red + Black mixed */
 .rp-grid-texture {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(0, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(rgba(220, 38, 38, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
   background-size: 48px 48px;
   pointer-events: none;
   z-index: 0;
 }
 
-/* Top Border - Aqua + Black mixed */
+/* Top Border - Red + Black mixed */
 .rp-section::before {
   content: "";
   position: absolute;
@@ -78,16 +79,16 @@
   background: linear-gradient(
     to right,
     transparent,
-    rgba(0, 255, 255, 0.5),
+    rgba(220, 38, 38, 0.5),
     rgba(15, 23, 42, 0.2),
-    rgba(0, 255, 255, 0.5),
+    rgba(220, 38, 38, 0.5),
     transparent
   );
   pointer-events: none;
   z-index: 1;
 }
 
-/* Ambient Glow - Aqua mixed */
+/* Ambient Glow - mixed */
 .rp-section::after {
   content: "";
   position: absolute;
@@ -100,8 +101,8 @@
   max-height: 900px;
   background: radial-gradient(
     circle,
-    rgba(0, 255, 255, 0.06) 0%,
-    rgba(15, 23, 42, 0.03) 40%,
+    rgba(220, 38, 38, 0.04) 0%,
+    rgba(15, 23, 42, 0.02) 40%,
     transparent 70%
   );
   pointer-events: none;
@@ -109,7 +110,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-      HEADER - AQUA & BLACK MIXED GRADIENTS
+      HEADER - TOP RED → BOTTOM BLACK Mixed Gradients
    ═══════════════════════════════════════════════════════ */
 .rp-header {
   position: relative;
@@ -137,7 +138,7 @@
   font-size: 10px;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  background: linear-gradient(180deg, #0ff 0%, #0f172a 100%);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -147,27 +148,26 @@
 .rp-eyebrow-line {
   height: 1px;
   width: 80px;
-  background: linear-gradient(90deg, #0ff, #0f172a, transparent);
+  background: linear-gradient(90deg, #dc2626, #0f172a, transparent);
 }
 
 [dir="rtl"] .rp-eyebrow-line {
-  background: linear-gradient(90deg, transparent, #0f172a, #0ff);
+  background: linear-gradient(90deg, transparent, #0f172a, #dc2626);
 }
 
 .rp-title {
   font-family: var(--rp-serif);
-  font-size: clamp(2.4rem, 5vw, 3.5rem);
+  font-size: clamp(2.6rem, 5.5vw, 4.2rem);
   font-weight: 600;
-  color: #e6f7ff;
-  margin: 0 0 1rem;
-  line-height: 1.1;
+  color: #0f172a;
+  margin: 0 0 1.1rem;
+  line-height: 1.05;
   letter-spacing: -0.01em;
-  text-shadow: 0 2px 10px rgba(0, 255, 255, 0.15);
 }
 
 .rp-title em {
   font-style: italic;
-  background: linear-gradient(180deg, #0ff 0%, #0f172a 100%);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -179,9 +179,9 @@
   font-size: 0.82rem;
   font-weight: 500;
   letter-spacing: 0.08em;
-  color: #94a3b8;
-  max-width: 520px;
-  line-height: 1.6;
+  color: #475569;
+  max-width: 480px;
+  line-height: 1.9;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -200,13 +200,13 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-      PRODUCT CARD - White Background, Aqua Accents
+      PRODUCT CARD - White Background, Red Accents
       (Matches Featured Products card structure)
    ═══════════════════════════════════════════════════════ */
 .rp-card {
   position: relative;
   background: var(--rp-card);
-  border: 1px solid rgba(0, 255, 255, 0.2);
+  border: 1px solid rgba(220, 38, 38, 0.2);
   border-radius: 20px;
   overflow: hidden;
   display: flex;
@@ -216,7 +216,7 @@
   width: 100%;
   text-decoration: none;
   color: #0f172a;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
   height: 100%;
 }
 
@@ -227,7 +227,7 @@
   inset: 0;
   background: radial-gradient(
     circle at 50% 0%,
-    rgba(0, 255, 255, 0.06),
+    rgba(220, 38, 38, 0.06),
     transparent 70%
   );
   opacity: 0;
@@ -237,7 +237,7 @@
   z-index: 1;
 }
 
-/* Bottom Bar - AQUA & BLACK mixed gradient */
+/* Bottom Bar - TOP RED → BOTTOM BLACK mixed gradient */
 .rp-card::before {
   content: "";
   position: absolute;
@@ -245,7 +245,14 @@
   left: 0;
   height: 3px;
   width: 0;
-  background: linear-gradient(90deg, #0ff, #0f172a, #00cccc, #0f172a, #0ff);
+  background: linear-gradient(
+    90deg,
+    #dc2626,
+    #0f172a,
+    #b91c1c,
+    #0f172a,
+    #dc2626
+  );
   transition: width 0.65s cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
   z-index: 5;
@@ -254,9 +261,9 @@
 .rp-card:hover {
   transform: translateY(-8px);
   box-shadow:
-    0 24px 48px rgba(0, 255, 255, 0.12),
-    0 8px 20px rgba(0, 0, 0, 0.1);
-  border-color: rgba(0, 255, 255, 0.45);
+    0 24px 48px rgba(220, 38, 38, 0.12),
+    0 8px 20px rgba(0, 0, 0, 0.06);
+  border-color: rgba(220, 38, 38, 0.45);
 }
 
 .rp-card:hover::after {
@@ -319,7 +326,7 @@
 .rp-img-placeholder svg {
   width: 52px;
   height: 52px;
-  color: rgba(0, 255, 255, 0.4);
+  color: rgba(220, 38, 38, 0.4);
 }
 
 /* ── Badges ── */
@@ -348,19 +355,19 @@
 }
 
 .rp-badge--feat {
-  background: linear-gradient(180deg, #0ff, #0f172a);
+  background: linear-gradient(180deg, #dc2626, #0f172a);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  border: 1px solid rgba(0, 255, 255, 0.3);
+  border: 1px solid rgba(220, 38, 38, 0.3);
 }
 
 .rp-badge--new {
-  background: linear-gradient(180deg, #0ff, #0f172a);
+  background: linear-gradient(180deg, #dc2626, #0f172a);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  border: 1px solid rgba(0, 255, 255, 0.3);
+  border: 1px solid rgba(220, 38, 38, 0.3);
 }
 
 .rp-badge--sale {
@@ -375,7 +382,7 @@
   color: #d97706;
 }
 
-/* ── Icon Buttons - AQUA & BLACK Gradient ── */
+/* ── Icon Buttons - TOP RED → BOTTOM BLACK Gradient ── */
 .rp-icon-buttons {
   position: absolute;
   bottom: 0.8rem;
@@ -398,7 +405,7 @@
   height: 40px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.98);
-  border: 1px solid rgba(0, 255, 255, 0.3);
+  border: 1px solid rgba(220, 38, 38, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -412,15 +419,15 @@
 .rp-icon-btn svg {
   width: 17px;
   height: 17px;
-  color: #0ff;
+  color: #dc2626;
   transition: all 0.25s ease;
 }
 
 .rp-icon-btn:hover {
-  background: linear-gradient(180deg, #0ff 0%, #0f172a 100%);
-  border-color: #0ff;
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
+  border-color: #dc2626;
   transform: scale(1.12);
-  box-shadow: 0 6px 18px rgba(0, 255, 255, 0.3);
+  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.3);
 }
 
 .rp-icon-btn:hover svg {
@@ -445,14 +452,14 @@
   gap: 0;
 }
 
-/* ── Brand - AQUA & BLACK gradient ── */
+/* ── Brand - TOP RED → BOTTOM BLACK gradient ── */
 .rp-card-brand {
   font-family: var(--rp-sans);
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  background: linear-gradient(180deg, #0ff 0%, #0f172a 100%);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -483,7 +490,7 @@
 }
 
 .rp-card:hover .rp-card-name {
-  background: linear-gradient(180deg, #0ff 0%, #0f172a 100%);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -504,10 +511,7 @@
   font-family: var(--rp-serif);
   font-size: 1.35rem;
   font-weight: 600;
-  background: linear-gradient(180deg, #0ff, #66ffff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #0f172a;
   letter-spacing: -0.01em;
   line-height: 1.2;
 }
@@ -525,11 +529,11 @@
   font-family: var(--rp-sans);
   font-size: 0.65rem;
   font-weight: 600;
-  background: linear-gradient(180deg, #0ff 0%, #0f172a 100%);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  background-color: rgba(0, 255, 255, 0.1);
+  background-color: rgba(220, 38, 38, 0.1);
   padding: 0.1rem 0.5rem;
   border-radius: 20px;
   letter-spacing: 0.04em;
@@ -635,11 +639,11 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  background: linear-gradient(180deg, #0ff 0%, #0f172a 100%);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  background-color: rgba(0, 255, 255, 0.08);
+  background-color: rgba(220, 38, 38, 0.08);
   padding: 0.2rem 0.6rem;
   border-radius: 20px;
   white-space: nowrap;
@@ -676,7 +680,7 @@
   height: 48px;
   border-radius: 12px;
   overflow: hidden;
-  border: 2px solid rgba(0, 255, 255, 0.2);
+  border: 2px solid rgba(220, 38, 38, 0.2);
   background: #f8fafc;
   transition: all 0.25s ease;
 }
@@ -694,10 +698,10 @@
   border-radius: 12px;
   background: linear-gradient(
     135deg,
-    rgba(0, 255, 255, 0.08),
+    rgba(220, 38, 38, 0.08),
     rgba(15, 23, 42, 0.04)
   );
-  border: 2px solid rgba(0, 255, 255, 0.2);
+  border: 2px solid rgba(220, 38, 38, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -707,7 +711,7 @@
 .rp-variant-thumb-text {
   font-size: 1.1rem;
   font-weight: 600;
-  background: linear-gradient(180deg, #0ff 0%, #0f172a 100%);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -728,37 +732,37 @@
 }
 
 .rp-variant-thumb:hover .rp-variant-thumb-img {
-  border-color: #0ff;
+  border-color: #dc2626;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
 }
 
 .rp-variant-thumb:hover .rp-variant-thumb-placeholder {
-  border-color: #0ff;
-  background: rgba(0, 255, 255, 0.1);
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
   transform: translateY(-2px);
 }
 
 .rp-variant-thumb:hover .rp-variant-thumb-label {
-  background: linear-gradient(180deg, #0ff 0%, #0f172a 100%);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .rp-variant-thumb.active .rp-variant-thumb-img {
-  border-color: #0ff;
-  box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.3);
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.3);
 }
 
 .rp-variant-thumb.active .rp-variant-thumb-placeholder {
-  border-color: #0ff;
-  background: rgba(0, 255, 255, 0.12);
-  box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.2);
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.12);
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
 }
 
 .rp-variant-thumb.active .rp-variant-thumb-label {
-  background: linear-gradient(180deg, #0ff 0%, #0f172a 100%);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -768,14 +772,14 @@
 .rp-variant-more {
   font-size: 0.65rem;
   font-weight: 600;
-  background: linear-gradient(180deg, #0ff 0%, #0f172a 100%);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  background-color: rgba(0, 255, 255, 0.08);
+  background-color: rgba(220, 38, 38, 0.08);
   padding: 0.3rem 0.7rem;
   border-radius: 20px;
-  border: 1px solid rgba(0, 255, 255, 0.2);
+  border: 1px solid rgba(220, 38, 38, 0.2);
   font-family: var(--rp-sans);
   letter-spacing: 0.02em;
   cursor: default;
@@ -794,8 +798,8 @@
   display: inline-block;
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(0, 255, 255, 0.2);
-  border-top-color: #0ff;
+  border: 2px solid rgba(220, 38, 38, 0.2);
+  border-top-color: #dc2626;
   border-radius: 50%;
   animation: rp-spin 0.75s linear infinite;
 }
@@ -803,7 +807,7 @@
 /* Skeleton Loading */
 .rp-skeleton-card {
   background: rgba(241, 245, 249, 0.8);
-  border: 1px solid rgba(0, 255, 255, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.15);
   border-radius: 20px;
   overflow: hidden;
 }
@@ -947,7 +951,7 @@
     padding: 0 1.2rem;
   }
   .rp-title {
-    font-size: clamp(1.8rem, 7vw, 2.4rem);
+    font-size: clamp(1.9rem, 8vw, 2.6rem);
   }
   .rp-card-name {
     font-size: 0.9rem;
@@ -1100,7 +1104,7 @@
 }
 
 [dir="rtl"] .rp-eyebrow-line {
-  background: linear-gradient(90deg, transparent, #0f172a, #0ff);
+  background: linear-gradient(90deg, transparent, #0f172a, #dc2626);
 }
 
 [dir="rtl"] .rp-card-badges {

@@ -1,6 +1,7 @@
 /* ============================================================
    FILTER SIDEBAR - TOP RED → BOTTOM BLACK GRADIENT THEME
-   Premium Dark Theme
+   WHITE BACKGROUND | BLACK TEXT | MATCHING MAIN WEBSITE
+   HIGHEST Z-INDEX - ABOVE NAVBAR AND EVERYTHING
    ============================================================ */
 
 @keyframes filterSlideIn {
@@ -30,46 +31,83 @@
   }
 }
 
+/* Overlay - ABOVE EVERYTHING: navbar (100), navbar dropdowns (150), sidebar (1001) */
 .filter-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
-  z-index: 10000;
-  opacity: 0;
-  visibility: hidden;
+  background: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0px);
+  pointer-events: none;
+  /* Must beat navbar-sticky-wrapper(100), all dropdown menus(150), sidebar overlay(1000) */
+  z-index: 2147483646;
+  isolation: isolate;
   transition:
-    opacity 0.3s ease,
-    visibility 0.3s ease;
+    background 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+    backdrop-filter 0.45s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .filter-overlay.active {
-  opacity: 1;
-  visibility: visible;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
 }
 
+/* Sidebar - ONE ABOVE OVERLAY so it renders on top of the dim layer */
 .filter-sidebar {
   position: fixed;
   top: 0;
   right: 0;
+  bottom: 0;
   width: 100%;
   max-width: 420px;
-  height: 100vh;
-  background: linear-gradient(145deg, #0f172a 0%, #1a1a2e 100%);
-  z-index: 10001;
+  background: #ffffff;
+  /* Max possible z-index - beats everything including navbar fixed stacking context */
+  z-index: 2147483647;
+  isolation: isolate;
   transform: translateX(100%);
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  visibility: hidden;
+  transition:
+    transform 0.5s cubic-bezier(0.4, 0, 0.15, 1),
+    visibility 0s linear 0.5s;
   display: flex;
   flex-direction: column;
-  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.4);
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.15);
   border-left: 1px solid rgba(220, 38, 38, 0.25);
 }
 
 .filter-sidebar.open {
   transform: translateX(0);
+  visibility: visible;
+  transition:
+    transform 0.5s cubic-bezier(0.4, 0, 0.15, 1),
+    visibility 0s linear 0s;
 }
 
-/* Header - RED */
+/* Decorative RED shimmer on left edge */
+.filter-sidebar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(220, 38, 38, 0.6) 25%,
+    #dc2626 50%,
+    rgba(220, 38, 38, 0.6) 75%,
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity 0.6s ease 0.3s;
+}
+
+.filter-sidebar.open::before {
+  opacity: 1;
+}
+
+/* Header - RED theme on white */
 .filter-header {
   display: flex;
   align-items: center;
@@ -77,6 +115,7 @@
   padding: 1.5rem 1.5rem 1rem;
   border-bottom: 1px solid rgba(220, 38, 38, 0.12);
   background: rgba(220, 38, 38, 0.03);
+  flex-shrink: 0;
 }
 
 .filter-header-left {
@@ -93,7 +132,7 @@
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 1.3rem;
   font-weight: 600;
-  background: linear-gradient(180deg, #dc2626 0%, #ef4444 50%, #0f172a 100%);
+  background: linear-gradient(180deg, #dc2626 0%, #0f172a 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -120,7 +159,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #cbd5e1;
+  color: #64748b;
   transition: all 0.3s ease;
 }
 
@@ -162,7 +201,7 @@
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #cbd5e1;
+  color: #0f172a;
   transition: all 0.3s ease;
   position: relative;
 }
@@ -237,16 +276,17 @@
   }
 }
 
+/* Filter Chips - White background with red border */
 .filter-chip {
   padding: 0.5rem 1rem;
-  background: rgba(220, 38, 38, 0.08);
+  background: #ffffff;
   border: 1px solid rgba(220, 38, 38, 0.25);
   border-radius: 40px;
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 500;
   letter-spacing: 0.05em;
-  color: #cbd5e1;
+  color: #475569;
   cursor: pointer;
   transition: all 0.25s ease;
   display: inline-flex;
@@ -258,8 +298,8 @@
   border-color: #dc2626;
   color: #dc2626;
   transform: translateY(-2px);
-  background: rgba(220, 38, 38, 0.15);
-  box-shadow: 0 0 8px rgba(220, 38, 38, 0.2);
+  background: rgba(220, 38, 38, 0.05);
+  box-shadow: 0 0 8px rgba(220, 38, 38, 0.15);
 }
 
 .filter-chip.active {
@@ -273,16 +313,17 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-/* Footer - RED */
+/* Footer - RED theme */
 .filter-footer {
   padding: 1rem 1.5rem 1.5rem;
   border-top: 1px solid rgba(220, 38, 38, 0.12);
   display: flex;
   gap: 1rem;
   background: rgba(220, 38, 38, 0.03);
+  flex-shrink: 0;
 }
 
 .filter-clear-btn {
@@ -296,7 +337,7 @@
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #fca5a5;
+  color: #dc2626;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -306,8 +347,9 @@
 }
 
 .filter-clear-btn:hover {
-  border-color: #ff6b6b;
-  color: #ff6b6b;
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+  transform: translateY(-2px);
 }
 
 .filter-clear-btn svg {
@@ -362,10 +404,16 @@
   transform: translateX(-100%);
   border-left: none;
   border-right: 1px solid rgba(220, 38, 38, 0.25);
+  box-shadow: 8px 0 40px rgba(0, 0, 0, 0.15);
 }
 
 [dir="rtl"] .filter-sidebar.open {
   transform: translateX(0);
+}
+
+[dir="rtl"] .filter-sidebar::before {
+  left: auto;
+  right: 0;
 }
 
 [dir="rtl"] .filter-section-header {
