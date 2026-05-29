@@ -250,6 +250,25 @@ export default function TrustBadgesSection() {
 
         {/* Swiper Slider */}
         <div className="tbs-slider-wrapper">
+          {/* Mobile/Tablet Nav Row - top right (like WhyChooseUs) */}
+          <div className="tbs-nav-row">
+            <button className="tbs-nav-prev" aria-label="Previous">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <polyline
+                  points={isRTL ? "9 18 15 12 9 6" : "15 18 9 12 15 6"}
+                />
+              </svg>
+            </button>
+            <button className="tbs-nav-next" aria-label="Next">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <polyline
+                  points={isRTL ? "15 18 9 12 15 6" : "9 18 15 12 9 6"}
+                />
+              </svg>
+            </button>
+          </div>
+
+          {/* Desktop Nav Buttons - absolute left/right */}
           <div className="tbs-nav-buttons">
             <button className="tbs-nav-prev" aria-label="Previous">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
