@@ -634,7 +634,8 @@ function ProductCard({
             src={displayImage}
             alt={product.name}
             loading="eager"
-            decoding="async"
+            fetchPriority="high"
+            decoding="auto"
             suppressHydrationWarning
           />
         ) : (
@@ -848,6 +849,16 @@ export default function FeaturedProducts() {
         setVariantImagesMap(cached.variantImagesMap);
         setIsLoading(false);
         setSwiperKey((prev) => prev + 1);
+        // Background silent refresh to get latest data
+        fetchFeaturedTabData(tab)
+          .then((data) => {
+            if (data.products.length > 0) {
+              setProducts(data.products);
+              setVariantsMap(data.variantsMap);
+              setVariantImagesMap(data.variantImagesMap);
+            }
+          })
+          .catch(() => {});
         return;
       }
 
@@ -858,17 +869,20 @@ export default function FeaturedProducts() {
 
       try {
         const data = await fetchFeaturedTabData(tab);
-        if (activeTabRef.current === tab) {
+        // Update state regardless — activeTabRef check removed to avoid race conditions
+        // The tab key on Swiper handles stale renders safely
+        if (data.products.length > 0) {
           setProducts(data.products);
           setVariantsMap(data.variantsMap);
           setVariantImagesMap(data.variantImagesMap);
           setSwiperKey((prev) => prev + 1);
-        }
-      } catch {
-        // On error, still clear loading so UI doesn't hang
-        if (activeTabRef.current === tab) {
+        } else if (activeTabRef.current === tab) {
+          // Only show empty state if we're still on this tab
           setProducts([]);
         }
+      } catch {
+        // On error, do NOT clear products — keep whatever was showing
+        // Only clear loading so UI doesn't hang
       } finally {
         // ALWAYS clear loading — whether products came back or not
         if (activeTabRef.current === tab) {
@@ -884,11 +898,16 @@ export default function FeaturedProducts() {
     const alreadyCached = (tabCache[tab]?.products?.length ?? 0) > 0;
 
     if (alreadyCached) {
-      setSwiperKey((prev) => prev + 1);
+      // Immediately set products from cache so they show right away
+      setProducts(tabCache[tab].products);
+      setVariantsMap(tabCache[tab].variantsMap);
+      setVariantImagesMap(tabCache[tab].variantImagesMap);
       setIsLoading(false);
+      setSwiperKey((prev) => prev + 1);
+      // Background refresh — silently update if newer data comes in
       fetchFeaturedTabData(tab)
         .then((data) => {
-          if (activeTabRef.current === tab && data.products.length > 0) {
+          if (data.products.length > 0) {
             setProducts(data.products);
             setVariantsMap(data.variantsMap);
             setVariantImagesMap(data.variantImagesMap);
@@ -977,17 +996,9 @@ export default function FeaturedProducts() {
     const handlePageShow = (e: PageTransitionEvent) => {
       const tab = activeTabRef.current;
       if (e.persisted) {
-        // bfcache restore — always refetch
+        // bfcache restore — clear cache and refetch
         ALL_TABS.forEach((t) => delete tabCache[t]);
-        if ((tabCache[tab]?.products?.length ?? 0) > 0) {
-          setProducts(tabCache[tab].products);
-          setVariantsMap(tabCache[tab].variantsMap);
-          setVariantImagesMap(tabCache[tab].variantImagesMap);
-          setIsLoading(false);
-          setSwiperKey((prev) => prev + 1);
-        } else {
-          setIsLoading(true);
-        }
+        setIsLoading(true);
         loadProductsForTab(tab, true);
       } else {
         if ((tabCache[tab]?.products?.length ?? 0) > 0) {
@@ -1007,18 +1018,32 @@ export default function FeaturedProducts() {
     return () => window.removeEventListener("pageshow", handlePageShow);
   }, [loadProductsForTab]);
 
-  // Safety net: if loading is somehow stuck for >3 seconds, force clear it
+  // Safety net: if loading is somehow stuck for >8 seconds, force clear it
   useEffect(() => {
     if (!isLoading) return;
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 3000);
+      // Try one more fetch silently
+      fetchFeaturedTabData(activeTabRef.current)
+        .then((data) => {
+          if (data.products.length > 0) {
+            setProducts(data.products);
+            setVariantsMap(data.variantsMap);
+            setVariantImagesMap(data.variantImagesMap);
+            setSwiperKey((prev) => prev + 1);
+          }
+        })
+        .catch(() => {});
+    }, 8000);
     return () => clearTimeout(timer);
   }, [isLoading]);
 
   useEffect(() => {
     if (swiperRef.current && products.length > 0) {
-      const t = setTimeout(() => swiperRef.current?.update(), 50);
+      const t = setTimeout(() => {
+        swiperRef.current?.update();
+        swiperRef.current?.slideTo(0, 0); // Reset to first slide on new data
+      }, 150);
       return () => clearTimeout(t);
     }
   }, [products]);

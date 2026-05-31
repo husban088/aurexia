@@ -201,12 +201,23 @@ export default function TrustBadgesSection() {
   const lang = language as "en" | "ar" | "de";
   const swiperRef = useRef<any>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
+  const prevRef = useRef<HTMLButtonElement>(null);
+  const nextRef = useRef<HTMLButtonElement>(null);
   const isRTL = isRTLMode;
 
   // Scroll reveal animation
   useEffect(() => {
     const section = sectionRef.current;
     if (!section) return;
+
+    // If already visible (above fold), show immediately
+    const rect = section.getBoundingClientRect();
+    if (rect.top < window.innerHeight) {
+      section
+        .querySelectorAll<HTMLElement>(".tbs-card-inner")
+        .forEach((card) => card.classList.add("tbs-visible"));
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -214,11 +225,10 @@ export default function TrustBadgesSection() {
             entry.target.querySelectorAll<HTMLElement>(".tbs-card-inner");
           cards.forEach((card) => {
             if (entry.isIntersecting) card.classList.add("tbs-visible");
-            else card.classList.remove("tbs-visible");
           });
         });
       },
-      { threshold: 0.15 },
+      { threshold: 0.1 },
     );
     observer.observe(section);
     return () => observer.disconnect();
@@ -236,7 +246,7 @@ export default function TrustBadgesSection() {
       <div className="tbs-ambient" aria-hidden="true" />
 
       <div className="tbs-container">
-        {/* Header Section - Black + Red Gradient similar to QuickHighlights */}
+        {/* Header Section */}
         <div className="tbs-header">
           <div className="tbs-eyebrow-row">
             <span className="tbs-eyebrow">Why Choose Us</span>
@@ -251,34 +261,20 @@ export default function TrustBadgesSection() {
 
         {/* Swiper Slider */}
         <div className="tbs-slider-wrapper">
-          {/* Mobile/Tablet Nav Row - top right (like WhyChooseUs) */}
-          <div className="tbs-nav-row">
-            <button className="tbs-nav-prev" aria-label="Previous">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline
-                  points={isRTL ? "9 18 15 12 9 6" : "15 18 9 12 15 6"}
-                />
-              </svg>
-            </button>
-            <button className="tbs-nav-next" aria-label="Next">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline
-                  points={isRTL ? "15 18 9 12 15 6" : "9 18 15 12 9 6"}
-                />
-              </svg>
-            </button>
-          </div>
-
-          {/* Desktop Nav Buttons - absolute left/right */}
+          {/* Nav Buttons — single set, wired via onSwiper */}
           <div className="tbs-nav-buttons">
-            <button className="tbs-nav-prev" aria-label="Previous">
+            <button
+              ref={prevRef}
+              className="tbs-nav-prev"
+              aria-label="Previous"
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <polyline
                   points={isRTL ? "9 18 15 12 9 6" : "15 18 9 12 15 6"}
                 />
               </svg>
             </button>
-            <button className="tbs-nav-next" aria-label="Next">
+            <button ref={nextRef} className="tbs-nav-next" aria-label="Next">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <polyline
                   points={isRTL ? "15 18 9 12 15 6" : "9 18 15 12 9 6"}
@@ -295,15 +291,25 @@ export default function TrustBadgesSection() {
             slidesPerView={1}
             centeredSlides={false}
             loop={true}
-            speed={300}
             autoplay={{
               delay: 4000,
               disableOnInteraction: false,
               pauseOnMouseEnter: true,
             }}
             navigation={{
-              prevEl: ".tbs-nav-prev",
-              nextEl: ".tbs-nav-next",
+              prevEl: prevRef.current,
+              nextEl: nextRef.current,
+            }}
+            onSwiper={(swiper) => {
+              if (
+                swiper.params.navigation &&
+                typeof swiper.params.navigation !== "boolean"
+              ) {
+                swiper.params.navigation.prevEl = prevRef.current;
+                swiper.params.navigation.nextEl = nextRef.current;
+                swiper.navigation.init();
+                swiper.navigation.update();
+              }
             }}
             pagination={{
               clickable: true,

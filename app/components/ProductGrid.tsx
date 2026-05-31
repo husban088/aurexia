@@ -142,104 +142,138 @@ async function fetchProductsWithVariants(
   subcategory?: string,
   limit?: number,
   featured?: boolean,
+  attempt = 0,
 ): Promise<ExtendedProduct[]> {
-  let query = supabase
-    .from("products")
-    .select("*, product_variants(*, variant_images(*))")
-    .eq("is_active", true)
-    .eq("category", category);
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 600;
 
-  if (subcategory) query = query.eq("subcategory", subcategory);
-  if (featured) query = query.eq("is_featured", true);
-  query = query.order("created_at", { ascending: false });
-  if (limit) query = query.limit(limit);
+  try {
+    let query = supabase
+      .from("products")
+      .select("*, product_variants(*, variant_images(*))")
+      .eq("is_active", true)
+      .eq("category", category);
 
-  const { data, error } = await query;
-  if (error || !data) return [];
+    if (subcategory) query = query.eq("subcategory", subcategory);
+    if (featured) query = query.eq("is_featured", true);
+    query = query.order("created_at", { ascending: false });
+    if (limit) query = query.limit(limit);
 
-  const typePriority: Record<string, number> = {
-    standard: 0,
-    color: 1,
-    size: 2,
-    material: 3,
-    capacity: 4,
-  };
+    const { data, error } = await query;
+    if (error || !data) {
+      if (attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAY * (attempt + 1)));
+        return fetchProductsWithVariants(
+          category,
+          subcategory,
+          limit,
+          featured,
+          attempt + 1,
+        );
+      }
+      return [];
+    }
 
-  const result = data.map((item: any) => {
-    const variants = (item.product_variants || []).map((variant: any) => {
-      const variantImages = (variant.variant_images || [])
-        .sort((a: any, b: any) => a.display_order - b.display_order)
-        .map((img: any) => img.image_url);
+    const typePriority: Record<string, number> = {
+      standard: 0,
+      color: 1,
+      size: 2,
+      material: 3,
+      capacity: 4,
+    };
+
+    const result = data.map((item: any) => {
+      const variants = (item.product_variants || []).map((variant: any) => {
+        const variantImages = (variant.variant_images || [])
+          .sort((a: any, b: any) => a.display_order - b.display_order)
+          .map((img: any) => img.image_url);
+
+        return {
+          id: variant.id,
+          product_id: variant.product_id,
+          attribute_type: variant.attribute_type,
+          attribute_value: variant.attribute_value,
+          price: variant.price,
+          original_price: variant.original_price,
+          description: variant.description,
+          stock: variant.stock,
+          low_stock_threshold: variant.low_stock_threshold,
+          images: variantImages,
+          stockStatus: getStockStatus(
+            variant.stock,
+            variant.low_stock_threshold,
+          ),
+        };
+      });
+
+      const sortedVariants = [...variants].sort(
+        (a, b) =>
+          (typePriority[a.attribute_type] || 5) -
+          (typePriority[b.attribute_type] || 5),
+      );
+      const bestVariant = sortedVariants[0];
+
+      const variantImagesMap: VariantImagesMap = {};
+      variants.forEach((variant: ProductVariant) => {
+        if (variant.images && variant.images.length > 0) {
+          variantImagesMap[variant.id] = variant.images;
+        }
+      });
 
       return {
-        id: variant.id,
-        product_id: variant.product_id,
-        attribute_type: variant.attribute_type,
-        attribute_value: variant.attribute_value,
-        price: variant.price,
-        original_price: variant.original_price,
-        description: variant.description,
-        stock: variant.stock,
-        low_stock_threshold: variant.low_stock_threshold,
-        images: variantImages,
-        stockStatus: getStockStatus(variant.stock, variant.low_stock_threshold),
+        id: item.id,
+        name: item.name,
+        description: item.description || "",
+        price: bestVariant?.price ?? item.price ?? 0,
+        original_price:
+          bestVariant?.original_price ?? item.original_price ?? undefined,
+        category: item.category,
+        subcategory: item.subcategory,
+        images:
+          bestVariant?.images?.length > 0
+            ? bestVariant.images
+            : item.images || [],
+        stock: bestVariant?.stock ?? item.stock ?? 0,
+        brand: item.brand || undefined,
+        condition: item.condition || "new",
+        is_featured: item.is_featured || false,
+        is_active: item.is_active ?? true,
+        specs: item.specs || {},
+        created_at: item.created_at || new Date().toISOString(),
+        low_stock_threshold:
+          bestVariant?.low_stock_threshold ?? item.low_stock_threshold ?? null,
+        stockStatus:
+          bestVariant?.stockStatus ||
+          getStockStatus(
+            bestVariant?.stock ?? item.stock ?? 0,
+            bestVariant?.low_stock_threshold ?? item.low_stock_threshold,
+          ),
+        variantId: bestVariant?.id,
+        variants: sortedVariants,
+        variantImagesMap,
+        rating:
+          item.rating != null && item.rating > 0 ? item.rating : undefined,
+        reviews_count:
+          item.reviews_count != null && item.reviews_count > 0
+            ? item.reviews_count
+            : undefined,
       };
     });
 
-    const sortedVariants = [...variants].sort(
-      (a, b) =>
-        (typePriority[a.attribute_type] || 5) -
-        (typePriority[b.attribute_type] || 5),
-    );
-    const bestVariant = sortedVariants[0];
-
-    const variantImagesMap: VariantImagesMap = {};
-    variants.forEach((variant: ProductVariant) => {
-      if (variant.images && variant.images.length > 0) {
-        variantImagesMap[variant.id] = variant.images;
-      }
-    });
-
-    return {
-      id: item.id,
-      name: item.name,
-      description: item.description || "",
-      price: bestVariant?.price ?? item.price ?? 0,
-      original_price:
-        bestVariant?.original_price ?? item.original_price ?? undefined,
-      category: item.category,
-      subcategory: item.subcategory,
-      images:
-        bestVariant?.images?.length > 0
-          ? bestVariant.images
-          : item.images || [],
-      stock: bestVariant?.stock ?? item.stock ?? 0,
-      brand: item.brand || undefined,
-      condition: item.condition || "new",
-      is_featured: item.is_featured || false,
-      is_active: item.is_active ?? true,
-      specs: item.specs || {},
-      created_at: item.created_at || new Date().toISOString(),
-      low_stock_threshold:
-        bestVariant?.low_stock_threshold ?? item.low_stock_threshold ?? null,
-      stockStatus:
-        bestVariant?.stockStatus ||
-        getStockStatus(
-          bestVariant?.stock ?? item.stock ?? 0,
-          bestVariant?.low_stock_threshold ?? item.low_stock_threshold,
-        ),
-      variantId: bestVariant?.id,
-      variants: sortedVariants,
-      variantImagesMap,
-      rating: item.rating != null && item.rating > 0 ? item.rating : undefined,
-      reviews_count:
-        item.reviews_count != null && item.reviews_count > 0
-          ? item.reviews_count
-          : undefined,
-    };
-  });
-
-  return result;
+    return result;
+  } catch {
+    if (attempt < MAX_RETRIES) {
+      await new Promise((r) => setTimeout(r, RETRY_DELAY * (attempt + 1)));
+      return fetchProductsWithVariants(
+        category,
+        subcategory,
+        limit,
+        featured,
+        attempt + 1,
+      );
+    }
+    return [];
+  }
 }
 
 /* ─── Star Components ─────────────────────────────────────────────────────── */
@@ -680,7 +714,7 @@ function ProductCardComponent({
             alt={productData.name}
             loading="eager"
             fetchPriority="high"
-            decoding="async"
+            decoding="auto"
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (
@@ -899,9 +933,9 @@ export default function ProductGrid({
     if ((pgCache[key]?.data?.length ?? 0) > 0) {
       setProducts(pgCache[key].data);
       setLoading(false);
-      // Refresh only if cache is older than 3 minutes
+      // Refresh only if cache is older than 1 minute
       const cacheAge = Date.now() - (pgCache[key].fetchedAt || 0);
-      if (cacheAge > 180000) {
+      if (cacheAge > 60000) {
         fetchProductsWithVariants(category, subcategory, limit, featured)
           .then((data) => {
             if (cancelled) return;
@@ -920,10 +954,21 @@ export default function ProductGrid({
     // No cache — fresh fetch
     setLoading(true);
 
-    // Safety timer — cancelled immediately when fetch resolves
+    // Safety timer — if everything fails, unstick the UI after 10s
     const safetyTimer = setTimeout(() => {
-      if (!cancelled) setLoading(false);
-    }, 5000);
+      if (!cancelled) {
+        setLoading(false);
+        // One last silent retry
+        fetchProductsWithVariants(category, subcategory, limit, featured)
+          .then((data) => {
+            if (!cancelled && data.length > 0) {
+              pgCache[key] = { data, fetchedAt: Date.now() };
+              setProducts(data);
+            }
+          })
+          .catch(() => {});
+      }
+    }, 10000);
 
     fetchProductsWithVariants(category, subcategory, limit, featured)
       .then((data) => {
@@ -936,7 +981,10 @@ export default function ProductGrid({
         setProducts(data);
       })
       .catch(() => {
-        if (!cancelled) clearTimeout(safetyTimer);
+        if (!cancelled) {
+          clearTimeout(safetyTimer);
+          // On error keep whatever was showing — don't blank the screen
+        }
       })
       .finally(() => {
         // ALWAYS stop loading — skeleton never stuck
@@ -953,15 +1001,20 @@ export default function ProductGrid({
   useEffect(() => {
     const key = getPgCacheKey(category, subcategory, limit, featured);
     const refresh = async () => {
-      const data = await fetchProductsWithVariants(
-        category,
-        subcategory,
-        limit,
-        featured,
-      );
-      if (data.length > 0) {
-        pgCache[key] = { data, fetchedAt: Date.now() };
-        setProducts(data);
+      try {
+        const data = await fetchProductsWithVariants(
+          category,
+          subcategory,
+          limit,
+          featured,
+        );
+        if (data.length > 0) {
+          pgCache[key] = { data, fetchedAt: Date.now() };
+          setProducts(data);
+        }
+        // If data.length === 0, keep existing products — don't blank screen
+      } catch {
+        // On error, silently keep existing products
       }
     };
 

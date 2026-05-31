@@ -10,19 +10,13 @@
  */
 export const swiperPerfProps = {
   // ✅ Virtual slides — sirf visible slides render honge (BIGGEST WIN for many slides)
-  virtual: false, // agar 10+ slides hain toh true karo
+  // virtual: false, // agar 10+ slides hain toh true karo
 
   // ✅ CSS-only transitions — JS animation nahi hogi
-  cssMode: false, // mobile pe true karo agar touch scroll buggy lag raha ho
+  // cssMode: false, // mobile pe true karo agar touch scroll buggy lag raha ho
 
-  // ✅ Lazy loading — sirf visible slides ki images load hongi
-  lazy: {
-    loadPrevNext: true, // next/prev slide bhi preload karo
-    loadPrevNextAmount: 1, // sirf 1 slide aage peeche
-  },
-
-  // ✅ Preload images = false — manual lazy loading use karenge
-  preloadImages: false,
+  // NOTE: preloadImages aur lazy props Swiper v9+ mein remove ho gaye hain
+  // Unki jagah native loading="eager"/"lazy" attributes use karo images pe
 
   // ✅ Watch slides visibility — hidden slides render nahi honge
   watchSlidesProgress: true,
@@ -30,7 +24,7 @@ export const swiperPerfProps = {
   // ✅ Resistance ratio — mobile pe smooth feel
   resistanceRatio: 0.85,
 
-  // ✅ Speed — default 300ms, yeh fine hai
+  // ✅ Speed — default 300ms
   speed: 300,
 
   // ✅ Grab cursor — desktop pe pointer cursor

@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
-import Image from "next/image";
+import { useRef } from "react";
 import Link from "next/link";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Navigation, Pagination, Autoplay, A11y } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
 import { useLanguage } from "@/app/context/LanguageContext";
 import "./explore-aurexia.css";
 
@@ -165,48 +168,6 @@ function getTranslation(
 }
 
 /* ──────────────────────────────────────────
-   SWIPER CDN LOADER — bfcache safe
-────────────────────────────────────────── */
-function loadSwiperCDN(): Promise<void> {
-  return new Promise<void>((resolve) => {
-    if (typeof window !== "undefined" && (window as any).Swiper) {
-      resolve();
-      return;
-    }
-
-    if (!document.querySelector("link[data-ea-swiper-css]")) {
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href =
-        "https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css";
-      link.setAttribute("data-ea-swiper-css", "1");
-      document.head.appendChild(link);
-    }
-
-    if (document.querySelector("script[data-ea-swiper-js]")) {
-      const poll = setInterval(() => {
-        if ((window as any).Swiper) {
-          clearInterval(poll);
-          resolve();
-        }
-      }, 30);
-      setTimeout(() => {
-        clearInterval(poll);
-        resolve();
-      }, 5000);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js";
-    script.setAttribute("data-ea-swiper-js", "1");
-    script.onload = () => resolve();
-    script.onerror = () => resolve();
-    document.head.appendChild(script);
-  });
-}
-
-/* ──────────────────────────────────────────
    CARD COMPONENT — Black + Red Mixed Gradients
 ────────────────────────────────────────── */
 function CategoryCard({
@@ -239,13 +200,22 @@ function CategoryCard({
 
       <div className="ea-card-img-wrap">
         {cat.imageSrc ? (
-          <Image
+          <img
             src={cat.imageSrc}
             alt={`${title}${italic}`}
-            fill
             className="ea-card-img"
-            sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            quality={80}
+            loading="eager"
+            fetchPriority="high"
+            decoding="auto"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              display: "block",
+            }}
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }}
           />
         ) : (
           <div className={`ea-card-placeholder ${cat.placeholderClass}`} />
@@ -290,137 +260,12 @@ function CategoryCard({
 }
 
 /* ──────────────────────────────────────────
-   STATIC SLIDES
-────────────────────────────────────────── */
-function StaticSlides({
-  language,
-  isRTL,
-}: {
-  language: "en" | "ar" | "de";
-  isRTL: boolean;
-}) {
-  return (
-    <>
-      {categories.map((cat) => (
-        <div key={cat.id} className="swiper-slide ea-slide">
-          <CategoryCard cat={cat} language={language} isRTL={isRTL} />
-        </div>
-      ))}
-    </>
-  );
-}
-
-/* ──────────────────────────────────────────
    INNER COMPONENT
 ────────────────────────────────────────── */
 function ExploreInner() {
   const { language, isRTLMode } = useLanguage();
-
-  const swiperRef = useRef<HTMLDivElement>(null);
   const prevBtnRef = useRef<HTMLButtonElement>(null);
   const nextBtnRef = useRef<HTMLButtonElement>(null);
-  const paginationRef = useRef<HTMLDivElement>(null);
-  const swiperInstRef = useRef<any>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    loadSwiperCDN().then(() => {
-      if (cancelled) return;
-      if (
-        !swiperRef.current ||
-        !prevBtnRef.current ||
-        !nextBtnRef.current ||
-        !paginationRef.current
-      )
-        return;
-
-      if (swiperInstRef.current) {
-        try {
-          swiperInstRef.current.destroy(true, true);
-        } catch (e) {}
-        swiperInstRef.current = null;
-      }
-
-      setTimeout(() => {
-        if (cancelled) return;
-        if (!swiperRef.current || !(window as any).Swiper) return;
-
-        try {
-          swiperInstRef.current = new (window as any).Swiper(
-            swiperRef.current,
-            {
-              slidesPerView: 1,
-              spaceBetween: 20,
-              centeredSlides: false,
-              breakpoints: {
-                768: { slidesPerView: 2, spaceBetween: 24 },
-                1024: { slidesPerView: 3, spaceBetween: 32 },
-              },
-              // ✅ useFastSwiper perf props
-              grabCursor: true,
-              speed: 300,
-              watchSlidesProgress: true,
-              resistanceRatio: 0.85,
-              // ──────────────────────────
-              touchRatio: 1,
-              touchAngle: 45,
-              simulateTouch: true,
-              touchStartPreventDefault: false,
-              loop: true,
-              autoplay: {
-                delay: 3800,
-                disableOnInteraction: false,
-                pauseOnMouseEnter: true,
-              },
-              navigation: {
-                nextEl: nextBtnRef.current,
-                prevEl: prevBtnRef.current,
-              },
-              pagination: {
-                el: paginationRef.current,
-                clickable: true,
-                dynamicBullets: true,
-              },
-              observer: true,
-              observeParents: true,
-              resizeObserver: true,
-            },
-          );
-        } catch (err) {
-          console.error("ExploreAurexia Swiper init error:", err);
-        }
-      }, 100);
-    });
-
-    return () => {
-      cancelled = true;
-      if (swiperInstRef.current) {
-        try {
-          swiperInstRef.current.destroy(true, true);
-        } catch (e) {}
-        swiperInstRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    let resizeTimeout: NodeJS.Timeout;
-    const handleResize = () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        swiperInstRef.current?.update();
-      }, 150);
-    };
-    window.addEventListener("resize", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      clearTimeout(resizeTimeout);
-    };
-  }, []);
-
-  const goPrev = () => swiperInstRef.current?.slidePrev();
-  const goNext = () => swiperInstRef.current?.slideNext();
 
   return (
     <section
@@ -461,7 +306,6 @@ function ExploreInner() {
         <button
           ref={prevBtnRef}
           className="ea-nav-btn ea-nav-prev"
-          onClick={goPrev}
           aria-label="Previous category"
           type="button"
         >
@@ -482,7 +326,6 @@ function ExploreInner() {
         <button
           ref={nextBtnRef}
           className="ea-nav-btn ea-nav-next"
-          onClick={goNext}
           aria-label="Next category"
           type="button"
         >
@@ -500,20 +343,60 @@ function ExploreInner() {
           </svg>
         </button>
 
-        <div
-          ref={swiperRef}
-          className="ea-swiper swiper"
-          suppressHydrationWarning
+        <Swiper
+          modules={[Navigation, Pagination, Autoplay, A11y]}
+          slidesPerView={1}
+          spaceBetween={20}
+          centeredSlides={false}
+          loop={true}
+          grabCursor={true}
+          speed={300}
+          watchSlidesProgress={true}
+          resistanceRatio={0.85}
+          touchRatio={1}
+          touchAngle={45}
+          simulateTouch={true}
+          observer={true}
+          observeParents={true}
+          resizeObserver={true}
+          dir={isRTLMode ? "rtl" : "ltr"}
+          autoplay={{
+            delay: 3800,
+            disableOnInteraction: false,
+            pauseOnMouseEnter: true,
+          }}
+          navigation={{
+            prevEl: prevBtnRef.current,
+            nextEl: nextBtnRef.current,
+          }}
+          onSwiper={(swiper) => {
+            // Wire up nav buttons after swiper mounts
+            if (
+              swiper.params.navigation &&
+              typeof swiper.params.navigation !== "boolean"
+            ) {
+              swiper.params.navigation.prevEl = prevBtnRef.current;
+              swiper.params.navigation.nextEl = nextBtnRef.current;
+              swiper.navigation.init();
+              swiper.navigation.update();
+            }
+          }}
+          pagination={{
+            clickable: true,
+            dynamicBullets: true,
+          }}
+          breakpoints={{
+            768: { slidesPerView: 2, spaceBetween: 24 },
+            1024: { slidesPerView: 3, spaceBetween: 32 },
+          }}
+          className="ea-swiper"
         >
-          <div className="swiper-wrapper">
-            <StaticSlides language={language} isRTL={isRTLMode} />
-          </div>
-          <div
-            ref={paginationRef}
-            className="ea-pagination swiper-pagination"
-            suppressHydrationWarning
-          />
-        </div>
+          {categories.map((cat) => (
+            <SwiperSlide key={cat.id} className="ea-slide">
+              <CategoryCard cat={cat} language={language} isRTL={isRTLMode} />
+            </SwiperSlide>
+          ))}
+        </Swiper>
       </div>
 
       <div className="ea-footer-ornament" aria-hidden="true">

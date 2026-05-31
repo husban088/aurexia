@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import "./hero-explore.css";
 
@@ -41,19 +40,36 @@ export default function HeroExplore() {
     const section = sectionRef.current;
     if (!section) return;
 
+    // Add visible immediately if already in viewport (above the fold)
+    const rect = section.getBoundingClientRect();
+    if (rect.top < window.innerHeight) {
+      section.classList.add("he-visible");
+      return;
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             section.classList.add("he-visible");
+            observer.disconnect();
           }
         });
       },
-      { threshold: 0.15 },
+      { threshold: 0.1 },
     );
 
     observer.observe(section);
-    return () => observer.disconnect();
+
+    // Safety fallback — always show after 800ms even if observer doesn't fire
+    const fallback = setTimeout(() => {
+      section.classList.add("he-visible");
+    }, 800);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(fallback);
+    };
   }, []);
 
   return (
@@ -176,16 +192,18 @@ export default function HeroExplore() {
                 <div className="he-img-shimmer" aria-hidden="true" />
                 {/* Label - White text on gradient */}
                 <span className="he-img-label">{img.label}</span>
-                {/* Image - Uniform aspect ratio, fully visible */}
+                {/* Image - plain img tag, foran show, no Next.js overhead */}
                 <div className="he-img-wrap">
-                  <Image
+                  <img
                     src={img.src}
                     alt={img.alt}
-                    fill
                     className="he-img"
-                    sizes="(max-width: 640px) 45vw, (max-width: 1024px) 25vw, 20vw"
-                    quality={85}
-                    style={{ objectFit: "contain" }}
+                    loading={i < 2 ? "eager" : "lazy"}
+                    fetchPriority={i === 0 ? "high" : "auto"}
+                    decoding="auto"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.opacity = "0";
+                    }}
                   />
                 </div>
                 {/* Overlay */}
