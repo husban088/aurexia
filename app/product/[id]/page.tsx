@@ -619,7 +619,25 @@ export default function ProductDetail() {
         return (order[a.attribute_type] ?? 5) - (order[b.attribute_type] ?? 5);
       });
       setVariants(sortedVariants);
-      setSelectedVariant(sortedVariants[0]);
+      const firstVariant = sortedVariants[0];
+      setSelectedVariant(firstVariant);
+
+      // ── After sorting, re-compute desc/images using first variant if it has them ──
+      const firstVariantDesc =
+        firstVariant?.description_rich ||
+        (firstVariant as any)?.description ||
+        "";
+      const firstVariantDescImages =
+        (firstVariant as VariantWithDetails)?.description_images || [];
+      if (firstVariantDesc && !finalDesc) {
+        setCurrentDescription(firstVariantDesc);
+      }
+      if (firstVariantDescImages.length > 0 && finalDescImages.length === 0) {
+        setCurrentDescriptionImages(firstVariantDescImages);
+      } else if (firstVariantDescImages.length > 0) {
+        // Prefer variant-level description images for the initially selected variant
+        setCurrentDescriptionImages(firstVariantDescImages);
+      }
 
       const imagesByVariant: VariantImagesMap = {};
       variantsData.forEach((v: any) => {
@@ -1224,6 +1242,26 @@ export default function ProductDetail() {
     setSelectedVariant(variant);
     setSelectedTier(null);
     setQty(1);
+
+    // ── Update description + description images when variant changes ──
+    const p = product as any;
+    const productDesc = p?._description || p?.description || "";
+    const productDescImages =
+      p?._description_images || p?.description_images || [];
+
+    // Prefer variant-level description/images if they exist
+    const variantDesc =
+      variant.description_rich || (variant as any).description || "";
+    const variantDescImages =
+      (variant as VariantWithDetails).description_images || [];
+
+    // Use variant desc/images if present, else fall back to product-level
+    const finalDesc = variantDesc || productDesc;
+    const finalDescImages =
+      variantDescImages.length > 0 ? variantDescImages : productDescImages;
+
+    setCurrentDescription(finalDesc);
+    setCurrentDescriptionImages(finalDescImages);
   }
 
   function handleAddToCart() {
@@ -1903,8 +1941,13 @@ export default function ProductDetail() {
                               src={imgUrl}
                               alt={`${product.name} detail ${idx + 1}`}
                               className="pd-desc-img"
-                              loading="lazy"
+                              loading="eager"
+                              decoding="async"
                               draggable={false}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display =
+                                  "none";
+                              }}
                             />
                             <div className="pd-desc-img-overlay">
                               <span className="pd-desc-img-num">
