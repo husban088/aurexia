@@ -91,7 +91,7 @@ export default async function RootLayout({
         - body  → min-h-screen, overflow-y: auto   (body scrolls only)
         - scrollbar-gutter: stable → no layout shift when scrollbar appears
       */}
-      <body className="min-h-screen flex flex-col" suppressHydrationWarning>
+      <body className="flex flex-col" suppressHydrationWarning>
         <LanguageProvider>
           <CurrencyProvider initialCurrencyCode={initialCurrencyCode}>
             <Providers>{children}</Providers>
