@@ -394,14 +394,21 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                     ? `${getCartSidebarTranslation("lowStock", lang)} (${rawStock} ${getCartSidebarTranslation("lowStockLeft", lang)})`
                     : getCartSidebarTranslation("inStock", lang);
 
-                const canDecrement = item.quantity > 1 && !isOutOfStock;
+                const canDecrement = item.quantity >= 1 && !isOutOfStock; // quantity===1 pe bhi allow — minus pe delete hoga
                 const canIncrement =
                   !isOutOfStock &&
                   (rawStock >= 999999 || item.quantity * ppu < rawStock);
 
                 const handleQuantityUpdate = async (newQty: number) => {
                   if (newQty <= 0) {
+                    // quantity 0 → delete karo (same animation as delete button)
+                    setRemovingItems((prev) => new Set(prev).add(item.id));
                     await removeFromCart(item.id);
+                    setRemovingItems((prev) => {
+                      const s = new Set(prev);
+                      s.delete(item.id);
+                      return s;
+                    });
                   } else {
                     await updateQuantity(item.id, newQty);
                   }
@@ -482,23 +489,59 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                       <div className="cs-item-bottom">
                         <div className="cs-qty">
                           <button
-                            className="cs-qty-btn"
+                            className={`cs-qty-btn${item.quantity === 1 ? " cs-qty-btn--delete" : ""}`}
                             onClick={() =>
                               handleQuantityUpdate(item.quantity - 1)
                             }
-                            aria-label="Decrease quantity"
+                            aria-label={
+                              item.quantity === 1
+                                ? "Remove item"
+                                : "Decrease quantity"
+                            }
                             disabled={
                               !canDecrement || isOutOfStock || isBeingRemoved
                             }
+                            title={
+                              item.quantity === 1 ? "Remove item" : "Decrease"
+                            }
                           >
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <path d="M5 12h14" strokeLinecap="round" />
-                            </svg>
+                            {item.quantity === 1 ? (
+                              /* quantity===1 pe trash icon — delete hoga */
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                              >
+                                <polyline
+                                  points="3 6 5 6 21 6"
+                                  strokeLinecap="round"
+                                />
+                                <path
+                                  d="M19 6l-1 14H6L5 6"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                                <path
+                                  d="M10 11v6M14 11v6"
+                                  strokeLinecap="round"
+                                />
+                                <path
+                                  d="M9 6V4h6v2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            ) : (
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
+                                <path d="M5 12h14" strokeLinecap="round" />
+                              </svg>
+                            )}
                           </button>
                           <span className="cs-qty-num">
                             {item.quantity}

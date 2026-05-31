@@ -393,7 +393,7 @@ export default function Cart() {
                   stockStatus === "out_of_stock" || rawStock === 0;
                 const isLowStock = stockStatus === "low_stock";
 
-                const canDecrement = item.quantity > 1 && !isOutOfStock;
+                const canDecrement = item.quantity >= 1 && !isOutOfStock; // qty===1 pe bhi allow — minus pe delete hoga
                 const canIncrement =
                   !isOutOfStock &&
                   (rawStock >= 999999 || item.quantity * ppu < rawStock);
@@ -486,21 +486,63 @@ export default function Cart() {
                       <div className="cart-item-row">
                         <div className="cart-qty">
                           <button
-                            className="cart-qty-btn"
-                            onClick={() =>
-                              updateQuantity(item.id, item.quantity - 1)
+                            className={`cart-qty-btn${item.quantity === 1 ? " cart-qty-btn--delete" : ""}`}
+                            onClick={async () => {
+                              const newQty = item.quantity - 1;
+                              if (newQty <= 0) {
+                                // quantity 0 → delete karo
+                                await removeFromCart(item.id);
+                              } else {
+                                await updateQuantity(item.id, newQty);
+                              }
+                            }}
+                            aria-label={
+                              item.quantity === 1
+                                ? "Remove item"
+                                : "Decrease quantity"
                             }
-                            aria-label="Decrease quantity"
                             disabled={!canDecrement}
+                            title={
+                              item.quantity === 1 ? "Remove item" : "Decrease"
+                            }
                           >
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <path d="M5 12h14" strokeLinecap="round" />
-                            </svg>
+                            {item.quantity === 1 ? (
+                              /* quantity===1 pe trash icon — click karo delete hoga */
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                              >
+                                <polyline
+                                  points="3 6 5 6 21 6"
+                                  strokeLinecap="round"
+                                />
+                                <path
+                                  d="M19 6l-1 14H6L5 6"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                                <path
+                                  d="M10 11v6M14 11v6"
+                                  strokeLinecap="round"
+                                />
+                                <path
+                                  d="M9 6V4h6v2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            ) : (
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
+                                <path d="M5 12h14" strokeLinecap="round" />
+                              </svg>
+                            )}
                           </button>
                           <span className="cart-qty-num">
                             {item.quantity}

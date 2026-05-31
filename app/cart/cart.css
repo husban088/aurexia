@@ -462,6 +462,17 @@
   background: rgba(220, 38, 38, 0.1);
 }
 
+/* quantity=1 pe minus → trash icon — red warning state */
+.cart-qty-btn--delete {
+  color: #dc2626 !important;
+}
+
+.cart-qty-btn--delete:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.15) !important;
+  color: #b91c1c !important;
+  transform: scale(1.08);
+}
+
 .cart-qty-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;

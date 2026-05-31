@@ -377,6 +377,17 @@
   background: rgba(220, 38, 38, 0.1);
 }
 
+/* quantity=1 pe minus → trash icon — red warning state */
+.cs-qty-btn--delete {
+  color: #dc2626 !important;
+}
+
+.cs-qty-btn--delete:hover {
+  background: rgba(220, 38, 38, 0.15) !important;
+  color: #b91c1c !important;
+  transform: scale(1.08);
+}
+
 .cs-qty-num {
   font-family: "Goldman", system-ui, sans-serif;
   font-size: 0.78rem;
