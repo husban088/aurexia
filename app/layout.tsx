@@ -8,7 +8,7 @@ import { CurrencyProvider } from "./context/CurrencyContext";
 import { LanguageProvider } from "./context/LanguageContext";
 import { getInitialCurrency } from "@/lib/get-initial-currency";
 
-// ✅ Goldman ONLY — single font for entire website
+// ✅ Goldman ONLY — single font
 const goldman = Goldman({
   variable: "--font-goldman",
   subsets: ["latin"],
@@ -40,14 +40,22 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/* ✅ PERF: DNS prefetch + preconnect for faster resource loading */}
         <link rel="dns-prefetch" href="//connect.facebook.net" />
+        <link rel="dns-prefetch" href="//fonts.gstatic.com" />
         <link
           rel="preconnect"
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
 
-        {/* ✅ Meta Pixel */}
+        {/* ✅ PERF: Viewport meta — prevents double-tap zoom lag on mobile */}
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
+
+        {/* ✅ PERF: Meta Pixel — afterInteractive = page load block nahi karega */}
         <Script
           id="meta-pixel"
           strategy="afterInteractive"
@@ -78,11 +86,10 @@ export default async function RootLayout({
       </head>
 
       {/*
-        ✅ DOUBLE SCROLLBAR FIX:
-        - html   → height: auto, overflow: visible  (scroll nahi karega)
-        - body   → min-h-screen, overflow-y: auto    (sirf body scroll karega)
-        "h-full" hataa diya — woh html+body dono ko 100vh banaata tha
-        jis se dono scroll karte the
+        ✅ PERF NOTES:
+        - html  → height: auto, overflow: visible  (single scroll container)
+        - body  → min-h-screen, overflow-y: auto   (body scrolls only)
+        - scrollbar-gutter: stable → no layout shift when scrollbar appears
       */}
       <body className="min-h-screen flex flex-col" suppressHydrationWarning>
         <LanguageProvider>

@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation, Pagination } from "swiper/modules";
 import { useLanguage } from "@/app/context/LanguageContext";
+import { swiperPerfProps } from "@/lib/useFastSwiper";
 import "./TrustBadgesSection.css";
 
 // Import Swiper styles
@@ -288,11 +289,13 @@ export default function TrustBadgesSection() {
 
           <Swiper
             ref={swiperRef}
+            {...swiperPerfProps}
             modules={[Autoplay, Navigation, Pagination]}
             spaceBetween={24}
             slidesPerView={1}
             centeredSlides={false}
             loop={true}
+            speed={300}
             autoplay={{
               delay: 4000,
               disableOnInteraction: false,

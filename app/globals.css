@@ -9,6 +9,10 @@
   --foreground: #e6f7ff;
   --font-goldman: "Goldman", system-ui, sans-serif;
   --navbar-height: 70px;
+  /* ✅ PERF: scrollbar colors as variables for reuse */
+  --scrollbar-thumb: #dc2626;
+  --scrollbar-thumb-hover: #ef4444;
+  --scrollbar-track: #0a0f1a;
 }
 
 @theme inline {
@@ -27,21 +31,24 @@
 
 /* ============================================================
    HTML & BODY BASE
+   ✅ PERF FIX: Single scroll container — html scroll rokho, body scroll kare
+   Double scrollbar + jank ka main reason yahi tha
    ============================================================ */
 html {
-  scroll-behavior: auto;
+  height: auto;
   overflow-x: hidden;
+  overflow-y: visible; /* html scroll nahi karega */
   /* Firefox scrollbar */
   scrollbar-width: thin;
-  scrollbar-color: #dc2626 #0a0f1a;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  /* ✅ PERF: GPU layer for smooth scroll */
+  scroll-behavior: auto; /* smooth scroll CSS se avoid karo — JS use karo jahan zaroorat ho */
 }
 
 body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  /* ✅ DOUBLE SCROLLBAR FIX: body sirf window ki tarah scroll kare */
-  /* html/body dono scroll nahi karenge — sirf ek window scrollbar */
   overflow-y: auto;
   height: auto;
   background: var(--background);
@@ -51,125 +58,124 @@ body {
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-/* ✅ html ko scroll se rok do — sirf body scroll kare */
-html {
-  overflow-y: visible;
-  height: auto;
+  /* ✅ PERF: GPU compositing for smooth scroll */
+  -webkit-overflow-scrolling: touch;
+  /* ✅ PERF: Prevent layout shifts from scrollbar appearing */
+  scrollbar-gutter: stable;
 }
 
 /* ============================================================
    SCROLLBAR — Chrome, Edge, Safari
+   ✅ PERF: Single rule using :where() — zero specificity, no override wars
    ============================================================ */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-::-webkit-scrollbar-track {
-  background: #0a0f1a;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #dc2626;
-  border-radius: 8px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #ef4444;
-}
-
-::-webkit-scrollbar-corner {
-  background: #0a0f1a;
-}
-
-/* Component scrollbars — small size */
-.dropdown-menu::-webkit-scrollbar,
-.navbar-bottom::-webkit-scrollbar,
-.cs-items::-webkit-scrollbar,
-.ss-content::-webkit-scrollbar,
-.sidebar-nav::-webkit-scrollbar,
-.pd-content::-webkit-scrollbar,
-.pf-content::-webkit-scrollbar,
-.pf-root::-webkit-scrollbar,
-.pf-nav::-webkit-scrollbar,
-.dm-modal-body::-webkit-scrollbar,
-.pd-toast-wrap::-webkit-scrollbar,
-.co-toast-wrap::-webkit-scrollbar,
-.pg-grid::-webkit-scrollbar,
-.fp-swiper::-webkit-scrollbar,
-.gfaq-accordion-container::-webkit-scrollbar,
-.co-success-items::-webkit-scrollbar,
-select::-webkit-scrollbar {
+/* ✅ PERF: One rule for ALL component scrollbars instead of 100+ lines */
+:where(
+  .dropdown-menu,
+  .navbar-bottom,
+  .cs-items,
+  .ss-content,
+  .sidebar-nav,
+  .pd-content,
+  .pf-content,
+  .pf-root,
+  .pf-nav,
+  .dm-modal-body,
+  .pd-toast-wrap,
+  .co-toast-wrap,
+  .pg-grid,
+  .fp-swiper,
+  .gfaq-accordion-container,
+  .co-success-items,
+  select
+)::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
 
-.dropdown-menu::-webkit-scrollbar-track,
-.navbar-bottom::-webkit-scrollbar-track,
-.cs-items::-webkit-scrollbar-track,
-.ss-content::-webkit-scrollbar-track,
-.sidebar-nav::-webkit-scrollbar-track,
-.pd-content::-webkit-scrollbar-track,
-.pf-content::-webkit-scrollbar-track,
-.pf-root::-webkit-scrollbar-track,
-.pf-nav::-webkit-scrollbar-track,
-.dm-modal-body::-webkit-scrollbar-track,
-.pd-toast-wrap::-webkit-scrollbar-track,
-.co-toast-wrap::-webkit-scrollbar-track,
-.pg-grid::-webkit-scrollbar-track,
-.fp-swiper::-webkit-scrollbar-track,
-.gfaq-accordion-container::-webkit-scrollbar-track,
-.co-success-items::-webkit-scrollbar-track,
-select::-webkit-scrollbar-track {
-  background: #0a0f1a;
+/* Shared track & thumb for ALL scrollbars */
+::-webkit-scrollbar-track,
+:where(
+  .dropdown-menu,
+  .navbar-bottom,
+  .cs-items,
+  .ss-content,
+  .sidebar-nav,
+  .pd-content,
+  .pf-content,
+  .pf-root,
+  .pf-nav,
+  .dm-modal-body,
+  .pd-toast-wrap,
+  .co-toast-wrap,
+  .pg-grid,
+  .fp-swiper,
+  .gfaq-accordion-container,
+  .co-success-items,
+  select
+)::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
   border-radius: 4px;
 }
 
-.dropdown-menu::-webkit-scrollbar-thumb,
-.navbar-bottom::-webkit-scrollbar-thumb,
-.cs-items::-webkit-scrollbar-thumb,
-.ss-content::-webkit-scrollbar-thumb,
-.sidebar-nav::-webkit-scrollbar-thumb,
-.pd-content::-webkit-scrollbar-thumb,
-.pf-content::-webkit-scrollbar-thumb,
-.pf-root::-webkit-scrollbar-thumb,
-.pf-nav::-webkit-scrollbar-thumb,
-.dm-modal-body::-webkit-scrollbar-thumb,
-.pd-toast-wrap::-webkit-scrollbar-thumb,
-.co-toast-wrap::-webkit-scrollbar-thumb,
-.pg-grid::-webkit-scrollbar-thumb,
-.fp-swiper::-webkit-scrollbar-thumb,
-.gfaq-accordion-container::-webkit-scrollbar-thumb,
-.co-success-items::-webkit-scrollbar-thumb,
-select::-webkit-scrollbar-thumb {
-  background: #dc2626;
-  border-radius: 4px;
+::-webkit-scrollbar-thumb,
+:where(
+  .dropdown-menu,
+  .navbar-bottom,
+  .cs-items,
+  .ss-content,
+  .sidebar-nav,
+  .pd-content,
+  .pf-content,
+  .pf-root,
+  .pf-nav,
+  .dm-modal-body,
+  .pd-toast-wrap,
+  .co-toast-wrap,
+  .pg-grid,
+  .fp-swiper,
+  .gfaq-accordion-container,
+  .co-success-items,
+  select
+)::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 8px;
 }
 
-.dropdown-menu::-webkit-scrollbar-thumb:hover,
-.navbar-bottom::-webkit-scrollbar-thumb:hover,
-.cs-items::-webkit-scrollbar-thumb:hover,
-.ss-content::-webkit-scrollbar-thumb:hover,
-.sidebar-nav::-webkit-scrollbar-thumb:hover,
-.pd-content::-webkit-scrollbar-thumb:hover,
-.pf-content::-webkit-scrollbar-thumb:hover,
-.pf-root::-webkit-scrollbar-thumb:hover,
-.pf-nav::-webkit-scrollbar-thumb:hover,
-.dm-modal-body::-webkit-scrollbar-thumb:hover,
-.pd-toast-wrap::-webkit-scrollbar-thumb:hover,
-.co-toast-wrap::-webkit-scrollbar-thumb:hover,
-.pg-grid::-webkit-scrollbar-thumb:hover,
-.fp-swiper::-webkit-scrollbar-thumb:hover,
-.gfaq-accordion-container::-webkit-scrollbar-thumb:hover,
-.co-success-items::-webkit-scrollbar-thumb:hover,
-select::-webkit-scrollbar-thumb:hover {
-  background: #ef4444;
+::-webkit-scrollbar-thumb:hover,
+:where(
+    .dropdown-menu,
+    .navbar-bottom,
+    .cs-items,
+    .ss-content,
+    .sidebar-nav,
+    .pd-content,
+    .pf-content,
+    .pf-root,
+    .pf-nav,
+    .dm-modal-body,
+    .pd-toast-wrap,
+    .co-toast-wrap,
+    .pg-grid,
+    .fp-swiper,
+    .gfaq-accordion-container,
+    .co-success-items,
+    select
+  )::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track);
 }
 
 /* ============================================================
-   PAGE TRANSITION — lightweight
+   PAGE TRANSITION
+   ✅ PERF: opacity-only animation — no layout, no paint, only composite
    ============================================================ */
 @keyframes pageFadeIn {
   from {
@@ -181,17 +187,26 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .page-fade-in {
-  animation: pageFadeIn 0.2s ease-out forwards;
+  animation: pageFadeIn 0.15s ease-out forwards;
+  /* ✅ PERF: GPU composite layer */
+  will-change: opacity;
+  contain: layout style;
+}
+
+/* Animation done hone ke baad will-change hata do — memory waste nahi hoga */
+.page-fade-in.animation-done {
+  will-change: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .page-fade-in {
     animation: none;
+    will-change: auto;
   }
 }
 
 /* ============================================================
-   GOLDMAN FONT — ONLY FONT ON WEBSITE
+   GOLDMAN FONT
    ============================================================ */
 *,
 *::before,
@@ -207,7 +222,7 @@ samp,
   font-family: monospace !important;
 }
 
-/* Italic prevention — Goldman has no italic */
+/* Italic prevention */
 i,
 em,
 cite,
@@ -283,14 +298,73 @@ a {
 }
 
 /* ============================================================
-   STICKY NAVBAR — GPU promoted, no scroll jank
+   STICKY NAVBAR
+   ✅ PERF: GPU promoted layer — scroll jank zero
    ============================================================ */
 .navbar-sticky-wrapper {
   position: sticky;
   top: 0;
   z-index: 50;
+  /* ✅ PERF: Force GPU compositing */
   transform: translateZ(0);
   will-change: transform;
+  /* ✅ PERF: Contain layout recalcs to this element */
+  contain: layout style;
+}
+
+/* ============================================================
+   ✅ PERF: SWIPER GLOBAL OPTIMIZATIONS
+   Swiper slides GPU pe render hon — main thread free rahe
+   ============================================================ */
+.swiper {
+  /* ✅ Contain layout — parent reflow nahi hoga */
+  contain: layout style;
+}
+
+.swiper-wrapper {
+  /* ✅ GPU compositing — janky scroll nahi hoga */
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.swiper-slide {
+  /* ✅ Each slide apna composite layer banaye */
+  transform: translateZ(0);
+  /* ✅ Hidden slides render mat karo */
+  content-visibility: auto;
+  contain-intrinsic-size: 300px;
+}
+
+/* ✅ Lazy loaded swiper images */
+.swiper-slide img {
+  will-change: auto; /* images pe will-change mat lagao — memory waste */
+}
+
+/* ============================================================
+   ✅ PERF: IMAGE OPTIMIZATION HELPERS
+   ============================================================ */
+img {
+  /* ✅ Prevent layout shift */
+  max-width: 100%;
+  height: auto;
+}
+
+/* ✅ Lazy images — jab tak load na ho placeholder dikhao */
+img[loading="lazy"] {
+  /* Browser lazy loading ke saath kaam karta hai */
+  contain: size layout;
+}
+
+/* ============================================================
+   ✅ PERF: REDUCE LAYOUT THRASHING
+   Heavy sections apna layout contain karen
+   ============================================================ */
+.fp-swiper,
+.pg-grid,
+.sidebar-nav,
+.ss-content,
+.pf-content {
+  contain: layout;
 }
 
 /* ============================================================
@@ -349,6 +423,7 @@ body.rtl .ml-auto,
   margin-left: unset;
   margin-right: auto;
 }
+
 body.rtl .mr-auto,
 [dir="rtl"] .mr-auto {
   margin-right: unset;

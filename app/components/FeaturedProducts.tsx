@@ -15,6 +15,7 @@ import { useCurrency } from "../context/CurrencyContext";
 import { useLanguage } from "../context/LanguageContext";
 import QuickView from "./QuickView";
 import { useSaleSync, applyDiscount } from "@/lib/saleStore";
+import { swiperPerfProps } from "@/lib/useFastSwiper";
 
 /* ─────────────────────────────────────────────────────────────
    TYPES
@@ -1158,6 +1159,7 @@ export default function FeaturedProducts() {
           ) : (
             <Swiper
               key={swiperKey}
+              {...swiperPerfProps}
               modules={[Pagination, Navigation, A11y]}
               onSwiper={(swiper) => {
                 swiperRef.current = swiper;
@@ -1175,6 +1177,7 @@ export default function FeaturedProducts() {
               pagination={{ clickable: true }}
               spaceBetween={1}
               slidesPerView={1}
+              speed={300}
               breakpoints={{
                 480: { slidesPerView: 2, spaceBetween: 1 },
                 768: { slidesPerView: 3, spaceBetween: 1 },

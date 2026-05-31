@@ -357,7 +357,12 @@ function ExploreInner() {
                 768: { slidesPerView: 2, spaceBetween: 24 },
                 1024: { slidesPerView: 3, spaceBetween: 32 },
               },
+              // ✅ useFastSwiper perf props
               grabCursor: true,
+              speed: 300,
+              watchSlidesProgress: true,
+              resistanceRatio: 0.85,
+              // ──────────────────────────
               touchRatio: 1,
               touchAngle: 45,
               simulateTouch: true,
@@ -368,7 +373,6 @@ function ExploreInner() {
                 disableOnInteraction: false,
                 pauseOnMouseEnter: true,
               },
-              speed: 900,
               navigation: {
                 nextEl: nextBtnRef.current,
                 prevEl: prevBtnRef.current,

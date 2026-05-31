@@ -12,6 +12,7 @@ import {
   Headphones,
 } from "lucide-react";
 import { useLanguage } from "@/app/context/LanguageContext";
+import { swiperPerfProps } from "@/lib/useFastSwiper";
 import "./WhyChooseUs.css";
 
 // Import Swiper styles
@@ -185,11 +186,13 @@ export default function WhyChooseUs() {
         {/* Swiper Slider with Autoplay */}
         <Swiper
           ref={swiperRef}
+          {...swiperPerfProps}
           modules={[Autoplay, Navigation, Pagination]}
           spaceBetween={24}
           slidesPerView={1}
           centeredSlides={false}
           loop={true}
+          speed={300}
           autoplay={{
             delay: 4000,
             disableOnInteraction: false,
