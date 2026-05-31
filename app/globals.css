@@ -37,19 +37,18 @@
 html {
   height: 100%;
   overflow-x: hidden;
-  overflow-y: hidden; /* ✅ FIX: html bilkul scroll nahi karega — sirf body scroll karega */
+  overflow-y: auto; /* ✅ FIX: html pe scroll — normal browser behavior */
   /* Firefox scrollbar */
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-  /* ✅ PERF: GPU layer for smooth scroll */
-  scroll-behavior: auto; /* smooth scroll CSS se avoid karo — JS use karo jahan zaroorat ho */
+  scroll-behavior: auto;
 }
 
 body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  overflow-y: auto; /* ✅ FIX: sirf body scroll karega — ek hi scrollbar */
+  overflow-y: visible; /* ✅ FIX: body overflow visible — html scrollbar handle karega, double nahi aayega */
   min-height: 100%;
   background: var(--background);
   color: var(--foreground);
@@ -58,9 +57,7 @@ body {
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* ✅ PERF: GPU compositing for smooth scroll */
   -webkit-overflow-scrolling: touch;
-  /* ✅ FIX: scrollbar-gutter hata diya — yeh empty scrollbar space bana raha tha */
 }
 
 /* ============================================================
