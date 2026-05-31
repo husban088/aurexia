@@ -212,10 +212,22 @@ async function fetchProductCached(key: string): Promise<any | null> {
   // 1. Return from in-memory cache immediately if available
   if (_productCache.has(key)) return _productCache.get(key)!;
 
-  // 2. Check sessionStorage (survives tab switches and laptop sleep)
-  const sessionHit = sessionGet(key);
+  // 2. Also check the extracted ID from the key (cross-key cache hit)
+  const { id: extractedId } = extractIdFromSlug(key);
+  if (extractedId && extractedId !== key && _productCache.has(extractedId)) {
+    const hit = _productCache.get(extractedId)!;
+    _productCache.set(key, hit); // cross-populate
+    return hit;
+  }
+
+  // 3. Check sessionStorage (survives tab switches and laptop sleep)
+  const sessionHit =
+    sessionGet(key) ||
+    (extractedId && extractedId !== key ? sessionGet(extractedId) : null);
   if (sessionHit) {
     _productCache.set(key, sessionHit); // re-warm in-memory cache
+    if (extractedId && extractedId !== key)
+      _productCache.set(extractedId, sessionHit);
     return sessionHit;
   }
 
@@ -626,9 +638,14 @@ export default function ProductDetail() {
   // ── If cache already had the product, hydrate instantly ──
   useEffect(() => {
     if (!cacheKey) return;
-    const cached = _productCache.get(cacheKey) || sessionGet(cacheKey);
+    const cached =
+      _productCache.get(cacheKey) ||
+      sessionGet(cacheKey) ||
+      (urlId && urlId !== cacheKey ? _productCache.get(urlId) : null) ||
+      (urlId && urlId !== cacheKey ? sessionGet(urlId) : null);
     if (cached) {
       if (!_productCache.has(cacheKey)) _productCache.set(cacheKey, cached);
+      if (urlId && !_productCache.has(urlId)) _productCache.set(urlId, cached);
       hydrateFromData(cached);
       setLoading(false);
       setNotFound(false);
@@ -660,7 +677,8 @@ export default function ProductDetail() {
     setLoading(true);
     setNotFound(false);
 
-    // Hard timeout: 12s max — if fetch takes longer, show notFound
+    // Hard timeout: 15s max — if fetch takes longer, show notFound
+    // (Generous timeout for slow connections; fetchById already has 10s internal timeout)
     const hardTimeout = setTimeout(() => {
       if (!active) return;
       if (_productCache.has(cacheKey)) {
@@ -668,10 +686,19 @@ export default function ProductDetail() {
         setLoading(false);
         setNotFound(false);
       } else {
-        setLoading(false);
-        setNotFound(true);
+        // Before showing not found, check sessionStorage one last time
+        const sessHit = sessionGet(cacheKey);
+        if (sessHit) {
+          _productCache.set(cacheKey, sessHit);
+          hydrateFromData(sessHit);
+          setLoading(false);
+          setNotFound(false);
+        } else {
+          setLoading(false);
+          setNotFound(true);
+        }
       }
-    }, 12000);
+    }, 15000);
 
     const doFetch = async () => {
       try {
@@ -684,31 +711,56 @@ export default function ProductDetail() {
           setNotFound(false);
           return;
         }
-        // First attempt returned null — retry once after 1.5s
-        await new Promise((r) => setTimeout(r, 1500));
+        // First attempt returned null — invalidate and retry quickly (800ms)
+        await new Promise((r) => setTimeout(r, 800));
         if (!active) return;
         _invalidateProductCache(cacheKey);
-        const retryData = await fetchProductCached(cacheKey);
+        // Also try with urlId directly if we have it (fallback for slug-parse edge cases)
+        const retryData =
+          (await fetchProductCached(cacheKey)) ||
+          (urlId && urlId !== cacheKey
+            ? await fetchProductCached(urlId)
+            : null);
         if (!active) return;
+        clearTimeout(hardTimeout);
         if (retryData) {
           hydrateFromData(retryData);
           setLoading(false);
           setNotFound(false);
         } else {
-          setLoading(false);
-          setNotFound(true);
+          // Last resort: check sessionStorage before giving up
+          const sessHit =
+            sessionGet(cacheKey) || (urlId ? sessionGet(urlId) : null);
+          if (sessHit) {
+            _productCache.set(cacheKey, sessHit);
+            hydrateFromData(sessHit);
+            setLoading(false);
+            setNotFound(false);
+          } else {
+            setLoading(false);
+            setNotFound(true);
+          }
         }
       } catch {
         if (!active) return;
         clearTimeout(hardTimeout);
-        // Check cache one last time before giving up (in case parallel fetch succeeded)
+        // Check cache and sessionStorage one last time before giving up
         if (_productCache.has(cacheKey)) {
           hydrateFromData(_productCache.get(cacheKey));
           setLoading(false);
           setNotFound(false);
         } else {
-          setLoading(false);
-          setNotFound(true);
+          const sessHit =
+            sessionGet(cacheKey) || (urlId ? sessionGet(urlId) : null);
+          if (sessHit) {
+            _productCache.set(cacheKey, sessHit);
+            hydrateFromData(sessHit);
+            setLoading(false);
+            setNotFound(false);
+          } else {
+            setLoading(false);
+            setNotFound(true);
+          }
         }
       }
     };
@@ -780,19 +832,27 @@ export default function ProductDetail() {
         window.history.replaceState({}, "", window.location.pathname);
       }
 
-      // ── In-memory cache hit ──
-      if (!forceRefresh && _productCache.has(cacheKey)) {
-        hydrateFromData(_productCache.get(cacheKey));
-        setLoading(false);
-        setNotFound(false);
-        return;
+      // ── In-memory cache hit (try cacheKey and urlId) ──
+      if (!forceRefresh) {
+        const memHit =
+          _productCache.get(cacheKey) ||
+          (urlId && urlId !== cacheKey ? _productCache.get(urlId) : null);
+        if (memHit) {
+          hydrateFromData(memHit);
+          setLoading(false);
+          setNotFound(false);
+          return;
+        }
       }
 
       // ── SessionStorage hit (survives tab switch / laptop sleep / wifi drop) ──
       if (!forceRefresh) {
-        const sessionHit = sessionGet(cacheKey);
+        const sessionHit =
+          sessionGet(cacheKey) ||
+          (urlId && urlId !== cacheKey ? sessionGet(urlId) : null);
         if (sessionHit) {
           _productCache.set(cacheKey, sessionHit);
+          if (urlId) _productCache.set(urlId, sessionHit);
           hydrateFromData(sessionHit);
           setLoading(false);
           setNotFound(false);
@@ -806,7 +866,7 @@ export default function ProductDetail() {
         }
       }
 
-      // ── No cache — check if product already in React state ──
+      // ── No cache — use functional update to read current product without wiping it ──
       setProduct((currentProduct) => {
         if (currentProduct && !forceRefresh) {
           // Product already visible — NEVER wipe it. Silent background refresh only.
@@ -817,18 +877,38 @@ export default function ProductDetail() {
             .catch(() => {});
           return currentProduct; // keep showing existing product
         }
-        // Product not in state — fetch it
-        setLoading(true);
-        setNotFound(false);
-        fetchProductCached(cacheKey)
-          .then((data) => {
-            if (data) {
-              hydrateFromData(data);
-              setLoading(false);
-              setNotFound(false);
-            } else {
-              // Last resort: check sessionStorage one more time before showing error
-              const fallback = sessionGet(cacheKey);
+
+        // No product in state — show loading and fetch
+        // Use setTimeout to avoid setState-inside-setState warning
+        setTimeout(() => {
+          setLoading(true);
+          setNotFound(false);
+          fetchProductCached(cacheKey)
+            .then((data) => {
+              if (data) {
+                hydrateFromData(data);
+                setLoading(false);
+                setNotFound(false);
+              } else {
+                // Check sessionStorage + urlId before showing error
+                const fallback =
+                  sessionGet(cacheKey) ||
+                  (urlId && urlId !== cacheKey ? sessionGet(urlId) : null);
+                if (fallback) {
+                  _productCache.set(cacheKey, fallback);
+                  hydrateFromData(fallback);
+                  setLoading(false);
+                  setNotFound(false);
+                } else {
+                  setLoading(false);
+                  setNotFound(true);
+                }
+              }
+            })
+            .catch(() => {
+              const fallback =
+                sessionGet(cacheKey) ||
+                (urlId && urlId !== cacheKey ? sessionGet(urlId) : null);
               if (fallback) {
                 _productCache.set(cacheKey, fallback);
                 hydrateFromData(fallback);
@@ -838,28 +918,30 @@ export default function ProductDetail() {
                 setLoading(false);
                 setNotFound(true);
               }
-            }
-          })
-          .catch(() => {
-            const fallback = sessionGet(cacheKey);
-            if (fallback) {
-              _productCache.set(cacheKey, fallback);
-              hydrateFromData(fallback);
-              setLoading(false);
-              setNotFound(false);
-            } else {
-              setLoading(false);
-              setNotFound(true);
-            }
-          });
-        return null;
+            });
+        }, 0);
+
+        // Return currentProduct (null here) — do NOT wipe if somehow it was set
+        return currentProduct;
       });
     }
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") showFromCache();
     };
-    const handlePageShow = (_e: PageTransitionEvent) => showFromCache();
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        // bfcache restore: always do a fresh silent refresh after showing cache
+        showFromCache();
+        fetchProductCached(cacheKey)
+          .then((data) => {
+            if (data) hydrateFromData(data);
+          })
+          .catch(() => {});
+      } else {
+        showFromCache();
+      }
+    };
     const handlePopState = () => showFromCache();
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -1383,19 +1465,49 @@ export default function ProductDetail() {
           >
             <button
               onClick={() => {
+                // Clear ALL cache keys for this product before retrying
                 _productCache.delete(cacheKey);
                 _inFlight.delete(cacheKey);
+                if (urlId) {
+                  _productCache.delete(urlId);
+                  _inFlight.delete(urlId);
+                }
+                sessionDel(cacheKey);
+                if (urlId) sessionDel(urlId);
                 setLoading(true);
                 setNotFound(false);
-                fetchProductCached(cacheKey).then((data) => {
-                  if (data) {
-                    hydrateFromData(data);
-                    setLoading(false);
-                  } else {
+                // Try fetching by urlId directly first (most reliable)
+                const fetchKey = urlId || cacheKey;
+                fetchProductCached(fetchKey)
+                  .then((data) => {
+                    if (data) {
+                      // Cross-populate cache so future lookups hit
+                      if (urlId && urlId !== cacheKey)
+                        _productCache.set(cacheKey, data);
+                      hydrateFromData(data);
+                      setLoading(false);
+                    } else {
+                      // Final fallback: try the other key
+                      const altKey = fetchKey === cacheKey ? urlId : cacheKey;
+                      if (altKey) {
+                        return fetchProductCached(altKey).then((d) => {
+                          if (d) {
+                            hydrateFromData(d);
+                            setLoading(false);
+                          } else {
+                            setLoading(false);
+                            setNotFound(true);
+                          }
+                        });
+                      }
+                      setLoading(false);
+                      setNotFound(true);
+                    }
+                  })
+                  .catch(() => {
                     setLoading(false);
                     setNotFound(true);
-                  }
-                });
+                  });
               }}
               style={{
                 padding: "10px 24px",
@@ -1428,6 +1540,7 @@ export default function ProductDetail() {
         </div>
       );
     }
+    // Still loading (no product, no notFound) — keep showing skeleton
     return null;
   }
 

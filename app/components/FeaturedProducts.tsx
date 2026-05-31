@@ -850,6 +850,7 @@ export default function FeaturedProducts() {
         return;
       }
 
+      // Only show loading if there's nothing to show yet
       if (!cachedHasProducts) {
         setIsLoading(true);
       }
@@ -860,10 +861,15 @@ export default function FeaturedProducts() {
           setProducts(data.products);
           setVariantsMap(data.variantsMap);
           setVariantImagesMap(data.variantImagesMap);
-          if (data.products.length > 0) setSwiperKey((prev) => prev + 1);
+          setSwiperKey((prev) => prev + 1);
         }
       } catch {
+        // On error, still clear loading so UI doesn't hang
+        if (activeTabRef.current === tab) {
+          setProducts([]);
+        }
       } finally {
+        // ALWAYS clear loading — whether products came back or not
         if (activeTabRef.current === tab) {
           setIsLoading(false);
         }
@@ -940,17 +946,22 @@ export default function FeaturedProducts() {
       if (document.visibilityState !== "visible") return;
       const tab = activeTabRef.current;
       if ((tabCache[tab]?.products?.length ?? 0) > 0) {
+        // Cache hit — show immediately, no loading flash
         setProducts(tabCache[tab].products);
         setVariantsMap(tabCache[tab].variantsMap);
         setVariantImagesMap(tabCache[tab].variantImagesMap);
-        setIsLoading(false);
+        setSwiperKey((prev) => prev + 1);
       }
+      // ALWAYS clear loading so UI never hangs on tab switch/return
+      setIsLoading(false);
+      // Background silent refresh
       fetchFeaturedTabData(tab)
         .then((data) => {
           if (activeTabRef.current === tab && data.products.length > 0) {
             setProducts(data.products);
             setVariantsMap(data.variantsMap);
             setVariantImagesMap(data.variantImagesMap);
+            setSwiperKey((prev) => prev + 1);
           }
         })
         .catch(() => {});
@@ -965,8 +976,17 @@ export default function FeaturedProducts() {
     const handlePageShow = (e: PageTransitionEvent) => {
       const tab = activeTabRef.current;
       if (e.persisted) {
+        // bfcache restore — always refetch
         ALL_TABS.forEach((t) => delete tabCache[t]);
-        setIsLoading(true);
+        if ((tabCache[tab]?.products?.length ?? 0) > 0) {
+          setProducts(tabCache[tab].products);
+          setVariantsMap(tabCache[tab].variantsMap);
+          setVariantImagesMap(tabCache[tab].variantImagesMap);
+          setIsLoading(false);
+          setSwiperKey((prev) => prev + 1);
+        } else {
+          setIsLoading(true);
+        }
         loadProductsForTab(tab, true);
       } else {
         if ((tabCache[tab]?.products?.length ?? 0) > 0) {
@@ -976,6 +996,8 @@ export default function FeaturedProducts() {
           setIsLoading(false);
           setSwiperKey((prev) => prev + 1);
         } else {
+          // ALWAYS clear loading in non-persisted path, loadProductsForTab will handle it
+          setIsLoading(false);
           loadProductsForTab(tab);
         }
       }
@@ -984,11 +1006,12 @@ export default function FeaturedProducts() {
     return () => window.removeEventListener("pageshow", handlePageShow);
   }, [loadProductsForTab]);
 
+  // Safety net: if loading is somehow stuck for >3 seconds, force clear it
   useEffect(() => {
     if (!isLoading) return;
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 4000);
+    }, 3000);
     return () => clearTimeout(timer);
   }, [isLoading]);
 
@@ -1115,10 +1138,22 @@ export default function FeaturedProducts() {
               ))}
             </div>
           ) : products.length === 0 ? (
-            <div className="fp-skeleton-grid">
-              {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
-                <SkeletonCard key={i} />
-              ))}
+            <div
+              className="fp-empty-state"
+              style={{ textAlign: "center", padding: "3rem 1rem" }}
+            >
+              <p style={{ fontSize: "1rem", opacity: 0.5, margin: 0 }}>
+                {getFpTranslation("emptyTitle", language)}
+              </p>
+              <p
+                style={{
+                  fontSize: "0.875rem",
+                  opacity: 0.35,
+                  marginTop: "0.5rem",
+                }}
+              >
+                {getFpTranslation("emptySub", language)}
+              </p>
             </div>
           ) : (
             <Swiper
