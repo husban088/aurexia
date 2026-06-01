@@ -1,37 +1,52 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// ✅ SIMPLE MIDDLEWARE — Koi server-side auth check nahi
-// Kyun? supabase.ts mein storageKey:"sb-auth-token" set hai
-// jo session ko localStorage mein store karta hai, cookies mein nahi.
-// Middleware sirf cookies access kar sakta hai — localStorage nahi.
-// Isliye yahan check karna HAMESHA fail hoga aur signin redirect hoga.
-// Auth guard layout.tsx (client-side) handle karta hai — woh perfectly kaam karta hai.
+// ✅ PERF FIX: Middleware caching strategy fixed
+// Pehle: no-store har page pe = browser cache ZERO = har click pe full server roundtrip
+// Yeh sabse bada reason tha slow navigation ka
+//
+// Naya approach:
+// - HTML pages: no-cache (revalidate karo, lekin cached version use kar sakte hain)
+// - bfcache: sirf pageshow(persisted) pe handle karo — providers.tsx mein already hai
+// - Static assets: middleware se exclude hain already
 
 export async function middleware(req: NextRequest) {
   const response = NextResponse.next();
+  const { pathname } = req.nextUrl;
 
-  // ✅ CRITICAL: bfcache disable karo
-  // Chrome "Cache-Control: no-store" dekh ke bfcache use NAHI karta
-  // Back/forward pe hamesha fresh server request jaayegi
-  // → sab Supabase connections fresh → ERR_CONNECTION_CLOSED khatam
+  // ✅ Panel/admin pages — completely no-cache (sensitive data)
+  if (pathname.startsWith("/panel") || pathname.startsWith("/admin")) {
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate",
+    );
+    response.headers.set("Pragma", "no-cache");
+    return response;
+  }
+
+  // ✅ API routes — no-store (fresh data always)
+  if (pathname.startsWith("/api/")) {
+    response.headers.set("Cache-Control", "no-store");
+    return response;
+  }
+
+  // ✅ PERF FIX: Regular pages — stale-while-revalidate
+  // Browser cached version use karega (fast), background mein revalidate hoga
+  // Pehle no-store tha = har navigation pe full reload = slow
   response.headers.set(
     "Cache-Control",
-    "no-store, no-cache, must-revalidate, proxy-revalidate",
+    "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
   );
-  response.headers.set("Pragma", "no-cache");
-  response.headers.set("Expires", "0");
 
-  // ✅ Additional: bfcache explicitly disable karo
-  response.headers.set("Surrogate-Control", "no-store");
+  // ✅ Security headers
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "SAMEORIGIN");
 
   return response;
 }
 
 export const config = {
   matcher: [
-    // ✅ Sare HTML pages — back/forward pe fresh load ke liye
-    // Static files, images, fonts exclude kiye hain
     "/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot|css|js)$).*)",
   ],
 };

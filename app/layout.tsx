@@ -8,7 +8,7 @@ import { CurrencyProvider } from "./context/CurrencyContext";
 import { LanguageProvider } from "./context/LanguageContext";
 import { getInitialCurrency } from "@/lib/get-initial-currency";
 
-// ✅ Goldman ONLY — single font
+// ✅ Goldman — single font, optimized load
 const goldman = Goldman({
   variable: "--font-goldman",
   subsets: ["latin"],
@@ -40,7 +40,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* ✅ PERF: DNS prefetch + preconnect for faster resource loading */}
+        {/* ✅ PERF: DNS prefetch + preconnect */}
         <link rel="dns-prefetch" href="//connect.facebook.net" />
         <link rel="dns-prefetch" href="//fonts.gstatic.com" />
         <link
@@ -48,14 +48,21 @@ export default async function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
+        {/* ✅ PERF FIX: Supabase preconnect add karo — DB queries faster honge */}
+        <link
+          rel="preconnect"
+          href="https://xohakfnylxqbiuuosdlw.supabase.co"
+          crossOrigin="anonymous"
+        />
+        <link rel="dns-prefetch" href="//xohakfnylxqbiuuosdlw.supabase.co" />
 
-        {/* ✅ PERF: Viewport meta — prevents double-tap zoom lag on mobile */}
+        {/* ✅ PERF: Viewport */}
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
 
-        {/* ✅ PERF: Meta Pixel — afterInteractive = page load block nahi karega */}
+        {/* ✅ PERF: Meta Pixel — afterInteractive */}
         <Script
           id="meta-pixel"
           strategy="afterInteractive"
@@ -85,12 +92,6 @@ export default async function RootLayout({
         </noscript>
       </head>
 
-      {/*
-        ✅ PERF NOTES:
-        - html  → height: auto, overflow: visible  (single scroll container)
-        - body  → min-h-screen, overflow-y: auto   (body scrolls only)
-        - scrollbar-gutter: stable → no layout shift when scrollbar appears
-      */}
       <body className="flex flex-col" suppressHydrationWarning>
         <LanguageProvider>
           <CurrencyProvider initialCurrencyCode={initialCurrencyCode}>

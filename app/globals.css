@@ -9,7 +9,6 @@
   --foreground: #e6f7ff;
   --font-goldman: "Goldman", system-ui, sans-serif;
   --navbar-height: 70px;
-  /* ✅ PERF: scrollbar colors as variables for reuse */
   --scrollbar-thumb: #dc2626;
   --scrollbar-thumb-hover: #ef4444;
   --scrollbar-track: #0a0f1a;
@@ -31,16 +30,14 @@
 
 /* ============================================================
    HTML & BODY BASE
-   ✅ PERF FIX: Single scroll container — html scroll rokho, body scroll kare
-   Double scrollbar + jank ka main reason yahi tha
    ============================================================ */
 html {
   height: 100%;
   overflow-x: hidden;
-  overflow-y: auto; /* ✅ FIX: html pe scroll — normal browser behavior */
-  /* Firefox scrollbar */
+  overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  /* ✅ PERF FIX: scroll-behavior smooth NAHI — GPU jank hota tha */
   scroll-behavior: auto;
 }
 
@@ -48,28 +45,30 @@ body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  overflow-y: visible; /* ✅ FIX: body overflow visible — html scrollbar handle karega, double nahi aayega */
+  overflow-y: visible;
   min-height: 100%;
   background: var(--background);
   color: var(--foreground);
+  /* ✅ PERF FIX: font sirf body pe — * selector se hataya
+     * selector pe font = har element pe style recalc = massive jank */
   font-family: var(--font-goldman);
   font-weight: 500;
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-overflow-scrolling: touch;
+  /* ✅ PERF: font-display swap already Next.js Google Font handles karta hai */
+  font-display: optional;
 }
 
 /* ============================================================
    SCROLLBAR — Chrome, Edge, Safari
-   ✅ PERF: Single rule using :where() — zero specificity, no override wars
    ============================================================ */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-/* ✅ PERF: One rule for ALL component scrollbars instead of 100+ lines */
 :where(
   .dropdown-menu,
   .navbar-bottom,
@@ -93,7 +92,6 @@ body {
   height: 4px;
 }
 
-/* Shared track & thumb for ALL scrollbars */
 ::-webkit-scrollbar-track,
 :where(
   .dropdown-menu,
@@ -171,7 +169,7 @@ body {
 
 /* ============================================================
    PAGE TRANSITION
-   ✅ PERF: opacity-only animation — no layout, no paint, only composite
+   ✅ PERF: opacity-only — no layout, no paint, only composite
    ============================================================ */
 @keyframes pageFadeIn {
   from {
@@ -184,12 +182,11 @@ body {
 
 .page-fade-in {
   animation: pageFadeIn 0.15s ease-out forwards;
-  /* ✅ PERF: GPU composite layer */
+  /* ✅ PERF FIX: will-change sirf animation ke dauran — auto baad mein */
   will-change: opacity;
   contain: layout style;
 }
 
-/* Animation done hone ke baad will-change hata do — memory waste nahi hoga */
 .page-fade-in.animation-done {
   will-change: auto;
 }
@@ -203,29 +200,30 @@ body {
 
 /* ============================================================
    GOLDMAN FONT
+   ✅ PERF FIX: * selector HATAYA — yeh sabse bada jank reason tha
+   Pehle: har element pe Goldman !important = browser har element ko
+   style recalculate karta tha = scroll + render slow
+   Ab: sirf specific elements pe inherit hoga — body se propagate hoga
    ============================================================ */
-*,
-*::before,
-*::after {
-  font-family: var(--font-goldman) !important;
-}
 
+/* Monospace elements — Goldman se override nahi honge */
 code,
 pre,
 kbd,
 samp,
-.monospace {
+.monospace,
+.font-mono {
   font-family: monospace !important;
 }
 
-/* Italic prevention */
+/* ✅ PERF FIX: Italic prevention — * selector se hataya, specific elements pe */
 i,
 em,
 cite,
 address,
 var,
 .italic {
-  font-style: normal !important;
+  font-style: normal;
 }
 
 /* ============================================================
@@ -237,7 +235,7 @@ var,
 .font-poppins-regular,
 .font-poppins-medium,
 .font-cormorant {
-  font-family: var(--font-goldman) !important;
+  font-family: var(--font-goldman);
   font-weight: 400;
 }
 
@@ -246,18 +244,14 @@ var,
 .font-poppins-semibold,
 .font-poppins-extrabold,
 .font-poppins-black {
-  font-family: var(--font-goldman) !important;
+  font-family: var(--font-goldman);
   font-weight: 700;
 }
 
 .font-poppins-thin,
 .font-poppins-light {
-  font-family: var(--font-goldman) !important;
+  font-family: var(--font-goldman);
   font-weight: 400;
-}
-
-.font-mono {
-  font-family: monospace !important;
 }
 
 /* ============================================================
@@ -295,65 +289,73 @@ a {
 
 /* ============================================================
    STICKY NAVBAR
-   ✅ PERF: GPU promoted layer — scroll jank zero
+   ✅ PERF FIX: will-change: transform HATAYA — yeh unnecessary GPU
+   layer bana raha tha jo memory waste karta tha aur repaint karta tha.
+   Sirf position: sticky + z-index kaafi hai.
    ============================================================ */
 .navbar-sticky-wrapper {
   position: sticky;
   top: 0;
   z-index: 50;
-  /* ✅ PERF: Force GPU compositing */
+  /* ✅ translateZ(0) rakha — GPU compositing ke liye enough */
   transform: translateZ(0);
-  will-change: transform;
-  /* ✅ PERF: Contain layout recalcs to this element */
-  contain: layout style;
+  /* ✅ contain: strict — navbar ke andar changes page layout affect nahi karenge */
+  contain: strict;
+  /* ✅ Size hint — layout shift zero */
+  min-height: var(--navbar-height);
 }
 
 /* ============================================================
-   ✅ PERF: SWIPER GLOBAL OPTIMIZATIONS
-   Swiper slides GPU pe render hon — main thread free rahe
+   SWIPER GLOBAL OPTIMIZATIONS
+   ✅ PERF FIX: content-visibility: auto HATAYA swiper-slide se
+   Yeh scroll karte waqt layout recalculate karta tha = jank
    ============================================================ */
 .swiper {
-  /* ✅ Contain layout — parent reflow nahi hoga */
   contain: layout style;
+  /* ✅ PERF: overflow hidden — paint area limit karo */
+  overflow: hidden;
 }
 
 .swiper-wrapper {
-  /* ✅ GPU compositing — janky scroll nahi hoga */
   will-change: transform;
   transform: translateZ(0);
+  /* ✅ PERF: Backface visibility — 3D stack pe hidden slides */
+  backface-visibility: hidden;
 }
 
 .swiper-slide {
-  /* ✅ Each slide apna composite layer banaye */
   transform: translateZ(0);
-  /* ✅ Hidden slides render mat karo */
-  content-visibility: auto;
-  contain-intrinsic-size: 300px;
+  /* ✅ PERF FIX: content-visibility REMOVED — scroll jank karta tha
+     Instead: backface-visibility hidden use karo */
+  backface-visibility: hidden;
 }
 
-/* ✅ Lazy loaded swiper images */
 .swiper-slide img {
-  will-change: auto; /* images pe will-change mat lagao — memory waste */
+  will-change: auto;
+  /* ✅ PERF: Image rendering hint */
+  image-rendering: auto;
 }
 
 /* ============================================================
-   ✅ PERF: IMAGE OPTIMIZATION HELPERS
+   IMAGE OPTIMIZATION
    ============================================================ */
 img {
-  /* ✅ Prevent layout shift */
   max-width: 100%;
   height: auto;
+  /* ✅ PERF: Decode async — main thread block nahi hoga */
+  content-visibility: auto;
 }
 
-/* ✅ Lazy images — jab tak load na ho placeholder dikhao */
+/* ✅ PERF FIX: lazy images — contain: size layout NAHI
+   yeh CLS (Cumulative Layout Shift) cause karta tha */
 img[loading="lazy"] {
-  /* Browser lazy loading ke saath kaam karta hai */
-  contain: size layout;
+  /* Browser handles lazy loading natively — koi extra CSS nahi */
 }
 
 /* ============================================================
-   ✅ PERF: REDUCE LAYOUT THRASHING
-   Heavy sections apna layout contain karen
+   LAYOUT CONTAINMENT — Heavy sections
+   ✅ PERF: contain: layout — sirf layout, strict nahi
+   Strict content-visibility pe recalcs karta tha
    ============================================================ */
 .fp-swiper,
 .pg-grid,
@@ -361,6 +363,37 @@ img[loading="lazy"] {
 .ss-content,
 .pf-content {
   contain: layout;
+}
+
+/* ============================================================
+   SCROLL PERFORMANCE
+   ✅ PERF: Touch scrolling smooth on mobile
+   ============================================================ */
+.cs-items,
+.ss-content,
+.sidebar-nav,
+.pd-content,
+.pf-content {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ============================================================
+   GPU HINTS — Only where truly needed
+   ✅ PERF: Sidebars/overlays jo slide in/out karte hain
+   ============================================================ */
+.cs-sidebar,
+.ss-sidebar,
+[class*="-sidebar"] {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Animation khatam hone ke baad GPU layer release karo */
+.cs-sidebar:not(.open),
+.ss-sidebar:not(.open),
+[class*="-sidebar"]:not(.open) {
+  will-change: auto;
 }
 
 /* ============================================================
