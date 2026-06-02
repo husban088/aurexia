@@ -842,11 +842,8 @@ export default function FeaturedProducts() {
   const loadProductsForTab = useCallback(
     async (tab: string, forceRefresh = false) => {
       const cached = tabCache[tab];
-      const cacheAge = cached?.fetchedAt
-        ? Date.now() - cached.fetchedAt
-        : Infinity;
-      const cacheValid =
-        (cached?.products?.length ?? 0) > 0 && cacheAge < CACHE_TTL_MS;
+      const cacheAge = cached?.fetchedAt ? Date.now() - cached.fetchedAt : Infinity;
+      const cacheValid = (cached?.products?.length ?? 0) > 0 && cacheAge < CACHE_TTL_MS;
       const cachedHasProducts = (cached?.products?.length ?? 0) > 0;
 
       if (cacheValid && !forceRefresh) {

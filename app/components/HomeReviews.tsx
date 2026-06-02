@@ -24,11 +24,7 @@ let cacheTimestamp: number = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 function isCacheValid(): boolean {
-  return (
-    cachedReviews !== null &&
-    cachedReviews.length > 0 &&
-    Date.now() - cacheTimestamp < CACHE_TTL_MS
-  );
+  return cachedReviews !== null && cachedReviews.length > 0 && Date.now() - cacheTimestamp < CACHE_TTL_MS;
 }
 
 // ── Fetch function — standalone, no mountedRef dependency ──
@@ -164,8 +160,8 @@ function SkeletonCard() {
 // ── Main Component ──
 export default function HomeReviews() {
   const { isRTLMode } = useLanguage();
-  const [reviews, setReviews] = useState<HomeReview[]>(() =>
-    isCacheValid() ? cachedReviews! : [],
+  const [reviews, setReviews] = useState<HomeReview[]>(
+    () => (isCacheValid() ? cachedReviews! : []),
   );
   const [loading, setLoading] = useState(() => !isCacheValid());
   const [visibleCount, setVisibleCount] = useState(3);
@@ -236,16 +232,14 @@ export default function HomeReviews() {
     if (!loading) return;
     const timer = setTimeout(() => {
       // Force a fresh fetch ignoring cache
-      fetchReviewsFromDB()
-        .then((data) => {
-          if (mountedRef.current) {
-            setReviews(data);
-            setLoading(false);
-          }
-        })
-        .catch(() => {
-          if (mountedRef.current) setLoading(false);
-        });
+      fetchReviewsFromDB().then((data) => {
+        if (mountedRef.current) {
+          setReviews(data);
+          setLoading(false);
+        }
+      }).catch(() => {
+        if (mountedRef.current) setLoading(false);
+      });
     }, 6000);
     return () => clearTimeout(timer);
   }, [loading]);
@@ -268,8 +262,7 @@ export default function HomeReviews() {
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
-    return () =>
-      document.removeEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [loadReviews]);
 
   // ── Browser back/forward (bfcache + regular navigation) ──
@@ -328,14 +321,17 @@ export default function HomeReviews() {
       }
 
       setAnimDir(dir);
-      setTimeout(() => {
-        setOffset((prev) =>
-          dir === "right"
-            ? Math.min(prev + visibleCount, totalSlides - visibleCount)
-            : Math.max(prev - visibleCount, 0),
-        );
-        setAnimDir("idle");
-      }, 420);
+      setTimeout(
+        () => {
+          setOffset((prev) =>
+            dir === "right"
+              ? Math.min(prev + visibleCount, totalSlides - visibleCount)
+              : Math.max(prev - visibleCount, 0),
+          );
+          setAnimDir("idle");
+        },
+        420,
+      );
     },
     [animDir, canNext, canPrev, totalSlides, visibleCount],
   );
